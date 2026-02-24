@@ -52,6 +52,7 @@ st.markdown("""
 ESCOLA_NOME = "Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI"
 ESCOLA_SUBTITULO = "🌟 Escola dos Sonhos"
 ESCOLA_ENDERECO = "R. VALTER DE SOUZA COSTA, 147 - JARDIM PRIMAVERA - FERRAZ DE VASCONCELOS/SP"
+ESCOLA_LOGO = "logo.jpg"  # ← NOME DO ARQUIVO DA LOGO
 
 # --- MENU LATERAL ---
 menu = st.sidebar.selectbox("Menu", [
@@ -255,6 +256,10 @@ if 'editando_id' not in st.session_state:
     st.session_state.editando_id = None
 if 'dados_edicao' not in st.session_state:
     st.session_state.dados_edicao = None
+if 'turma_para_deletar' not in st.session_state:
+    st.session_state.turma_para_deletar = None
+if 'turma_selecionada' not in st.session_state:
+    st.session_state.turma_selecionada = None
 
 # --- CARREGAR DADOS ---
 df_alunos = carregar_alunos()
@@ -265,6 +270,8 @@ df_professores = carregar_professores()
 if menu == "🏠 Início":
     st.markdown(f"""
         <div class="main-header">
+            <img src="https://raw.githubusercontent.com/Fr34k1981/SistemaConviva/main/logo.jpg" 
+                 style="max-width: 150px; margin-bottom: 1rem;" alt="Logo da Escola">
             <div class="school-name">🏫 {ESCOLA_NOME}</div>
             <div class="school-subtitle">{ESCOLA_SUBTITULO}</div>
             <div class="school-address">📍 {ESCOLA_ENDERECO}</div>
@@ -344,7 +351,6 @@ elif menu == "📥 Importar Alunos":
             if faltantes:
                 st.error(f"❌ Colunas não encontradas: {', '.join(faltantes)}")
             else:
-                # Verificar se já existe essa turma
                 turmas_existentes = df_alunos['turma'].unique().tolist() if not df_alunos.empty else []
                 if turma_alunos in turmas_existentes:
                     st.warning(f"⚠️ A turma **{turma_alunos}** já existe no sistema!")
@@ -367,7 +373,6 @@ elif menu == "📥 Importar Alunos":
                                     erros += 1
                                     continue
                                 
-                                # Verificar se aluno já existe pelo RA
                                 aluno_existente = df_alunos[df_alunos['ra'] == ra_str]
                                 
                                 aluno = {
@@ -379,13 +384,11 @@ elif menu == "📥 Importar Alunos":
                                 }
                                 
                                 if not aluno_existente.empty:
-                                    # Atualizar aluno existente
                                     if atualizar_aluno(ra_str, aluno):
                                         contagem_atualizados += 1
                                     else:
                                         erros += 1
                                 else:
-                                    # Salvar novo aluno
                                     if salvar_aluno(aluno):
                                         contagem_novos += 1
                                     else:
@@ -409,7 +412,6 @@ elif menu == "📋 Gerenciar Turmas Importadas":
     st.header("📋 Gerenciar Turmas Importadas")
     
     if not df_alunos.empty:
-        # Agrupar por turma
         turmas_info = df_alunos.groupby('turma').agg({
             'ra': 'count',
             'nome': 'first'
@@ -418,7 +420,6 @@ elif menu == "📋 Gerenciar Turmas Importadas":
         
         st.subheader("📊 Resumo das Turmas")
         
-        # Criar cards para cada turma
         for idx, row in turmas_info.iterrows():
             col1, col2, col3 = st.columns([3, 1, 1])
             with col1:
@@ -435,7 +436,6 @@ elif menu == "📋 Gerenciar Turmas Importadas":
                 if st.button("🗑️ Deletar Turma", key=f"del_{row['turma']}", type="secondary"):
                     st.session_state.turma_para_deletar = row['turma']
         
-        # Confirmar exclusão
         if 'turma_para_deletar' in st.session_state:
             st.warning(f"⚠️ Tem certeza que deseja deletar a turma **{st.session_state.turma_para_deletar}**?")
             st.info("Isso removerá TODOS os alunos desta turma!")
@@ -451,7 +451,6 @@ elif menu == "📋 Gerenciar Turmas Importadas":
                     del st.session_state.turma_para_deletar
                     st.rerun()
         
-        # Ver alunos da turma selecionada
         if 'turma_selecionada' in st.session_state:
             st.markdown("---")
             st.subheader(f"👥 Alunos da Turma: {st.session_state.turma_selecionada}")
