@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
@@ -89,6 +89,15 @@ st.markdown("""
         margin: 0.5rem 0;
         font-weight: bold;
     }
+    .metric-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 1.5rem;
+        border-radius: 10px;
+        color: white;
+        text-align: center;
+    }
+    .metric-value { font-size: 2.5rem; font-weight: bold; }
+    .metric-label { font-size: 1rem; opacity: 0.9; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -112,7 +121,72 @@ menu = st.sidebar.selectbox("Menu", [
     "🖨️ Imprimir PDF"
 ])
 
-# --- PROTOCOLO 179 COMPLETO - GRAVIDADE E ENCAMINHAMENTOS OFICIAIS ---
+# --- CORES PARA TIPOS DE INFRAÇÃO ---
+CORES_INFRACOES = {
+    "Agressão Física": "#FF6B6B",
+    "Agressão Verbal / Conflito Verbal": "#FFE66D",
+    "Ameaça": "#FF8E72",
+    "Bullying": "#4ECDC4",
+    "Cyberbullying": "#45B7D1",
+    "Racismo": "#9B59B6",
+    "Homofobia": "#E91E63",
+    "Transfobia": "#E91E63",
+    "Gordofobia": "#FFA726",
+    "Xenofobia": "#9B59B6",
+    "Capacitismo (Discriminação por Deficiência)": "#BA68C8",
+    "Misoginia / Violência de Gênero": "#E91E63",
+    "Assédio Moral": "#F06292",
+    "Assédio Sexual": "#C2185B",
+    "Importunação Sexual / Estupro": "#880E4F",
+    "Apologia ao Nazismo": "#4A148C",
+    "Posse de Arma de Fogo / Simulacro": "#D32F2F",
+    "Posse de Arma Branca": "#B71C1C",
+    "Posse de Arma de Brinquedo": "#FFCDD2",
+    "Ameaça de Ataque Ativo": "#B71C1C",
+    "Ataque Ativo Concretizado": "#880E4F",
+    "Invasão": "#F44336",
+    "Ocupação de Unidade Escolar": "#FF5722",
+    "Roubo": "#FF7043",
+    "Furto": "#FFB74D",
+    "Dano ao Patrimônio / Vandalismo": "#FFA726",
+    "Posse de Celular / Dispositivo Eletrônico": "#4DB6AC",
+    "Consumo de Álcool e Tabaco": "#81C784",
+    "Consumo de Cigarro Eletrônico": "#66BB6A",
+    "Consumo de Substâncias Ilícitas": "#2E7D32",
+    "Comercialização de Álcool e Tabaco": "#388E3C",
+    "Envolvimento com Tráfico de Drogas": "#1B5E20",
+    "Indisciplina": "#64B5F6",
+    "Evasão Escolar / Infrequência": "#42A5F5",
+    "Sinais de Automutilação": "#5C6BC0",
+    "Sinais de Isolamento Social": "#7986CB",
+    "Sinais de Alterações Emocionais": "#9FA8DA",
+    "Tentativa de Suicídio": "#3949AB",
+    "Suicídio Concretizado": "#1A237E",
+    "Mal Súbito": "#FFD54F",
+    "Óbito": "#424242",
+    "Crimes Cibernéticos": "#00BCD4",
+    "Fake News / Disseminação de Informações Falsas": "#26C6DA",
+    "Violência Doméstica / Maus Tratos": "#D81B60",
+    "Vulnerabilidade Familiar / Negligência": "#EC407A",
+    "Alerta de Desaparecimento": "#C2185B",
+    "Sequestro": "#880E4F",
+    "Homicídio / Homicídio Tentado": "#212121",
+    "Feminicídio": "#880E4F",
+    "Incitamento a Atos Infracionais": "#5D4037",
+    "Acidentes e Eventos Inesperados": "#FFB300",
+    "Atos Obscenos / Atos Libidinosos": "#F06292",
+    "Uso Inadequado de Dispositivos Eletrônicos": "#4DD0E1",
+    "Outros": "#9E9E9E"
+}
+
+# --- CORES POR GRAVIDADE ---
+CORES_GRAVIDADE = {
+    "Leve": "#4CAF50",
+    "Grave": "#FF9800",
+    "Gravíssima": "#F44336"
+}
+
+# --- PROTOCOLO 179 COMPLETO ---
 PROTOCOLO_179 = {
     "📌 Violência e Agressão": {
         "Agressão Física": {
@@ -696,7 +770,7 @@ elif menu == "📝 Registrar Ocorrência":
                 data = st.date_input("Data", data_hora_sp.date())
                 hora = st.time_input("Hora", data_hora_sp.time())
             with col2:
-                # INFRAÇÃO PRINCIPAL (DROPDOWN - COMO ANTES)
+                # INFRAÇÃO PRINCIPAL (DROPDOWN)
                 st.subheader("📋 Infração Principal (Protocolo 179)")
                 grupo = st.selectbox("Grupo", list(PROTOCOLO_179.keys()), key="grupo_principal")
                 cats = PROTOCOLO_179[grupo]
@@ -722,7 +796,6 @@ elif menu == "📝 Registrar Ocorrência":
                 
                 infracoes_adicionais = []
                 if adicionar_outra == "Sim, adicionar infração adicional":
-                    # Permitir até 4 infrações adicionais (total 5)
                     for i in range(4):
                         st.markdown(f"**Infração Adicional {i+1}:**")
                         grupo_add = st.selectbox(f"Grupo {i+1}", list(PROTOCOLO_179.keys()), key=f"grupo_add_{i}")
@@ -730,7 +803,6 @@ elif menu == "📝 Registrar Ocorrência":
                         infracao_add = st.selectbox(f"Ocorrência {i+1}", list(cats_add.keys()), key=f"infracao_add_{i}")
                         infracoes_adicionais.append(infracao_add)
                         
-                        # Opção para adicionar mais
                         if i < 3:
                             adicionar_mais = st.checkbox(f"Adicionar mais uma após esta?", key=f"mais_{i}")
                             if not adicionar_mais:
@@ -741,56 +813,66 @@ elif menu == "📝 Registrar Ocorrência":
                 
                 # CALCULAR GRAVIDADE E ENCAMINHAMENTOS TOTAIS
                 todas_infracoes = [infracao_principal] + infracoes_adicionais
-                gravidades = [PROTOCOLO_179[list(PROTOCOLO_179.keys())[0]][inf]["gravidade"] if inf in PROTOCOLO_179[list(PROTOCOLO_179.keys())[0]] 
-                             else next((cats[inf]["gravidade"] for cats in PROTOCOLO_179.values() if inf in cats), "Leve") 
-                             for inf in todas_infracoes]
-                gravidade_protocolo = obter_gravidade_mais_alta(gravidades)
-                
-                # Combinar encaminhamentos
+                gravidades = []
                 encaminhamentos_lista = []
+                
                 for inf in todas_infracoes:
-                    for cats in PROTOCOLO_179.values():
+                    for grupo_nome, cats in PROTOCOLO_179.items():
                         if inf in cats:
+                            gravidades.append(cats[inf]["gravidade"])
                             encaminhamentos_lista.append(cats[inf]["encaminhamento"])
                             break
+                
+                gravidade_protocolo = obter_gravidade_mais_alta(gravidades)
                 encam_sugerido = combinar_encaminhamentos(encaminhamentos_lista)
                 
-                # Mostrar informações do protocolo
-                st.markdown(f"""
-                    <div class="protocolo-info">
-                        <b>📋 Protocolo 179 - {len(todas_infracoes)} infração(ões)</b><br>
-                        <b>Infração Principal:</b> {infracao_principal}<br>
-                        {'<b>Infrações Adicionais:</b> ' + ', '.join(infracoes_adicionais) + '<br>' if infracoes_adicionais else ''}
-                        <b>Gravidade (mais alta):</b> {gravidade_protocolo}<br>
-                        <b>Encaminhamentos Sugeridos (combinados):</b><br>
-                        {encam_sugerido.replace(chr(10), "<br>")}
-                    </div>
-                """, unsafe_allow_html=True)
+                # Mostrar informações do protocolo (SEM HTML TAGS NO CONTEÚDO)
+                st.markdown("---")
+                
+                # Box de informações
+                st.info(f"""
+                    **📋 Protocolo 179 - {len(todas_infracoes)} infração(ões)**
+                    
+                    **Infração Principal:** {infracao_principal}
+                    
+                    {'**Infrações Adicionais:** ' + ', '.join(infracoes_adicionais) if infracoes_adicionais else ''}
+                    
+                    **Gravidade (mais alta):** {gravidade_protocolo}
+                    
+                    **Encaminhamentos Sugeridos (combinados):**
+                """)
+                
+                # Mostrar encaminhamentos formatados (LINHA POR LINHA)
+                for linha in encam_sugerido.split('\n'):
+                    if linha.strip():
+                        st.write(linha)
                 
                 # Mostrar tags das infrações
                 if todas_infracoes:
+                    st.markdown("---")
                     st.markdown("**Infrações registradas:**")
                     tags_html = f'<span class="infracao-principal-tag">🎯 {infracao_principal}</span>'
                     for inf in infracoes_adicionais:
                         tags_html += f'<span class="infracao-tag">{inf}</span>'
-                    st.markdown(f"<div>{tags_html}</div>", unsafe_allow_html=True)
+                    st.markdown(tags_html, unsafe_allow_html=True)
                 
                 # Gravidade com aviso se alterar
                 gravidade = st.selectbox("Gravidade", ["Leve", "Grave", "Gravíssima"],
-                                        index=["Leve", "Grave", "Gravíssima"].index(gravidade_protocolo) if gravidade_protocolo in ["Leve", "Grave", "Gravíssima"] else 0,
+                                        index=["Leve", "Grave", "Gravíssima"].index(gravidade_protocolo),
                                         key="gravidade_select")
                 
-                # Aviso se mudar a gravidade do protocolo
-                if gravidade != gravidade_protocolo and not st.session_state.gravidade_alterada:
-                    st.markdown(f"""
-                        <div class="gravidade-alert">
-                            ⚠️ <b>ATENÇÃO:</b> Você está alterando a gravidade sugerida pelo Protocolo 179!
-                            <br>A gravidade oficial para estas infrações é <b>{gravidade_protocolo}</b>.
-                            <br>Certifique-se de que há justificativa para esta alteração.
-                        </div>
-                    """, unsafe_allow_html=True)
-                    st.session_state.gravidade_alterada = True
-                elif gravidade == gravidade_protocolo:
+                # Aviso se mudar a gravidade do protocolo (SEM DUPLICAR)
+                if gravidade != gravidade_protocolo:
+                    if not st.session_state.gravidade_alterada:
+                        st.error(f"""
+                            ⚠️ **ATENÇÃO:** Você está alterando a gravidade sugerida pelo Protocolo 179!
+                            
+                            **A gravidade oficial para estas infrações é {gravidade_protocolo}.**
+                            
+                            Certifique-se de que há justificativa para esta alteração.
+                        """)
+                        st.session_state.gravidade_alterada = True
+                else:
                     st.session_state.gravidade_alterada = False
             
             st.markdown("---")
@@ -1048,19 +1130,193 @@ elif menu == "📋 Histórico de Ocorrências":
     else:
         st.write("📭 Nenhuma ocorrência.")
 
-# --- 9. GRÁFICOS ---
+# --- 9. GRÁFICOS E INDICADORES AVANÇADOS ---
 elif menu == "📊 Gráficos e Indicadores":
-    st.header("📊 Indicadores")
-    if not df_ocorrencias.empty:
-        col1, col2 = st.columns(2)
-        with col1:
-            st.subheader("Por Categoria")
-            st.bar_chart(df_ocorrencias['categoria'].value_counts())
-        with col2:
-            st.subheader("Por Gravidade")
-            st.bar_chart(df_ocorrencias['gravidade'].value_counts())
+    st.header("📊 Dashboard de Ocorrências - Protocolo 179")
+    
+    if df_ocorrencias.empty:
+        st.warning("⚠️ Nenhuma ocorrência registrada ainda.")
     else:
-        st.write("📭 Sem dados.")
+        # --- FILTROS AVANÇADOS ---
+        st.subheader("🔍 Filtros Avançados")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            filtro_periodo = st.selectbox("📅 Período", 
+                                         ["Todos", "Hoje", "Últimos 7 dias", "Últimos 30 dias", "Este mês", "Este ano", "Personalizado"])
+        
+        with col2:
+            turmas_disponiveis = ["Todas"] + df_ocorrencias['turma'].unique().tolist()
+            filtro_turma = st.selectbox("🏫 Turma", turmas_disponiveis)
+        
+        with col3:
+            gravidades_disponiveis = ["Todas"] + df_ocorrencias['gravidade'].unique().tolist()
+            filtro_gravidade = st.selectbox("⚖️ Gravidade", gravidades_disponiveis)
+        
+        with col4:
+            todas_infracoes = []
+            for cat in df_ocorrencias['categoria'].unique():
+                todas_infracoes.extend(cat.split(' | '))
+            infracoes_unicas = list(set([i.strip() for i in todas_infracoes]))
+            infracoes_disponiveis = ["Todas"] + sorted(infracoes_unicas)
+            filtro_infracao = st.selectbox("📋 Infração", infracoes_disponiveis)
+        
+        if filtro_periodo == "Personalizado":
+            col_data1, col_data2 = st.columns(2)
+            with col_data1:
+                data_inicio = st.date_input("Data Início", value=datetime.now() - timedelta(days=30))
+            with col_data2:
+                data_fim = st.date_input("Data Fim", value=datetime.now())
+        
+        # --- APLICAR FILTROS ---
+        df_filtrado = df_ocorrencias.copy()
+        
+        if filtro_periodo == "Hoje":
+            hoje = datetime.now().strftime('%d/%m/%Y')
+            df_filtrado = df_filtrado[df_filtrado['data'].str.contains(hoje)]
+        elif filtro_periodo == "Últimos 7 dias":
+            data_limite = datetime.now() - timedelta(days=7)
+            df_filtrado['data_dt'] = pd.to_datetime(df_filtrado['data'], format='%d/%m/%Y %H:%M', errors='coerce')
+            df_filtrado = df_filtrado[df_filtrado['data_dt'] >= data_limite]
+        elif filtro_periodo == "Últimos 30 dias":
+            data_limite = datetime.now() - timedelta(days=30)
+            df_filtrado['data_dt'] = pd.to_datetime(df_filtrado['data'], format='%d/%m/%Y %H:%M', errors='coerce')
+            df_filtrado = df_filtrado[df_filtrado['data_dt'] >= data_limite]
+        elif filtro_periodo == "Este mês":
+            mes_atual = datetime.now().month
+            ano_atual = datetime.now().year
+            df_filtrado['data_dt'] = pd.to_datetime(df_filtrado['data'], format='%d/%m/%Y %H:%M', errors='coerce')
+            df_filtrado = df_filtrado[(df_filtrado['data_dt'].dt.month == mes_atual) & (df_filtrado['data_dt'].dt.year == ano_atual)]
+        elif filtro_periodo == "Este ano":
+            ano_atual = datetime.now().year
+            df_filtrado['data_dt'] = pd.to_datetime(df_filtrado['data'], format='%d/%m/%Y %H:%M', errors='coerce')
+            df_filtrado = df_filtrado[df_filtrado['data_dt'].dt.year == ano_atual]
+        elif filtro_periodo == "Personalizado":
+            df_filtrado['data_dt'] = pd.to_datetime(df_filtrado['data'], format='%d/%m/%Y %H:%M', errors='coerce')
+            df_filtrado = df_filtrado[(df_filtrado['data_dt'] >= pd.Timestamp(data_inicio)) & 
+                                      (df_filtrado['data_dt'] <= pd.Timestamp(data_fim) + pd.Timedelta(days=1))]
+        
+        if filtro_turma != "Todas":
+            df_filtrado = df_filtrado[df_filtrado['turma'] == filtro_turma]
+        
+        if filtro_gravidade != "Todas":
+            df_filtrado = df_filtrado[df_filtrado['gravidade'] == filtro_gravidade]
+        
+        if filtro_infracao != "Todas":
+            df_filtrado = df_filtrado[df_filtrado['categoria'].str.contains(filtro_infracao, na=False)]
+        
+        # --- INDICADORES PRINCIPAIS ---
+        st.subheader("📈 Indicadores Principais")
+        
+        col1, col2, col3, col4, col5 = st.columns(5)
+        
+        total_ocorrencias = len(df_filtrado)
+        total_graves = len(df_filtrado[df_filtrado['gravidade'] == 'Gravíssima'])
+        total_grave = len(df_filtrado[df_filtrado['gravidade'] == 'Grave'])
+        total_leve = len(df_filtrado[df_filtrado['gravidade'] == 'Leve'])
+        turmas_afetadas = df_filtrado['turma'].nunique()
+        
+        with col1:
+            st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-value">{total_ocorrencias}</div>
+                    <div class="metric-label">Total de Ocorrências</div>
+                </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown(f"""
+                <div class="metric-card" style="background: linear-gradient(135deg, #F44336 0%, #D32F2F 100%);">
+                    <div class="metric-value">{total_graves}</div>
+                    <div class="metric-label">Gravíssimas</div>
+                </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            st.markdown(f"""
+                <div class="metric-card" style="background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);">
+                    <div class="metric-value">{total_grave}</div>
+                    <div class="metric-label">Graves</div>
+                </div>
+            """, unsafe_allow_html=True)
+        
+        with col4:
+            st.markdown(f"""
+                <div class="metric-card" style="background: linear-gradient(135deg, #4CAF50 0%, #388E3C 100%);">
+                    <div class="metric-value">{total_leve}</div>
+                    <div class="metric-label">Leves</div>
+                </div>
+            """, unsafe_allow_html=True)
+        
+        with col5:
+            st.markdown(f"""
+                <div class="metric-card" style="background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);">
+                    <div class="metric-value">{turmas_afetadas}</div>
+                    <div class="metric-label">Turmas Afetadas</div>
+                </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
+        # --- GRÁFICOS ---
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("📊 Ocorrências por Categoria")
+            
+            if not df_filtrado.empty:
+                todas_cats = []
+                for cat in df_filtrado['categoria']:
+                    todas_cats.extend([c.strip() for c in cat.split('|')])
+                
+                df_cats = pd.DataFrame({'Categoria': todas_cats})
+                contagem_cats = df_cats['Categoria'].value_counts().head(10)
+                
+                st.bar_chart(contagem_cats)
+        
+        with col2:
+            st.subheader("⚖️ Ocorrências por Gravidade")
+            
+            if not df_filtrado.empty:
+                contagem_grav = df_filtrado['gravidade'].value_counts()
+                st.bar_chart(contagem_grav)
+        
+        st.markdown("---")
+        
+        # --- GRÁFICO DE LINHA (EVOLUÇÃO TEMPORAL) ---
+        st.subheader("📈 Evolução Temporal das Ocorrências")
+        
+        if not df_filtrado.empty:
+            df_filtrado['data_dt'] = pd.to_datetime(df_filtrado['data'], format='%d/%m/%Y %H:%M', errors='coerce')
+            df_filtrado['data_apenas'] = df_filtrado['data_dt'].dt.date
+            
+            evolucao = df_filtrado.groupby('data_apenas').size().reset_index(name='Quantidade')
+            evolucao = evolucao.sort_values('data_apenas')
+            
+            st.line_chart(evolucao.set_index('data_apenas'))
+        
+        # --- TOP TURMAS ---
+        st.subheader("🏫 Top 10 Turmas com Mais Ocorrências")
+        
+        if not df_filtrado.empty:
+            top_turmas = df_filtrado['turma'].value_counts().head(10)
+            st.bar_chart(top_turmas)
+        
+        # --- TABELA DE DADOS FILTRADOS ---
+        st.subheader("📋 Dados Filtrados")
+        
+        if not df_filtrado.empty:
+            st.dataframe(df_filtrado[['data', 'aluno', 'turma', 'categoria', 'gravidade', 'professor']], 
+                        use_container_width=True)
+            
+            csv = df_filtrado.to_csv(index=False, sep=';', encoding='utf-8-sig')
+            st.download_button(
+                label="📥 Baixar Dados Filtrados (CSV)",
+                data=csv,
+                file_name=f"ocorrencias_filtradas_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                mime="text/csv"
+            )
 
 # --- 10. PDF ---
 elif menu == "🖨️ Imprimir PDF":
