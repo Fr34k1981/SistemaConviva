@@ -80,6 +80,15 @@ st.markdown("""
         margin: 0.2rem;
         font-size: 0.9rem;
     }
+    .infracao-principal-tag {
+        background: #28a745;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 15px;
+        display: inline-block;
+        margin: 0.5rem 0;
+        font-weight: bold;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -470,7 +479,6 @@ def obter_gravidade_mais_alta(gravidades):
 
 # --- COMBINAR ENCAMINHAMENTOS ---
 def combinar_encaminhamentos(encaminhamentos_lista):
-    # Remove duplicatas e combina
     todos = []
     for encam in encaminhamentos_lista:
         for linha in encam.split('\n'):
@@ -555,8 +563,10 @@ if 'ocorrencia_salva_sucesso' not in st.session_state:
     st.session_state.ocorrencia_salva_sucesso = False
 if 'gravidade_alterada' not in st.session_state:
     st.session_state.gravidade_alterada = False
-if 'infracoes_selecionadas' not in st.session_state:
-    st.session_state.infracoes_selecionadas = []
+if 'adicionar_outra_infracao' not in st.session_state:
+    st.session_state.adicionar_outra_infracao = False
+if 'infracoes_adicionais' not in st.session_state:
+    st.session_state.infracoes_adicionais = []
 
 # --- CARREGAR DADOS ---
 df_alunos = carregar_alunos()
@@ -658,7 +668,8 @@ elif menu == "📝 Registrar Ocorrência":
         st.session_state.ocorrencia_salva_sucesso = False
         st.session_state.salvando_ocorrencia = False
         st.session_state.gravidade_alterada = False
-        st.session_state.infracoes_selecionadas = []
+        st.session_state.adicionar_outra_infracao = False
+        st.session_state.infracoes_adicionais = []
     
     if df_alunos.empty:
         st.warning("⚠️ Importe alunos primeiro.")
@@ -685,59 +696,84 @@ elif menu == "📝 Registrar Ocorrência":
                 data = st.date_input("Data", data_hora_sp.date())
                 hora = st.time_input("Hora", data_hora_sp.time())
             with col2:
-                # MÚLTIPLAS INFRAÇÕES - SELEÇÃO POR GRUPO
-                st.subheader("📋 Infrações (Protocolo 179)")
-                st.info("💡 Selecione UMA ou MAIS infrações relacionadas ao incidente (máximo 5)")
-                
-                grupo = st.selectbox("Grupo", list(PROTOCOLO_179.keys()), key="grupo_select")
-                
-                # Mostrar infrações do grupo selecionado
+                # INFRAÇÃO PRINCIPAL (DROPDOWN - COMO ANTES)
+                st.subheader("📋 Infração Principal (Protocolo 179)")
+                grupo = st.selectbox("Grupo", list(PROTOCOLO_179.keys()), key="grupo_principal")
                 cats = PROTOCOLO_179[grupo]
+                infracao_principal = st.selectbox("Ocorrência Principal", list(cats.keys()), key="infracao_principal")
                 
-                # Checkbox para cada infração
-                infracoes_grupo = list(cats.keys())
-                infracoes_marcadas = []
+                # Dados da infração principal
+                gravidade_principal = cats[infracao_principal]["gravidade"]
+                encam_principal = cats[infracao_principal]["encaminhamento"]
                 
-                for infracao in infracoes_grupo:
-                    if st.checkbox(f"□ {infracao}", key=f"check_{infracao}"):
-                        infracoes_marcadas.append(infracao)
+                # Tag da infração principal
+                st.markdown(f'<span class="infracao-principal-tag">🎯 Principal: {infracao_principal}</span>', unsafe_allow_html=True)
                 
-                # Limitar a 5 infrações
-                if len(infracoes_marcadas) > 5:
-                    st.error("❌ Máximo de 5 infrações por ocorrência!")
-                    infracoes_marcadas = infracoes_marcadas[:5]
+                # PERGUNTAR SE QUER ADICIONAR OUTRA INFRAÇÃO
+                st.markdown("---")
+                st.subheader("➕ Infrações Adicionais (Opcional)")
                 
-                st.session_state.infracoes_selecionadas = infracoes_marcadas
+                adicionar_outra = st.radio(
+                    "Deseja adicionar outra infração relacionada?",
+                    ["Não, apenas a principal", "Sim, adicionar infração adicional"],
+                    key="radio_adicionar_infracao",
+                    index=0
+                )
                 
-                # Mostrar tags das infrações selecionadas
-                if infracoes_marcadas:
-                    st.markdown("**Infrações selecionadas:**")
-                    tags_html = "".join([f'<span class="infracao-tag">{inf}</span>' for inf in infracoes_marcadas])
+                infracoes_adicionais = []
+                if adicionar_outra == "Sim, adicionar infração adicional":
+                    # Permitir até 4 infrações adicionais (total 5)
+                    for i in range(4):
+                        st.markdown(f"**Infração Adicional {i+1}:**")
+                        grupo_add = st.selectbox(f"Grupo {i+1}", list(PROTOCOLO_179.keys()), key=f"grupo_add_{i}")
+                        cats_add = PROTOCOLO_179[grupo_add]
+                        infracao_add = st.selectbox(f"Ocorrência {i+1}", list(cats_add.keys()), key=f"infracao_add_{i}")
+                        infracoes_adicionais.append(infracao_add)
+                        
+                        # Opção para adicionar mais
+                        if i < 3:
+                            adicionar_mais = st.checkbox(f"Adicionar mais uma após esta?", key=f"mais_{i}")
+                            if not adicionar_mais:
+                                break
+                        st.markdown("---")
+                
+                st.session_state.infracoes_adicionais = infracoes_adicionais
+                
+                # CALCULAR GRAVIDADE E ENCAMINHAMENTOS TOTAIS
+                todas_infracoes = [infracao_principal] + infracoes_adicionais
+                gravidades = [PROTOCOLO_179[list(PROTOCOLO_179.keys())[0]][inf]["gravidade"] if inf in PROTOCOLO_179[list(PROTOCOLO_179.keys())[0]] 
+                             else next((cats[inf]["gravidade"] for cats in PROTOCOLO_179.values() if inf in cats), "Leve") 
+                             for inf in todas_infracoes]
+                gravidade_protocolo = obter_gravidade_mais_alta(gravidades)
+                
+                # Combinar encaminhamentos
+                encaminhamentos_lista = []
+                for inf in todas_infracoes:
+                    for cats in PROTOCOLO_179.values():
+                        if inf in cats:
+                            encaminhamentos_lista.append(cats[inf]["encaminhamento"])
+                            break
+                encam_sugerido = combinar_encaminhamentos(encaminhamentos_lista)
+                
+                # Mostrar informações do protocolo
+                st.markdown(f"""
+                    <div class="protocolo-info">
+                        <b>📋 Protocolo 179 - {len(todas_infracoes)} infração(ões)</b><br>
+                        <b>Infração Principal:</b> {infracao_principal}<br>
+                        {'<b>Infrações Adicionais:</b> ' + ', '.join(infracoes_adicionais) + '<br>' if infracoes_adicionais else ''}
+                        <b>Gravidade (mais alta):</b> {gravidade_protocolo}<br>
+                        <b>Encaminhamentos Sugeridos (combinados):</b><br>
+                        {encam_sugerido.replace(chr(10), "<br>")}
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                # Mostrar tags das infrações
+                if todas_infracoes:
+                    st.markdown("**Infrações registradas:**")
+                    tags_html = f'<span class="infracao-principal-tag">🎯 {infracao_principal}</span>'
+                    for inf in infracoes_adicionais:
+                        tags_html += f'<span class="infracao-tag">{inf}</span>'
                     st.markdown(f"<div>{tags_html}</div>", unsafe_allow_html=True)
-                    st.write(f"**Total:** {len(infracoes_marcadas)} infração(ões)")
-                
-                # GRAVIDADE AUTOMÁTICA - USAR A MAIS ALTA ENTRE AS INFRAÇÕES
-                if infracoes_marcadas:
-                    gravidades = [cats[inf]["gravidade"] for inf in infracoes_marcadas]
-                    gravidade_protocolo = obter_gravidade_mais_alta(gravidades)
-                    
-                    # ENCAMINHAMENTOS COMBINADOS
-                    encaminhamentos_lista = [cats[inf]["encaminhamento"] for inf in infracoes_marcadas]
-                    encam_sugerido = combinar_encaminhamentos(encaminhamentos_lista)
-                    
-                    # Mostrar informações do protocolo
-                    st.markdown(f"""
-                        <div class="protocolo-info">
-                            <b>📋 Protocolo 179 - {len(infracoes_marcadas)} infração(ões)</b><br>
-                            <b>Gravidade (mais alta):</b> {gravidade_protocolo}<br>
-                            <b>Encaminhamentos Sugeridos (combinados):</b><br>
-                            {encam_sugerido.replace(chr(10), "<br>")}
-                        </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    gravidade_protocolo = "Leve"
-                    encam_sugerido = ""
-                    st.warning("⚠️ Selecione pelo menos UMA infração!")
                 
                 # Gravidade com aviso se alterar
                 gravidade = st.selectbox("Gravidade", ["Leve", "Grave", "Gravíssima"],
@@ -745,7 +781,7 @@ elif menu == "📝 Registrar Ocorrência":
                                         key="gravidade_select")
                 
                 # Aviso se mudar a gravidade do protocolo
-                if gravidade != gravidade_protocolo and not st.session_state.gravidade_alterada and infracoes_marcadas:
+                if gravidade != gravidade_protocolo and not st.session_state.gravidade_alterada:
                     st.markdown(f"""
                         <div class="gravidade-alert">
                             ⚠️ <b>ATENÇÃO:</b> Você está alterando a gravidade sugerida pelo Protocolo 179!
@@ -765,8 +801,7 @@ elif menu == "📝 Registrar Ocorrência":
             encam = st.text_area("🔀 Encaminhamento (preenchido automaticamente pelo Protocolo 179)", 
                                 value=encam_sugerido, height=200, key="encam_novo")
             
-            if infracoes_marcadas:
-                st.info(f"🤖 **Encaminhamentos sugeridos pelo Protocolo 179 foram preenchidos automaticamente acima.**")
+            st.info(f"🤖 **Encaminhamentos sugeridos pelo Protocolo 179 foram preenchidos automaticamente acima.**")
             
             # Botão de salvar com prevenção de múltiplos cliques
             if st.session_state.salvando_ocorrencia:
@@ -774,24 +809,17 @@ elif menu == "📝 Registrar Ocorrência":
                 st.info("⏳ Aguarde, registrando ocorrência...")
             else:
                 if st.button("💾 Salvar Ocorrência", type="primary"):
-                    if not infracoes_marcadas:
-                        st.error("❌ Selecione pelo menos UMA infração!")
-                    elif prof and prof != "Selecione..." and relato:
-                        # Verificar duplicação para cada infração
+                    if prof and prof != "Selecione..." and relato:
+                        # Verificar duplicação
                         data_str = f"{data.strftime('%d/%m/%Y')} {hora.strftime('%H:%M')}"
-                        duplicada = False
-                        for inf in infracoes_marcadas:
-                            if verificar_ocorrencia_duplicada(ra, inf, data_str, df_ocorrencias):
-                                st.error(f"❌ JÁ EXISTE OCORRÊNCIA IGUAL PARA '{inf}'!\n\nAluno: {nome}\nInfração: {inf}\nData: {data_str}")
-                                duplicada = True
-                                break
+                        categoria_str = infracao_principal
+                        if infracoes_adicionais:
+                            categoria_str += " | " + " | ".join(infracoes_adicionais)
                         
-                        if not duplicada:
-                            # Marcar como salvando para prevenir múltiplos cliques
+                        if verificar_ocorrencia_duplicada(ra, categoria_str, data_str, df_ocorrencias):
+                            st.error(f"❌ JÁ EXISTE UMA OCORRÊNCIA IGUAL PARA ESTE ALUNO!\n\nAluno: {nome}\nCategoria: {categoria_str}\nData: {data_str}")
+                        else:
                             st.session_state.salvando_ocorrencia = True
-                            
-                            # Combinar categorias em uma string
-                            categoria_str = " | ".join(infracoes_marcadas)
                             
                             nova = {
                                 "data": data_str,
