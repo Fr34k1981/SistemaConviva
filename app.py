@@ -10,7 +10,7 @@ from io import BytesIO
 import requests
 import os
 from dotenv import load_dotenv
-import pytz  # ← PARA FUSO HORÁRIO DE SÃO PAULO
+import pytz
 
 # --- CARREGAR VARIÁVEIS DE AMBIENTE ---
 load_dotenv()
@@ -286,7 +286,6 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
         if cargo == "Professor Responsável":
             nome = ocorrencia.get("professor", "_____________________________")
         else:
-            # Buscar nome do responsável no banco
             resp = responsaveis[responsaveis['cargo'] == cargo] if not responsaveis.empty else pd.DataFrame()
             nome = resp['nome'].values[0] if not resp.empty else "_____________________________"
         
@@ -392,12 +391,10 @@ elif menu == "👤 Cadastrar Responsáveis por Assinatura":
             if st.button("💾 Salvar", key=f"btn_{cargo}"):
                 if nome_resp:
                     if id_atual:
-                        # Atualizar
                         if atualizar_responsavel(id_atual, {"nome": nome_resp}):
                             st.success(f"✅ {cargo} atualizado!")
                             st.rerun()
                     else:
-                        # Novo
                         if salvar_responsavel({"cargo": cargo, "nome": nome_resp, "ativo": True}):
                             st.success(f"✅ {cargo} cadastrado!")
                             st.rerun()
@@ -417,7 +414,7 @@ elif menu == "📝 Registrar Ocorrência":
     if df_alunos.empty:
         st.warning("⚠️ Importe alunos primeiro.")
     else:
-        # ← HORÁRIO DE SÃO PAULO
+        # HORARIO DE SAO PAULO
         tz_sp = pytz.timezone('America/Sao_Paulo')
         data_hora_sp = datetime.now(tz_sp)
         
@@ -436,8 +433,8 @@ elif menu == "📝 Registrar Ocorrência":
                         prof = st.text_input("Ou digite o nome do professor", placeholder="Nome do professor")
                 else:
                     prof = st.text_input("Professor 👨‍", placeholder="Nome do professor")
-                data = st.date_input("Data", data_hora_sp.date())  ← HORÁRIO SP
-                hora = st.time_input("Hora", data_hora_sp.time())  ← HORÁRIO SP
+                data = st.date_input("Data", data_hora_sp.date())
+                hora = st.time_input("Hora", data_hora_sp.time())
             with col2:
                 grupo = st.selectbox("Grupo", list(CATEGORIAS_PROTOCOLO.keys()))
                 cats = CATEGORIAS_PROTOCOLO[grupo]
