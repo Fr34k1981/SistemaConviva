@@ -46,6 +46,16 @@ st.markdown("""
     .card { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 0.5rem 0; }
     .card-title { font-weight: bold; color: #333; }
     .card-value { font-size: 1.5rem; color: #667eea; }
+    .success-box {
+        background: #d4edda;
+        border: 2px solid #28a745;
+        border-radius: 8px;
+        padding: 1rem;
+        margin: 1rem 0;
+        text-align: center;
+        font-weight: bold;
+        color: #155724;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -246,6 +256,20 @@ def editar_ocorrencia(id_ocorrencia, dados):
         st.error(f"Erro ao editar: {str(e)}")
         return False
 
+# --- VERIFICAR OCORRÊNCIA DUPLICADA ---
+def verificar_ocorrencia_duplicada(ra, categoria, data_str, df_ocorrencias):
+    if df_ocorrencias.empty:
+        return False
+    
+    # Verificar se já existe ocorrência com mesmo RA, categoria e data
+    ocorrencias_existentes = df_ocorrencias[
+        (df_ocorrencias['ra'] == ra) & 
+        (df_ocorrencias['categoria'] == categoria) & 
+        (df_ocorrencias['data'] == data_str)
+    ]
+    
+    return not ocorrencias_existentes.empty
+
 # --- FUNÇÃO PDF COM ASSINATURAS ---
 def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     buffer = BytesIO()
@@ -317,6 +341,10 @@ if 'turma_para_deletar' not in st.session_state:
     st.session_state.turma_para_deletar = None
 if 'turma_selecionada' not in st.session_state:
     st.session_state.turma_selecionada = None
+if 'salvando_ocorrencia' not in st.session_state:
+    st.session_state.salvando_ocorrencia = False
+if 'ocorrencia_salva_sucesso' not in st.session_state:
+    st.session_state.ocorrencia_salva_sucesso = False
 
 # --- CARREGAR DADOS ---
 df_alunos = carregar_alunos()
@@ -411,6 +439,13 @@ elif menu == "👤 Cadastrar Responsáveis por Assinatura":
 # --- 4. REGISTRAR OCORRÊNCIA ---
 elif menu == "📝 Registrar Ocorrência":
     st.header("📝 Nova Ocorrência")
+    
+    # Mostrar mensagem de sucesso se ocorreu
+    if st.session_state.ocorrencia_salva_sucesso:
+        st.markdown('<div class="success-box">✅ OCORRÊNCIA REGISTRADA COM SUCESSO!</div>', unsafe_allow_html=True)
+        st.session_state.ocorrencia_salva_sucesso = False
+        st.session_state.salvando_ocorrencia = False
+    
     if df_alunos.empty:
         st.warning("⚠️ Importe alunos primeiro.")
     else:
@@ -446,20 +481,37 @@ elif menu == "📝 Registrar Ocorrência":
             relato = st.text_area("📝 Relato", height=100, key="relato_novo")
             encam = st.text_area("🔀 Encaminhamento", height=100, key="encam_novo")
             st.info(f"🤖 **Ação:** {FLUXO_ACOES.get(cat, 'Padrão')}")
-            if st.button("💾 Salvar"):
-                if prof and prof != "Selecione..." and relato:
-                    nova = {
-                        "data": f"{data_hora_sp.strftime('%d/%m/%Y')} {data_hora_sp.strftime('%H:%M')}",
-                        "aluno": nome, "ra": ra, "turma": turma_sel,
-                        "categoria": cat, "gravidade": grav,
-                        "relato": relato, "encaminhamento": encam,
-                        "professor": prof
-                    }
-                    if salvar_ocorrencia(nova):
-                        st.success("✅ Salvo!")
-                        st.rerun()
-                else:
-                    st.error("Preencha professor e relato.")
+            
+            # Botão de salvar com prevenção de múltiplos cliques
+            if st.session_state.salvando_ocorrencia:
+                st.button("💾 Salvando...", disabled=True, type="primary")
+                st.info("⏳ Aguarde, registrando ocorrência...")
+            else:
+                if st.button("💾 Salvar Ocorrência", type="primary"):
+                    if prof and prof != "Selecione..." and relato:
+                        # Verificar duplicação
+                        data_str = f"{data.strftime('%d/%m/%Y')} {hora.strftime('%H:%M')}"
+                        if verificar_ocorrencia_duplicada(ra, cat, data_str, df_ocorrencias):
+                            st.error(f"❌ JÁ EXISTE UMA OCORRÊNCIA IGUAL PARA ESTE ALUNO!\n\nAluno: {nome}\nCategoria: {cat}\nData: {data_str}\n\nVerifique no Histórico antes de registrar.")
+                        else:
+                            # Marcar como salvando para prevenir múltiplos cliques
+                            st.session_state.salvando_ocorrencia = True
+                            
+                            nova = {
+                                "data": data_str,
+                                "aluno": nome, "ra": ra, "turma": turma_sel,
+                                "categoria": cat, "gravidade": grav,
+                                "relato": relato, "encaminhamento": encam,
+                                "professor": prof
+                            }
+                            if salvar_ocorrencia(nova):
+                                st.session_state.ocorrencia_salva_sucesso = True
+                                st.rerun()
+                            else:
+                                st.session_state.salvando_ocorrencia = False
+                                st.error("❌ Erro ao salvar ocorrência. Tente novamente.")
+                    else:
+                        st.error("❌ Preencha professor e relato obrigatoriamente!")
 
 # --- 5. IMPORTAR ALUNOS ---
 elif menu == "📥 Importar Alunos":
