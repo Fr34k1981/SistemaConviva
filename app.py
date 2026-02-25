@@ -10,6 +10,7 @@ from io import BytesIO
 import requests
 import os
 from dotenv import load_dotenv
+import pytz  # ← PARA FUSO HORÁRIO DE SÃO PAULO
 
 # --- CARREGAR VARIÁVEIS DE AMBIENTE ---
 load_dotenv()
@@ -416,6 +417,10 @@ elif menu == "📝 Registrar Ocorrência":
     if df_alunos.empty:
         st.warning("⚠️ Importe alunos primeiro.")
     else:
+        # ← HORÁRIO DE SÃO PAULO
+        tz_sp = pytz.timezone('America/Sao_Paulo')
+        data_hora_sp = datetime.now(tz_sp)
+        
         turmas = df_alunos["turma"].unique().tolist()
         turma_sel = st.selectbox("🏫 Turma", turmas)
         alunos = df_alunos[df_alunos["turma"] == turma_sel]
@@ -426,13 +431,13 @@ elif menu == "📝 Registrar Ocorrência":
                 ra = alunos[alunos["nome"] == nome]["ra"].values[0]
                 if not df_professores.empty:
                     prof_lista = df_professores["nome"].tolist()
-                    prof = st.selectbox("Professor 👨", ["Selecione..."] + prof_lista)
+                    prof = st.selectbox("Professor 👨‍", ["Selecione..."] + prof_lista)
                     if prof == "Selecione...":
                         prof = st.text_input("Ou digite o nome do professor", placeholder="Nome do professor")
                 else:
                     prof = st.text_input("Professor 👨‍", placeholder="Nome do professor")
-                data = st.date_input("Data", datetime.now())
-                hora = st.time_input("Hora", datetime.now().time())
+                data = st.date_input("Data", data_hora_sp.date())  ← HORÁRIO SP
+                hora = st.time_input("Hora", data_hora_sp.time())  ← HORÁRIO SP
             with col2:
                 grupo = st.selectbox("Grupo", list(CATEGORIAS_PROTOCOLO.keys()))
                 cats = CATEGORIAS_PROTOCOLO[grupo]
@@ -447,7 +452,7 @@ elif menu == "📝 Registrar Ocorrência":
             if st.button("💾 Salvar"):
                 if prof and prof != "Selecione..." and relato:
                     nova = {
-                        "data": f"{data.strftime('%d/%m/%Y')} {hora.strftime('%H:%M')}",
+                        "data": f"{data_hora_sp.strftime('%d/%m/%Y')} {data_hora_sp.strftime('%H:%M')}",
                         "aluno": nome, "ra": ra, "turma": turma_sel,
                         "categoria": cat, "gravidade": grav,
                         "relato": relato, "encaminhamento": encam,
