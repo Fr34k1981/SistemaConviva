@@ -826,10 +826,8 @@ elif menu == "📝 Registrar Ocorrência":
                 gravidade_protocolo = obter_gravidade_mais_alta(gravidades)
                 encam_sugerido = combinar_encaminhamentos(encaminhamentos_lista)
                 
-                # Mostrar informações do protocolo (SEM HTML TAGS NO CONTEÚDO)
+                # Mostrar informações do protocolo
                 st.markdown("---")
-                
-                # Box de informações
                 st.info(f"""
                     **📋 Protocolo 179 - {len(todas_infracoes)} infração(ões)**
                     
@@ -861,7 +859,7 @@ elif menu == "📝 Registrar Ocorrência":
                                         index=["Leve", "Grave", "Gravíssima"].index(gravidade_protocolo),
                                         key="gravidade_select")
                 
-                # Aviso se mudar a gravidade do protocolo (SEM DUPLICAR)
+                # Aviso se mudar a gravidade do protocolo
                 if gravidade != gravidade_protocolo:
                     if not st.session_state.gravidade_alterada:
                         st.error(f"""
@@ -882,6 +880,89 @@ elif menu == "📝 Registrar Ocorrência":
             # ENCAMINHAMENTO AUTOMÁTICO DO PROTOCOLO 179
             encam = st.text_area("🔀 Encaminhamento (preenchido automaticamente pelo Protocolo 179)", 
                                 value=encam_sugerido, height=200, key="encam_novo")
+            
+            st.info(f"🤖 **Encaminhamentos sugeridos pelo Protocolo 179 foram preenchidos automaticamente acima.**")
+            
+            # --- MEDIDAS DISCIPLINARES (NOVO CAMPO) ---
+            st.markdown("---")
+            st.subheader("⚖️ Medidas Disciplinares (Protocolo 179)")
+
+            st.info("""
+                **📋 Orientações do Protocolo 179:**
+                
+                • Suspensão total é MEDIDA EXCEPCIONAL
+                • Priorizar medidas educativas e restaurativas
+                • Aluno não pode ser privado de educação
+                • Envolvimento da família é essencial
+            """)
+
+            # Medidas sugeridas baseadas na gravidade
+            medidas_sugeridas = {
+                "Leve": [
+                    "✅ Mediação de conflitos",
+                    "✅ Registro em ata",
+                    "✅ Notificação aos pais",
+                    "✅ Atividades de reflexão",
+                    "✅ Termo de compromisso"
+                ],
+                "Grave": [
+                    "✅ Ata circunstanciada",
+                    "✅ Conselho Tutelar",
+                    "✅ Mudança de turma",
+                    "✅ Acompanhamento psicológico",
+                    "✅ Reunião com pais",
+                    "⚠️ Afastamento temporário (1-3 dias)"
+                ],
+                "Gravíssima": [
+                    "✅ B.O. obrigatório",
+                    "✅ Conselho Tutelar",
+                    "✅ Diretoria de Ensino",
+                    "✅ Medidas protetivas",
+                    "✅ Acompanhamento especializado",
+                    "⚠️ Afastamento da sala (temporário)",
+                    "⚠️ Transferência de escola (último recurso)"
+                ]
+            }
+
+            # Mostrar medidas sugeridas
+            if gravidade in medidas_sugeridas:
+                st.markdown(f"**📋 Medidas Sugeridas para Gravidade {gravidade}:**")
+                for medida in medidas_sugeridas[gravidade]:
+                    st.write(medida)
+
+            # Checkbox para selecionar medidas aplicadas
+            st.markdown("**📝 Medidas Aplicadas (marque as que foram usadas):**")
+
+            medidas_opcoes = [
+                "Mediação de conflitos",
+                "Registro em ata",
+                "Notificação aos pais",
+                "Atividades de reflexão",
+                "Termo de compromisso",
+                "Ata circunstanciada",
+                "Conselho Tutelar acionado",
+                "Mudança de turma",
+                "Acompanhamento psicológico",
+                "Reunião com pais",
+                "Afastamento temporário",
+                "B.O. registrado",
+                "Diretoria de Ensino comunicada",
+                "Medidas protetivas",
+                "Transferência de escola"
+            ]
+
+            medidas_aplicadas = []
+            for medida in medidas_opcoes:
+                if st.checkbox(medida, key=f"medida_{medida}"):
+                    medidas_aplicadas.append(medida)
+
+            # Campo para observações sobre as medidas
+            medidas_obs = st.text_area(
+                "📝 Observações sobre as medidas disciplinares aplicadas",
+                placeholder="Descreva detalhes das medidas, prazos, acompanhamentos...",
+                height=100,
+                key="medidas_obs"
+            )
             
             st.info(f"🤖 **Encaminhamentos sugeridos pelo Protocolo 179 foram preenchidos automaticamente acima.**")
             
@@ -908,7 +989,9 @@ elif menu == "📝 Registrar Ocorrência":
                                 "aluno": nome, "ra": ra, "turma": turma_sel,
                                 "categoria": categoria_str, "gravidade": gravidade,
                                 "relato": relato, "encaminhamento": encam,
-                                "professor": prof
+                                "professor": prof,
+                                "medidas_aplicadas": " | ".join(medidas_aplicadas),
+                                "medidas_obs": medidas_obs
                             }
                             if salvar_ocorrencia(nova):
                                 st.session_state.ocorrencia_salva_sucesso = True
