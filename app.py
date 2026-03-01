@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from io import BytesIO
@@ -43,6 +43,7 @@ st.markdown("""
     .school-name { font-size: 2rem; font-weight: bold; margin-bottom: 0.5rem; }
     .school-subtitle { font-size: 1.2rem; font-style: italic; opacity: 0.9; }
     .school-address { font-size: 0.9rem; margin-top: 1rem; opacity: 0.8; }
+    .school-contact { font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.9; }
     .card { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 0.5rem 0; }
     .card-title { font-weight: bold; color: #333; }
     .card-value { font-size: 1.5rem; color: #667eea; }
@@ -98,21 +99,17 @@ st.markdown("""
     }
     .metric-value { font-size: 2.5rem; font-weight: bold; }
     .metric-label { font-size: 1rem; opacity: 0.9; }
-    .comunicado-box {
-        background: white;
-        border: 2px solid #667eea;
-        border-radius: 10px;
-        padding: 2rem;
-        margin: 1rem 0;
-    }
     </style>
 """, unsafe_allow_html=True)
 
-# --- DADOS DA ESCOLA ---
+# --- DADOS COMPLETOS DA ESCOLA ---
 ESCOLA_NOME = "Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI"
 ESCOLA_SUBTITULO = "🌟 Escola dos Sonhos"
-ESCOLA_ENDERECO = "R. VALTER DE SOUZA COSTA, 147 - JARDIM PRIMAVERA - FERRAZ DE VASCONCELOS/SP"
-ESCOLA_LOGO = "logo.jpg"
+ESCOLA_ENDERECO = "R. Valter Souza Costa, 147 - Jardim Primavera, Ferraz de Vasconcelos - SP"
+ESCOLA_CEP = "CEP: 08535-310"
+ESCOLA_TELEFONE = "Telefone: (11) 4675-1855"
+ESCOLA_EMAIL = "Email: e918623@educacao.sp.gov.br"
+ESCOLA_LOGO = "eliane_dantas.png"  # Imagem do cabeçalho dos PDFs (sem espaço!)
 
 # --- MENU LATERAL ---
 menu = st.sidebar.selectbox("Menu", [
@@ -120,7 +117,7 @@ menu = st.sidebar.selectbox("Menu", [
     "👨‍ Cadastrar Professores",
     "👤 Cadastrar Responsáveis por Assinatura",
     "📝 Registrar Ocorrência",
-    "📄 Comunicado aos Pais",  # ← NOVO BOTÃO!
+    "📄 Comunicado aos Pais",
     "📥 Importar Alunos",
     "📋 Gerenciar Turmas Importadas",
     "👥 Lista de Alunos",
@@ -567,18 +564,35 @@ def combinar_encaminhamentos(encaminhamentos_lista):
                 todos.append(linha)
     return '\n'.join(todos)
 
-# --- FUNÇÃO PDF COM ASSINATURAS ---
+# --- FUNÇÃO PDF COM ASSINATURAS E LOGO ---
 def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, topMargin=2*cm, bottomMargin=2*cm)
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, topMargin=3*cm, bottomMargin=2*cm)
     elementos = []
     estilos = getSampleStyleSheet()
-    titulo = ParagraphStyle('Titulo', parent=estilos['Heading1'], fontSize=16, alignment=1, spaceAfter=20)
-    elementos.append(Paragraph("REGISTRO DE OCORRÊNCIA ESCOLAR", titulo))
-    escola = ParagraphStyle('Escola', parent=estilos['Normal'], fontSize=10, alignment=1, spaceAfter=5)
-    elementos.append(Paragraph(ESCOLA_NOME, escola))
+    
+    # --- CABEÇALHO COM LOGO ---
+    try:
+        if os.path.exists(ESCOLA_LOGO):
+            logo = Image(ESCOLA_LOGO, width=4*cm, height=2*cm)
+            elementos.append(logo)
+            elementos.append(Spacer(1, 0.3*cm))
+    except:
+        pass
+    
+    # Nome e dados da escola
+    titulo = ParagraphStyle('Titulo', parent=estilos['Heading1'], fontSize=14, alignment=1, spaceAfter=5)
+    elementos.append(Paragraph(ESCOLA_NOME, titulo))
+    
+    escola = ParagraphStyle('Escola', parent=estilos['Normal'], fontSize=9, alignment=1, spaceAfter=2)
     elementos.append(Paragraph(ESCOLA_ENDERECO, escola))
-    elementos.append(Spacer(1, 0.5*cm))
+    elementos.append(Paragraph(f"{ESCOLA_CEP} | {ESCOLA_TELEFONE} | {ESCOLA_EMAIL}", escola))
+    elementos.append(Spacer(1, 0.8*cm))
+    
+    # Título do documento
+    elementos.append(Paragraph("REGISTRO DE OCORRÊNCIA ESCOLAR", ParagraphStyle('Subtitulo', parent=estilos['Heading2'], fontSize=12, alignment=1, spaceAfter=10)))
+    
+    # Dados da ocorrência
     dados = [["Data:", ocorrencia.get("data", "")], ["Aluno:", ocorrencia.get("aluno", "")],
              ["RA:", str(ocorrencia.get("ra", ""))], ["Turma:", ocorrencia.get("turma", "")],
              ["Categoria:", ocorrencia.get("categoria", "")], ["Gravidade:", ocorrencia.get("gravidade", "")],
@@ -588,12 +602,18 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'), ('GRID', (0, 0), (-1, -1), 0.5, colors.grey)]))
     elementos.append(tabela_dados)
     elementos.append(Spacer(1, 0.5*cm))
+    
+    # Relato
     elementos.append(Paragraph("<b>📝 Relato dos Fatos:</b>", estilos['Heading3']))
     elementos.append(Paragraph(str(ocorrencia.get("relato", "")), estilos['Normal']))
     elementos.append(Spacer(1, 0.5*cm))
+    
+    # Encaminhamentos
     elementos.append(Paragraph("<b>🔀 Encaminhamentos:</b>", estilos['Heading3']))
     elementos.append(Paragraph(str(ocorrencia.get("encaminhamento", "")), estilos['Normal']))
     elementos.append(Spacer(1, 1.5*cm))
+    
+    # Assinaturas
     elementos.append(Paragraph("<b>📋 Assinaturas:</b>", estilos['Heading3']))
     elementos.append(Spacer(1, 0.5*cm))
     assinaturas = []
@@ -615,26 +635,39 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     elementos.append(tabela_assinaturas)
     elementos.append(Spacer(1, 1*cm))
     elementos.append(Paragraph("_" * 60, estilos['Normal']))
-    elementos.append(Paragraph("Documento gerado eletronicamente", estilos['Normal']))
+    elementos.append(Paragraph(f"Documento gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}", estilos['Normal']))
+    
     doc.build(elementos)
     buffer.seek(0)
     return buffer
 
-# --- FUNÇÃO PDF COMUNICADO AOS PAIS ---
+# --- FUNÇÃO PDF COMUNICADO AOS PAIS COM LOGO ---
 def gerar_pdf_comunicado(aluno_data, ocorrencia_data, medidas_aplicadas, observacoes, responsaveis):
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, topMargin=2*cm, bottomMargin=2*cm)
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, topMargin=3*cm, bottomMargin=2*cm)
     elementos = []
     estilos = getSampleStyleSheet()
     
-    # Cabeçalho da escola
-    titulo = ParagraphStyle('Titulo', parent=estilos['Heading1'], fontSize=14, alignment=1, spaceAfter=10)
-    elementos.append(Paragraph("COMUNICADO AOS PAIS/RESPONSÁVEIS", titulo))
+    # --- CABEÇALHO COM LOGO ---
+    try:
+        if os.path.exists(ESCOLA_LOGO):
+            logo = Image(ESCOLA_LOGO, width=4*cm, height=2*cm)
+            elementos.append(logo)
+            elementos.append(Spacer(1, 0.3*cm))
+    except:
+        pass
     
-    escola = ParagraphStyle('Escola', parent=estilos['Normal'], fontSize=10, alignment=1, spaceAfter=5)
-    elementos.append(Paragraph(ESCOLA_NOME, escola))
+    # Nome e dados da escola
+    titulo = ParagraphStyle('Titulo', parent=estilos['Heading1'], fontSize=14, alignment=1, spaceAfter=5)
+    elementos.append(Paragraph(ESCOLA_NOME, titulo))
+    
+    escola = ParagraphStyle('Escola', parent=estilos['Normal'], fontSize=9, alignment=1, spaceAfter=2)
     elementos.append(Paragraph(ESCOLA_ENDERECO, escola))
-    elementos.append(Spacer(1, 1*cm))
+    elementos.append(Paragraph(f"{ESCOLA_CEP} | {ESCOLA_TELEFONE} | {ESCOLA_EMAIL}", escola))
+    elementos.append(Spacer(1, 0.8*cm))
+    
+    # Título do documento
+    elementos.append(Paragraph("COMUNICADO AOS PAIS/RESPONSÁVEIS", ParagraphStyle('Subtitulo', parent=estilos['Heading2'], fontSize=12, alignment=1, spaceAfter=10)))
     
     # Dados do aluno
     elementos.append(Paragraph("<b>DADOS DO ALUNO:</b>", estilos['Heading3']))
@@ -645,7 +678,7 @@ def gerar_pdf_comunicado(aluno_data, ocorrencia_data, medidas_aplicadas, observa
         ["Total de Ocorrências:", str(aluno_data.get("total_ocorrencias", 0))]
     ]
     tabela_aluno = Table(dados_aluno, colWidths=[4*cm, 10*cm])
-    tabela_aluno.setStyle(TableStyle([('GRID', (0, 0), (-1, -1), 0.5, colors.grey)]))
+    tabela_aluno.setStyle(TableStyle([('GRID', (0, 0), (-1, -1), 0.5, colors.grey), ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey)]))
     elementos.append(tabela_aluno)
     elementos.append(Spacer(1, 0.5*cm))
     
@@ -658,7 +691,7 @@ def gerar_pdf_comunicado(aluno_data, ocorrencia_data, medidas_aplicadas, observa
         ["Professor:", ocorrencia_data.get("professor", "")]
     ]
     tabela_ocorrencia = Table(dados_ocorrencia, colWidths=[4*cm, 10*cm])
-    tabela_ocorrencia.setStyle(TableStyle([('GRID', (0, 0), (-1, -1), 0.5, colors.grey)]))
+    tabela_ocorrencia.setStyle(TableStyle([('GRID', (0, 0), (-1, -1), 0.5, colors.grey), ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey)]))
     elementos.append(tabela_ocorrencia)
     elementos.append(Spacer(1, 0.5*cm))
     
@@ -696,12 +729,10 @@ def gerar_pdf_comunicado(aluno_data, ocorrencia_data, medidas_aplicadas, observa
     elementos.append(Spacer(1, 0.5*cm))
     elementos.append(Paragraph("Declaro que tomei ciência do teor deste comunicado e das medidas aplicadas.", estilos['Normal']))
     elementos.append(Spacer(1, 1.5*cm))
-    
     assinatura_pais = Table([["__________________________________________"], ["Nome e Assinatura do Responsável"]], colWidths=[12*cm])
     assinatura_pais.setStyle(TableStyle([('ALIGN', (0, 0), (-1, -1), 'CENTER')]))
     elementos.append(assinatura_pais)
     elementos.append(Spacer(1, 1*cm))
-    
     elementos.append(Paragraph("_" * 60, estilos['Normal']))
     elementos.append(Paragraph(f"Documento gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}", estilos['Normal']))
     
@@ -744,6 +775,9 @@ if menu == "🏠 Início":
             <div class="school-name">🏫 {ESCOLA_NOME}</div>
             <div class="school-subtitle">{ESCOLA_SUBTITULO}</div>
             <div class="school-address">📍 {ESCOLA_ENDERECO}</div>
+            <div class="school-contact">
+                {ESCOLA_CEP} • {ESCOLA_TELEFONE} • {ESCOLA_EMAIL}
+            </div>
         </div>
     """, unsafe_allow_html=True)
     st.markdown("## 📋 Sistema de Gestão de Ocorrências - Protocolo 179")
@@ -949,19 +983,15 @@ elif menu == "📝 Registrar Ocorrência":
                     else:
                         st.error("❌ Preencha professor e relato obrigatoriamente!")
 
-# --- 5. COMUNICADO AOS PAIS (NOVO!) ---
+# --- 5. COMUNICADO AOS PAIS ---
 elif menu == "📄 Comunicado aos Pais":
     st.header("📄 Comunicado aos Pais/Responsáveis")
     st.info("💡 Gere um comunicado simples para envio aos pais com as medidas aplicadas.")
-    
     if df_alunos.empty or df_ocorrencias.empty:
         st.warning("⚠️ Cadastre alunos e ocorrências primeiro.")
     else:
-        # Seleção do aluno
         st.subheader("👤 Selecionar Aluno")
         busca = st.text_input("🔍 Buscar por nome ou RA", placeholder="Digite nome ou RA do aluno")
-        
-        # Filtrar alunos
         if busca:
             df_filtrado = df_alunos[
                 (df_alunos['nome'].str.contains(busca, case=False, na=False)) | 
@@ -969,17 +999,13 @@ elif menu == "📄 Comunicado aos Pais":
             ]
         else:
             df_filtrado = df_alunos
-        
         if not df_filtrado.empty:
             aluno_sel = st.selectbox("Selecione o Aluno", df_filtrado['nome'].tolist(), key="comunicado_aluno")
             aluno_info = df_alunos[df_alunos['nome'] == aluno_sel].iloc[0]
             ra_aluno = aluno_info['ra']
             turma_aluno = aluno_info['turma']
-            
-            # Contar ocorrências do aluno
             ocorrencias_aluno = df_ocorrencias[df_ocorrencias['ra'] == ra_aluno] if not df_ocorrencias.empty else pd.DataFrame()
             total_ocorrencias = len(ocorrencias_aluno)
-            
             st.markdown(f"""
                 <div class="card">
                     <b>📊 Resumo do Aluno:</b><br>
@@ -989,8 +1015,6 @@ elif menu == "📄 Comunicado aos Pais":
                     • 📈 Total de Ocorrências: <b>{total_ocorrencias}</b>
                 </div>
             """, unsafe_allow_html=True)
-            
-            # Selecionar ocorrência recente
             if not ocorrencias_aluno.empty:
                 st.subheader("📋 Selecionar Ocorrência para Comunicado")
                 ocorrencias_lista = (ocorrencias_aluno['id'].astype(str) + " - " + 
@@ -999,8 +1023,6 @@ elif menu == "📄 Comunicado aos Pais":
                 occ_sel = st.selectbox("Selecione a ocorrência", ocorrencias_lista)
                 idx = ocorrencias_lista.index(occ_sel)
                 occ_info = ocorrencias_aluno.iloc[idx]
-                
-                # Mostrar dados da ocorrência
                 st.markdown(f"""
                     <div class="protocolo-info">
                         <b>📋 Dados da Ocorrência:</b><br>
@@ -1010,43 +1032,78 @@ elif menu == "📄 Comunicado aos Pais":
                         • Professor: {occ_info['professor']}
                     </div>
                 """, unsafe_allow_html=True)
-                
-                # Medidas sugeridas baseadas na gravidade
                 gravidade = occ_info['gravidade']
                 medidas_sugeridas = {
-                    "Leve": ["✅ Mediação de conflitos", "✅ Registro em ata", "✅ Notificação aos pais", "✅ Atividades de reflexão", "✅ Termo de compromisso"],
-                    "Grave": ["✅ Ata circunstanciada", "✅ Conselho Tutelar", "✅ Mudança de turma", "✅ Acompanhamento psicológico", "✅ Reunião com pais", "⚠️ Afastamento temporário (1-3 dias)"],
-                    "Gravíssima": ["✅ B.O. obrigatório", "✅ Conselho Tutelar", "✅ Diretoria de Ensino", "✅ Medidas protetivas", "✅ Acompanhamento especializado", "⚠️ Afastamento da sala (temporário)", "⚠️ Transferência de escola (último recurso)"]
+                    "Leve": ["Mediação de conflitos", "Registro em ata", "Notificação aos pais", "Atividades de reflexão", "Termo de compromisso"],
+                    "Grave": ["Ata circunstanciada", "Conselho Tutelar", "Mudança de turma", "Acompanhamento psicológico", "Reunião com pais", "Afastamento temporário (1-3 dias)"],
+                    "Gravíssima": ["B.O. obrigatório", "Conselho Tutelar", "Diretoria de Ensino", "Medidas protetivas", "Acompanhamento especializado", "Afastamento da sala (temporário)", "Transferência de escola"]
                 }
-                
-                st.subheader("⚖️ Medidas Disciplinares Sugeridas")
-                st.info("📋 Orientações do Protocolo 179:\n• Suspensão total é MEDIDA EXCEPCIONAL\n• Priorizar medidas educativas e restaurativas\n• Aluno não pode ser privado de educação\n• Envolvimento da família é essencial")
-                
                 if gravidade in medidas_sugeridas:
-                    st.markdown(f"**📋 Medidas Sugeridas para Gravidade {gravidade}:**")
-                    for medida in medidas_sugeridas[gravidade]:
-                        st.write(medida)
-                
-                # Checkbox para selecionar medidas aplicadas
-                st.markdown("**📝 Medidas Aplicadas (marque as que foram usadas):**")
+                    st.markdown(f"""
+                        <div class="protocolo-info">
+                            <b>📋 Medidas Sugeridas para Gravidade {gravidade}:</b><br>
+                            {'<br>'.join(['• ' + m for m in medidas_sugeridas[gravidade]])}
+                        </div>
+                    """, unsafe_allow_html=True)
+                st.subheader("⚖️ Medidas Aplicadas")
+                st.info("📋 Orientações do Protocolo 179:\n• Suspensão total é MEDIDA EXCEPCIONAL\n• Priorizar medidas educativas e restaurativas\n• Envolvimento da família é essencial")
                 medidas_opcoes = [
                     "Mediação de conflitos", "Registro em ata", "Notificação aos pais",
                     "Atividades de reflexão", "Termo de compromisso", "Ata circunstanciada",
-                    "Conselho Tutelar acionado", "Mudança de turma", "Acompanhamento psicológico",
+                    "Conselho Tutelar", "Mudança de turma", "Acomp. psicológico",
                     "Reunião com pais", "Afastamento temporário", "B.O. registrado",
-                    "Diretoria de Ensino comunicada", "Medidas protetivas", "Transferência de escola"
+                    "Diretoria de Ensino", "Medidas protetivas", "Transferência de escola"
                 ]
+                cols = st.columns(3)
                 medidas_aplicadas = []
-                for medida in medidas_opcoes:
-                    if st.checkbox(medida, key=f"medida_comm_{medida}"):
-                        medidas_aplicadas.append(medida)
-                
-                # Observações
+                for i, medida in enumerate(medidas_opcoes):
+                    col_idx = i % 3
+                    with cols[col_idx]:
+                        if st.checkbox(medida, key=f"medida_comm_{medida}"):
+                            medidas_aplicadas.append(medida)
                 observacoes = st.text_area("📝 Observações adicionais", 
                                          placeholder="Descreva detalhes das medidas, prazos, acompanhamentos...",
-                                         height=100, key="obs_comunicado")
-                
-                # Botão para gerar PDF
+                                         height=80, key="obs_comunicado")
+                st.subheader("✍️ Texto Pedagógico Automático")
+                st.info("💡 Este texto é gerado automaticamente com base nos dados da ocorrência. Você pode editar se necessário.")
+                texto_pedagogico = f"""
+RELATÓRIO PEDAGÓGICO - OCORRÊNCIA DISCIPLINAR
+
+Escola: {ESCOLA_NOME}
+{ESCOLA_ENDERECO}
+{ESCOLA_CEP} | {ESCOLA_TELEFONE} | {ESCOLA_EMAIL}
+
+Aluno(a): {aluno_info['nome']}
+RA: {ra_aluno} | Turma: {turma_aluno}
+Data da Ocorrência: {occ_info['data']}
+
+1. DESCRIÇÃO DOS FATOS:
+{occ_info['relato']}
+
+2. MEDIDAS DISCIPLINARES APLICADAS:
+{', '.join(medidas_aplicadas) if medidas_aplicadas else 'Nenhuma medida adicional aplicada.'}
+
+3. ENCAMINHAMENTOS:
+{occ_info['encaminhamento']}
+
+4. OBSERVAÇÕES ADICIONAIS:
+{observacoes if observacoes else 'Sem observações adicionais.'}
+
+5. CIÊNCIA DA FAMÍLIA:
+Solicitamos que os pais/responsáveis tomem ciência deste relatório e assinem abaixo, comprometendo-se com o acompanhamento das medidas estabelecidas.
+
+__________________________________________
+Assinatura do Responsável
+
+__________________________________________
+Assinatura do Professor(a)
+
+__________________________________________
+Assinatura da Direção/Coordenação
+
+Ferraz de Vasconcelos, {datetime.now().strftime('%d de %B de %Y')}
+"""
+                texto_editado = st.text_area("📝 Editar Texto (opcional)", value=texto_pedagogico, height=300, key="texto_ped")
                 if st.button("🖨️ Gerar Comunicado para os Pais", type="primary"):
                     aluno_data = {
                         "nome": aluno_info['nome'],
@@ -1071,6 +1128,13 @@ elif menu == "📄 Comunicado aos Pais":
                         mime="application/pdf"
                     )
                     st.success("✅ Comunicado gerado! Imprima e envie com o aluno para assinatura dos pais.")
+                if st.button("📄 Baixar Texto Pedagógico (TXT)"):
+                    st.download_button(
+                        label="📥 Baixar Texto (TXT)",
+                        data=texto_editado,
+                        file_name=f"Texto_Pedagogico_{ra_aluno}_{datetime.now().strftime('%Y%m%d')}.txt",
+                        mime="text/plain"
+                    )
             else:
                 st.info("ℹ️ Este aluno ainda não tem ocorrências registradas.")
         else:
