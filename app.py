@@ -109,7 +109,7 @@ ESCOLA_ENDERECO = "R. Valter Souza Costa, 147 - Jardim Primavera, Ferraz de Vasc
 ESCOLA_CEP = "CEP: 08535-310"
 ESCOLA_TELEFONE = "Telefone: (11) 4675-1855"
 ESCOLA_EMAIL = "Email: e918623@educacao.sp.gov.br"
-ESCOLA_LOGO = "eliane_dantas.png"  # Imagem do cabeçalho dos PDFs (sem espaço!)
+ESCOLA_LOGO = "eliane_dantas.png"  # Imagem do cabeçalho dos PDFs
 
 # --- MENU LATERAL ---
 menu = st.sidebar.selectbox("Menu", [
@@ -567,14 +567,14 @@ def combinar_encaminhamentos(encaminhamentos_lista):
 # --- FUNÇÃO PDF COM ASSINATURAS E LOGO ---
 def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, topMargin=3*cm, bottomMargin=2*cm)
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, topMargin=4*cm, bottomMargin=2*cm)
     elementos = []
     estilos = getSampleStyleSheet()
     
-    # --- CABEÇALHO COM LOGO ---
+    # --- CABEÇALHO COM LOGO (LARGURA DA PÁGINA) ---
     try:
         if os.path.exists(ESCOLA_LOGO):
-            logo = Image(ESCOLA_LOGO, width=4*cm, height=2*cm)
+            logo = Image(ESCOLA_LOGO, width=17*cm, height=4*cm)
             elementos.append(logo)
             elementos.append(Spacer(1, 0.3*cm))
     except:
@@ -587,7 +587,9 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     escola = ParagraphStyle('Escola', parent=estilos['Normal'], fontSize=9, alignment=1, spaceAfter=2)
     elementos.append(Paragraph(ESCOLA_ENDERECO, escola))
     elementos.append(Paragraph(f"{ESCOLA_CEP} | {ESCOLA_TELEFONE} | {ESCOLA_EMAIL}", escola))
-    elementos.append(Spacer(1, 0.8*cm))
+    elementos.append(Spacer(1, 0.5*cm))
+    elementos.append(Paragraph("_" * 60, estilos['Normal']))
+    elementos.append(Spacer(1, 0.5*cm))
     
     # Título do documento
     elementos.append(Paragraph("REGISTRO DE OCORRÊNCIA ESCOLAR", ParagraphStyle('Subtitulo', parent=estilos['Heading2'], fontSize=12, alignment=1, spaceAfter=10)))
@@ -644,14 +646,14 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
 # --- FUNÇÃO PDF COMUNICADO AOS PAIS COM LOGO ---
 def gerar_pdf_comunicado(aluno_data, ocorrencia_data, medidas_aplicadas, observacoes, responsaveis):
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, topMargin=3*cm, bottomMargin=2*cm)
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, topMargin=4*cm, bottomMargin=2*cm)
     elementos = []
     estilos = getSampleStyleSheet()
     
-    # --- CABEÇALHO COM LOGO ---
+    # --- CABEÇALHO COM LOGO (LARGURA DA PÁGINA) ---
     try:
         if os.path.exists(ESCOLA_LOGO):
-            logo = Image(ESCOLA_LOGO, width=4*cm, height=2*cm)
+            logo = Image(ESCOLA_LOGO, width=17*cm, height=4*cm)
             elementos.append(logo)
             elementos.append(Spacer(1, 0.3*cm))
     except:
@@ -664,7 +666,9 @@ def gerar_pdf_comunicado(aluno_data, ocorrencia_data, medidas_aplicadas, observa
     escola = ParagraphStyle('Escola', parent=estilos['Normal'], fontSize=9, alignment=1, spaceAfter=2)
     elementos.append(Paragraph(ESCOLA_ENDERECO, escola))
     elementos.append(Paragraph(f"{ESCOLA_CEP} | {ESCOLA_TELEFONE} | {ESCOLA_EMAIL}", escola))
-    elementos.append(Spacer(1, 0.8*cm))
+    elementos.append(Spacer(1, 0.5*cm))
+    elementos.append(Paragraph("_" * 60, estilos['Normal']))
+    elementos.append(Spacer(1, 0.5*cm))
     
     # Título do documento
     elementos.append(Paragraph("COMUNICADO AOS PAIS/RESPONSÁVEIS", ParagraphStyle('Subtitulo', parent=estilos['Heading2'], fontSize=12, alignment=1, spaceAfter=10)))
