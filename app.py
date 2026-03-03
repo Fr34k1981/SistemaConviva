@@ -564,61 +564,89 @@ def combinar_encaminhamentos(encaminhamentos_lista):
                 todos.append(linha)
     return '\n'.join(todos)
 
-# --- FUNÇÃO PDF COMPACTA COM LOGO PROPORCIONAL ---
+# --- FUNÇÃO PDF COM LAYOUT PROFISSIONAL ---
 def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1.5*cm, leftMargin=1.5*cm, topMargin=2*cm, bottomMargin=1.5*cm)
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, topMargin=2.5*cm, bottomMargin=2*cm)
     elementos = []
     estilos = getSampleStyleSheet()
     
-    # --- CABEÇALHO COM LOGO (PROPORCIONAL - SEM DISTORÇÃO) ---
+    # --- CABEÇALHO COM LOGO ---
     try:
         if os.path.exists(ESCOLA_LOGO):
-            logo = Image(ESCOLA_LOGO, width=17*cm)
-            logo.hAlign = 'CENTER'
+            logo = Image(ESCOLA_LOGO, width=5*cm, height=2*cm)
+            logo.hAlign = 'LEFT'
             elementos.append(logo)
-            elementos.append(Spacer(1, 0.1*cm))
+            elementos.append(Spacer(1, 0.3*cm))
     except:
         pass
     
-    # Dados da escola em BLOCO ÚNICO
-    escola_style = ParagraphStyle('EscolaCompacta', parent=estilos['Normal'], fontSize=8, alignment=1, spaceAfter=0.1*cm, leading=10)
-    elementos.append(Paragraph(f"<b>{ESCOLA_NOME}</b><br/>{ESCOLA_ENDERECO}<br/>{ESCOLA_CEP} | {ESCOLA_TELEFONE} | {ESCOLA_EMAIL}", escola_style))
+    # Dados da escola centralizados
+    estilo_cabecalho = ParagraphStyle('Cabecalho', parent=estilos['Normal'], 
+                                        fontSize=10, alignment=1, spaceAfter=0.2*cm, leading=12)
+    elementos.append(Paragraph(f"<b>{ESCOLA_NOME}</b>", estilo_cabecalho))
+    elementos.append(Paragraph(ESCOLA_ENDERECO, estilo_cabecalho))
+    elementos.append(Paragraph(f"{ESCOLA_CEP} | {ESCOLA_TELEFONE} | {ESCOLA_EMAIL}", estilo_cabecalho))
+    elementos.append(Spacer(1, 0.5*cm))
+    
+    # Linha separadora
+    elementos.append(Paragraph("_" * 75, estilos['Normal']))
     elementos.append(Spacer(1, 0.3*cm))
-    elementos.append(Paragraph("_" * 70, estilos['Normal']))
-    elementos.append(Spacer(1, 0.2*cm))
     
     # Título do documento
-    elementos.append(Paragraph("REGISTRO DE OCORRÊNCIA", ParagraphStyle('TituloDoc', parent=estilos['Heading2'], fontSize=11, alignment=1, spaceAfter=0.3*cm)))
+    estilo_titulo = ParagraphStyle('TituloDoc', parent=estilos['Heading1'], 
+                                   fontSize=14, alignment=1, spaceAfter=0.5*cm, textColor=colors.darkblue)
+    elementos.append(Paragraph("REGISTRO DE OCORRÊNCIA", estilo_titulo))
+    elementos.append(Spacer(1, 0.5*cm))
     
-    # Dados da ocorrência (tabela compacta)
-    dados = [["Data:", ocorrencia.get("data", "")], ["Aluno:", ocorrencia.get("aluno", "")],
-             ["RA:", str(ocorrencia.get("ra", ""))], ["Turma:", ocorrencia.get("turma", "")],
-             ["Categoria:", ocorrencia.get("categoria", "")], ["Gravidade:", ocorrencia.get("gravidade", "")],
-             ["Professor:", ocorrencia.get("professor", "")]]
-    tabela_dados = Table(dados, colWidths=[3.5*cm, 10.5*cm])
+    # Tabela de dados com estilo profissional
+    dados = [
+        ["<b>Data:</b>", ocorrencia.get("data", "")],
+        ["<b>Aluno:</b>", ocorrencia.get("aluno", "")],
+        ["<b>RA:</b>", str(ocorrencia.get("ra", ""))],
+        ["<b>Turma:</b>", ocorrencia.get("turma", "")],
+        ["<b>Categoria:</b>", ocorrencia.get("categoria", "")],
+        ["<b>Gravidade:</b>", f"<b>{ocorrencia.get('gravidade', '')}</b>"],
+        ["<b>Professor:</b>", ocorrencia.get("professor", "")]
+    ]
+    
+    tabela_dados = Table(dados, colWidths=[4*cm, 11*cm])
     tabela_dados.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#4A90E2')),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BACKGROUND', (1, 0), (1, -1), colors.HexColor('#F5F5F5')),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
     ]))
     elementos.append(tabela_dados)
+    elementos.append(Spacer(1, 0.5*cm))
+    
+    # Seção Relato
+    estilo_secao = ParagraphStyle('Secao', parent=estilos['Normal'], 
+                                  fontSize=10, textColor=colors.darkblue, spaceAfter=0.2*cm)
+    estilo_texto = ParagraphStyle('Texto', parent=estilos['Normal'], 
+                                  fontSize=9, alignment=0, spaceAfter=0.3*cm, leading=11)
+    
+    elementos.append(Paragraph("<b>📝 RELATO DOS FATOS:</b>", estilo_secao))
+    elementos.append(Paragraph(str(ocorrencia.get("relato", "")), estilo_texto))
     elementos.append(Spacer(1, 0.3*cm))
     
-    # Relato compacto
-    elementos.append(Paragraph("<b>Relato:</b>", ParagraphStyle('SubCompacto', parent=estilos['Normal'], fontSize=9, spaceAfter=0.1*cm)))
-    elementos.append(Paragraph(str(ocorrencia.get("relato", "")), ParagraphStyle('TextoCompacto', parent=estilos['Normal'], fontSize=9, spaceAfter=0.3*cm)))
+    # Seção Encaminhamentos
+    elementos.append(Paragraph("<b>🔀 ENCAMINHAMENTOS:</b>", estilo_secao))
+    encam_texto = str(ocorrencia.get("encaminhamento", "")).replace('\n', '<br/>')
+    elementos.append(Paragraph(encam_texto, estilo_texto))
+    elementos.append(Spacer(1, 1*cm))
     
-    # Encaminhamentos compacto
-    elementos.append(Paragraph("<b>Encaminhamentos:</b>", ParagraphStyle('SubCompacto', parent=estilos['Normal'], fontSize=9, spaceAfter=0.1*cm)))
-    elementos.append(Paragraph(str(ocorrencia.get("encaminhamento", "")), ParagraphStyle('TextoCompacto', parent=estilos['Normal'], fontSize=9, spaceAfter=0.5*cm)))
+    # Seção Assinaturas
+    elementos.append(Paragraph("<b>ASSINATURAS:</b>", estilo_secao))
+    elementos.append(Spacer(1, 0.5*cm))
     
-    # Assinaturas ALINHADAS (sem linhas - assinam onde quiserem)
-    elementos.append(Paragraph("<b>Assinaturas:</b>", ParagraphStyle('SubCompacto', parent=estilos['Normal'], fontSize=9, spaceAfter=0.3*cm)))
-    
-    assinaturas_data = []
+    # Criar linhas para assinaturas
     cargos = ["Diretor(a)", "Vice-Diretor(a)", "Coordenador(a)", "Professor Responsável"]
     for cargo in cargos:
         if cargo == "Professor Responsável":
@@ -626,124 +654,151 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
         else:
             resp = responsaveis[responsaveis['cargo'] == cargo] if not responsaveis.empty else pd.DataFrame()
             nome = resp['nome'].values[0] if not resp.empty else ""
+        
         if nome:
-            assinaturas_data.append([f"{cargo}:", nome])
+            elementos.append(Paragraph(f"<b>{cargo}:</b> {nome}", estilo_texto))
+            elementos.append(Spacer(1, 0.1*cm))
     
-    # ✅ CORREÇÃO: Condição completa com dois-pontos
-    if assinaturas_data:
-        tabela_assinaturas = Table(assinaturas_data, colWidths=[4.5*cm, 9.5*cm])
-        tabela_assinaturas.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-            ('TOPPADDING', (0, 0), (-1, -1), 8),
-            ('ALIGN', (1, 0), (1, -1), 'LEFT'),
-        ]))
-        elementos.append(tabela_assinaturas)
+    elementos.append(Spacer(1, 1*cm))
     
     # Rodapé
-    elementos.append(Spacer(1, 0.5*cm))
-    elementos.append(Paragraph(f"Documento gerado em {datetime.now().strftime('%d/%m/%Y às %H:%M')}", ParagraphStyle('Rodape', parent=estilos['Normal'], fontSize=7, alignment=1, textColor=colors.darkgrey)))
+    estilo_rodape = ParagraphStyle('Rodape', parent=estilos['Normal'], 
+                                   fontSize=7, alignment=1, textColor=colors.grey)
+    elementos.append(Paragraph("_" * 75, estilos['Normal']))
+    elementos.append(Paragraph(f"Documento gerado em {datetime.now().strftime('%d/%m/%Y às %H:%M')}", estilo_rodape))
+    elementos.append(Paragraph("Sistema Conviva 179 - Gestão de Ocorrências Escolares", estilo_rodape))
     
     doc.build(elementos)
     buffer.seek(0)
     return buffer
 
-# --- FUNÇÃO PDF COMUNICADO COMPACTO COM LOGO PROPORCIONAL ---
+# --- FUNÇÃO PDF COMUNICADO COM LAYOUT PROFISSIONAL ---
 def gerar_pdf_comunicado(aluno_data, ocorrencia_data, medidas_aplicadas, observacoes, responsaveis):
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1.5*cm, leftMargin=1.5*cm, topMargin=2*cm, bottomMargin=1.5*cm)
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, topMargin=2.5*cm, bottomMargin=2*cm)
     elementos = []
     estilos = getSampleStyleSheet()
     
-    # --- CABEÇALHO COM LOGO (PROPORCIONAL - SEM DISTORÇÃO) ---
+    # --- CABEÇALHO COM LOGO ---
     try:
         if os.path.exists(ESCOLA_LOGO):
-            logo = Image(ESCOLA_LOGO, width=17*cm)
-            logo.hAlign = 'CENTER'
+            logo = Image(ESCOLA_LOGO, width=5*cm, height=2*cm)
+            logo.hAlign = 'LEFT'
             elementos.append(logo)
-            elementos.append(Spacer(1, 0.1*cm))
+            elementos.append(Spacer(1, 0.3*cm))
     except:
         pass
     
-    # Dados da escola em BLOCO ÚNICO
-    escola_style = ParagraphStyle('EscolaCompacta', parent=estilos['Normal'], fontSize=8, alignment=1, spaceAfter=0.1*cm, leading=10)
-    elementos.append(Paragraph(f"<b>{ESCOLA_NOME}</b><br/>{ESCOLA_ENDERECO}<br/>{ESCOLA_CEP} | {ESCOLA_TELEFONE} | {ESCOLA_EMAIL}", escola_style))
+    # Dados da escola
+    estilo_cabecalho = ParagraphStyle('Cabecalho', parent=estilos['Normal'], 
+                                        fontSize=10, alignment=1, spaceAfter=0.2*cm, leading=12)
+    elementos.append(Paragraph(f"<b>{ESCOLA_NOME}</b>", estilo_cabecalho))
+    elementos.append(Paragraph(ESCOLA_ENDERECO, estilo_cabecalho))
+    elementos.append(Paragraph(f"{ESCOLA_CEP} | {ESCOLA_TELEFONE} | {ESCOLA_EMAIL}", estilo_cabecalho))
+    elementos.append(Spacer(1, 0.5*cm))
+    
+    # Linha separadora
+    elementos.append(Paragraph("_" * 75, estilos['Normal']))
     elementos.append(Spacer(1, 0.3*cm))
-    elementos.append(Paragraph("_" * 70, estilos['Normal']))
-    elementos.append(Spacer(1, 0.2*cm))
     
     # Título
-    elementos.append(Paragraph("COMUNICADO AOS PAIS/RESPONSÁVEIS", ParagraphStyle('TituloDoc', parent=estilos['Heading2'], fontSize=11, alignment=1, spaceAfter=0.3*cm)))
+    estilo_titulo = ParagraphStyle('TituloDoc', parent=estilos['Heading1'], 
+                                   fontSize=14, alignment=1, spaceAfter=0.5*cm, textColor=colors.darkblue)
+    elementos.append(Paragraph("COMUNICADO AOS PAIS/RESPONSÁVEIS", estilo_titulo))
+    elementos.append(Spacer(1, 0.5*cm))
     
-    # Dados do aluno (tabela compacta)
+    # Dados do aluno
+    estilo_secao = ParagraphStyle('Secao', parent=estilos['Normal'], 
+                                  fontSize=10, textColor=colors.darkblue, spaceAfter=0.2*cm)
+    estilo_texto = ParagraphStyle('Texto', parent=estilos['Normal'], 
+                                  fontSize=9, alignment=0, spaceAfter=0.3*cm, leading=11)
+    
+    elementos.append(Paragraph("<b>DADOS DO ALUNO:</b>", estilo_secao))
     dados_aluno = [
-        ["Nome:", aluno_data.get("nome", "")],
-        ["RA:", str(aluno_data.get("ra", ""))],
-        ["Turma:", aluno_data.get("turma", "")],
-        ["Total de Ocorrências:", str(aluno_data.get("total_ocorrencias", 0))]
+        ["<b>Nome:</b>", aluno_data.get("nome", "")],
+        ["<b>RA:</b>", str(aluno_data.get("ra", ""))],
+        ["<b>Turma:</b>", aluno_data.get("turma", "")],
+        ["<b>Total de Ocorrências:</b>", str(aluno_data.get("total_ocorrencias", 0))]
     ]
-    tabela_aluno = Table(dados_aluno, colWidths=[4*cm, 10*cm])
+    tabela_aluno = Table(dados_aluno, colWidths=[4*cm, 11*cm])
     tabela_aluno.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#4A90E2')),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.whitesmoke),
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BACKGROUND', (1, 0), (1, -1), colors.HexColor('#F5F5F5')),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
     ]))
     elementos.append(tabela_aluno)
-    elementos.append(Spacer(1, 0.3*cm))
+    elementos.append(Spacer(1, 0.5*cm))
     
     # Dados da ocorrência
+    elementos.append(Paragraph("<b>DADOS DA OCORRÊNCIA:</b>", estilo_secao))
     dados_ocorrencia = [
-        ["Data:", ocorrencia_data.get("data", "")],
-        ["Categoria:", ocorrencia_data.get("categoria", "")],
-        ["Gravidade:", ocorrencia_data.get("gravidade", "")],
-        ["Professor:", ocorrencia_data.get("professor", "")]
+        ["<b>Data:</b>", ocorrencia_data.get("data", "")],
+        ["<b>Categoria:</b>", ocorrencia_data.get("categoria", "")],
+        ["<b>Gravidade:</b>", f"<b>{ocorrencia_data.get('gravidade', '')}</b>"],
+        ["<b>Professor:</b>", ocorrencia_data.get("professor", "")]
     ]
-    tabela_ocorrencia = Table(dados_ocorrencia, colWidths=[4*cm, 10*cm])
+    tabela_ocorrencia = Table(dados_ocorrencia, colWidths=[4*cm, 11*cm])
     tabela_ocorrencia.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#4A90E2')),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.whitesmoke),
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BACKGROUND', (1, 0), (1, -1), colors.HexColor('#F5F5F5')),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
     ]))
     elementos.append(tabela_ocorrencia)
+    elementos.append(Spacer(1, 0.5*cm))
+    
+    # Relato
+    elementos.append(Paragraph("<b>📝 RELATO:</b>", estilo_secao))
+    elementos.append(Paragraph(str(ocorrencia_data.get("relato", "")), estilo_texto))
     elementos.append(Spacer(1, 0.3*cm))
     
-    # Relato compacto
-    elementos.append(Paragraph("<b>Relato:</b>", ParagraphStyle('SubCompacto', parent=estilos['Normal'], fontSize=9, spaceAfter=0.1*cm)))
-    elementos.append(Paragraph(str(ocorrencia_data.get("relato", "")), ParagraphStyle('TextoCompacto', parent=estilos['Normal'], fontSize=9, spaceAfter=0.3*cm)))
-    
     # Medidas aplicadas
-    elementos.append(Paragraph("<b>Medidas Aplicadas:</b>", ParagraphStyle('SubCompacto', parent=estilos['Normal'], fontSize=9, spaceAfter=0.1*cm)))
     if medidas_aplicadas:
+        elementos.append(Paragraph("<b>⚖️ MEDIDAS APLICADAS:</b>", estilo_secao))
         for medida in medidas_aplicadas.split(' | '):
             if medida.strip():
-                elementos.append(Paragraph(f"• {medida}", ParagraphStyle('ItemCompacto', parent=estilos['Normal'], fontSize=9, spaceAfter=0.05*cm)))
-    elementos.append(Spacer(1, 0.2*cm))
+                elementos.append(Paragraph(f"• {medida}", estilo_texto))
+        elementos.append(Spacer(1, 0.3*cm))
     
     # Observações
     if observacoes:
-        elementos.append(Paragraph("<b>Observações:</b>", ParagraphStyle('SubCompacto', parent=estilos['Normal'], fontSize=9, spaceAfter=0.1*cm)))
-        elementos.append(Paragraph(str(observacoes), ParagraphStyle('TextoCompacto', parent=estilos['Normal'], fontSize=9, spaceAfter=0.3*cm)))
+        elementos.append(Paragraph("<b>📌 OBSERVAÇÕES:</b>", estilo_secao))
+        elementos.append(Paragraph(str(observacoes), estilo_texto))
+        elementos.append(Spacer(1, 0.3*cm))
     
     # Encaminhamentos
-    elementos.append(Paragraph("<b>Encaminhamentos Sugeridos:</b>", ParagraphStyle('SubCompacto', parent=estilos['Normal'], fontSize=9, spaceAfter=0.1*cm)))
+    elementos.append(Paragraph("<b>🔀 ENCAMINHAMENTOS SUGERIDOS:</b>", estilo_secao))
     encam = ocorrencia_data.get("encaminhamento", "")
     for linha in encam.split('\n'):
         if linha.strip():
-            elementos.append(Paragraph(f"• {linha}", ParagraphStyle('ItemCompacto', parent=estilos['Normal'], fontSize=9, spaceAfter=0.05*cm)))
+            elementos.append(Paragraph(f"• {linha}", estilo_texto))
     
-    # Assinatura dos pais (sem linha - assinam onde quiserem)
-    elementos.append(Spacer(1, 0.8*cm))
-    elementos.append(Paragraph("<b>Ciência dos Pais/Responsáveis:</b>", ParagraphStyle('SubCompacto', parent=estilos['Normal'], fontSize=9, spaceAfter=0.3*cm)))
-    elementos.append(Paragraph("Nome e Assinatura do Responsável", ParagraphStyle('AssinaturaLabel', parent=estilos['Normal'], fontSize=8, alignment=1)))
+    elementos.append(Spacer(1, 1*cm))
+    
+    # Assinatura
+    elementos.append(Paragraph("<b>CIÊNCIA DOS PAIS/RESPONSÁVEIS:</b>", estilo_secao))
+    elementos.append(Spacer(1, 0.5*cm))
+    elementos.append(Paragraph("Declaro que tomei ciência deste comunicado.", estilo_texto))
+    elementos.append(Spacer(1, 1.5*cm))
+    elementos.append(Paragraph("_" * 50, estilos['Normal']))
+    elementos.append(Paragraph("Nome e Assinatura do Responsável", ParagraphStyle('Assinatura', parent=estilos['Normal'], fontSize=8, alignment=1)))
     
     # Rodapé
-    elementos.append(Spacer(1, 0.3*cm))
-    elementos.append(Paragraph(f"Documento gerado em {datetime.now().strftime('%d/%m/%Y às %H:%M')}", ParagraphStyle('Rodape', parent=estilos['Normal'], fontSize=7, alignment=1, textColor=colors.darkgrey)))
+    estilo_rodape = ParagraphStyle('Rodape', parent=estilos['Normal'], 
+                                   fontSize=7, alignment=1, textColor=colors.grey)
+    elementos.append(Spacer(1, 1*cm))
+    elementos.append(Paragraph("_" * 75, estilos['Normal']))
+    elementos.append(Paragraph(f"Documento gerado em {datetime.now().strftime('%d/%m/%Y às %H:%M')}", estilo_rodape))
+    elementos.append(Paragraph("Sistema Conviva 179 - Gestão de Ocorrências Escolares", estilo_rodape))
     
     doc.build(elementos)
     buffer.seek(0)
