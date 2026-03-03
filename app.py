@@ -571,11 +571,11 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     elementos = []
     estilos = getSampleStyleSheet()
     
-    # --- CABEÇALHO COM LOGO ---
+    # --- CABEÇALHO COM LOGO (16cm x 3cm) ---
     try:
         if os.path.exists(ESCOLA_LOGO):
-            logo = Image(ESCOLA_LOGO, width=5*cm, height=2*cm)
-            logo.hAlign = 'LEFT'
+            logo = Image(ESCOLA_LOGO, width=16*cm, height=3*cm)
+            logo.hAlign = 'CENTER'
             elementos.append(logo)
             elementos.append(Spacer(1, 0.3*cm))
     except:
@@ -583,7 +583,7 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     
     # Dados da escola centralizados
     estilo_cabecalho = ParagraphStyle('Cabecalho', parent=estilos['Normal'], 
-                                        fontSize=10, alignment=1, spaceAfter=0.2*cm, leading=12)
+                                        fontSize=9, alignment=1, spaceAfter=0.2*cm, leading=11)
     elementos.append(Paragraph(f"<b>{ESCOLA_NOME}</b>", estilo_cabecalho))
     elementos.append(Paragraph(ESCOLA_ENDERECO, estilo_cabecalho))
     elementos.append(Paragraph(f"{ESCOLA_CEP} | {ESCOLA_TELEFONE} | {ESCOLA_EMAIL}", estilo_cabecalho))
@@ -593,24 +593,31 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     elementos.append(Paragraph("_" * 75, estilos['Normal']))
     elementos.append(Spacer(1, 0.3*cm))
     
+    # Número de protocolo
+    protocolo = f"PROTOCOLO: {ocorrencia.get('id', 'N/A')}/{datetime.now().strftime('%Y')}"
+    estilo_protocolo = ParagraphStyle('Protocolo', parent=estilos['Normal'], 
+                                      fontSize=10, alignment=2, spaceAfter=0.3*cm, textColor=colors.darkblue)
+    elementos.append(Paragraph(f"<b>{protocolo}</b>", estilo_protocolo))
+    elementos.append(Spacer(1, 0.3*cm))
+    
     # Título do documento
     estilo_titulo = ParagraphStyle('TituloDoc', parent=estilos['Heading1'], 
                                    fontSize=14, alignment=1, spaceAfter=0.5*cm, textColor=colors.darkblue)
     elementos.append(Paragraph("REGISTRO DE OCORRÊNCIA", estilo_titulo))
     elementos.append(Spacer(1, 0.5*cm))
     
-    # Tabela de dados com estilo profissional
+    # Tabela de dados com estilo profissional (SEM tags HTML nas células)
     dados = [
-        ["<b>Data:</b>", ocorrencia.get("data", "")],
-        ["<b>Aluno:</b>", ocorrencia.get("aluno", "")],
-        ["<b>RA:</b>", str(ocorrencia.get("ra", ""))],
-        ["<b>Turma:</b>", ocorrencia.get("turma", "")],
-        ["<b>Categoria:</b>", ocorrencia.get("categoria", "")],
-        ["<b>Gravidade:</b>", f"<b>{ocorrencia.get('gravidade', '')}</b>"],
-        ["<b>Professor:</b>", ocorrencia.get("professor", "")]
+        ["Data:", ocorrencia.get("data", "")],
+        ["Aluno:", ocorrencia.get("aluno", "")],
+        ["RA:", str(ocorrencia.get("ra", ""))],
+        ["Turma:", ocorrencia.get("turma", "")],
+        ["Categoria:", ocorrencia.get("categoria", "")],
+        ["Gravidade:", ocorrencia.get("gravidade", "")],
+        ["Professor:", ocorrencia.get("professor", "")]
     ]
     
-    tabela_dados = Table(dados, colWidths=[4*cm, 11*cm])
+    tabela_dados = Table(dados, colWidths=[3.5*cm, 11.5*cm])
     tabela_dados.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#4A90E2')),
         ('TEXTCOLOR', (0, 0), (0, -1), colors.whitesmoke),
@@ -679,11 +686,11 @@ def gerar_pdf_comunicado(aluno_data, ocorrencia_data, medidas_aplicadas, observa
     elementos = []
     estilos = getSampleStyleSheet()
     
-    # --- CABEÇALHO COM LOGO ---
+    # --- CABEÇALHO COM LOGO (16cm x 3cm) ---
     try:
         if os.path.exists(ESCOLA_LOGO):
-            logo = Image(ESCOLA_LOGO, width=5*cm, height=2*cm)
-            logo.hAlign = 'LEFT'
+            logo = Image(ESCOLA_LOGO, width=16*cm, height=3*cm)
+            logo.hAlign = 'CENTER'
             elementos.append(logo)
             elementos.append(Spacer(1, 0.3*cm))
     except:
@@ -691,7 +698,7 @@ def gerar_pdf_comunicado(aluno_data, ocorrencia_data, medidas_aplicadas, observa
     
     # Dados da escola
     estilo_cabecalho = ParagraphStyle('Cabecalho', parent=estilos['Normal'], 
-                                        fontSize=10, alignment=1, spaceAfter=0.2*cm, leading=12)
+                                        fontSize=9, alignment=1, spaceAfter=0.2*cm, leading=11)
     elementos.append(Paragraph(f"<b>{ESCOLA_NOME}</b>", estilo_cabecalho))
     elementos.append(Paragraph(ESCOLA_ENDERECO, estilo_cabecalho))
     elementos.append(Paragraph(f"{ESCOLA_CEP} | {ESCOLA_TELEFONE} | {ESCOLA_EMAIL}", estilo_cabecalho))
@@ -699,6 +706,13 @@ def gerar_pdf_comunicado(aluno_data, ocorrencia_data, medidas_aplicadas, observa
     
     # Linha separadora
     elementos.append(Paragraph("_" * 75, estilos['Normal']))
+    elementos.append(Spacer(1, 0.3*cm))
+    
+    # Número de protocolo
+    protocolo = f"PROTOCOLO: {ocorrencia_data.get('id', 'N/A')}/{datetime.now().strftime('%Y')}"
+    estilo_protocolo = ParagraphStyle('Protocolo', parent=estilos['Normal'], 
+                                      fontSize=10, alignment=2, spaceAfter=0.3*cm, textColor=colors.darkblue)
+    elementos.append(Paragraph(f"<b>{protocolo}</b>", estilo_protocolo))
     elementos.append(Spacer(1, 0.3*cm))
     
     # Título
@@ -715,12 +729,12 @@ def gerar_pdf_comunicado(aluno_data, ocorrencia_data, medidas_aplicadas, observa
     
     elementos.append(Paragraph("<b>DADOS DO ALUNO:</b>", estilo_secao))
     dados_aluno = [
-        ["<b>Nome:</b>", aluno_data.get("nome", "")],
-        ["<b>RA:</b>", str(aluno_data.get("ra", ""))],
-        ["<b>Turma:</b>", aluno_data.get("turma", "")],
-        ["<b>Total de Ocorrências:</b>", str(aluno_data.get("total_ocorrencias", 0))]
+        ["Nome:", aluno_data.get("nome", "")],
+        ["RA:", str(aluno_data.get("ra", ""))],
+        ["Turma:", aluno_data.get("turma", "")],
+        ["Total de Ocorrências:", str(aluno_data.get("total_ocorrencias", 0))]
     ]
-    tabela_aluno = Table(dados_aluno, colWidths=[4*cm, 11*cm])
+    tabela_aluno = Table(dados_aluno, colWidths=[3.5*cm, 11.5*cm])
     tabela_aluno.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#4A90E2')),
         ('TEXTCOLOR', (0, 0), (0, -1), colors.whitesmoke),
@@ -737,12 +751,12 @@ def gerar_pdf_comunicado(aluno_data, ocorrencia_data, medidas_aplicadas, observa
     # Dados da ocorrência
     elementos.append(Paragraph("<b>DADOS DA OCORRÊNCIA:</b>", estilo_secao))
     dados_ocorrencia = [
-        ["<b>Data:</b>", ocorrencia_data.get("data", "")],
-        ["<b>Categoria:</b>", ocorrencia_data.get("categoria", "")],
-        ["<b>Gravidade:</b>", f"<b>{ocorrencia_data.get('gravidade', '')}</b>"],
-        ["<b>Professor:</b>", ocorrencia_data.get("professor", "")]
+        ["Data:", ocorrencia_data.get("data", "")],
+        ["Categoria:", ocorrencia_data.get("categoria", "")],
+        ["Gravidade:", ocorrencia_data.get("gravidade", "")],
+        ["Professor:", ocorrencia_data.get("professor", "")]
     ]
-    tabela_ocorrencia = Table(dados_ocorrencia, colWidths=[4*cm, 11*cm])
+    tabela_ocorrencia = Table(dados_ocorrencia, colWidths=[3.5*cm, 11.5*cm])
     tabela_ocorrencia.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#4A90E2')),
         ('TEXTCOLOR', (0, 0), (0, -1), colors.whitesmoke),
