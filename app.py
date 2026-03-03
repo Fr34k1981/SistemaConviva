@@ -564,26 +564,28 @@ def combinar_encaminhamentos(encaminhamentos_lista):
                 todos.append(linha)
     return '\n'.join(todos)
 
-# --- FUNÇÃO PDF COMPACTA COM LOGO ---
+# --- FUNÇÃO PDF COMPACTA COM LOGO PROPORCIONAL ---
 def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     buffer = BytesIO()
-    # Margens reduzidas para caber em 1 página
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1.5*cm, leftMargin=1.5*cm, topMargin=2.5*cm, bottomMargin=1.5*cm)
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1.5*cm, leftMargin=1.5*cm, topMargin=2*cm, bottomMargin=1.5*cm)
     elementos = []
     estilos = getSampleStyleSheet()
     
-    # --- CABEÇALHO COM LOGO (COMPACTO) ---
+    # --- CABEÇALHO COM LOGO (PROPORCIONAL - SEM DISTORÇÃO) ---
     try:
         if os.path.exists(ESCOLA_LOGO):
-            logo = Image(ESCOLA_LOGO, width=17*cm, height=3*cm)  # Altura reduzida
+            logo = Image(ESCOLA_LOGO, width=17*cm)
+            logo.hAlign = 'CENTER'
             elementos.append(logo)
-            elementos.append(Spacer(1, 0.1*cm))  # Spacer mínimo
+            elementos.append(Spacer(1, 0.1*cm))
     except:
         pass
     
-    # Nome e dados da escola em UMA linha compacta
-    escola_style = ParagraphStyle('EscolaCompacta', parent=estilos['Normal'], fontSize=8, alignment=1, spaceAfter=0.1*cm)
+    # Dados da escola em BLOCO ÚNICO
+    escola_style = ParagraphStyle('EscolaCompacta', parent=estilos['Normal'], fontSize=8, alignment=1, spaceAfter=0.1*cm, leading=10)
     elementos.append(Paragraph(f"<b>{ESCOLA_NOME}</b><br/>{ESCOLA_ENDERECO}<br/>{ESCOLA_CEP} | {ESCOLA_TELEFONE} | {ESCOLA_EMAIL}", escola_style))
+    elementos.append(Spacer(1, 0.3*cm))
+    elementos.append(Paragraph("_" * 70, estilos['Normal']))
     elementos.append(Spacer(1, 0.2*cm))
     
     # Título do documento
@@ -613,65 +615,74 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     elementos.append(Paragraph("<b>Encaminhamentos:</b>", ParagraphStyle('SubCompacto', parent=estilos['Normal'], fontSize=9, spaceAfter=0.1*cm)))
     elementos.append(Paragraph(str(ocorrencia.get("encaminhamento", "")), ParagraphStyle('TextoCompacto', parent=estilos['Normal'], fontSize=9, spaceAfter=0.5*cm)))
     
-    # Assinaturas compactas
-    elementos.append(Paragraph("<b>Assinaturas:</b>", ParagraphStyle('SubCompacto', parent=estilos['Normal'], fontSize=9, spaceAfter=0.2*cm)))
-    assinaturas = []
-    cargos_padrao = ["Diretor(a)", "Vice-Diretor(a)", "Coordenador(a)", "Professor"]
-    for cargo in cargos_padrao:
-        if cargo == "Professor":
-            nome = ocorrencia.get("professor", "________________")
+    # Assinaturas ALINHADAS (sem linhas - assinam onde quiserem)
+    elementos.append(Paragraph("<b>Assinaturas:</b>", ParagraphStyle('SubCompacto', parent=estilos['Normal'], fontSize=9, spaceAfter=0.3*cm)))
+    
+    assinaturas_data = []
+    cargos = ["Diretor(a)", "Vice-Diretor(a)", "Coordenador(a)", "Professor Responsável"]
+    for cargo in cargos:
+        if cargo == "Professor Responsável":
+            nome = ocorrencia.get("professor", "")
         else:
             resp = responsaveis[responsaveis['cargo'] == cargo] if not responsaveis.empty else pd.DataFrame()
-            nome = resp['nome'].values[0] if not resp.empty else "________________"
-        assinaturas.append([f"{cargo}:", nome])
-    tabela_assinaturas = Table(assinaturas, colWidths=[4*cm, 9*cm])
-    tabela_assinaturas.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 8),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-    ]))
-    elementos.append(tabela_assinaturas)
+            nome = resp['nome'].values[0] if not resp.empty else ""
+        if nome:
+            assinaturas_data.append([f"{cargo}:", nome])
+    
+    if assinaturas_
+        tabela_assinaturas = Table(assinaturas_data, colWidths=[4.5*cm, 9.5*cm])
+        tabela_assinaturas.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('ALIGN', (1, 0), (1, -1), 'LEFT'),  # Alinha nomes à esquerda
+        ]))
+        elementos.append(tabela_assinaturas)
     
     # Rodapé
-    elementos.append(Spacer(1, 0.3*cm))
-    elementos.append(Paragraph(f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}", ParagraphStyle('Rodape', parent=estilos['Normal'], fontSize=7, alignment=1)))
+    elementos.append(Spacer(1, 0.5*cm))
+    elementos.append(Paragraph(f"Documento gerado em {datetime.now().strftime('%d/%m/%Y às %H:%M')}", ParagraphStyle('Rodape', parent=estilos['Normal'], fontSize=7, alignment=1, textColor=colors.darkgrey)))
     
     doc.build(elementos)
     buffer.seek(0)
     return buffer
 
-# --- FUNÇÃO PDF COMUNICADO COMPACTO ---
+# --- FUNÇÃO PDF COMUNICADO COMPACTO COM LOGO PROPORCIONAL ---
 def gerar_pdf_comunicado(aluno_data, ocorrencia_data, medidas_aplicadas, observacoes, responsaveis):
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1.5*cm, leftMargin=1.5*cm, topMargin=2.5*cm, bottomMargin=1.5*cm)
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1.5*cm, leftMargin=1.5*cm, topMargin=2*cm, bottomMargin=1.5*cm)
     elementos = []
     estilos = getSampleStyleSheet()
     
-    # --- CABEÇALHO COM LOGO (COMPACTO) ---
+    # --- CABEÇALHO COM LOGO (PROPORCIONAL - SEM DISTORÇÃO) ---
     try:
         if os.path.exists(ESCOLA_LOGO):
-            logo = Image(ESCOLA_LOGO, width=17*cm, height=3*cm)
+            logo = Image(ESCOLA_LOGO, width=17*cm)
+            logo.hAlign = 'CENTER'
             elementos.append(logo)
             elementos.append(Spacer(1, 0.1*cm))
     except:
         pass
     
-    # Dados da escola compactos
-    escola_style = ParagraphStyle('EscolaCompacta', parent=estilos['Normal'], fontSize=8, alignment=1, spaceAfter=0.1*cm)
+    # Dados da escola em BLOCO ÚNICO
+    escola_style = ParagraphStyle('EscolaCompacta', parent=estilos['Normal'], fontSize=8, alignment=1, spaceAfter=0.1*cm, leading=10)
     elementos.append(Paragraph(f"<b>{ESCOLA_NOME}</b><br/>{ESCOLA_ENDERECO}<br/>{ESCOLA_CEP} | {ESCOLA_TELEFONE} | {ESCOLA_EMAIL}", escola_style))
+    elementos.append(Spacer(1, 0.3*cm))
+    elementos.append(Paragraph("_" * 70, estilos['Normal']))
     elementos.append(Spacer(1, 0.2*cm))
     
     # Título
-    elementos.append(Paragraph("COMUNICADO AOS PAIS", ParagraphStyle('TituloDoc', parent=estilos['Heading2'], fontSize=11, alignment=1, spaceAfter=0.3*cm)))
+    elementos.append(Paragraph("COMUNICADO AOS PAIS/RESPONSÁVEIS", ParagraphStyle('TituloDoc', parent=estilos['Heading2'], fontSize=11, alignment=1, spaceAfter=0.3*cm)))
     
     # Dados do aluno (tabela compacta)
     dados_aluno = [
         ["Nome:", aluno_data.get("nome", "")],
         ["RA:", str(aluno_data.get("ra", ""))],
         ["Turma:", aluno_data.get("turma", "")],
-        ["Ocorrências:", str(aluno_data.get("total_ocorrencias", 0))]
+        ["Total de Ocorrências:", str(aluno_data.get("total_ocorrencias", 0))]
     ]
-    tabela_aluno = Table(dados_aluno, colWidths=[3.5*cm, 10.5*cm])
+    tabela_aluno = Table(dados_aluno, colWidths=[4*cm, 10*cm])
     tabela_aluno.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
@@ -689,7 +700,7 @@ def gerar_pdf_comunicado(aluno_data, ocorrencia_data, medidas_aplicadas, observa
         ["Gravidade:", ocorrencia_data.get("gravidade", "")],
         ["Professor:", ocorrencia_data.get("professor", "")]
     ]
-    tabela_ocorrencia = Table(dados_ocorrencia, colWidths=[3.5*cm, 10.5*cm])
+    tabela_ocorrencia = Table(dados_ocorrencia, colWidths=[4*cm, 10*cm])
     tabela_ocorrencia.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
@@ -718,20 +729,20 @@ def gerar_pdf_comunicado(aluno_data, ocorrencia_data, medidas_aplicadas, observa
         elementos.append(Paragraph(str(observacoes), ParagraphStyle('TextoCompacto', parent=estilos['Normal'], fontSize=9, spaceAfter=0.3*cm)))
     
     # Encaminhamentos
-    elementos.append(Paragraph("<b>Encaminhamentos:</b>", ParagraphStyle('SubCompacto', parent=estilos['Normal'], fontSize=9, spaceAfter=0.1*cm)))
+    elementos.append(Paragraph("<b>Encaminhamentos Sugeridos:</b>", ParagraphStyle('SubCompacto', parent=estilos['Normal'], fontSize=9, spaceAfter=0.1*cm)))
     encam = ocorrencia_data.get("encaminhamento", "")
     for linha in encam.split('\n'):
         if linha.strip():
             elementos.append(Paragraph(f"• {linha}", ParagraphStyle('ItemCompacto', parent=estilos['Normal'], fontSize=9, spaceAfter=0.05*cm)))
     
-    # Assinatura dos pais
-    elementos.append(Spacer(1, 0.5*cm))
-    elementos.append(Paragraph("__________________________________________", estilos['Normal']))
-    elementos.append(Paragraph("Assinatura do Responsável", ParagraphStyle('Assinatura', parent=estilos['Normal'], fontSize=8, alignment=1)))
+    # Assinatura dos pais (sem linha - assinam onde quiserem)
+    elementos.append(Spacer(1, 0.8*cm))
+    elementos.append(Paragraph("<b>Ciência dos Pais/Responsáveis:</b>", ParagraphStyle('SubCompacto', parent=estilos['Normal'], fontSize=9, spaceAfter=0.3*cm)))
+    elementos.append(Paragraph("Nome e Assinatura do Responsável", ParagraphStyle('AssinaturaLabel', parent=estilos['Normal'], fontSize=8, alignment=1)))
     
     # Rodapé
-    elementos.append(Spacer(1, 0.2*cm))
-    elementos.append(Paragraph(f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}", ParagraphStyle('Rodape', parent=estilos['Normal'], fontSize=7, alignment=1)))
+    elementos.append(Spacer(1, 0.3*cm))
+    elementos.append(Paragraph(f"Documento gerado em {datetime.now().strftime('%d/%m/%Y às %H:%M')}", ParagraphStyle('Rodape', parent=estilos['Normal'], fontSize=7, alignment=1, textColor=colors.darkgrey)))
     
     doc.build(elementos)
     buffer.seek(0)
@@ -883,74 +894,43 @@ elif menu == "📝 Registrar Ocorrência":
                 grupo = st.selectbox("Grupo", list(PROTOCOLO_179.keys()), key="grupo_principal")
                 cats = PROTOCOLO_179[grupo]
                 infracao_principal = st.selectbox("Ocorrência Principal", list(cats.keys()), key="infracao_principal")
-                gravidade_principal = cats[infracao_principal]["gravidade"]
-                encam_principal = cats[infracao_principal]["encaminhamento"]
-                st.markdown(f'<span class="infracao-principal-tag">🎯 Principal: {infracao_principal}</span>', unsafe_allow_html=True)
-                st.markdown("---")
-                st.subheader("➕ Infrações Adicionais (Opcional)")
-                adicionar_outra = st.radio("Deseja adicionar outra infração relacionada?",
-                    ["Não, apenas a principal", "Sim, adicionar infração adicional"],
-                    key="radio_adicionar_infracao", index=0)
-                infracoes_adicionais = []
-                if adicionar_outra == "Sim, adicionar infração adicional":
-                    for i in range(4):
-                        st.markdown(f"**Infração Adicional {i+1}:**")
-                        grupo_add = st.selectbox(f"Grupo {i+1}", list(PROTOCOLO_179.keys()), key=f"grupo_add_{i}")
-                        cats_add = PROTOCOLO_179[grupo_add]
-                        infracao_add = st.selectbox(f"Ocorrência {i+1}", list(cats_add.keys()), key=f"infracao_add_{i}")
-                        infracoes_adicionais.append(infracao_add)
-                        if i < 3:
-                            adicionar_mais = st.checkbox(f"Adicionar mais uma após esta?", key=f"mais_{i}")
-                            if not adicionar_mais:
-                                break
-                        st.markdown("---")
-                st.session_state.infracoes_adicionais = infracoes_adicionais
-                todas_infracoes = [infracao_principal] + infracoes_adicionais
-                gravidades = []
-                encaminhamentos_lista = []
-                for inf in todas_infracoes:
-                    for grupo_nome, cats in PROTOCOLO_179.items():
-                        if inf in cats:
-                            gravidades.append(cats[inf]["gravidade"])
-                            encaminhamentos_lista.append(cats[inf]["encaminhamento"])
-                            break
-                gravidade_protocolo = obter_gravidade_mais_alta(gravidades)
-                encam_sugerido = combinar_encaminhamentos(encaminhamentos_lista)
+                
+                # 🔄 AUTOMATIZAR GRAVIDADE E ENCAMINHAMENTOS PELO PROTOCOLO 179
+                gravidade_protocolo = cats[infracao_principal]["gravidade"]
+                encam_protocolo = cats[infracao_principal]["encaminhamento"]
+                
+                # Mostrar tag da infração principal
+                st.markdown(f'<span class="infracao-principal-tag">🎯 {infracao_principal}</span>', unsafe_allow_html=True)
+                
+                # Mostrar informações automáticas do protocolo
                 st.markdown("---")
                 st.info(f"""
-                    **📋 Protocolo 179 - {len(todas_infracoes)} infração(ões)**
-                    **Infração Principal:** {infracao_principal}
-                    {'**Infrações Adicionais:** ' + ', '.join(infracoes_adicionais) if infracoes_adicionais else ''}
-                    **Gravidade (mais alta):** {gravidade_protocolo}
-                    **Encaminhamentos Sugeridos (combinados):**
+                    **📋 Protocolo 179 - Preenchimento Automático**
+                    
+                    **Infração:** {infracao_principal}
+                    **Gravidade (automática):** {gravidade_protocolo}
+                    
+                    **Encaminhamentos sugeridos:**
                 """)
-                for linha in encam_sugerido.split('\n'):
+                for linha in encam_protocolo.split('\n'):
                     if linha.strip():
                         st.write(linha)
-                if todas_infracoes:
-                    st.markdown("---")
-                    st.markdown("**Infrações registradas:**")
-                    tags_html = f'<span class="infracao-principal-tag">🎯 {infracao_principal}</span>'
-                    for inf in infracoes_adicionais:
-                        tags_html += f'<span class="infracao-tag">{inf}</span>'
-                    st.markdown(tags_html, unsafe_allow_html=True)
-                gravidade = st.selectbox("Gravidade", ["Leve", "Grave", "Gravíssima"],
+                
+                # Gravidade AUTOMÁTICA (readonly visual)
+                gravidade = st.selectbox("Gravidade (definida pelo Protocolo 179)", 
+                                        ["Leve", "Grave", "Gravíssima"],
                                         index=["Leve", "Grave", "Gravíssima"].index(gravidade_protocolo),
-                                        key="gravidade_select")
-                if gravidade != gravidade_protocolo:
-                    if not st.session_state.gravidade_alterada:
-                        st.error(f"""
-                            ⚠️ **ATENÇÃO:** Você está alterando a gravidade sugerida pelo Protocolo 179!
-                            **A gravidade oficial para estas infrações é {gravidade_protocolo}.**
-                            Certifique-se de que há justificativa para esta alteração.
-                        """)
-                        st.session_state.gravidade_alterada = True
-                else:
-                    st.session_state.gravidade_alterada = False
+                                        key="gravidade_auto", disabled=True)  # ← DESABILITADO PARA NÃO ALTERAR
+                
+                # Encaminhamento AUTOMÁTICO (editável se necessário)
+                encam = st.text_area("🔀 Encaminhamentos (preenchido pelo Protocolo 179 - editável se necessário)", 
+                                    value=encam_protocolo, height=150, key="encam_auto")
+            
             st.markdown("---")
-            relato = st.text_area("📝 Relato", height=100, key="relato_novo", placeholder="Descreva os fatos...")
-            encam = st.text_area("🔀 Encaminhamento", value=encam_sugerido, height=200, key="encam_novo")
-            st.info(f"🤖 **Encaminhamentos sugeridos pelo Protocolo 179 foram preenchidos automaticamente.**")
+            relato = st.text_area("📝 Relato dos Fatos", height=100, key="relato_novo", 
+                                 placeholder="Descreva os fatos de forma clara e objetiva...")
+            
+            # Botão de salvar
             if st.session_state.salvando_ocorrencia:
                 st.button("💾 Salvando...", disabled=True, type="primary")
                 st.info("⏳ Aguarde, registrando ocorrência...")
@@ -959,15 +939,14 @@ elif menu == "📝 Registrar Ocorrência":
                     if prof and prof != "Selecione..." and relato:
                         data_str = f"{data.strftime('%d/%m/%Y')} {hora.strftime('%H:%M')}"
                         categoria_str = infracao_principal
-                        if infracoes_adicionais:
-                            categoria_str += " | " + " | ".join(infracoes_adicionais)
+                        
                         if verificar_ocorrencia_duplicada(ra, categoria_str, data_str, df_ocorrencias):
                             st.error(f"❌ JÁ EXISTE UMA OCORRÊNCIA IGUAL PARA ESTE ALUNO!")
                         else:
                             st.session_state.salvando_ocorrencia = True
                             nova = {
                                 "data": data_str, "aluno": nome, "ra": ra, "turma": turma_sel,
-                                "categoria": categoria_str, "gravidade": gravidade,
+                                "categoria": categoria_str, "gravidade": gravidade_protocolo,  # ← GRAVIDADE DO PROTOCOLO
                                 "relato": relato, "encaminhamento": encam, "professor": prof,
                                 "medidas_aplicadas": "", "medidas_obs": ""
                             }
@@ -1029,21 +1008,9 @@ elif menu == "📄 Comunicado aos Pais":
                         • Professor: {occ_info['professor']}
                     </div>
                 """, unsafe_allow_html=True)
-                gravidade = occ_info['gravidade']
-                medidas_sugeridas = {
-                    "Leve": ["Mediação de conflitos", "Registro em ata", "Notificação aos pais", "Atividades de reflexão", "Termo de compromisso"],
-                    "Grave": ["Ata circunstanciada", "Conselho Tutelar", "Mudança de turma", "Acompanhamento psicológico", "Reunião com pais", "Afastamento temporário (1-3 dias)"],
-                    "Gravíssima": ["B.O. obrigatório", "Conselho Tutelar", "Diretoria de Ensino", "Medidas protetivas", "Acompanhamento especializado", "Afastamento da sala (temporário)", "Transferência de escola"]
-                }
-                if gravidade in medidas_sugeridas:
-                    st.markdown(f"""
-                        <div class="protocolo-info">
-                            <b>📋 Medidas Sugeridas para Gravidade {gravidade}:</b><br>
-                            {'<br>'.join(['• ' + m for m in medidas_sugeridas[gravidade]])}
-                        </div>
-                    """, unsafe_allow_html=True)
+                
+                # Medidas aplicadas (checkboxes em grid)
                 st.subheader("⚖️ Medidas Aplicadas")
-                st.info("📋 Orientações do Protocolo 179:\n• Suspensão total é MEDIDA EXCEPCIONAL\n• Priorizar medidas educativas e restaurativas\n• Envolvimento da família é essencial")
                 medidas_opcoes = [
                     "Mediação de conflitos", "Registro em ata", "Notificação aos pais",
                     "Atividades de reflexão", "Termo de compromisso", "Ata circunstanciada",
@@ -1058,49 +1025,11 @@ elif menu == "📄 Comunicado aos Pais":
                     with cols[col_idx]:
                         if st.checkbox(medida, key=f"medida_comm_{medida}"):
                             medidas_aplicadas.append(medida)
+                
                 observacoes = st.text_area("📝 Observações adicionais", 
                                          placeholder="Descreva detalhes das medidas, prazos, acompanhamentos...",
                                          height=80, key="obs_comunicado")
-                st.subheader("✍️ Texto Pedagógico Automático")
-                st.info("💡 Este texto é gerado automaticamente com base nos dados da ocorrência. Você pode editar se necessário.")
-                texto_pedagogico = f"""
-RELATÓRIO PEDAGÓGICO - OCORRÊNCIA DISCIPLINAR
-
-Escola: {ESCOLA_NOME}
-{ESCOLA_ENDERECO}
-{ESCOLA_CEP} | {ESCOLA_TELEFONE} | {ESCOLA_EMAIL}
-
-Aluno(a): {aluno_info['nome']}
-RA: {ra_aluno} | Turma: {turma_aluno}
-Data da Ocorrência: {occ_info['data']}
-
-1. DESCRIÇÃO DOS FATOS:
-{occ_info['relato']}
-
-2. MEDIDAS DISCIPLINARES APLICADAS:
-{', '.join(medidas_aplicadas) if medidas_aplicadas else 'Nenhuma medida adicional aplicada.'}
-
-3. ENCAMINHAMENTOS:
-{occ_info['encaminhamento']}
-
-4. OBSERVAÇÕES ADICIONAIS:
-{observacoes if observacoes else 'Sem observações adicionais.'}
-
-5. CIÊNCIA DA FAMÍLIA:
-Solicitamos que os pais/responsáveis tomem ciência deste relatório e assinem abaixo, comprometendo-se com o acompanhamento das medidas estabelecidas.
-
-__________________________________________
-Assinatura do Responsável
-
-__________________________________________
-Assinatura do Professor(a)
-
-__________________________________________
-Assinatura da Direção/Coordenação
-
-Ferraz de Vasconcelos, {datetime.now().strftime('%d de %B de %Y')}
-"""
-                texto_editado = st.text_area("📝 Editar Texto (opcional)", value=texto_pedagogico, height=300, key="texto_ped")
+                
                 if st.button("🖨️ Gerar Comunicado para os Pais", type="primary"):
                     aluno_data_dict = {
                         "nome": aluno_info['nome'],
@@ -1111,7 +1040,7 @@ Ferraz de Vasconcelos, {datetime.now().strftime('%d de %B de %Y')}
                     ocorrencia_data_dict = {
                         "data": occ_info['data'],
                         "categoria": occ_info['categoria'],
-                        "gravidade": gravidade,
+                        "gravidade": occ_info['gravidade'],
                         "professor": occ_info['professor'],
                         "relato": occ_info['relato'],
                         "encaminhamento": occ_info['encaminhamento']
@@ -1125,13 +1054,6 @@ Ferraz de Vasconcelos, {datetime.now().strftime('%d de %B de %Y')}
                         mime="application/pdf"
                     )
                     st.success("✅ Comunicado gerado! Imprima e envie com o aluno para assinatura dos pais.")
-                if st.button("📄 Baixar Texto Pedagógico (TXT)"):
-                    st.download_button(
-                        label="📥 Baixar Texto (TXT)",
-                        data=texto_editado,
-                        file_name=f"Texto_Pedagogico_{ra_aluno}_{datetime.now().strftime('%Y%m%d')}.txt",
-                        mime="text/plain"
-                    )
             else:
                 st.info("ℹ️ Este aluno ainda não tem ocorrências registradas.")
         else:
