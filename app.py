@@ -629,14 +629,15 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
         if nome:
             assinaturas_data.append([f"{cargo}:", nome])
     
-    if assinaturas_
+    # ✅ CORREÇÃO: Condição completa com dois-pontos
+    if assinaturas_data:
         tabela_assinaturas = Table(assinaturas_data, colWidths=[4.5*cm, 9.5*cm])
         tabela_assinaturas.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, -1), 8),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
             ('TOPPADDING', (0, 0), (-1, -1), 8),
-            ('ALIGN', (1, 0), (1, -1), 'LEFT'),  # Alinha nomes à esquerda
+            ('ALIGN', (1, 0), (1, -1), 'LEFT'),
         ]))
         elementos.append(tabela_assinaturas)
     
@@ -920,7 +921,7 @@ elif menu == "📝 Registrar Ocorrência":
                 gravidade = st.selectbox("Gravidade (definida pelo Protocolo 179)", 
                                         ["Leve", "Grave", "Gravíssima"],
                                         index=["Leve", "Grave", "Gravíssima"].index(gravidade_protocolo),
-                                        key="gravidade_auto", disabled=True)  # ← DESABILITADO PARA NÃO ALTERAR
+                                        key="gravidade_auto", disabled=True)
                 
                 # Encaminhamento AUTOMÁTICO (editável se necessário)
                 encam = st.text_area("🔀 Encaminhamentos (preenchido pelo Protocolo 179 - editável se necessário)", 
@@ -946,7 +947,7 @@ elif menu == "📝 Registrar Ocorrência":
                             st.session_state.salvando_ocorrencia = True
                             nova = {
                                 "data": data_str, "aluno": nome, "ra": ra, "turma": turma_sel,
-                                "categoria": categoria_str, "gravidade": gravidade_protocolo,  # ← GRAVIDADE DO PROTOCOLO
+                                "categoria": categoria_str, "gravidade": gravidade_protocolo,
                                 "relato": relato, "encaminhamento": encam, "professor": prof,
                                 "medidas_aplicadas": "", "medidas_obs": ""
                             }
