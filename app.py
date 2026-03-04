@@ -873,6 +873,71 @@ df_ocorrencias = carregar_ocorrencias()
 df_professores = carregar_professores()
 df_responsaveis = carregar_responsaveis()
 
+# --- INSERIR PROFESSORES PADRÃO (SE VAZIO) ---
+if df_professores.empty:
+    st.info("📝 Cadastrando 42 professores padrão...")
+    
+    professores_lista = [
+        "Alnei Maria De Moura Nogueira",
+        "Ana Paula De Oliveira Farias",
+        "Anderson Do Nascimento Belisiario",
+        "Aureni Caldeira Da Silva",
+        "Charles Soares Damianovic Bragadin",
+        "Cláudia Cristina Da Silva Aureliano",
+        "Diego Mir De Souza",
+        "Edileia Pereira De Castro Silva",
+        "Elaine Lemos Da Silva",
+        "Eleazar Silva",
+        "Fagna Rodrigues Souza",
+        "Fernanda Fiuza De Oliveira",
+        "Francisca Freire De Oliveira",
+        "Gilberto Marcelino Da Silva",
+        "Guilherme Costa Brito",
+        "Guilherme Leite Oliveira Silva",
+        "Guilherme Rodrigues De Oliveira",
+        "Itatiara Conceição Da Silva Cavalcante",
+        "Ivan Aspiazu Ariscurinaga",
+        "Jaqueline Fatima De Oliveira",
+        "Jose Carvalho Filho",
+        "Katia Rosangela De Souza Silva",
+        "Lourdes Juliao Soares",
+        "Luciana Meira De Siqueira",
+        "Lucineide Da Silva Costa",
+        "Maria Izabel Ferreira Felix",
+        "Mayara Machado Ferreira",
+        "Orlando Antonio Pagnani Neto",
+        "Patricia Martins Cordeiro",
+        "Patrocinio Geovana Nascimentodo Carmo",
+        "Paula De Jesus",
+        "Paula Gomes Santana",
+        "Regina Helena De Oliveira",
+        "Regis Atanazio Do Nascimento",
+        "Renan Pereira Dos Santos",
+        "Rosangela Cavalcanti Dos Passos Galdino",
+        "Rosemeire Reis Santana",
+        "Rosemeire Tiso",
+        "Shirley De Araujo Ribas",
+        "Silvana De Souza Oliveira Santos",
+        "Solange Aparecida Da Silva Oliveira",
+        "Veronica Brandao Ribeiro Dos Santos",
+        "Vitor Duarte Da Silva Almeida",
+        "Viviani De Sousa Gomes"
+    ]
+    
+    contagem = 0
+    for nome_prof in professores_lista:
+        # Verifica se já existe
+        if not verificar_professor_duplicado(nome_prof, df_professores):
+            novo_prof = {"nome": nome_prof, "email": None}
+            if salvar_professor(novo_prof):
+                contagem += 1
+    
+    if contagem > 0:
+        st.success(f"✅ {contagem} professores cadastrados automaticamente!")
+        # Recarrega os dados
+        df_professores = carregar_professores()
+        st.rerun()
+
 # --- 1. HOME ---
 if menu == "🏠 Início":
     st.markdown(f"""
