@@ -571,23 +571,17 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     elementos = []
     estilos = getSampleStyleSheet()
     
-    # --- CABEÇALHO COM LOGO (16cm x 3cm) ---
+    # --- CABEÇALHO COM LOGO (16cm x 4cm) ---
     try:
         if os.path.exists(ESCOLA_LOGO):
-            logo = Image(ESCOLA_LOGO, width=16*cm, height=3*cm)
+            logo = Image(ESCOLA_LOGO, width=16*cm, height=4*cm)  # Altura aumentada para 4cm
             logo.hAlign = 'CENTER'
             elementos.append(logo)
             elementos.append(Spacer(1, 0.3*cm))
     except:
         pass
     
-    # Dados da escola centralizados
-    estilo_cabecalho = ParagraphStyle('Cabecalho', parent=estilos['Normal'], 
-                                        fontSize=9, alignment=1, spaceAfter=0.2*cm, leading=11)
-    elementos.append(Paragraph(f"<b>{ESCOLA_NOME}</b>", estilo_cabecalho))
-    elementos.append(Paragraph(ESCOLA_ENDERECO, estilo_cabecalho))
-    elementos.append(Paragraph(f"{ESCOLA_CEP} | {ESCOLA_TELEFONE} | {ESCOLA_EMAIL}", estilo_cabecalho))
-    elementos.append(Spacer(1, 0.5*cm))
+    # REMOVIDO: Dados da escola em texto (agora só a logo)
     
     # Linha separadora
     elementos.append(Paragraph("_" * 75, estilos['Normal']))
@@ -606,7 +600,7 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     elementos.append(Paragraph("REGISTRO DE OCORRÊNCIA", estilo_titulo))
     elementos.append(Spacer(1, 0.5*cm))
     
-    # Tabela de dados com estilo profissional (SEM tags HTML nas células)
+    # Tabela de dados com estilo profissional
     dados = [
         ["Data:", ocorrencia.get("data", "")],
         ["Aluno:", ocorrencia.get("aluno", "")],
@@ -686,23 +680,17 @@ def gerar_pdf_comunicado(aluno_data, ocorrencia_data, medidas_aplicadas, observa
     elementos = []
     estilos = getSampleStyleSheet()
     
-    # --- CABEÇALHO COM LOGO (16cm x 3cm) ---
+    # --- CABEÇALHO COM LOGO (16cm x 4cm) ---
     try:
         if os.path.exists(ESCOLA_LOGO):
-            logo = Image(ESCOLA_LOGO, width=16*cm, height=3*cm)
+            logo = Image(ESCOLA_LOGO, width=16*cm, height=4*cm)  # Altura aumentada para 4cm
             logo.hAlign = 'CENTER'
             elementos.append(logo)
             elementos.append(Spacer(1, 0.3*cm))
     except:
         pass
     
-    # Dados da escola
-    estilo_cabecalho = ParagraphStyle('Cabecalho', parent=estilos['Normal'], 
-                                        fontSize=9, alignment=1, spaceAfter=0.2*cm, leading=11)
-    elementos.append(Paragraph(f"<b>{ESCOLA_NOME}</b>", estilo_cabecalho))
-    elementos.append(Paragraph(ESCOLA_ENDERECO, estilo_cabecalho))
-    elementos.append(Paragraph(f"{ESCOLA_CEP} | {ESCOLA_TELEFONE} | {ESCOLA_EMAIL}", estilo_cabecalho))
-    elementos.append(Spacer(1, 0.5*cm))
+    # REMOVIDO: Dados da escola em texto
     
     # Linha separadora
     elementos.append(Paragraph("_" * 75, estilos['Normal']))
