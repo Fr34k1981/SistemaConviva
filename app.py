@@ -570,6 +570,21 @@ def verificar_ocorrencia_duplicada(ra, categoria, data_str, df_ocorrencias):
     ]
     return not ocorrencias_existentes.empty
 
+# --- VERIFICAR NOME DUPLICADO DE PROFESSOR ---
+def verificar_professor_duplicado(nome, df_professores, id_atual=None):
+    if df_professores.empty:
+        return False
+    nome_normalizado = nome.strip().lower()
+    if id_atual:
+        # Verifica excluindo o próprio registro sendo editado
+        duplicados = df_professores[
+            (df_professores['nome'].str.strip().str.lower() == nome_normalizado) & 
+            (df_professores['id'] != id_atual)
+        ]
+    else:
+        duplicados = df_professores[df_professores['nome'].str.strip().str.lower() == nome_normalizado]
+    return not duplicados.empty
+
 # --- OBTER GRAVIDADE MAIS ALTA ---
 def obter_gravidade_mais_alta(gravidades):
     ordem = {"Leve": 1, "Grave": 2, "Gravíssima": 3}
@@ -883,7 +898,7 @@ if menu == "🏠 Início":
         profs = len(df_professores) if not df_professores.empty else 0
         st.metric("Professores Cadastrados", profs)
 
-# --- 2. CADASTRAR PROFESSORES (COM EDITAR E EXCLUIR) ---
+# --- 2. CADASTRAR PROFESSORES (COM EDITAR, EXCLUIR E VALIDAÇÃO DE DUPLICIDADE) ---
 elif menu == "👨‍ Cadastrar Professores":
     st.header("👨‍🏫 Cadastrar Professores")
     
@@ -898,10 +913,14 @@ elif menu == "👨‍ Cadastrar Professores":
         with col1:
             if st.button("💾 Salvar Alterações", type="primary"):
                 if nome_prof:
-                    if atualizar_professor(st.session_state.editando_prof, {"nome": nome_prof, "email": email_prof if email_prof else None}):
-                        st.success("✅ Professor atualizado!")
-                        st.session_state.editando_prof = None
-                        st.rerun()
+                    # Verifica duplicidade
+                    if verificar_professor_duplicado(nome_prof, df_professores, st.session_state.editando_prof):
+                        st.error("❌ Já existe um professor com este nome cadastrado!")
+                    else:
+                        if atualizar_professor(st.session_state.editando_prof, {"nome": nome_prof, "email": email_prof if email_prof else None}):
+                            st.success("✅ Professor atualizado com sucesso!")
+                            st.session_state.editando_prof = None
+                            st.rerun()
         with col2:
             if st.button("❌ Cancelar"):
                 st.session_state.editando_prof = None
@@ -916,10 +935,14 @@ elif menu == "👨‍ Cadastrar Professores":
         
         if st.button("💾 Salvar Professor", type="primary"):
             if nome_prof:
-                novo_prof = {"nome": nome_prof, "email": email_prof if email_prof else None}
-                if salvar_professor(novo_prof):
-                    st.success(f"✅ Professor {nome_prof} cadastrado!")
-                    st.rerun()
+                # Verifica duplicidade
+                if verificar_professor_duplicado(nome_prof, df_professores):
+                    st.error("❌ Já existe um professor com este nome cadastrado!")
+                else:
+                    novo_prof = {"nome": nome_prof, "email": email_prof if email_prof else None}
+                    if salvar_professor(novo_prof):
+                        st.success(f"✅ Professor {nome_prof} cadastrado com sucesso!")
+                        st.rerun()
             else:
                 st.error("❌ Nome é obrigatório!")
     
@@ -937,7 +960,7 @@ elif menu == "👨‍ Cadastrar Professores":
             with col3:
                 if st.button("🗑️ Excluir", key=f"del_prof_{prof['id']}"):
                     if excluir_professor(prof['id']):
-                        st.success("✅ Professor excluído!")
+                        st.success("✅ Professor excluído com sucesso!")
                         st.rerun()
         st.info(f"Total: {len(df_professores)} professores")
     else:
@@ -960,7 +983,7 @@ elif menu == "👤 Cadastrar Responsáveis por Assinatura":
             if st.button("💾 Salvar Alterações", type="primary"):
                 if nome_resp:
                     if atualizar_responsavel(st.session_state.editando_resp, {"nome": nome_resp}):
-                        st.success("✅ Responsável atualizado!")
+                        st.success("✅ Responsável atualizado com sucesso!")
                         st.session_state.editando_resp = None
                         st.rerun()
         with col2:
@@ -976,7 +999,7 @@ elif menu == "👤 Cadastrar Responsáveis por Assinatura":
         if st.button("💾 Cadastrar", type="primary"):
             if nome_resp:
                 if salvar_responsavel({"cargo": cargo, "nome": nome_resp, "ativo": True}):
-                    st.success(f"✅ {cargo} cadastrado!")
+                    st.success(f"✅ {cargo} cadastrado com sucesso!")
                     st.rerun()
             else:
                 st.error("❌ Nome é obrigatório!")
@@ -999,7 +1022,7 @@ elif menu == "👤 Cadastrar Responsáveis por Assinatura":
                     with col3:
                         if st.button("🗑️", key=f"del_resp_{resp['id']}"):
                             if excluir_responsavel(resp['id']):
-                                st.success("✅ Excluído!")
+                                st.success("✅ Excluído com sucesso!")
                                 st.rerun()
                 st.markdown("")
     else:
