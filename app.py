@@ -476,6 +476,22 @@ def salvar_professor(professor):
         st.error(f"Erro ao salvar professor: {str(e)}")
         return False
 
+def atualizar_professor(id_prof, dados):
+    try:
+        response = requests.patch(f"{SUPABASE_URL}/rest/v1/professores?id=eq.{id_prof}", json=dados, headers=HEADERS)
+        return response.status_code in [200, 204]
+    except Exception as e:
+        st.error(f"Erro ao atualizar professor: {str(e)}")
+        return False
+
+def excluir_professor(id_prof):
+    try:
+        response = requests.delete(f"{SUPABASE_URL}/rest/v1/professores?id=eq.{id_prof}", headers=HEADERS)
+        return response.status_code in [200, 204]
+    except Exception as e:
+        st.error(f"Erro ao excluir professor: {str(e)}")
+        return False
+
 @st.cache_data(ttl=60)
 def carregar_responsaveis():
     try:
@@ -500,6 +516,14 @@ def atualizar_responsavel(id_resp, dados):
         return response.status_code in [200, 204]
     except Exception as e:
         st.error(f"Erro ao atualizar responsável: {str(e)}")
+        return False
+
+def excluir_responsavel(id_resp):
+    try:
+        response = requests.delete(f"{SUPABASE_URL}/rest/v1/responsaveis?id=eq.{id_resp}", headers=HEADERS)
+        return response.status_code in [200, 204]
+    except Exception as e:
+        st.error(f"Erro ao excluir responsável: {str(e)}")
         return False
 
 def carregar_ocorrencias():
@@ -574,14 +598,12 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     # --- CABEÇALHO COM LOGO (16cm x 4cm) ---
     try:
         if os.path.exists(ESCOLA_LOGO):
-            logo = Image(ESCOLA_LOGO, width=16*cm, height=4*cm)  # Altura aumentada para 4cm
+            logo = Image(ESCOLA_LOGO, width=16*cm, height=4*cm)
             logo.hAlign = 'CENTER'
             elementos.append(logo)
             elementos.append(Spacer(1, 0.3*cm))
     except:
         pass
-    
-    # REMOVIDO: Dados da escola em texto (agora só a logo)
     
     # Linha separadora
     elementos.append(Paragraph("_" * 75, estilos['Normal']))
@@ -600,7 +622,7 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     elementos.append(Paragraph("REGISTRO DE OCORRÊNCIA", estilo_titulo))
     elementos.append(Spacer(1, 0.5*cm))
     
-    # Tabela de dados com estilo profissional
+    # Tabela de dados
     dados = [
         ["Data:", ocorrencia.get("data", "")],
         ["Aluno:", ocorrencia.get("aluno", "")],
@@ -643,22 +665,24 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     elementos.append(Paragraph(encam_texto, estilo_texto))
     elementos.append(Spacer(1, 1*cm))
     
-    # Seção Assinaturas
+    # Seção Assinaturas - SUPORTA MÚLTIPLOS POR CARGO
     elementos.append(Paragraph("<b>ASSINATURAS:</b>", estilo_secao))
     elementos.append(Spacer(1, 0.5*cm))
     
-    # Criar linhas para assinaturas
-    cargos = ["Diretor(a)", "Vice-Diretor(a)", "Coordenador(a)", "Professor Responsável"]
+    cargos = ["Diretor(a)", "Vice-Diretor(a)", "CGPG / Coordenador(a)", "Professor Responsável"]
     for cargo in cargos:
         if cargo == "Professor Responsável":
             nome = ocorrencia.get("professor", "")
+            if nome:
+                elementos.append(Paragraph(f"<b>{cargo}:</b> {nome}", estilo_texto))
+                elementos.append(Spacer(1, 0.1*cm))
         else:
-            resp = responsaveis[responsaveis['cargo'] == cargo] if not responsaveis.empty else pd.DataFrame()
-            nome = resp['nome'].values[0] if not resp.empty else ""
-        
-        if nome:
-            elementos.append(Paragraph(f"<b>{cargo}:</b> {nome}", estilo_texto))
-            elementos.append(Spacer(1, 0.1*cm))
+            # Pega TODOS os responsáveis deste cargo
+            resp_cargo = responsaveis[responsaveis['cargo'] == cargo] if not responsaveis.empty else pd.DataFrame()
+            if not resp_cargo.empty:
+                for idx, resp in resp_cargo.iterrows():
+                    elementos.append(Paragraph(f"<b>{cargo}:</b> {resp['nome']}", estilo_texto))
+                    elementos.append(Spacer(1, 0.1*cm))
     
     elementos.append(Spacer(1, 1*cm))
     
@@ -683,14 +707,12 @@ def gerar_pdf_comunicado(aluno_data, ocorrencia_data, medidas_aplicadas, observa
     # --- CABEÇALHO COM LOGO (16cm x 4cm) ---
     try:
         if os.path.exists(ESCOLA_LOGO):
-            logo = Image(ESCOLA_LOGO, width=16*cm, height=4*cm)  # Altura aumentada para 4cm
+            logo = Image(ESCOLA_LOGO, width=16*cm, height=4*cm)
             logo.hAlign = 'CENTER'
             elementos.append(logo)
             elementos.append(Spacer(1, 0.3*cm))
     except:
         pass
-    
-    # REMOVIDO: Dados da escola em texto
     
     # Linha separadora
     elementos.append(Paragraph("_" * 75, estilos['Normal']))
@@ -811,6 +833,10 @@ if 'editando_id' not in st.session_state:
     st.session_state.editando_id = None
 if 'dados_edicao' not in st.session_state:
     st.session_state.dados_edicao = None
+if 'editando_prof' not in st.session_state:
+    st.session_state.editando_prof = None
+if 'editando_resp' not in st.session_state:
+    st.session_state.editando_resp = None
 if 'turma_para_deletar' not in st.session_state:
     st.session_state.turma_para_deletar = None
 if 'turma_selecionada' not in st.session_state:
@@ -857,61 +883,125 @@ if menu == "🏠 Início":
         profs = len(df_professores) if not df_professores.empty else 0
         st.metric("Professores Cadastrados", profs)
 
-# --- 2. CADASTRAR PROFESSORES ---
+# --- 2. CADASTRAR PROFESSORES (COM EDITAR E EXCLUIR) ---
 elif menu == "👨‍ Cadastrar Professores":
     st.header("👨‍🏫 Cadastrar Professores")
-    col1, col2 = st.columns(2)
-    with col1:
-        nome_prof = st.text_input("Nome do Professor *", placeholder="Ex: João da Silva")
-        email_prof = st.text_input("E-mail (opcional)", placeholder="Ex: joao@educacao.sp.gov.br")
-    with col2:
-        st.info("💡 Cadastre todos os professores da escola para facilitar na hora de registrar ocorrências.")
-    if st.button("💾 Salvar Professor"):
-        if nome_prof:
-            novo_prof = {"nome": nome_prof, "email": email_prof if email_prof else None}
-            if salvar_professor(novo_prof):
-                st.success(f"✅ Professor {nome_prof} cadastrado com sucesso!")
+    
+    # Formulário de cadastro/edição
+    if st.session_state.editando_prof:
+        st.subheader("✏️ Editar Professor")
+        prof_edit = df_professores[df_professores['id'] == st.session_state.editando_prof].iloc[0]
+        nome_prof = st.text_input("Nome do Professor *", value=prof_edit['nome'], key="edit_nome_prof")
+        email_prof = st.text_input("E-mail (opcional)", value=prof_edit.get('email', ''), key="edit_email_prof")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("💾 Salvar Alterações", type="primary"):
+                if nome_prof:
+                    if atualizar_professor(st.session_state.editando_prof, {"nome": nome_prof, "email": email_prof if email_prof else None}):
+                        st.success("✅ Professor atualizado!")
+                        st.session_state.editando_prof = None
+                        st.rerun()
+        with col2:
+            if st.button("❌ Cancelar"):
+                st.session_state.editando_prof = None
                 st.rerun()
-        else:
-            st.error("❌ O nome do professor é obrigatório!")
+    else:
+        col1, col2 = st.columns(2)
+        with col1:
+            nome_prof = st.text_input("Nome do Professor *", placeholder="Ex: João da Silva", key="novo_nome_prof")
+            email_prof = st.text_input("E-mail (opcional)", placeholder="Ex: joao@educacao.sp.gov.br", key="novo_email_prof")
+        with col2:
+            st.info("💡 Cadastre todos os professores da escola.")
+        
+        if st.button("💾 Salvar Professor", type="primary"):
+            if nome_prof:
+                novo_prof = {"nome": nome_prof, "email": email_prof if email_prof else None}
+                if salvar_professor(novo_prof):
+                    st.success(f"✅ Professor {nome_prof} cadastrado!")
+                    st.rerun()
+            else:
+                st.error("❌ Nome é obrigatório!")
+    
     st.markdown("---")
     st.subheader("📋 Professores Cadastrados")
     if not df_professores.empty:
-        st.dataframe(df_professores[['nome', 'email']], use_container_width=True)
+        for idx, prof in df_professores.iterrows():
+            col1, col2, col3 = st.columns([4, 1, 1])
+            with col1:
+                st.markdown(f"**{prof['nome']}**" + (f" - {prof['email']}" if prof.get('email') else ""))
+            with col2:
+                if st.button("✏️ Editar", key=f"edit_prof_{prof['id']}"):
+                    st.session_state.editando_prof = prof['id']
+                    st.rerun()
+            with col3:
+                if st.button("🗑️ Excluir", key=f"del_prof_{prof['id']}"):
+                    if excluir_professor(prof['id']):
+                        st.success("✅ Professor excluído!")
+                        st.rerun()
         st.info(f"Total: {len(df_professores)} professores")
     else:
         st.write("📭 Nenhum professor cadastrado.")
 
-# --- 3. CADASTRAR RESPONSÁVEIS POR ASSINATURA ---
+# --- 3. CADASTRAR RESPONSÁVEIS POR ASSINATURA (COM EDITAR E EXCLUIR) ---
 elif menu == "👤 Cadastrar Responsáveis por Assinatura":
     st.header("👤 Cadastrar Responsáveis por Assinatura")
-    st.info("💡 Estes nomes aparecerão automaticamente nos PDFs de ocorrência!")
-    cargos = ["Diretor(a)", "Vice-Diretor(a)", "CGPG / Coordenador(a)"]
-    for cargo in cargos:
-        st.subheader(f"📋 {cargo}")
-        resp = df_responsaveis[df_responsaveis['cargo'] == cargo] if not df_responsaveis.empty else pd.DataFrame()
-        nome_atual = resp['nome'].values[0] if not resp.empty else ""
-        id_atual = resp['id'].values[0] if not resp.empty else None
-        col1, col2 = st.columns([3, 1])
+    st.info("💡 Pode haver múltiplos responsáveis por cargo (ex: 2 Vice-Diretoras)")
+    
+    # Formulário de cadastro/edição
+    if st.session_state.editando_resp:
+        st.subheader("✏️ Editar Responsável")
+        resp_edit = df_responsaveis[df_responsaveis['id'] == st.session_state.editando_resp].iloc[0]
+        cargo_edit = resp_edit['cargo']
+        nome_resp = st.text_input("Nome", value=resp_edit['nome'], key="edit_nome_resp")
+        
+        col1, col2 = st.columns(2)
         with col1:
-            nome_resp = st.text_input(f"Nome do(a) {cargo}", value=nome_atual, key=f"resp_{cargo}")
-        with col2:
-            if st.button("💾 Salvar", key=f"btn_{cargo}"):
+            if st.button("💾 Salvar Alterações", type="primary"):
                 if nome_resp:
-                    if id_atual:
-                        if atualizar_responsavel(id_atual, {"nome": nome_resp}):
-                            st.success(f"✅ {cargo} atualizado!")
-                            st.rerun()
-                    else:
-                        if salvar_responsavel({"cargo": cargo, "nome": nome_resp, "ativo": True}):
-                            st.success(f"✅ {cargo} cadastrado!")
-                            st.rerun()
-                else:
-                    st.error("❌ Preencha o nome!")
-        st.markdown("---")
-    st.subheader("📋 Resumo dos Responsáveis")
+                    if atualizar_responsavel(st.session_state.editando_resp, {"nome": nome_resp}):
+                        st.success("✅ Responsável atualizado!")
+                        st.session_state.editando_resp = None
+                        st.rerun()
+        with col2:
+            if st.button("❌ Cancelar"):
+                st.session_state.editando_resp = None
+                st.rerun()
+    else:
+        st.subheader("➕ Novo Responsável")
+        cargos = ["Diretor(a)", "Vice-Diretor(a)", "CGPG / Coordenador(a)"]
+        cargo = st.selectbox("Cargo", cargos, key="novo_cargo")
+        nome_resp = st.text_input("Nome do Responsável *", placeholder="Ex: Maria Silva", key="novo_nome_resp")
+        
+        if st.button("💾 Cadastrar", type="primary"):
+            if nome_resp:
+                if salvar_responsavel({"cargo": cargo, "nome": nome_resp, "ativo": True}):
+                    st.success(f"✅ {cargo} cadastrado!")
+                    st.rerun()
+            else:
+                st.error("❌ Nome é obrigatório!")
+    
+    st.markdown("---")
+    st.subheader("📋 Responsáveis Cadastrados")
     if not df_responsaveis.empty:
-        st.dataframe(df_responsaveis[['cargo', 'nome']], use_container_width=True)
+        for cargo in ["Diretor(a)", "Vice-Diretor(a)", "CGPG / Coordenador(a)"]:
+            resp_cargo = df_responsaveis[df_responsaveis['cargo'] == cargo]
+            if not resp_cargo.empty:
+                st.markdown(f"**📌 {cargo}:**")
+                for idx, resp in resp_cargo.iterrows():
+                    col1, col2, col3 = st.columns([4, 1, 1])
+                    with col1:
+                        st.markdown(f"• {resp['nome']}")
+                    with col2:
+                        if st.button("✏️", key=f"edit_resp_{resp['id']}"):
+                            st.session_state.editando_resp = resp['id']
+                            st.rerun()
+                    with col3:
+                        if st.button("🗑️", key=f"del_resp_{resp['id']}"):
+                            if excluir_responsavel(resp['id']):
+                                st.success("✅ Excluído!")
+                                st.rerun()
+                st.markdown("")
     else:
         st.write("📭 Nenhum responsável cadastrado.")
 
@@ -953,14 +1043,11 @@ elif menu == "📝 Registrar Ocorrência":
                 cats = PROTOCOLO_179[grupo]
                 infracao_principal = st.selectbox("Ocorrência Principal", list(cats.keys()), key="infracao_principal")
                 
-                # 🔄 AUTOMATIZAR GRAVIDADE E ENCAMINHAMENTOS PELO PROTOCOLO 179
                 gravidade_protocolo = cats[infracao_principal]["gravidade"]
                 encam_protocolo = cats[infracao_principal]["encaminhamento"]
                 
-                # Mostrar tag da infração principal
                 st.markdown(f'<span class="infracao-principal-tag">🎯 {infracao_principal}</span>', unsafe_allow_html=True)
                 
-                # Mostrar informações automáticas do protocolo
                 st.markdown("---")
                 st.info(f"""
                     **📋 Protocolo 179 - Preenchimento Automático**
@@ -974,13 +1061,11 @@ elif menu == "📝 Registrar Ocorrência":
                     if linha.strip():
                         st.write(linha)
                 
-                # Gravidade AUTOMÁTICA (readonly visual)
                 gravidade = st.selectbox("Gravidade (definida pelo Protocolo 179)", 
                                         ["Leve", "Grave", "Gravíssima"],
                                         index=["Leve", "Grave", "Gravíssima"].index(gravidade_protocolo),
                                         key="gravidade_auto", disabled=True)
                 
-                # Encaminhamento AUTOMÁTICO (editável se necessário)
                 encam = st.text_area("🔀 Encaminhamentos (preenchido pelo Protocolo 179 - editável se necessário)", 
                                     value=encam_protocolo, height=150, key="encam_auto")
             
@@ -988,7 +1073,6 @@ elif menu == "📝 Registrar Ocorrência":
             relato = st.text_area("📝 Relato dos Fatos", height=100, key="relato_novo", 
                                  placeholder="Descreva os fatos de forma clara e objetiva...")
             
-            # Botão de salvar
             if st.session_state.salvando_ocorrencia:
                 st.button("💾 Salvando...", disabled=True, type="primary")
                 st.info("⏳ Aguarde, registrando ocorrência...")
@@ -1067,7 +1151,6 @@ elif menu == "📄 Comunicado aos Pais":
                     </div>
                 """, unsafe_allow_html=True)
                 
-                # Medidas aplicadas (checkboxes em grid)
                 st.subheader("⚖️ Medidas Aplicadas")
                 medidas_opcoes = [
                     "Mediação de conflitos", "Registro em ata", "Notificação aos pais",
