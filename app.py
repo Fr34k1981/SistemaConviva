@@ -578,7 +578,6 @@ def verificar_professor_duplicado(nome, df_professores, id_atual=None):
         return False
     nome_normalizado = nome.strip().lower()
     if id_atual:
-        # Verifica excluindo o próprio registro sendo editado
         duplicados = df_professores[
             (df_professores['nome'].str.strip().str.lower() == nome_normalizado) & 
             (df_professores['id'] != id_atual)
@@ -605,18 +604,18 @@ def combinar_encaminhamentos(encaminhamentos_lista):
                 todos.append(linha)
     return '\n'.join(todos)
 
-# --- FUNÇÃO PDF COM MARGENS REDUZIDAS E OTIMIZADAS ---
+# --- FUNÇÃO PDF COM LOGO 16x4cm E MARGENS OTIMIZADAS ---
 def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     buffer = BytesIO()
-    # MARGENS REDUZIDAS: 1cm laterais, 1.5cm topo, 1.5cm baixo
+    # MARGENS REDUZIDAS para caber em 1 página
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1*cm, leftMargin=1*cm, topMargin=1.5*cm, bottomMargin=1.5*cm)
     elementos = []
     estilos = getSampleStyleSheet()
     
-    # --- CABEÇALHO COMPACTO COM LOGO (16cm x 3cm) ---
+    # --- CABEÇALHO COM LOGO 16x4cm (MANTIDO) ---
     try:
         if os.path.exists(ESCOLA_LOGO):
-            logo = Image(ESCOLA_LOGO, width=16*cm, height=3*cm)
+            logo = Image(ESCOLA_LOGO, width=16*cm, height=4*cm)  # ← MANTIDO 16x4cm
             logo.hAlign = 'CENTER'
             elementos.append(logo)
             elementos.append(Spacer(1, 0.1*cm))
@@ -711,17 +710,17 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     buffer.seek(0)
     return buffer
 
-# --- FUNÇÃO PDF COMUNICADO COM MARGENS REDUZIDAS ---
+# --- FUNÇÃO PDF COMUNICADO COM LOGO 16x4cm ---
 def gerar_pdf_comunicado(aluno_data, ocorrencia_data, medidas_aplicadas, observacoes, responsaveis):
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1*cm, leftMargin=1*cm, topMargin=1.5*cm, bottomMargin=1.5*cm)
     elementos = []
     estilos = getSampleStyleSheet()
     
-    # --- CABEÇALHO COMPACTO COM LOGO (16cm x 3cm) ---
+    # --- CABEÇALHO COM LOGO 16x4cm (MANTIDO) ---
     try:
         if os.path.exists(ESCOLA_LOGO):
-            logo = Image(ESCOLA_LOGO, width=16*cm, height=3*cm)
+            logo = Image(ESCOLA_LOGO, width=16*cm, height=4*cm)  # ← MANTIDO 16x4cm
             logo.hAlign = 'CENTER'
             elementos.append(logo)
             elementos.append(Spacer(1, 0.1*cm))
@@ -897,16 +896,15 @@ if menu == "🏠 Início":
         profs = len(df_professores) if not df_professores.empty else 0
         st.metric("Professores Cadastrados", profs)
 
-# --- 2. CADASTRAR PROFESSORES (COM IMPORTAR, EDITAR, EXCLUIR E VALIDAÇÃO DE DUPLICIDADE) ---
+# --- 2. CADASTRAR PROFESSORES ---
 elif menu == "👨‍ Cadastrar Professores":
     st.header("👨‍🏫 Cadastrar Professores")
     
-    # Botão de importar professores
     with st.expander("📥 Importar Professores em Massa", expanded=False):
         st.info("💡 Cole uma lista de nomes de professores (um por linha)")
         texto_professores = st.text_area("Cole os nomes dos professores aqui:", 
                                         height=150,
-                                        placeholder="Alnei Maria De Moura Nogueira\nAna Paula De Oliveira Farias\nAnderson Do Nascimento Belisiario...")
+                                        placeholder="Alnei Maria De Moura Nogueira\nAna Paula De Oliveira Farias...")
         
         if st.button("📥 Importar Professores"):
             if texto_professores:
@@ -934,7 +932,6 @@ elif menu == "👨‍ Cadastrar Professores":
     
     st.markdown("---")
     
-    # Formulário de cadastro/edição
     if st.session_state.editando_prof:
         st.subheader("✏️ Editar Professor")
         prof_edit = df_professores[df_professores['id'] == st.session_state.editando_prof].iloc[0]
@@ -945,7 +942,6 @@ elif menu == "👨‍ Cadastrar Professores":
         with col1:
             if st.button("💾 Salvar Alterações", type="primary"):
                 if nome_prof:
-                    # Verifica duplicidade
                     if verificar_professor_duplicado(nome_prof, df_professores, st.session_state.editando_prof):
                         st.error("❌ Já existe um professor com este nome cadastrado!")
                     else:
@@ -967,7 +963,6 @@ elif menu == "👨‍ Cadastrar Professores":
         
         if st.button("💾 Salvar Professor", type="primary"):
             if nome_prof:
-                # Verifica duplicidade
                 if verificar_professor_duplicado(nome_prof, df_professores):
                     st.error("❌ Já existe um professor com este nome cadastrado!")
                 else:
@@ -998,12 +993,11 @@ elif menu == "👨‍ Cadastrar Professores":
     else:
         st.write("📭 Nenhum professor cadastrado.")
 
-# --- 3. CADASTRAR RESPONSÁVEIS POR ASSINATURA (COM EDITAR E EXCLUIR) ---
+# --- 3. CADASTRAR RESPONSÁVEIS POR ASSINATURA ---
 elif menu == "👤 Cadastrar Responsáveis por Assinatura":
     st.header("👤 Cadastrar Responsáveis por Assinatura")
     st.info("💡 Pode haver múltiplos responsáveis por cargo (ex: 2 Vice-Diretoras)")
     
-    # Formulário de cadastro/edição
     if st.session_state.editando_resp:
         st.subheader("✏️ Editar Responsável")
         resp_edit = df_responsaveis[df_responsaveis['id'] == st.session_state.editando_resp].iloc[0]
@@ -1060,11 +1054,11 @@ elif menu == "👤 Cadastrar Responsáveis por Assinatura":
     else:
         st.write("📭 Nenhum responsável cadastrado.")
 
-# --- 4. REGISTRAR OCORRÊNCIA ---
+# --- 4. REGISTRAR OCORRÊNCIA (COM MÚLTIPLOS ESTUDANTES) ---
 elif menu == "📝 Registrar Ocorrência":
     st.header("📝 Nova Ocorrência")
     if st.session_state.ocorrencia_salva_sucesso:
-        st.markdown('<div class="success-box">✅ OCORRÊNCIA REGISTRADA COM SUCESSO!</div>', unsafe_allow_html=True)
+        st.markdown('<div class="success-box">✅ OCORRÊNCIA(S) REGISTRADA(S) COM SUCESSO!</div>', unsafe_allow_html=True)
         st.session_state.ocorrencia_salva_sucesso = False
         st.session_state.salvando_ocorrencia = False
         st.session_state.gravidade_alterada = False
@@ -1078,11 +1072,29 @@ elif menu == "📝 Registrar Ocorrência":
         turmas = df_alunos["turma"].unique().tolist()
         turma_sel = st.selectbox("🏫 Turma", turmas)
         alunos = df_alunos[df_alunos["turma"] == turma_sel]
+        
         if len(alunos) > 0:
             col1, col2 = st.columns(2)
             with col1:
-                nome = st.selectbox("Aluno", alunos["nome"].tolist())
-                ra = alunos[alunos["nome"] == nome]["ra"].values[0]
+                # ✅ MÚLTIPLOS ESTUDANTES
+                st.markdown("### 👥 Selecionar Estudante(s)")
+                st.info("💡 Selecione um ou mais estudantes envolvidos na mesma ocorrência")
+                
+                # Checkbox para modo múltiplo
+                modo_multiplo = st.checkbox("👥 Registrar para múltiplos estudantes", key="modo_multiplo")
+                
+                if modo_multiplo:
+                    # Seleção múltipla
+                    alunos_selecionados = st.multiselect(
+                        "Selecione os estudantes:",
+                        alunos["nome"].tolist(),
+                        key="alunos_multiplos"
+                    )
+                else:
+                    # Seleção única (padrão)
+                    aluno_unico = st.selectbox("Aluno", alunos["nome"].tolist(), key="aluno_unico")
+                    alunos_selecionados = [aluno_unico] if aluno_unico else []
+                
                 if not df_professores.empty:
                     prof_lista = df_professores["nome"].tolist()
                     prof = st.selectbox("Professor 👨‍", ["Selecione..."] + prof_lista)
@@ -1092,6 +1104,7 @@ elif menu == "📝 Registrar Ocorrência":
                     prof = st.text_input("Professor 👨‍", placeholder="Nome do professor")
                 data = st.date_input("Data", data_hora_sp.date())
                 hora = st.time_input("Hora", data_hora_sp.time())
+            
             with col2:
                 st.subheader("📋 Infração Principal (Protocolo 179)")
                 grupo = st.selectbox("Grupo", list(PROTOCOLO_179.keys()), key="grupo_principal")
@@ -1130,31 +1143,52 @@ elif menu == "📝 Registrar Ocorrência":
             
             if st.session_state.salvando_ocorrencia:
                 st.button("💾 Salvando...", disabled=True, type="primary")
-                st.info("⏳ Aguarde, registrando ocorrência...")
+                st.info("⏳ Aguarde, registrando ocorrência(s)...")
             else:
-                if st.button("💾 Salvar Ocorrência", type="primary"):
-                    if prof and prof != "Selecione..." and relato:
+                if st.button("💾 Salvar Ocorrência(s)", type="primary"):
+                    if prof and prof != "Selecione..." and relato and alunos_selecionados:
                         data_str = f"{data.strftime('%d/%m/%Y')} {hora.strftime('%H:%M')}"
                         categoria_str = infracao_principal
                         
-                        if verificar_ocorrencia_duplicada(ra, categoria_str, data_str, df_ocorrencias):
-                            st.error(f"❌ JÁ EXISTE UMA OCORRÊNCIA IGUAL PARA ESTE ALUNO!")
-                        else:
-                            st.session_state.salvando_ocorrencia = True
-                            nova = {
-                                "data": data_str, "aluno": nome, "ra": ra, "turma": turma_sel,
-                                "categoria": categoria_str, "gravidade": gravidade_protocolo,
-                                "relato": relato, "encaminhamento": encam, "professor": prof,
-                                "medidas_aplicadas": "", "medidas_obs": ""
-                            }
-                            if salvar_ocorrencia(nova):
-                                st.session_state.ocorrencia_salva_sucesso = True
-                                st.rerun()
+                        # ✅ LOOP PARA CRIAR OCORRÊNCIA PARA CADA ESTUDANTE
+                        contagem_salvas = 0
+                        contagem_duplicadas = 0
+                        erros = 0
+                        
+                        for nome_aluno in alunos_selecionados:
+                            ra_aluno = alunos[alunos["nome"] == nome_aluno]["ra"].values[0]
+                            
+                            # Verifica duplicação
+                            if verificar_ocorrencia_duplicada(ra_aluno, categoria_str, data_str, df_ocorrencias):
+                                contagem_duplicadas += 1
                             else:
-                                st.session_state.salvando_ocorrencia = False
-                                st.error("❌ Erro ao salvar ocorrência. Tente novamente.")
+                                nova = {
+                                    "data": data_str, "aluno": nome_aluno, "ra": ra_aluno, "turma": turma_sel,
+                                    "categoria": categoria_str, "gravidade": gravidade_protocolo,
+                                    "relato": relato, "encaminhamento": encam, "professor": prof,
+                                    "medidas_aplicadas": "", "medidas_obs": ""
+                                }
+                                if salvar_ocorrencia(nova):
+                                    contagem_salvas += 1
+                                else:
+                                    erros += 1
+                        
+                        # Mensagens de resultado
+                        if contagem_salvas > 0:
+                            st.success(f"✅ {contagem_salvas} ocorrência(s) registrada(s) com sucesso!")
+                        if contagem_duplicadas > 0:
+                            st.warning(f"⚠️ {contagem_duplicadas} ocorrência(s) já existiam (ignorado)")
+                        if erros > 0:
+                            st.error(f"❌ {erros} erro(s) ao salvar")
+                        
+                        if contagem_salvas > 0:
+                            st.session_state.ocorrencia_salva_sucesso = True
+                            st.rerun()
                     else:
-                        st.error("❌ Preencha professor e relato obrigatoriamente!")
+                        if not alunos_selecionados:
+                            st.error("❌ Selecione pelo menos um estudante!")
+                        else:
+                            st.error("❌ Preencha professor e relato obrigatoriamente!")
 
 # --- 5. COMUNICADO AOS PAIS ---
 elif menu == "📄 Comunicado aos Pais":
@@ -1546,7 +1580,6 @@ elif menu == "📊 Gráficos e Indicadores":
             """, unsafe_allow_html=True)
         st.markdown("---")
         
-        # Gráficos coloridos
         col1, col2 = st.columns(2)
         with col1:
             st.subheader("📊 Ocorrências por Categoria (COLORIDO)")
@@ -1557,7 +1590,6 @@ elif menu == "📊 Gráficos e Indicadores":
                 df_cats = pd.DataFrame({'Categoria': todas_cats})
                 contagem_cats = df_cats['Categoria'].value_counts().head(10)
                 
-                # Gráfico de barras colorido
                 fig_barras = px.bar(
                     contagem_cats,
                     x=contagem_cats.index,
@@ -1573,7 +1605,6 @@ elif menu == "📊 Gráficos e Indicadores":
         with col2:
             st.subheader("🥧 Ocorrências por Categoria (PIZZA)")
             if not df_filtrado.empty:
-                # Gráfico de pizza com porcentagens
                 fig_pizza = px.pie(
                     contagem_cats,
                     values='count',
