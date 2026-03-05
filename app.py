@@ -1,5 +1,7 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
 from datetime import datetime, timedelta
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -873,71 +875,6 @@ df_ocorrencias = carregar_ocorrencias()
 df_professores = carregar_professores()
 df_responsaveis = carregar_responsaveis()
 
-# --- INSERIR PROFESSORES PADRÃO (SE VAZIO) ---
-if df_professores.empty:
-    st.info("📝 Cadastrando 42 professores padrão...")
-    
-    professores_lista = [
-        "Alnei Maria De Moura Nogueira",
-        "Ana Paula De Oliveira Farias",
-        "Anderson Do Nascimento Belisiario",
-        "Aureni Caldeira Da Silva",
-        "Charles Soares Damianovic Bragadin",
-        "Cláudia Cristina Da Silva Aureliano",
-        "Diego Mir De Souza",
-        "Edileia Pereira De Castro Silva",
-        "Elaine Lemos Da Silva",
-        "Eleazar Silva",
-        "Fagna Rodrigues Souza",
-        "Fernanda Fiuza De Oliveira",
-        "Francisca Freire De Oliveira",
-        "Gilberto Marcelino Da Silva",
-        "Guilherme Costa Brito",
-        "Guilherme Leite Oliveira Silva",
-        "Guilherme Rodrigues De Oliveira",
-        "Itatiara Conceição Da Silva Cavalcante",
-        "Ivan Aspiazu Ariscurinaga",
-        "Jaqueline Fatima De Oliveira",
-        "Jose Carvalho Filho",
-        "Katia Rosangela De Souza Silva",
-        "Lourdes Juliao Soares",
-        "Luciana Meira De Siqueira",
-        "Lucineide Da Silva Costa",
-        "Maria Izabel Ferreira Felix",
-        "Mayara Machado Ferreira",
-        "Orlando Antonio Pagnani Neto",
-        "Patricia Martins Cordeiro",
-        "Patrocinio Geovana Nascimentodo Carmo",
-        "Paula De Jesus",
-        "Paula Gomes Santana",
-        "Regina Helena De Oliveira",
-        "Regis Atanazio Do Nascimento",
-        "Renan Pereira Dos Santos",
-        "Rosangela Cavalcanti Dos Passos Galdino",
-        "Rosemeire Reis Santana",
-        "Rosemeire Tiso",
-        "Shirley De Araujo Ribas",
-        "Silvana De Souza Oliveira Santos",
-        "Solange Aparecida Da Silva Oliveira",
-        "Veronica Brandao Ribeiro Dos Santos",
-        "Vitor Duarte Da Silva Almeida",
-        "Viviani De Sousa Gomes"
-    ]
-    
-    contagem = 0
-    for nome_prof in professores_lista:
-        # Verifica se já existe
-        if not verificar_professor_duplicado(nome_prof, df_professores):
-            novo_prof = {"nome": nome_prof, "email": None}
-            if salvar_professor(novo_prof):
-                contagem += 1
-    
-    if contagem > 0:
-        st.success(f"✅ {contagem} professores cadastrados automaticamente!")
-        # Recarrega os dados
-        df_professores = carregar_professores()
-        st.rerun()
-
 # --- 1. HOME ---
 if menu == "🏠 Início":
     st.markdown(f"""
@@ -963,9 +900,42 @@ if menu == "🏠 Início":
         profs = len(df_professores) if not df_professores.empty else 0
         st.metric("Professores Cadastrados", profs)
 
-# --- 2. CADASTRAR PROFESSORES (COM EDITAR, EXCLUIR E VALIDAÇÃO DE DUPLICIDADE) ---
+# --- 2. CADASTRAR PROFESSORES (COM IMPORTAR, EDITAR, EXCLUIR E VALIDAÇÃO DE DUPLICIDADE) ---
 elif menu == "👨‍ Cadastrar Professores":
     st.header("👨‍🏫 Cadastrar Professores")
+    
+    # Botão de importar professores
+    with st.expander("📥 Importar Professores em Massa", expanded=False):
+        st.info("💡 Cole uma lista de nomes de professores (um por linha)")
+        texto_professores = st.text_area("Cole os nomes dos professores aqui:", 
+                                        height=150,
+                                        placeholder="Alnei Maria De Moura Nogueira\nAna Paula De Oliveira Farias\nAnderson Do Nascimento Belisiario...")
+        
+        if st.button("📥 Importar Professores"):
+            if texto_professores:
+                nomes = [nome.strip() for nome in texto_professores.split('\n') if nome.strip()]
+                contagem = 0
+                duplicados = 0
+                
+                for nome_prof in nomes:
+                    if verificar_professor_duplicado(nome_prof, df_professores):
+                        duplicados += 1
+                    else:
+                        novo_prof = {"nome": nome_prof, "email": None}
+                        if salvar_professor(novo_prof):
+                            contagem += 1
+                
+                if contagem > 0:
+                    st.success(f"✅ {contagem} professores importados com sucesso!")
+                if duplicados > 0:
+                    st.warning(f"⚠️ {duplicados} professores já existiam (ignorado)")
+                
+                if contagem > 0 or duplicados > 0:
+                    st.rerun()
+            else:
+                st.error("❌ Cole os nomes dos professores!")
+    
+    st.markdown("---")
     
     # Formulário de cadastro/edição
     if st.session_state.editando_prof:
@@ -1475,7 +1445,7 @@ elif menu == "📋 Histórico de Ocorrências":
     else:
         st.write("📭 Nenhuma ocorrência.")
 
-# --- 10. GRÁFICOS ---
+# --- 10. GRÁFICOS COLORIDOS E PIZZA ---
 elif menu == "📊 Gráficos e Indicadores":
     st.header("📊 Dashboard de Ocorrências - Protocolo 179")
     if df_ocorrencias.empty:
@@ -1578,21 +1548,77 @@ elif menu == "📊 Gráficos e Indicadores":
                 </div>
             """, unsafe_allow_html=True)
         st.markdown("---")
+        
+        # Gráficos coloridos
         col1, col2 = st.columns(2)
         with col1:
-            st.subheader("📊 Ocorrências por Categoria")
+            st.subheader("📊 Ocorrências por Categoria (COLORIDO)")
             if not df_filtrado.empty:
                 todas_cats = []
                 for cat in df_filtrado['categoria']:
                     todas_cats.extend([c.strip() for c in cat.split('|')])
                 df_cats = pd.DataFrame({'Categoria': todas_cats})
                 contagem_cats = df_cats['Categoria'].value_counts().head(10)
-                st.bar_chart(contagem_cats)
+                
+                # Gráfico de barras colorido
+                fig_barras = px.bar(
+                    contagem_cats,
+                    x=contagem_cats.index,
+                    y='count',
+                    title='Top 10 Categorias',
+                    color=contagem_cats.index,
+                    color_discrete_sequence=px.colors.qualitative.Set3,
+                    labels={'count': 'Quantidade', 'Categoria': 'Categoria'}
+                )
+                fig_barras.update_layout(showlegend=False, xaxis_tickangle=-45)
+                st.plotly_chart(fig_barras, use_container_width=True)
+        
         with col2:
-            st.subheader("⚖️ Ocorrências por Gravidade")
+            st.subheader("🥧 Ocorrências por Categoria (PIZZA)")
+            if not df_filtrado.empty:
+                # Gráfico de pizza com porcentagens
+                fig_pizza = px.pie(
+                    contagem_cats,
+                    values='count',
+                    names=contagem_cats.index,
+                    title='Distribuição por Categoria (%)',
+                    color_discrete_sequence=px.colors.qualitative.Set3,
+                    hole=0.3
+                )
+                fig_pizza.update_traces(textposition='inside', textinfo='percent+label')
+                st.plotly_chart(fig_pizza, use_container_width=True)
+        
+        st.markdown("---")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader("⚖️ Ocorrências por Gravidade (COLORIDO)")
             if not df_filtrado.empty:
                 contagem_grav = df_filtrado['gravidade'].value_counts()
-                st.bar_chart(contagem_grav)
+                fig_grav = px.bar(
+                    contagem_grav,
+                    x=contagem_grav.index,
+                    y=contagem_grav.values,
+                    title='Por Gravidade',
+                    color=contagem_grav.index,
+                    color_discrete_map={'Leve': '#4CAF50', 'Grave': '#FF9800', 'Gravíssima': '#F44336'},
+                    labels={'y': 'Quantidade', 'x': 'Gravidade'}
+                )
+                fig_grav.update_layout(showlegend=False)
+                st.plotly_chart(fig_grav, use_container_width=True)
+        
+        with col2:
+            st.subheader("🥧 Ocorrências por Gravidade (PIZZA)")
+            if not df_filtrado.empty:
+                fig_pizza_grav = px.pie(
+                    values=contagem_grav.values,
+                    names=contagem_grav.index,
+                    title='Distribuição por Gravidade (%)',
+                    color_discrete_map={'Leve': '#4CAF50', 'Grave': '#FF9800', 'Gravíssima': '#F44336'},
+                    hole=0.3
+                )
+                fig_pizza_grav.update_traces(textposition='inside', textinfo='percent+label')
+                st.plotly_chart(fig_pizza_grav, use_container_width=True)
+        
         st.markdown("---")
         st.subheader("📈 Evolução Temporal das Ocorrências")
         if not df_filtrado.empty:
@@ -1600,11 +1626,32 @@ elif menu == "📊 Gráficos e Indicadores":
             df_filtrado['data_apenas'] = df_filtrado['data_dt'].dt.date
             evolucao = df_filtrado.groupby('data_apenas').size().reset_index(name='Quantidade')
             evolucao = evolucao.sort_values('data_apenas')
-            st.line_chart(evolucao.set_index('data_apenas'))
-        st.subheader("🏫 Top 10 Turmas com Mais Ocorrências")
+            
+            fig_evolucao = px.line(
+                evolucao,
+                x='data_apenas',
+                y='Quantidade',
+                title='Evolução Temporal',
+                markers=True
+            )
+            fig_evolucao.update_traces(line=dict(color='#667eea', width=3), marker=dict(size=8))
+            st.plotly_chart(fig_evolucao, use_container_width=True)
+        
+        st.subheader("🏫 Top 10 Turmas com Mais Ocorrências (COLORIDO)")
         if not df_filtrado.empty:
             top_turmas = df_filtrado['turma'].value_counts().head(10)
-            st.bar_chart(top_turmas)
+            fig_turmas = px.bar(
+                top_turmas,
+                x=top_turmas.index,
+                y=top_turmas.values,
+                title='Top 10 Turmas',
+                color=top_turmas.values,
+                color_continuous_scale='Viridis',
+                labels={'y': 'Quantidade', 'x': 'Turma'}
+            )
+            fig_turmas.update_layout(showlegend=False, xaxis_tickangle=-45)
+            st.plotly_chart(fig_turmas, use_container_width=True)
+        
         st.subheader("📋 Dados Filtrados")
         if not df_filtrado.empty:
             st.dataframe(df_filtrado[['data', 'aluno', 'turma', 'categoria', 'gravidade', 'professor']], use_container_width=True)
