@@ -1,7 +1,7 @@
 streamlit
 pandas
+plotly
 reportlab
-openpyxl
 requests
 python-dotenv
 pytz
