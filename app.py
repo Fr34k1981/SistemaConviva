@@ -1105,6 +1105,7 @@ elif menu == "👤 Cadastrar Responsáveis por Assinatura":
         st.write("📭 Nenhum responsável cadastrado.")
 
 # --- 4. REGISTRAR OCORRÊNCIA ---
+# --- 4. REGISTRAR OCORRÊNCIA (CORRIGIDO - GRAVIDADE FUNCIONAL) ---
 elif menu == "📝 Registrar Ocorrência":
     st.header("📝 Nova Ocorrência")
     if st.session_state.ocorrencia_salva_sucesso:
@@ -1182,8 +1183,10 @@ elif menu == "📝 Registrar Ocorrência":
                 
                 st.markdown('</div>', unsafe_allow_html=True)
                 
+                # ✅ CORREÇÃO: Selecionar infração
                 infracao_principal = st.selectbox("Ocorrência Principal", list(cats.keys()), key="infracao_principal")
                 
+                # ✅ CORREÇÃO: Buscar dados CORRETOS da infração selecionada
                 if infracao_principal in cats:
                     gravidade_protocolo = cats[infracao_principal]["gravidade"]
                     encam_protocolo = cats[infracao_principal]["encaminhamento"]
@@ -1193,6 +1196,7 @@ elif menu == "📝 Registrar Ocorrência":
                 
                 st.markdown(f'<span class="infracao-principal-tag">🎯 {infracao_principal}</span>', unsafe_allow_html=True)
                 
+                # Mostrar informações do protocolo
                 st.markdown("---")
                 cor_gravidade = CORES_GRAVIDADE.get(gravidade_protocolo, "#9E9E9E")
                 
@@ -1200,7 +1204,7 @@ elif menu == "📝 Registrar Ocorrência":
                     <div style="background:#fff3cd;border:2px solid #ffc107;border-radius:8px;padding:1rem;margin:1rem 0;">
                         <b>📋 Protocolo 179 - Preenchimento Automático</b><br><br>
                         <b>Infração:</b> {infracao_principal}<br>
-                        <b>Gravidade (automática):</b> <span style="color:{cor_gravidade};font-weight:bold">{gravidade_protocolo}</span><br><br>
+                        <b>Gravidade sugerida:</b> <span style="color:{cor_gravidade};font-weight:bold">{gravidade_protocolo}</span><br><br>
                         <b>Encaminhamentos sugeridos:</b>
                     </div>
                 """, unsafe_allow_html=True)
@@ -1209,13 +1213,19 @@ elif menu == "📝 Registrar Ocorrência":
                     if linha.strip():
                         st.write(linha)
                 
-                gravidade = st.selectbox("Gravidade (definida pelo Protocolo 179)", 
+                # ✅ CORREÇÃO: Gravidade EDITÁVEL (removido disabled=True)
+                gravidade = st.selectbox("Gravidade (sugerida pelo Protocolo 179 - pode editar)", 
                                         ["Leve", "Grave", "Gravíssima"],
                                         index=["Leve", "Grave", "Gravíssima"].index(gravidade_protocolo),
-                                        key="gravidade_auto", disabled=True)
+                                        key="gravidade_select")
                 
-                encam = st.text_area("🔀 Encaminhamentos (preenchido pelo Protocolo 179 - editável se necessário)", 
-                                    value=encam_protocolo, height=150, key="encam_auto")
+                # Mostrar aviso se mudar a gravidade
+                if gravidade != gravidade_protocolo:
+                    st.warning(f"⚠️ Você alterou a gravidade de **{gravidade_protocolo}** para **{gravidade}**")
+                
+                # ✅ CORREÇÃO: Encaminhamento EDITÁVEL
+                encam = st.text_area("🔀 Encaminhamentos (sugerido pelo Protocolo 179 - pode editar)", 
+                                    value=encam_protocolo, height=150, key="encam_select")
             
             st.markdown("---")
             relato = st.text_area("📝 Relato dos Fatos", height=100, key="relato_novo", 
@@ -1241,10 +1251,17 @@ elif menu == "📝 Registrar Ocorrência":
                                 contagem_duplicadas += 1
                             else:
                                 nova = {
-                                    "data": data_str, "aluno": nome_aluno, "ra": ra_aluno, "turma": turma_sel,
-                                    "categoria": categoria_str, "gravidade": gravidade_protocolo,
-                                    "relato": relato, "encaminhamento": encam, "professor": prof,
-                                    "medidas_aplicadas": "", "medidas_obs": ""
+                                    "data": data_str, 
+                                    "aluno": nome_aluno, 
+                                    "ra": ra_aluno, 
+                                    "turma": turma_sel,
+                                    "categoria": categoria_str, 
+                                    "gravidade": gravidade,  # ✅ Usa a gravidade selecionada (automática ou manual)
+                                    "relato": relato, 
+                                    "encaminhamento": encam, 
+                                    "professor": prof,
+                                    "medidas_aplicadas": "", 
+                                    "medidas_obs": ""
                                 }
                                 if salvar_ocorrencia(nova):
                                     contagem_salvas += 1
