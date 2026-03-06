@@ -1104,8 +1104,7 @@ elif menu == "👤 Cadastrar Responsáveis por Assinatura":
     else:
         st.write("📭 Nenhum responsável cadastrado.")
 
-# --- 4. REGISTRAR OCORRÊNCIA ---
-# --- 4. REGISTRAR OCORRÊNCIA (CORRIGIDO - GRAVIDADE FUNCIONAL) ---
+# --- 4. REGISTRAR OCORRÊNCIA (CORRIGIDO 100%) ---
 elif menu == "📝 Registrar Ocorrência":
     st.header("📝 Nova Ocorrência")
     if st.session_state.ocorrencia_salva_sucesso:
@@ -1183,10 +1182,10 @@ elif menu == "📝 Registrar Ocorrência":
                 
                 st.markdown('</div>', unsafe_allow_html=True)
                 
-                # ✅ CORREÇÃO: Selecionar infração
+                # Selecionar infração
                 infracao_principal = st.selectbox("Ocorrência Principal", list(cats.keys()), key="infracao_principal")
                 
-                # ✅ CORREÇÃO: Buscar dados CORRETOS da infração selecionada
+                # ✅ Buscar dados CORRETOS da infração selecionada
                 if infracao_principal in cats:
                     gravidade_protocolo = cats[infracao_principal]["gravidade"]
                     encam_protocolo = cats[infracao_principal]["encaminhamento"]
@@ -1213,7 +1212,7 @@ elif menu == "📝 Registrar Ocorrência":
                     if linha.strip():
                         st.write(linha)
                 
-                # ✅ CORREÇÃO: Gravidade EDITÁVEL (removido disabled=True)
+                # ✅ Gravidade EDITÁVEL (sem disabled)
                 gravidade = st.selectbox("Gravidade (sugerida pelo Protocolo 179 - pode editar)", 
                                         ["Leve", "Grave", "Gravíssima"],
                                         index=["Leve", "Grave", "Gravíssima"].index(gravidade_protocolo),
@@ -1223,7 +1222,7 @@ elif menu == "📝 Registrar Ocorrência":
                 if gravidade != gravidade_protocolo:
                     st.warning(f"⚠️ Você alterou a gravidade de **{gravidade_protocolo}** para **{gravidade}**")
                 
-                # ✅ CORREÇÃO: Encaminhamento EDITÁVEL
+                # ✅ Encaminhamento EDITÁVEL
                 encam = st.text_area("🔀 Encaminhamentos (sugerido pelo Protocolo 179 - pode editar)", 
                                     value=encam_protocolo, height=150, key="encam_select")
             
@@ -1256,7 +1255,7 @@ elif menu == "📝 Registrar Ocorrência":
                                     "ra": ra_aluno, 
                                     "turma": turma_sel,
                                     "categoria": categoria_str, 
-                                    "gravidade": gravidade,  # ✅ Usa a gravidade selecionada (automática ou manual)
+                                    "gravidade": gravidade,
                                     "relato": relato, 
                                     "encaminhamento": encam, 
                                     "professor": prof,
