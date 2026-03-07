@@ -120,6 +120,9 @@ ESCOLA_TELEFONE = "Telefone: (11) 4675-1855"
 ESCOLA_EMAIL = "Email: e918623@educacao.sp.gov.br"
 ESCOLA_LOGO = "eliane_dantas.png"
 
+# --- SENHA PARA EXCLUSÃO ---
+SENHA_EXCLUSAO = "040600"
+
 # --- MENU LATERAL ---
 menu = st.sidebar.selectbox("Menu", [
     "🏠 Início",
@@ -204,7 +207,7 @@ CORES_GRAVIDADE = {
     "Gravíssima": "#F44336"
 }
 
-# --- PROTOCOLO 179 COMPLETO E ATUALIZADO ---
+# --- PROTOCOLO 179 COMPLETO ---
 PROTOCOLO_179 = {
     "📌 Violência e Agressão": {
         "Agressão Física": {
@@ -458,7 +461,7 @@ PROTOCOLO_179 = {
     }
 }
 
-# --- FUNÇÃO DE BUSCA FUZZY (POR PROXIMIDADE) ---
+# --- FUNÇÃO DE BUSCA FUZZY ---
 def buscar_infracao_fuzzy(busca, protocolo):
     if not busca or len(busca) < 2:
         return {}
@@ -914,6 +917,8 @@ if 'adicionar_outra_infracao' not in st.session_state:
     st.session_state.adicionar_outra_infracao = False
 if 'infracoes_adicionais' not in st.session_state:
     st.session_state.infracoes_adicionais = []
+if 'senha_exclusao_validada' not in st.session_state:
+    st.session_state.senha_exclusao_validada = False
 
 # --- CARREGAR DADOS ---
 df_alunos = carregar_alunos()
@@ -946,22 +951,18 @@ if menu == "🏠 Início":
         profs = len(df_professores) if not df_professores.empty else 0
         st.metric("Professores Cadastrados", profs)
 
-# --- 2. CADASTRAR PROFESSORES ---
+# --- 2-3. CADASTROS (mantidos iguais) ---
 elif menu == "👨‍ Cadastrar Professores":
     st.header("👨‍🏫 Cadastrar Professores")
-    
     with st.expander("📥 Importar Professores em Massa", expanded=False):
         st.info("💡 Cole uma lista de nomes de professores (um por linha)")
         texto_professores = st.text_area("Cole os nomes dos professores aqui:", 
-                                        height=150,
-                                        placeholder="Alnei Maria De Moura Nogueira\nAna Paula De Oliveira Farias...")
-        
+                                        height=150, placeholder="Alnei Maria De Moura Nogueira\nAna Paula De Oliveira Farias...")
         if st.button("📥 Importar Professores"):
             if texto_professores:
                 nomes = [nome.strip() for nome in texto_professores.split('\n') if nome.strip()]
                 contagem = 0
                 duplicados = 0
-                
                 for nome_prof in nomes:
                     if verificar_professor_duplicado(nome_prof, df_professores):
                         duplicados += 1
@@ -969,25 +970,20 @@ elif menu == "👨‍ Cadastrar Professores":
                         novo_prof = {"nome": nome_prof, "email": None}
                         if salvar_professor(novo_prof):
                             contagem += 1
-                
                 if contagem > 0:
                     st.success(f"✅ {contagem} professores importados com sucesso!")
                 if duplicados > 0:
                     st.warning(f"⚠️ {duplicados} professores já existiam (ignorado)")
-                
                 if contagem > 0 or duplicados > 0:
                     st.rerun()
             else:
                 st.error("❌ Cole os nomes dos professores!")
-    
     st.markdown("---")
-    
     if st.session_state.editando_prof:
         st.subheader("✏️ Editar Professor")
         prof_edit = df_professores[df_professores['id'] == st.session_state.editando_prof].iloc[0]
         nome_prof = st.text_input("Nome do Professor *", value=prof_edit['nome'], key="edit_nome_prof")
         email_prof = st.text_input("E-mail (opcional)", value=prof_edit.get('email', ''), key="edit_email_prof")
-        
         col1, col2 = st.columns(2)
         with col1:
             if st.button("💾 Salvar Alterações", type="primary"):
@@ -1010,7 +1006,6 @@ elif menu == "👨‍ Cadastrar Professores":
             email_prof = st.text_input("E-mail (opcional)", placeholder="Ex: joao@educacao.sp.gov.br", key="novo_email_prof")
         with col2:
             st.info("💡 Cadastre todos os professores da escola.")
-        
         if st.button("💾 Salvar Professor", type="primary"):
             if nome_prof:
                 if verificar_professor_duplicado(nome_prof, df_professores):
@@ -1022,7 +1017,6 @@ elif menu == "👨‍ Cadastrar Professores":
                         st.rerun()
             else:
                 st.error("❌ Nome é obrigatório!")
-    
     st.markdown("---")
     st.subheader("📋 Professores Cadastrados")
     if not df_professores.empty:
@@ -1043,17 +1037,14 @@ elif menu == "👨‍ Cadastrar Professores":
     else:
         st.write("📭 Nenhum professor cadastrado.")
 
-# --- 3. CADASTRAR RESPONSÁVEIS POR ASSINATURA ---
 elif menu == "👤 Cadastrar Responsáveis por Assinatura":
     st.header("👤 Cadastrar Responsáveis por Assinatura")
     st.info("💡 Pode haver múltiplos responsáveis por cargo (ex: 2 Vice-Diretoras)")
-    
     if st.session_state.editando_resp:
         st.subheader("✏️ Editar Responsável")
         resp_edit = df_responsaveis[df_responsaveis['id'] == st.session_state.editando_resp].iloc[0]
         cargo_edit = resp_edit['cargo']
         nome_resp = st.text_input("Nome", value=resp_edit['nome'], key="edit_nome_resp")
-        
         col1, col2 = st.columns(2)
         with col1:
             if st.button("💾 Salvar Alterações", type="primary"):
@@ -1071,7 +1062,6 @@ elif menu == "👤 Cadastrar Responsáveis por Assinatura":
         cargos = ["Diretor(a)", "Vice-Diretor(a)", "CGPG / Coordenador(a)"]
         cargo = st.selectbox("Cargo", cargos, key="novo_cargo")
         nome_resp = st.text_input("Nome do Responsável *", placeholder="Ex: Maria Silva", key="novo_nome_resp")
-        
         if st.button("💾 Cadastrar", type="primary"):
             if nome_resp:
                 if salvar_responsavel({"cargo": cargo, "nome": nome_resp, "ativo": True}):
@@ -1079,7 +1069,6 @@ elif menu == "👤 Cadastrar Responsáveis por Assinatura":
                     st.rerun()
             else:
                 st.error("❌ Nome é obrigatório!")
-    
     st.markdown("---")
     st.subheader("📋 Responsáveis Cadastrados")
     if not df_responsaveis.empty:
@@ -1104,7 +1093,7 @@ elif menu == "👤 Cadastrar Responsáveis por Assinatura":
     else:
         st.write("📭 Nenhum responsável cadastrado.")
 
-# --- 4. REGISTRAR OCORRÊNCIA (CORRIGIDO 100%) ---
+# --- 4. REGISTRAR OCORRÊNCIA (CORRIGIDO COM DATA EDITÁVEL) ---
 elif menu == "📝 Registrar Ocorrência":
     st.header("📝 Nova Ocorrência")
     if st.session_state.ocorrencia_salva_sucesso:
@@ -1148,28 +1137,25 @@ elif menu == "📝 Registrar Ocorrência":
                         prof = st.text_input("Ou digite o nome do professor", placeholder="Nome do professor")
                 else:
                     prof = st.text_input("Professor 👨‍", placeholder="Nome do professor")
-                data = st.date_input("Data", data_hora_sp.date())
-                hora = st.time_input("Hora", data_hora_sp.time())
+                
+                # ✅ DATA E HORA EDITÁVEIS
+                data = st.date_input("📅 Data do Fato", value=data_hora_sp.date(), key="data_fato")
+                hora = st.time_input("⏰ Hora do Fato", value=data_hora_sp.time(), key="hora_fato")
             
             with col2:
                 st.subheader("📋 Infração Principal (Protocolo 179)")
                 
                 st.markdown('<div class="search-box">', unsafe_allow_html=True)
                 busca_infracao = st.text_input("🔍 Buscar infração (busca inteligente):", 
-                                              placeholder="Ex: celular, bullying, atraso, colar...")
+                                              placeholder="Ex: celular, bullying, atraso, colar...",
+                                              key="busca_infracao")
                 
+                # Determinar grupo e categorias
                 if busca_infracao:
                     grupos_filtrados = buscar_infracao_fuzzy(busca_infracao, PROTOCOLO_179)
-                    
                     if grupos_filtrados:
                         total_encontradas = sum(len(v) for v in grupos_filtrados.values())
                         st.success(f"✅ Encontradas {total_encontradas} infração(ões) relacionadas")
-                        
-                        for grupo, infracoes in grupos_filtrados.items():
-                            with st.expander(f"📂 {grupo} ({len(infracoes)} encontradas)", expanded=True):
-                                for nome_infracao in infracoes.keys():
-                                    st.write(f"• {nome_infracao}")
-                        
                         grupo = st.selectbox("Grupo", list(grupos_filtrados.keys()), key="grupo_principal")
                         cats = grupos_filtrados[grupo]
                     else:
@@ -1212,13 +1198,12 @@ elif menu == "📝 Registrar Ocorrência":
                     if linha.strip():
                         st.write(linha)
                 
-                # ✅ Gravidade EDITÁVEL (sem disabled)
+                # ✅ Gravidade EDITÁVEL
                 gravidade = st.selectbox("Gravidade (sugerida pelo Protocolo 179 - pode editar)", 
                                         ["Leve", "Grave", "Gravíssima"],
                                         index=["Leve", "Grave", "Gravíssima"].index(gravidade_protocolo),
                                         key="gravidade_select")
                 
-                # Mostrar aviso se mudar a gravidade
                 if gravidade != gravidade_protocolo:
                     st.warning(f"⚠️ Você alterou a gravidade de **{gravidade_protocolo}** para **{gravidade}**")
                 
@@ -1283,7 +1268,7 @@ elif menu == "📝 Registrar Ocorrência":
                         else:
                             st.error("❌ Preencha professor e relato obrigatoriamente!")
 
-# --- 5. COMUNICADO AOS PAIS ---
+# --- 5-11. OUTRAS SEÇÕES (mantidas iguais ao código anterior) ---
 elif menu == "📄 Comunicado aos Pais":
     st.header("📄 Comunicado aos Pais/Responsáveis")
     st.info("💡 Gere um comunicado simples para envio aos pais com as medidas aplicadas.")
@@ -1382,7 +1367,6 @@ elif menu == "📄 Comunicado aos Pais":
         else:
             st.warning("⚠️ Nenhum aluno encontrado com esta busca.")
 
-# --- 6. IMPORTAR ALUNOS ---
 elif menu == "📥 Importar Alunos":
     st.header("📥 Importar Alunos (CSV da SED)")
     turma_alunos = st.text_input("🏫 Qual a TURMA destes alunos?", placeholder="Ex: 6º Ano A")
@@ -1461,7 +1445,6 @@ elif menu == "📥 Importar Alunos":
         except Exception as e:
             st.error(f"❌ Erro ao ler arquivo: {str(e)}")
 
-# --- 7. GERENCIAR TURMAS IMPORTADAS ---
 elif menu == "📋 Gerenciar Turmas Importadas":
     st.header("📋 Gerenciar Turmas Importadas")
     if not df_alunos.empty:
@@ -1510,7 +1493,6 @@ elif menu == "📋 Gerenciar Turmas Importadas":
     else:
         st.write("📭 Nenhuma turma importada.")
 
-# --- 8. LISTA DE ALUNOS ---
 elif menu == "👥 Lista de Alunos":
     st.header("👥 Alunos Cadastrados")
     if not df_alunos.empty:
@@ -1522,7 +1504,6 @@ elif menu == "👥 Lista de Alunos":
     else:
         st.write("📭 Nenhum aluno cadastrado.")
 
-# --- 9. HISTÓRICO ---
 elif menu == "📋 Histórico de Ocorrências":
     st.header("📋 Histórico de Ocorrências")
     if not df_ocorrencias.empty:
@@ -1534,10 +1515,18 @@ elif menu == "📋 Histórico de Ocorrências":
             st.markdown("### 🗑️ Excluir")
             ids = df_ocorrencias["id"].tolist()
             id_excluir = st.selectbox("ID para excluir", ids, key="select_excluir")
+            
+            # ✅ SENHA PARA EXCLUIR
+            senha = st.text_input("🔒 Digite a senha para excluir:", type="password", key="senha_excluir")
+            
             if st.button("🗑️ Excluir", key="btn_excluir"):
-                if excluir_ocorrencia(id_excluir):
-                    st.success(f"✅ Ocorrência {id_excluir} excluída!")
-                    st.rerun()
+                if senha == SENHA_EXCLUSAO:
+                    if excluir_ocorrencia(id_excluir):
+                        st.success(f"✅ Ocorrência {id_excluir} excluída!")
+                        st.session_state.senha_exclusao_validada = False
+                        st.rerun()
+                else:
+                    st.error("❌ Senha incorreta!")
         with col2:
             st.markdown("### ✏️ Editar")
             id_editar = st.selectbox("ID para editar", ids, key="select_editar")
@@ -1569,7 +1558,6 @@ elif menu == "📋 Histórico de Ocorrências":
     else:
         st.write("📭 Nenhuma ocorrência.")
 
-# --- 10. GRÁFICOS ---
 elif menu == "📊 Gráficos e Indicadores":
     st.header("📊 Dashboard de Ocorrências - Protocolo 179")
     if df_ocorrencias.empty:
@@ -1780,7 +1768,6 @@ elif menu == "📊 Gráficos e Indicadores":
             st.download_button(label="📥 Baixar Dados Filtrados (CSV)", data=csv,
                               file_name=f"ocorrencias_filtradas_{datetime.now().strftime('%Y%m%d_%H%M')}.csv", mime="text/csv")
 
-# --- 11. PDF ---
 elif menu == "🖨️ Imprimir PDF":
     st.header("🖨️ Gerar PDF de Ocorrência")
     if not df_ocorrencias.empty:
