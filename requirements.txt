@@ -1,8 +1,9 @@
 streamlit
 pandas
 plotly
+reportlab
 requests
 python-dotenv
 pytz
-reportlab
-openpyxl
+PyMuPDF
+Pillow
