@@ -5,5 +5,3 @@ reportlab
 requests
 python-dotenv
 pytz
-PyMuPDF
-Pillow
