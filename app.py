@@ -121,11 +121,12 @@ st.markdown("""
     text-align: center;
     margin: 1rem 0;
 }
-.student-photo {
-    max-width: 150px;
-    max-height: 150px;
+.student-photo, .professor-photo {
+    max-width: 120px;
+    max-height: 120px;
     border-radius: 10px;
     border: 3px solid #667eea;
+    object-fit: cover;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -703,6 +704,61 @@ def verificar_professor_duplicado(nome, df_professores, id_atual=None):
     return not duplicados.empty
 
 # ============================================================================
+# FUNÇÕES DE FOTO - PROFESSORES E ALUNOS
+# ============================================================================
+def associar_foto_ao_professor(id_prof, imagem_bytes):
+    """Associa foto ao professor via base64 no Supabase."""
+    try:
+        imagem_base64 = base64.b64encode(imagem_bytes).decode('utf-8')
+        dados = {"foto": imagem_base64}
+        return atualizar_professor(id_prof, dados)
+    except Exception as e:
+        st.error(f"Erro ao associar foto do professor: {str(e)}")
+        return False
+
+def associar_foto_ao_aluno(ra, imagem_bytes):
+    """Associa foto ao aluno via base64 no Supabase."""
+    try:
+        imagem_base64 = base64.b64encode(imagem_bytes).decode('utf-8')
+        dados = {"foto": imagem_base64}
+        return atualizar_aluno(ra, dados)
+    except Exception as e:
+        st.error(f"Erro ao associar foto do aluno: {str(e)}")
+        return False
+
+def exibir_foto_professor(id_prof, df_professores):
+    """Exibe foto do professor se existir."""
+    try:
+        prof = df_professores[df_professores['id'] == id_prof]
+        if not prof.empty and 'foto' in prof.columns:
+            foto_base64 = prof['foto'].values[0]
+            if foto_base64:
+                imagem_bytes = base64.b64decode(foto_base64)
+                st.image(imagem_bytes, width=120, caption="👨‍🏫 Foto")
+                return True
+        st.info("📷 Sem foto")
+        return False
+    except:
+        st.info("📷 Sem foto")
+        return False
+
+def exibir_foto_aluno(ra, df_alunos):
+    """Exibe foto do aluno se existir."""
+    try:
+        aluno = df_alunos[df_alunos['ra'] == ra]
+        if not aluno.empty and 'foto' in aluno.columns:
+            foto_base64 = aluno['foto'].values[0]
+            if foto_base64:
+                imagem_bytes = base64.b64decode(foto_base64)
+                st.image(imagem_bytes, width=120, caption="👤 Foto")
+                return True
+        st.info("📷 Sem foto")
+        return False
+    except:
+        st.info("📷 Sem foto")
+        return False
+
+# ============================================================================
 # FUNÇÕES DE BACKUP
 # ============================================================================
 def criar_backup_dados(df_alunos, df_professores, df_responsaveis, df_ocorrencias):
@@ -954,29 +1010,6 @@ def gerar_pdf_comunicado(aluno_data, ocorrencia_data, medidas_aplicadas, observa
     return buffer
 
 # ============================================================================
-# FUNÇÃO PARA EXIBIR FOTO DO ALUNO
-# ============================================================================
-def exibir_foto_aluno(ra):
-    foto_path = f"fotos_alunos/{ra}.jpg"
-    if os.path.exists(foto_path):
-        with open(foto_path, "rb") as img_file:
-            encoded = base64.b64encode(img_file.read()).decode()
-            return f"""
-            <div class="photo-container">
-                <img src="data:image/jpeg;base64,{encoded}" class="student-photo" alt="Foto do Aluno">
-            </div>
-            """
-    else:
-        return """
-        <div class="photo-container">
-            <div style="width:150px;height:150px;background:#e0e0e0;border-radius:10px;display:flex;align-items:center;justify-content:center;border:3px solid #667eea;">
-                <span style="color:#667eea;font-size:3rem;">👤</span>
-            </div>
-            <p style="color:#666;font-size:0.8rem;">Foto não disponível</p>
-        </div>
-        """
-
-# ============================================================================
 # SESSION STATE
 # ============================================================================
 if 'editando_id' not in st.session_state:
@@ -1085,6 +1118,18 @@ elif menu == "👨‍🏫 Cadastrar Professores":
         nome_prof = st.text_input("Nome do Professor *", value=prof_edit['nome'], key="edit_nome_prof")
         email_prof = st.text_input("E-mail (opcional)", value=prof_edit.get('email', ''), key="edit_email_prof")
         
+        # ✅ UPLOAD DE FOTO DO PROFESSOR
+        st.markdown("**📷 Foto do Professor:**")
+        foto_upload = st.file_uploader(
+            "Enviar foto", 
+            type=["png", "jpg", "jpeg"], 
+            key=f"foto_prof_{st.session_state.editando_prof}"
+        )
+        if foto_upload:
+            if associar_foto_ao_professor(st.session_state.editando_prof, foto_upload.read()):
+                st.success("✅ Foto associada!")
+                st.rerun()
+        
         col1, col2 = st.columns(2)
         with col1:
             if st.button("💾 Salvar Alterações", type="primary"):
@@ -1125,14 +1170,17 @@ elif menu == "👨‍🏫 Cadastrar Professores":
     
     if not df_professores.empty:
         for idx, prof in df_professores.iterrows():
-            col1, col2, col3 = st.columns([4, 1, 1])
+            col1, col2, col3, col4 = st.columns([1, 3, 1, 1])
             with col1:
-                st.markdown(f"**{prof['nome']}**" + (f" - {prof['email']}" if prof.get('email') else ""))
+                # Exibir foto do professor
+                exibir_foto_professor(prof['id'], df_professores)
             with col2:
+                st.markdown(f"**{prof['nome']}**" + (f" - {prof['email']}" if prof.get('email') else ""))
+            with col3:
                 if st.button("✏️ Editar", key=f"edit_prof_{prof['id']}"):
                     st.session_state.editando_prof = prof['id']
                     st.rerun()
-            with col3:
+            with col4:
                 if st.button("🗑️ Excluir", key=f"del_prof_{prof['id']}"):
                     if excluir_professor(prof['id']):
                         st.success("✅ Professor excluído com sucesso!")
@@ -1251,11 +1299,11 @@ elif menu == "📝 Registrar Ocorrência":
                 
                 if not df_professores.empty:
                     prof_lista = df_professores["nome"].tolist()
-                    prof = st.selectbox("Professor 👨‍", ["Selecione..."] + prof_lista)
+                    prof = st.selectbox("Professor 👨‍🏫", ["Selecione..."] + prof_lista)
                     if prof == "Selecione...":
                         prof = st.text_input("Ou digite o nome do professor", placeholder="Nome do professor")
                 else:
-                    prof = st.text_input("Professor 👨‍", placeholder="Nome do professor")
+                    prof = st.text_input("Professor 👨‍🏫", placeholder="Nome do professor")
                 
                 # ✅ DATA E HORA EDITÁVEIS
                 data = st.date_input("📅 Data do Fato", value=data_hora_sp.date(), key="data_fato")
@@ -1407,7 +1455,8 @@ elif menu == "📄 Comunicado aos Pais":
             ra_aluno = aluno_info['ra']
             turma_aluno = aluno_info['turma']
             
-            st.markdown(exibir_foto_aluno(ra_aluno), unsafe_allow_html=True)
+            # Exibir foto do aluno
+            exibir_foto_aluno(ra_aluno, df_alunos)
             
             ocorrencias_aluno = df_ocorrencias[df_ocorrencias['ra'] == ra_aluno] if not df_ocorrencias.empty else pd.DataFrame()
             total_ocorrencias = len(ocorrencias_aluno)
@@ -1648,7 +1697,7 @@ elif menu == "📋 Gerenciar Turmas Importadas":
         st.write("📭 Nenhuma turma importada.")
 
 # ============================================================================
-# 8. LISTA DE ALUNOS
+# 8. LISTA DE ALUNOS (COM FOTOS)
 # ============================================================================
 elif menu == "👥 Lista de Alunos":
     st.header("👥 Alunos Cadastrados")
@@ -1659,7 +1708,26 @@ elif menu == "👥 Lista de Alunos":
         
         df_exibir = df_alunos[df_alunos["turma"] == filtro] if filtro != "Todas" else df_alunos
         
-        st.dataframe(df_exibir, use_container_width=True)
+        # ✅ EXIBIR COM FOTOS
+        for idx, aluno in df_exibir.iterrows():
+            col1, col2, col3 = st.columns([1, 3, 2])
+            with col1:
+                exibir_foto_aluno(aluno['ra'], df_alunos)
+            with col2:
+                st.markdown(f"**{aluno['nome']}**")
+                st.write(f"RA: {aluno['ra']} | Turma: {aluno['turma']}")
+            with col3:
+                # Upload de foto para este aluno
+                foto_upload = st.file_uploader(
+                    "📷 Foto", 
+                    type=["png", "jpg", "jpeg"],
+                    key=f"foto_aluno_{aluno['ra']}"
+                )
+                if foto_upload:
+                    if associar_foto_ao_aluno(aluno['ra'], foto_upload.read()):
+                        st.success("✅")
+                        st.rerun()
+        
         st.info(f"Total: {len(df_exibir)} alunos")
     else:
         st.write("📭 Nenhum aluno cadastrado.")
@@ -1998,7 +2066,7 @@ elif menu == "🖨️ Imprimir PDF":
         st.write("📭 Nenhuma ocorrência.")
 
 # ============================================================================
-# 12. BACKUP DE DADOS (NOVA OPÇÃO)
+# 12. BACKUP DE DADOS
 # ============================================================================
 elif menu == "💾 Backup de Dados":
     st.header("💾 Backup e Restauração de Dados")
