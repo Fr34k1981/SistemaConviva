@@ -239,6 +239,38 @@ CORES_GRAVIDADE = {
 }
 
 # ============================================================================
+# ENCAMINHAMENTOS DISPONÍVEIS (PARA CHECKBOX)
+# ============================================================================
+ENCAMINHAMENTOS_OPCOES = [
+    "✅ Registrar em ata",
+    "✅ Registrar em ata circunstanciada",
+    "✅ Acionar Orientação Educacional",
+    "✅ Notificar famílias",
+    "✅ Conselho Tutelar",
+    "✅ B.O.",
+    "✅ B.O. OBRIGATÓRIO",
+    "✅ Diretoria de Ensino",
+    "✅ Medidas disciplinares cabíveis",
+    "✅ Acompanhamento psicológico",
+    "✅ Mediação pedagógica",
+    "✅ Afastamento do agressor",
+    "✅ Medidas protetivas",
+    "✅ SAMU (192)",
+    "✅ PM (190)",
+    "✅ CREAS",
+    "✅ CRAS",
+    "✅ CAPS",
+    "✅ AEE (Atendimento Educacional Especializado)",
+    "✅ Busca ativa",
+    "✅ Reparação do dano",
+    "✅ Trabalho educativo",
+    "✅ Reunião com pais",
+    "✅ Termo de compromisso",
+    "✅ Mudança de turma",
+    "✅ Transferência de escola"
+]
+
+# ============================================================================
 # PROTOCOLO 179 COMPLETO
 # ============================================================================
 PROTOCOLO_179 = {
@@ -704,7 +736,7 @@ def verificar_professor_duplicado(nome, df_professores, id_atual=None):
     return not duplicados.empty
 
 # ============================================================================
-# FUNÇÕES DE FOTO - PROFESSORES E ALUNOS
+# FUNÇÕES DE FOTO - PROFESSORES E ALUNOS (CORRIGIDAS)
 # ============================================================================
 def associar_foto_ao_professor(id_prof, imagem_bytes):
     """Associa foto ao professor via base64 no Supabase."""
@@ -732,13 +764,13 @@ def exibir_foto_professor(id_prof, df_professores):
         prof = df_professores[df_professores['id'] == id_prof]
         if not prof.empty and 'foto' in prof.columns:
             foto_base64 = prof['foto'].values[0]
-            if foto_base64:
+            if foto_base64 and str(foto_base64) != 'nan' and str(foto_base64).strip():
                 imagem_bytes = base64.b64decode(foto_base64)
                 st.image(imagem_bytes, width=120, caption="👨‍🏫 Foto")
                 return True
         st.info("📷 Sem foto")
         return False
-    except:
+    except Exception as e:
         st.info("📷 Sem foto")
         return False
 
@@ -748,13 +780,13 @@ def exibir_foto_aluno(ra, df_alunos):
         aluno = df_alunos[df_alunos['ra'] == ra]
         if not aluno.empty and 'foto' in aluno.columns:
             foto_base64 = aluno['foto'].values[0]
-            if foto_base64:
+            if foto_base64 and str(foto_base64) != 'nan' and str(foto_base64).strip():
                 imagem_bytes = base64.b64decode(foto_base64)
                 st.image(imagem_bytes, width=120, caption="👤 Foto")
                 return True
         st.info("📷 Sem foto")
         return False
-    except:
+    except Exception as e:
         st.info("📷 Sem foto")
         return False
 
@@ -1077,7 +1109,7 @@ if menu == "🏠 Início":
         st.metric("Professores Cadastrados", profs)
 
 # ============================================================================
-# 2. CADASTRAR PROFESSORES
+# 2. CADASTRAR PROFESSORES (CORRIGIDO - ORDEM ALFABÉTICA + FOTO)
 # ============================================================================
 elif menu == "👨‍🏫 Cadastrar Professores":
     st.header("👨‍🏫 Cadastrar Professores")
@@ -1127,7 +1159,7 @@ elif menu == "👨‍🏫 Cadastrar Professores":
         )
         if foto_upload:
             if associar_foto_ao_professor(st.session_state.editando_prof, foto_upload.read()):
-                st.success("✅ Foto associada!")
+                st.success("✅ Foto associada com sucesso!")
                 st.rerun()
         
         col1, col2 = st.columns(2)
@@ -1169,7 +1201,10 @@ elif menu == "👨‍🏫 Cadastrar Professores":
     st.subheader("📋 Professores Cadastrados")
     
     if not df_professores.empty:
-        for idx, prof in df_professores.iterrows():
+        # ✅ ORDENAR PROFESSORES ALFABETICAMENTE
+        df_professores_ordenados = df_professores.sort_values('nome').reset_index(drop=True)
+        
+        for idx, prof in df_professores_ordenados.iterrows():
             col1, col2, col3, col4 = st.columns([1, 3, 1, 1])
             with col1:
                 # Exibir foto do professor
@@ -1254,7 +1289,7 @@ elif menu == "👤 Cadastrar Responsáveis por Assinatura":
         st.write("📭 Nenhum responsável cadastrado.")
 
 # ============================================================================
-# 4. REGISTRAR OCORRÊNCIA
+# 4. REGISTRAR OCORRÊNCIA (CORRIGIDO - CHECKBOX + GRAVIDADE VAZIA)
 # ============================================================================
 elif menu == "📝 Registrar Ocorrência":
     st.header("📝 Nova Ocorrência")
@@ -1360,16 +1395,38 @@ elif menu == "📝 Registrar Ocorrência":
                     if linha.strip():
                         st.write(linha)
                 
-                gravidade = st.selectbox("Gravidade (sugerida pelo Protocolo 179 - pode editar)",
-                                          ["Leve", "Grave", "Gravíssima"],
-                                          index=["Leve", "Grave", "Gravíssima"].index(gravidade_protocolo) if gravidade_protocolo in ["Leve", "Grave", "Gravíssima"] else 0,
-                                          key="gravidade_select")
+                # ✅ GRAVIDADE COMEÇA VAZIA (com opção "Selecione...")
+                gravidade_opcoes = ["Selecione...", "Leve", "Grave", "Gravíssima"]
+                gravidade_index = 0  # Começa em "Selecione..."
+                gravidade = st.selectbox(
+                    "Gravidade (obrigatório selecionar)",
+                    gravidade_opcoes,
+                    index=gravidade_index,
+                    key="gravidade_select"
+                )
                 
-                if gravidade != gravidade_protocolo:
+                # Aviso se mudar da sugerida
+                if gravidade != "Selecione..." and gravidade != gravidade_protocolo:
                     st.warning(f"⚠️ Você alterou a gravidade de **{gravidade_protocolo}** para **{gravidade}**")
                 
-                encam = st.text_area("🔀 Encaminhamentos (sugerido pelo Protocolo 179 - pode editar)",
-                                      value=encam_protocolo, height=150, key="encam_select")
+                # ✅ ENCAMINHAMENTOS EM CHECKBOX (NÃO TEXT_AREA)
+                st.markdown("### 🔀 Encaminhamentos (selecione os aplicáveis)")
+                encaminhamentos_selecionados = []
+                
+                # Converter encaminhamentos sugeridos em lista
+                encam_sugeridos_lista = [e.strip() for e in encam_protocolo.split('\n') if e.strip()]
+                
+                # Criar checkboxes para cada encaminhamento disponível
+                cols = st.columns(2)
+                for i, encam_opcao in enumerate(ENCAMINHAMENTOS_OPCOES):
+                    col_idx = i % 2
+                    # Marcar como selecionado se estiver nos sugeridos
+                    marcado = encam_opcao in encam_sugeridos_lista
+                    if cols[col_idx].checkbox(encam_opcao, value=marcado, key=f"encam_{i}"):
+                        encaminhamentos_selecionados.append(encam_opcao)
+                
+                # Converter lista para string
+                encam = '\n'.join(encaminhamentos_selecionados) if encaminhamentos_selecionados else ""
                 
                 st.markdown("---")
                 
@@ -1381,7 +1438,7 @@ elif menu == "📝 Registrar Ocorrência":
                 st.info("⏳ Aguarde, registrando ocorrência(s)...")
             else:
                 if st.button("💾 Salvar Ocorrência(s)", type="primary"):
-                    if prof and prof != "Selecione..." and relato and alunos_selecionados:
+                    if prof and prof != "Selecione..." and relato and alunos_selecionados and gravidade != "Selecione...":
                         data_str = f"{data.strftime('%d/%m/%Y')} {hora.strftime('%H:%M')}"
                         categoria_str = infracao_principal
                         contagem_salvas = 0
@@ -1425,6 +1482,8 @@ elif menu == "📝 Registrar Ocorrência":
                     else:
                         if not alunos_selecionados:
                             st.error("❌ Selecione pelo menos um estudante!")
+                        elif gravidade == "Selecione...":
+                            st.error("❌ Selecione a gravidade!")
                         else:
                             st.error("❌ Preencha professor e relato obrigatoriamente!")
 
