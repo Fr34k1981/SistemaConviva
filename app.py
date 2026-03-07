@@ -7,45 +7,110 @@
 # Telefone: (11) 4675-1855
 # Email: e918623@educacao.sp.gov.br
 # ============================================================================
-# VERSÃO: 4.0 - FINAL TESTADA
-# - Sem dependências problemáticas
-# - Backup/Importação de dados
-# - Gráficos profissionais coloridos
-# - Estrutura sólida
+# Versão: 5.0 - COMPLETA COM BACKUP E FOTOS
+# Desenvolvido para: Streamlit Cloud
+# Banco de Dados: Supabase
+# ============================================================================
+# Funcionalidades Principais:
+# 1. Cadastro de Professores
+# 2. Cadastro de Responsáveis por Assinatura
+# 3. Registro de Ocorrências com Protocolo 179
+# 4. Comunicado aos Pais
+# 5. Importação de Alunos via CSV
+# 6. Gerenciamento de Turmas
+# 7. Lista de Alunos
+# 8. Histórico de Ocorrências
+# 9. Gráficos e Indicadores
+# 10. Geração de PDFs
+# 11. Backup e Restauração de Dados (NOVO)
+# 12. Backup do Código (NOVO)
+# 13. Extração de Fotos de PDF (NOVO)
+# 14. Exibição de Fotos dos Alunos (NOVO)
+# ============================================================================
+# Autor: Sistema Conviva 179
+# Data: 2024
 # ============================================================================
 
 # ============================================================================
-# IMPORTAÇÃO DE BIBLIOTECAS
+# IMPORTAÇÃO DE BIBLIOTECAS E DEPENDÊNCIAS
 # ============================================================================
+# Streamlit: Framework para aplicação web
 import streamlit as st
+
+# Pandas: Manipulação de dados e DataFrames
 import pandas as pd
+
+# Plotly: Gráficos interativos e visualização de dados
 import plotly.express as px
 import plotly.graph_objects as go
+
+# DateTime: Manipulação de datas e horas
 from datetime import datetime, timedelta
+
+# ReportLab: Geração de documentos PDF
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
+
+# BytesIO: Manipulação de dados em memória
 from io import BytesIO
+
+# Requests: Requisições HTTP para API Supabase
 import requests
+
+# OS: Operações do sistema operacional
 import os
+
+# Dotenv: Carregamento de variáveis de ambiente
 from dotenv import load_dotenv
+
+# Pytz: Fusos horários
 import pytz
+
+# Time: Funções de tempo
+import time
+
+# SequenceMatcher: Comparação de strings para busca fuzzy
+from difflib import SequenceMatcher
+
+# Base64: Codificação de imagens para armazenamento
 import base64
+
+# JSON: Manipulação de arquivos JSON para backup
 import json
 
+# PIL: Processamento de imagens
+from PIL import Image
+
 # ============================================================================
-# CARREGAR VARIÁVEIS DE AMBIENTE
+# TENTAR IMPORTAR PyMuPDF PARA EXTRAÇÃO DE IMAGENS DE PDF
 # ============================================================================
+try:
+    import fitz  # PyMuPDF
+    PDF_SUPPORT = True
+except ImportError:
+    PDF_SUPPORT = False
+
+# ============================================================================
+# CARREGAR VARIÁVEIS DE AMBIENTE DO ARQUIVO .ENV
+# ============================================================================
+# Este comando carrega as variáveis SUPABASE_URL e SUPABASE_KEY do arquivo .env
+# Essas variáveis são necessárias para conectar ao banco de dados Supabase
 load_dotenv()
 
 # ============================================================================
-# CONFIGURAÇÃO SUPABASE
+# CONFIGURAÇÃO DO BANCO DE DADOS SUPABASE
 # ============================================================================
+# URL da API Supabase - Endpoint principal para conexões
 SUPABASE_URL = os.getenv("SUPABASE_URL")
+
+# Chave de API Supabase - Credencial para autenticação nas requisições
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
+# Headers padrão para todas as requisições HTTP à API Supabase
+# Inclui autenticação, tipo de conteúdo e preferência de retorno
 HEADERS = {
     "apikey": SUPABASE_KEY,
     "Authorization": f"Bearer {SUPABASE_KEY}",
@@ -54,8 +119,13 @@ HEADERS = {
 }
 
 # ============================================================================
-# CONFIGURAÇÃO DA PÁGINA
+# CONFIGURAÇÃO DA PÁGINA STREAMLIT
 # ============================================================================
+# Configurações da página da aplicação web
+# page_title: Título que aparece na aba do navegador
+# layout: Layout amplo (wide) para melhor visualização
+# page_icon: Ícone da página (emoji de escola)
+# initial_sidebar_state: Barra lateral expandida por padrão
 st.set_page_config(
     page_title="Sistema Conviva 179 - E.E. Profª Eliane",
     layout="wide",
@@ -64,10 +134,13 @@ st.set_page_config(
 )
 
 # ============================================================================
-# CSS PERSONALIZADO
+# CSS PERSONALIZADO PARA ESTILIZAÇÃO DA INTERFACE
 # ============================================================================
+# Este CSS personaliza a aparência da aplicação Streamlit
+# Inclui estilos para cabeçalho, cards, métricas, boxes de informação, etc.
 st.markdown("""
     <style>
+    /* Cabeçalho principal com gradiente */
     .main-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         padding: 2rem;
@@ -76,13 +149,56 @@ st.markdown("""
         text-align: center;
         margin-bottom: 2rem;
     }
-    .school-name { font-size: 2rem; font-weight: bold; margin-bottom: 0.5rem; }
-    .school-subtitle { font-size: 1.2rem; font-style: italic; opacity: 0.9; }
-    .school-address { font-size: 0.9rem; margin-top: 1rem; opacity: 0.8; }
-    .school-contact { font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.9; }
-    .card { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 0.5rem 0; }
-    .card-title { font-weight: bold; color: #333; }
-    .card-value { font-size: 1.5rem; color: #667eea; }
+    
+    /* Nome da escola em destaque */
+    .school-name { 
+        font-size: 2rem; 
+        font-weight: bold; 
+        margin-bottom: 0.5rem; 
+    }
+    
+    /* Subtítulo da escola em itálico */
+    .school-subtitle { 
+        font-size: 1.2rem; 
+        font-style: italic; 
+        opacity: 0.9; 
+    }
+    
+    /* Endereço da escola */
+    .school-address { 
+        font-size: 0.9rem; 
+        margin-top: 1rem; 
+        opacity: 0.8; 
+    }
+    
+    /* Contatos da escola */
+    .school-contact { 
+        font-size: 0.85rem; 
+        margin-top: 0.5rem; 
+        opacity: 0.9; 
+    }
+    
+    /* Cards de informação */
+    .card { 
+        background: #f8f9fa; 
+        padding: 1rem; 
+        border-radius: 8px; 
+        margin: 0.5rem 0; 
+    }
+    
+    /* Título do card */
+    .card-title { 
+        font-weight: bold; 
+        color: #333; 
+    }
+    
+    /* Valor do card em destaque */
+    .card-value { 
+        font-size: 1.5rem; 
+        color: #667eea; 
+    }
+    
+    /* Box de sucesso (verde) */
     .success-box {
         background: #d4edda;
         border: 2px solid #28a745;
@@ -93,6 +209,17 @@ st.markdown("""
         font-weight: bold;
         color: #155724;
     }
+    
+    /* Box de informação do protocolo */
+    .protocolo-info {
+        background: #fff3cd;
+        border: 2px solid #ffc107;
+        border-radius: 8px;
+        padding: 1rem;
+        margin: 1rem 0;
+    }
+    
+    /* Cards de métricas */
     .metric-card {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         padding: 1.5rem;
@@ -100,8 +227,20 @@ st.markdown("""
         color: white;
         text-align: center;
     }
-    .metric-value { font-size: 2.5rem; font-weight: bold; }
-    .metric-label { font-size: 1rem; opacity: 0.9; }
+    
+    /* Valor da métrica em destaque */
+    .metric-value { 
+        font-size: 2.5rem; 
+        font-weight: bold; 
+    }
+    
+    /* Label da métrica */
+    .metric-label { 
+        font-size: 1rem; 
+        opacity: 0.9; 
+    }
+    
+    /* Box de informação (azul) */
     .info-box {
         background: #e3f2fd;
         border-left: 4px solid #2196F3;
@@ -109,6 +248,8 @@ st.markdown("""
         margin: 1rem 0;
         border-radius: 4px;
     }
+    
+    /* Box de aviso (amarelo) */
     .warning-box {
         background: #fff3cd;
         border-left: 4px solid #ffc107;
@@ -116,6 +257,8 @@ st.markdown("""
         margin: 1rem 0;
         border-radius: 4px;
     }
+    
+    /* Box de erro (vermelho) */
     .error-box {
         background: #f8d7da;
         border-left: 4px solid #dc3545;
@@ -123,23 +266,54 @@ st.markdown("""
         margin: 1rem 0;
         border-radius: 4px;
     }
+    
+    /* Foto do aluno */
+    .student-photo {
+        border-radius: 8px;
+        border: 2px solid #667eea;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
     </style>
 """, unsafe_allow_html=True)
 
 # ============================================================================
-# DADOS DA ESCOLA
+# DADOS DE IDENTIFICAÇÃO DA ESCOLA
 # ============================================================================
+# Estas variáveis armazenam as informações da escola que serão exibidas
+# em toda a aplicação, incluindo cabeçalhos, PDFs e relatórios
+# ============================================================================
+
+# Nome completo da escola conforme registro oficial
 ESCOLA_NOME = "Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI"
+
+# Subtítulo ou nome fantasia da escola
 ESCOLA_SUBTITULO = "🌟 Escola dos Sonhos"
+
+# Endereço completo da escola
 ESCOLA_ENDERECO = "R. Valter Souza Costa, 147 - Jardim Primavera, Ferraz de Vasconcelos - SP"
+
+# Código de Endereçamento Postal (CEP)
 ESCOLA_CEP = "CEP: 08535-310"
+
+# Número de telefone para contato
 ESCOLA_TELEFONE = "Telefone: (11) 4675-1855"
+
+# Endereço de e-mail institucional
 ESCOLA_EMAIL = "Email: e918623@educacao.sp.gov.br"
+
+# Nome do arquivo da logo da escola (deve estar na mesma pasta do app.py)
 ESCOLA_LOGO = "eliane_dantas.png"
+
+# Senha de segurança para exclusão de registros
+# Esta senha é necessária para excluir ocorrências do sistema
 SENHA_EXCLUSAO = "040600"
 
 # ============================================================================
-# MENU LATERAL
+# MENU LATERAL DE NAVEGAÇÃO
+# ============================================================================
+# Lista de todas as seções disponíveis na aplicação
+# O usuário pode navegar entre elas através do menu lateral
+# Cada opção corresponde a uma funcionalidade específica do sistema
 # ============================================================================
 menu = st.sidebar.selectbox(
     "Menu",
@@ -161,18 +335,36 @@ menu = st.sidebar.selectbox(
 )
 
 # ============================================================================
-# CORES POR GRAVIDADE
+# CORES PARA CLASSIFICAÇÃO POR GRAVIDADE
+# ============================================================================
+# Dicionário que mapeia níveis de gravidade para cores específicas
+# Usado em gráficos, indicadores e visualizações
+# Estas cores seguem padrões internacionais de semáforo de risco
 # ============================================================================
 CORES_GRAVIDADE = {
-    "Leve": "#4CAF50",
-    "Grave": "#FF9800",
-    "Gravíssima": "#F44336"
+    "Leve": "#4CAF50",      # Verde - ocorrências de menor impacto
+    "Grave": "#FF9800",     # Laranja - ocorrências de médio impacto
+    "Gravíssima": "#F44336" # Vermelho - ocorrências de alto impacto
 }
 
 # ============================================================================
-# PROTOCOLO 179 - INFRAÇÕES E ENCAMINHAMENTOS
+# PROTOCOLO 179 - CATÁLOGO COMPLETO DE INFRAÇÕES
+# ============================================================================
+# Este dicionário contém todas as infrações previstas no Protocolo 179
+# Cada infração possui:
+# - gravidade: Nível de severidade (Leve, Grave, Gravíssima)
+# - encaminhamento: Lista de ações recomendadas a serem tomadas
+#
+# As infrações estão organizadas por categorias/grupos temáticos
+# Esta estrutura permite busca e filtragem eficiente
 # ============================================================================
 PROTOCOLO_179 = {
+    # =========================================================================
+    # GRUPO 1: VIOLÊNCIA E AGRESSÃO
+    # =========================================================================
+    # Este grupo inclui todas as formas de violência física e verbal
+    # entre estudantes, ou envolvendo membros da comunidade escolar
+    # =========================================================================
     "📌 Violência e Agressão": {
         "Agressão Física": {
             "gravidade": "Grave",
@@ -180,129 +372,226 @@ PROTOCOLO_179 = {
         },
         "Agressão Verbal": {
             "gravidade": "Leve",
-            "encaminhamento": "✅ Mediação pedagógica\n✅ Registrar em ata\n✅ Acionar Orientação Educacional"
+            "encaminhamento": "✅ Mediação pedagógica\n✅ Registrar em ata\n✅ Acionar Orientação Educacional\n✅ Acompanhamento psicológico (se necessário)"
         },
         "Ameaça": {
             "gravidade": "Grave",
-            "encaminhamento": "✅ Registrar em ata circunstanciada\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ B.O. recomendado"
+            "encaminhamento": "✅ Registrar em ata circunstanciada\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ B.O. recomendado\n✅ Medidas protetivas se necessário"
         },
         "Bullying": {
             "gravidade": "Leve",
-            "encaminhamento": "✅ Programa de Mediação de Conflitos\n✅ Acompanhamento pedagógico\n✅ Notificar famílias"
+            "encaminhamento": "✅ Programa de Mediação de Conflitos\n✅ Acompanhamento pedagógico\n✅ Notificar famílias\n✅ Registrar em ata\n✅ Acompanhamento psicológico"
         },
         "Cyberbullying": {
             "gravidade": "Grave",
-            "encaminhamento": "✅ Registrar em ata\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ B.O. (crime digital)"
+            "encaminhamento": "✅ Registrar em ata circunstanciada\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ B.O. (crime digital)\n✅ Preservar provas (prints, URLs)\n✅ Acionar Núcleo Tecnológico"
         },
         "Racismo": {
             "gravidade": "Gravíssima",
-            "encaminhamento": "⚖️ CRIME INAFIANÇÁVEL\n✅ B.O. OBRIGATÓRIO\n✅ Conselho Tutelar\n✅ Diretoria de Ensino"
+            "encaminhamento": "⚖️ CRIME INAFIANÇÁVEL (Lei 7.716/89)\n✅ B.O. OBRIGATÓRIO\n✅ Conselho Tutelar\n✅ Notificar famílias\n✅ Diretoria de Ensino\n✅ Medidas disciplinares cabíveis"
         },
         "Homofobia": {
             "gravidade": "Gravíssima",
-            "encaminhamento": "⚖️ CRIME\n✅ B.O. OBRIGATÓRIO\n✅ Conselho Tutelar\n✅ Diretoria de Ensino"
+            "encaminhamento": "⚖️ CRIME (equiparado ao racismo - STF)\n✅ B.O. OBRIGATÓRIO\n✅ Conselho Tutelar\n✅ Notificar famílias\n✅ Diretoria de Ensino\n✅ Medidas disciplinares cabíveis"
         },
         "Transfobia": {
             "gravidade": "Gravíssima",
-            "encaminhamento": "⚖️ CRIME\n✅ B.O. OBRIGATÓRIO\n✅ Conselho Tutelar"
+            "encaminhamento": "⚖️ CRIME (equiparado ao racismo - STF)\n✅ B.O. OBRIGATÓRIO\n✅ Conselho Tutelar\n✅ Notificar famílias\n✅ Diretoria de Ensino\n✅ Medidas disciplinares cabíveis"
+        },
+        "Gordofobia": {
+            "gravidade": "Leve",
+            "encaminhamento": "✅ Mediação pedagógica\n✅ Acompanhamento psicológico\n✅ Notificar famílias\n✅ Registrar em ata\n✅ Trabalho educativo sobre diversidade"
+        },
+        "Xenofobia": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "⚖️ CRIME INAFIANÇÁVEL\n✅ B.O. OBRIGATÓRIO\n✅ Conselho Tutelar\n✅ Notificar famílias\n✅ Diretoria de Ensino"
         }
     },
+    
+    # =========================================================================
+    # GRUPO 2: ARMAS E SEGURANÇA
+    # =========================================================================
+    # Este grupo inclui situações envolvendo armas, invasões e riscos
+    # à segurança da comunidade escolar
+    # =========================================================================
     "🔫 Armas e Segurança": {
         "Posse de Arma de Fogo": {
             "gravidade": "Gravíssima",
-            "encaminhamento": "🚨 ACIONAR PM (190)\n✅ Isolar área\n✅ B.O. OBRIGATÓRIO"
+            "encaminhamento": "🚨 EMERGÊNCIA - ACIONAR PM (190)\n✅ Isolar área\n✅ Não tocar no objeto\n✅ B.O. OBRIGATÓRIO\n✅ Conselho Tutelar\n✅ Afastamento imediato"
         },
         "Posse de Arma Branca": {
             "gravidade": "Gravíssima",
-            "encaminhamento": "🚨 ACIONAR PM (190)\n✅ B.O. OBRIGATÓRIO"
+            "encaminhamento": "🚨 ACIONAR PM (190)\n✅ Isolar área\n✅ B.O. OBRIGATÓRIO\n✅ Conselho Tutelar\n✅ Afastamento imediato"
+        },
+        "Posse de Arma de Brinquedo": {
+            "gravidade": "Leve",
+            "encaminhamento": "✅ Retirar o objeto\n✅ Notificar famílias\n✅ Registrar em ata\n✅ Trabalho educativo sobre violência"
+        },
+        "Ameaça de Ataque Ativo": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "🚨 EMERGÊNCIA MÁXIMA\n✅ PM (190) e SAMU (192)\n✅ Protocolo de Segurança Escolar\n✅ Evacuação se necessário\n✅ B.O. OBRIGATÓRIO\n✅ Diretoria de Ensino"
         },
         "Invasão": {
             "gravidade": "Grave",
-            "encaminhamento": "✅ PM (190) se necessário\n✅ Registrar em ata"
+            "encaminhamento": "✅ PM (190) se necessário\n✅ Registrar em ata\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ Reforçar segurança da escola"
+        },
+        "Ocupação de Unidade Escolar": {
+            "gravidade": "Leve",
+            "encaminhamento": "✅ Dialogar com estudantes\n✅ Notificar famílias\n✅ Diretoria de Ensino\n✅ Registrar em ata\n✅ Buscar mediação"
         },
         "Roubo": {
             "gravidade": "Grave",
-            "encaminhamento": "✅ B.O. recomendado\n✅ Notificar famílias"
+            "encaminhamento": "✅ B.O. recomendado\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ Registrar em ata\n✅ Acionar segurança"
         },
         "Furto": {
             "gravidade": "Leve",
-            "encaminhamento": "✅ Registrar em ata\n✅ Notificar famílias"
+            "encaminhamento": "✅ Registrar em ata\n✅ Notificar famílias\n✅ Conselho Tutelar (se menor)\n✅ Mediação pedagógica"
         },
         "Dano ao Patrimônio": {
             "gravidade": "Leve",
-            "encaminhamento": "✅ Registrar em ata\n✅ Notificar famílias\n✅ Reparação do dano"
+            "encaminhamento": "✅ Registrar em ata\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ Reparação do dano\n✅ Trabalho educativo"
         }
     },
+    
+    # =========================================================================
+    # GRUPO 3: DROGAS E SUBSTÂNCIAS
+    # =========================================================================
+    # Este grupo inclui situações envolvendo uso, posse ou comércio
+    # de substâncias ilícitas ou proibidas no ambiente escolar
+    # =========================================================================
     "💊 Drogas e Substâncias": {
         "Posse de Celular": {
             "gravidade": "Leve",
-            "encaminhamento": "✅ Retirar dispositivo\n✅ Notificar famílias\n✅ Registrar em ata"
+            "encaminhamento": "✅ Retirar dispositivo (conforme regimento)\n✅ Notificar famílias\n✅ Registrar em ata\n✅ Devolver aos responsáveis"
         },
         "Consumo de Álcool e Tabaco": {
             "gravidade": "Leve",
-            "encaminhamento": "✅ Notificar famílias\n✅ Conselho Tutelar\n✅ Registrar em ata"
+            "encaminhamento": "✅ Notificar famílias\n✅ Conselho Tutelar\n✅ Registrar em ata\n✅ Acompanhamento psicológico\n✅ Trabalho educativo sobre saúde"
         },
         "Consumo de Substâncias Ilícitas": {
             "gravidade": "Grave",
-            "encaminhamento": "✅ SAMU (192) se emergência\n✅ Notificar famílias\n✅ Conselho Tutelar"
+            "encaminhamento": "✅ SAMU (192) se houver emergência\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ B.O. recomendado\n✅ CAPS/CREAS\n✅ Acompanhamento especializado"
         },
         "Envolvimento com Tráfico": {
             "gravidade": "Gravíssima",
-            "encaminhamento": "🚨 B.O. OBRIGATÓRIO\n✅ PM (190)"
+            "encaminhamento": "🚨 B.O. OBRIGATÓRIO\n✅ PM (190) se necessário\n✅ Conselho Tutelar\n✅ Não confrontar diretamente\n✅ Sigilo e segurança\n✅ Diretoria de Ensino"
         }
     },
-    "🧠 Saúde Mental": {
+    
+    # =========================================================================
+    # GRUPO 4: SAÚDE MENTAL E COMPORTAMENTO
+    # =========================================================================
+    # Este grupo inclui situações relacionadas à saúde mental dos estudantes
+    # e comportamentos que indicam necessidade de apoio psicológico
+    # =========================================================================
+    "🧠 Saúde Mental e Comportamento": {
         "Indisciplina": {
             "gravidade": "Leve",
-            "encaminhamento": "✅ Mediação pedagógica\n✅ Registrar em ata\n✅ Notificar famílias"
+            "encaminhamento": "✅ Mediação pedagógica\n✅ Registrar em ata\n✅ Notificar famílias\n✅ Conselho de Classe\n✅ Acompanhamento pedagógico"
         },
         "Evasão Escolar": {
             "gravidade": "Grave",
-            "encaminhamento": "✅ Buscar ativa\n✅ Notificar famílias\n✅ Conselho Tutelar"
+            "encaminhamento": "✅ Buscar ativa (visita domiciliar)\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ Registrar em ata\n✅ Diretoria de Ensino\n✅ Programa de Busca Ativa"
         },
         "Sinais de Automutilação": {
             "gravidade": "Grave",
-            "encaminhamento": "✅ SAMU (192) se risco\n✅ Notificar famílias URGENTE\n✅ CAPS"
+            "encaminhamento": "✅ SAMU (192) se houver risco imediato\n✅ Notificar famílias URGENTE\n✅ Conselho Tutelar\n✅ CAPS Infantil/Juvenil\n✅ Acompanhamento psicológico\n✅ Rede de proteção"
         },
         "Tentativa de Suicídio": {
             "gravidade": "Gravíssima",
-            "encaminhamento": "🚨 SAMU (192) IMEDIATO\n✅ Hospital\n✅ CAPS"
+            "encaminhamento": "🚨 SAMU (192) IMEDIATO\n✅ Hospital de referência\n✅ Notificar famílias URGENTE\n✅ Conselho Tutelar\n✅ CAPS\n✅ Rede de proteção\n✅ Pós-venção"
+        },
+        "Óbito": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "🚨 SAMU/PM/IML\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ Diretoria de Ensino\n✅ Apoio psicológico emergencial\n✅ Pós-venção"
         }
     },
-    "📋 Administrativas": {
+    
+    # =========================================================================
+    # GRUPO 5: CRIMES E SITUAÇÕES GRAVES
+    # =========================================================================
+    # Este grupo inclui crimes e situações de alta gravidade que exigem
+    # intervenção de órgãos externos e autoridades competentes
+    # =========================================================================
+    "🌐 Crimes e Situações Graves": {
+        "Crimes Cibernéticos": {
+            "gravidade": "Grave",
+            "encaminhamento": "✅ B.O. (Delegacia de Crimes Digitais)\n✅ Preservar provas (prints, URLs)\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ Núcleo Tecnológico da DE"
+        },
+        "Violência Doméstica": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "⚠️ SIGILO ABSOLUTO\n✅ Conselho Tutelar OBRIGATÓRIO\n✅ CREAS\n✅ DDM (se for o caso)\n✅ B.O.\n✅ Não confrontar agressor\n✅ Rede de proteção"
+        },
+        "Homicídio": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "🚨 PM (190) e SAMU (192)\n✅ B.O. OBRIGATÓRIO\n✅ IML (se for o caso)\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ Pós-venção"
+        }
+    },
+    
+    # =========================================================================
+    # GRUPO 6: INFRAÇÕES ADMINISTRATIVAS
+    # =========================================================================
+    # Este grupo inclui infrações de natureza administrativa e disciplinar
+    # relacionadas ao funcionamento da escola e frequência dos alunos
+    # =========================================================================
+    "📋 Infrações Administrativas": {
         "Saída não autorizada": {
             "gravidade": "Grave",
-            "encaminhamento": "✅ Registrar em ata\n✅ Notificar famílias URGENTE\n✅ Buscar estudante"
+            "encaminhamento": "✅ Registrar em ata\n✅ Notificar famílias URGENTE\n✅ Buscar o estudante\n✅ Conselho Tutelar (se recorrente)\n✅ Reforçar controle de acesso"
         },
         "Ausência não justificada": {
             "gravidade": "Grave",
-            "encaminhamento": "✅ Registrar em ata\n✅ Notificar famílias\n✅ Conselho Tutelar"
-        },
-        "Chegar atrasado": {
-            "gravidade": "Leve",
-            "encaminhamento": "✅ Registrar em ata\n✅ Conversar com aluno\n✅ Orientação Educacional"
-        },
-        "Copiar atividades / Colar": {
-            "gravidade": "Média",
-            "encaminhamento": "✅ Registrar em ata\n✅ Aplicar nova avaliação\n✅ Orientação Educacional"
-        },
-        "Falsificar assinatura": {
-            "gravidade": "Grave",
-            "encaminhamento": "✅ Registrar em ata\n✅ Notificar famílias URGENTE\n✅ Conselho Tutelar"
+            "encaminhamento": "✅ Registrar em ata\n✅ Notificar famílias\n✅ Buscar o estudante\n✅ Conselho Tutelar (se recorrente)\n✅ Orientação Educacional\n✅ Verificar situação de vulnerabilidade"
         },
         "Outros": {
             "gravidade": "Leve",
-            "encaminhamento": "✅ Registrar em ata\n✅ Notificar famílias"
+            "encaminhamento": "✅ Registrar em ata\n✅ Notificar famílias\n✅ Avaliar necessidade de outros encaminhamentos\n✅ Conselho Tutelar se necessário"
+        }
+    },
+    
+    # =========================================================================
+    # GRUPO 7: INFRAÇÕES ACADÊMICAS
+    # =========================================================================
+    # Este grupo inclui infrações relacionadas à vida acadêmica dos alunos
+    # incluindo frequência, honestidade acadêmica e comportamento em sala
+    # =========================================================================
+    "⚠️ Infrações Acadêmicas": {
+        "Chegar atrasado": {
+            "gravidade": "Leve",
+            "encaminhamento": "✅ Registrar em ata\n✅ Conversar com o aluno\n✅ Notificar famílias (se recorrente)\n✅ Verificar motivo dos atrasos\n✅ Orientação Educacional"
+        },
+        "Copiar atividades / Colar": {
+            "gravidade": "Média",
+            "encaminhamento": "✅ Registrar em ata\n✅ Aplicar nova avaliação\n✅ Notificar famílias\n✅ Orientação Educacional\n✅ Trabalho educativo sobre honestidade acadêmica\n✅ Conselho de Classe"
+        },
+        "Falsificar assinatura": {
+            "gravidade": "Grave",
+            "encaminhamento": "✅ Registrar em ata circunstanciada\n✅ Notificar famílias URGENTE\n✅ Conselho Tutelar\n✅ Diretoria de Ensino\n✅ Acompanhamento psicológico\n✅ B.O. recomendado (crime de falsidade ideológica)"
         }
     }
 }
 
 # ============================================================================
-# FUNÇÕES SUPABASE
+# FUNÇÕES DE CONEXÃO COM SUPABASE - ALUNOS
 # ============================================================================
 
 @st.cache_data(ttl=60)
 def carregar_alunos():
+    """
+    Carrega todos os alunos cadastrados no banco de dados Supabase.
+    
+    Esta função faz uma requisição GET à API do Supabase para recuperar
+    todos os registros da tabela 'alunos'. Os dados são cacheados por
+    60 segundos para melhorar a performance da aplicação.
+    
+    Returns:
+        pd.DataFrame: DataFrame contendo todos os alunos cadastrados.
+                     Retorna DataFrame vazio em caso de erro.
+    
+    Raises:
+        Exception: Erros de conexão com a API são capturados e exibidos
+                  como mensagem de erro na interface.
+    """
     try:
         response = requests.get(f"{SUPABASE_URL}/rest/v1/alunos?select=*", headers=HEADERS)
         response.raise_for_status()
@@ -312,6 +601,24 @@ def carregar_alunos():
         return pd.DataFrame()
 
 def salvar_aluno(aluno):
+    """
+    Salva um novo aluno no banco de dados Supabase.
+    
+    Esta função faz uma requisição POST à API do Supabase para criar
+    um novo registro na tabela 'alunos'.
+    
+    Args:
+        aluno (dict): Dicionário contendo os dados do aluno a ser salvo.
+                     Deve incluir: ra, nome, turma, data_nascimento, situacao.
+    
+    Returns:
+        bool: True se o aluno foi salvo com sucesso (status 200 ou 201),
+              False em caso de erro.
+    
+    Raises:
+        Exception: Erros de conexão com a API são capturados e exibidos
+                  como mensagem de erro na interface.
+    """
     try:
         response = requests.post(f"{SUPABASE_URL}/rest/v1/alunos", json=aluno, headers=HEADERS)
         return response.status_code in [200, 201]
@@ -320,6 +627,24 @@ def salvar_aluno(aluno):
         return False
 
 def atualizar_aluno(ra, dados):
+    """
+    Atualiza os dados de um aluno existente no banco de dados.
+    
+    Esta função faz uma requisição PATCH à API do Supabase para atualizar
+    os dados de um aluno identificado pelo seu RA (Registro Acadêmico).
+    
+    Args:
+        ra (str): RA do aluno a ser atualizado.
+        dados (dict): Dicionário contendo os campos e valores a serem atualizados.
+    
+    Returns:
+        bool: True se a atualização foi bem-sucedida (status 200 ou 204),
+              False em caso de erro.
+    
+    Raises:
+        Exception: Erros de conexão com a API são capturados e exibidos
+                  como mensagem de erro na interface.
+    """
     try:
         response = requests.patch(f"{SUPABASE_URL}/rest/v1/alunos?ra=eq.{ra}", json=dados, headers=HEADERS)
         return response.status_code in [200, 204]
@@ -328,6 +653,23 @@ def atualizar_aluno(ra, dados):
         return False
 
 def excluir_alunos_por_turma(turma):
+    """
+    Exclui todos os alunos de uma turma específica do banco de dados.
+    
+    Esta função faz uma requisição DELETE à API do Supabase para remover
+    todos os registros de alunos pertencentes a uma determinada turma.
+    
+    Args:
+        turma (str): Nome da turma cujos alunos serão excluídos.
+    
+    Returns:
+        bool: True se a exclusão foi bem-sucedida (status 200 ou 204),
+              False em caso de erro.
+    
+    Raises:
+        Exception: Erros de conexão com a API são capturados e exibidos
+                  como mensagem de erro na interface.
+    """
     try:
         response = requests.delete(f"{SUPABASE_URL}/rest/v1/alunos?turma=eq.{turma}", headers=HEADERS)
         return response.status_code in [200, 204]
@@ -335,8 +677,27 @@ def excluir_alunos_por_turma(turma):
         st.error(f"Erro ao excluir turma: {str(e)}")
         return False
 
+# ============================================================================
+# FUNÇÕES DE CONEXÃO COM SUPABASE - PROFESSORES
+# ============================================================================
+
 @st.cache_data(ttl=60)
 def carregar_professores():
+    """
+    Carrega todos os professores cadastrados no banco de dados Supabase.
+    
+    Esta função faz uma requisição GET à API do Supabase para recuperar
+    todos os registros da tabela 'professores'. Os dados são cacheados
+    por 60 segundos para melhorar a performance.
+    
+    Returns:
+        pd.DataFrame: DataFrame contendo todos os professores cadastrados.
+                     Retorna DataFrame vazio em caso de erro.
+    
+    Raises:
+        Exception: Erros de conexão com a API são capturados e exibidos
+                  como mensagem de erro na interface.
+    """
     try:
         response = requests.get(f"{SUPABASE_URL}/rest/v1/professores?select=*", headers=HEADERS)
         response.raise_for_status()
@@ -346,6 +707,24 @@ def carregar_professores():
         return pd.DataFrame()
 
 def salvar_professor(professor):
+    """
+    Salva um novo professor no banco de dados Supabase.
+    
+    Esta função faz uma requisição POST à API do Supabase para criar
+    um novo registro na tabela 'professores'.
+    
+    Args:
+        professor (dict): Dicionário contendo os dados do professor.
+                         Deve incluir: nome, email (opcional).
+    
+    Returns:
+        bool: True se o professor foi salvo com sucesso (status 200 ou 201),
+              False em caso de erro.
+    
+    Raises:
+        Exception: Erros de conexão com a API são capturados e exibidos
+                  como mensagem de erro na interface.
+    """
     try:
         response = requests.post(f"{SUPABASE_URL}/rest/v1/professores", json=professor, headers=HEADERS)
         return response.status_code in [200, 201]
@@ -354,6 +733,24 @@ def salvar_professor(professor):
         return False
 
 def atualizar_professor(id_prof, dados):
+    """
+    Atualiza os dados de um professor existente no banco de dados.
+    
+    Esta função faz uma requisição PATCH à API do Supabase para atualizar
+    os dados de um professor identificado pelo seu ID.
+    
+    Args:
+        id_prof (int): ID do professor a ser atualizado.
+        dados (dict): Dicionário contendo os campos e valores a serem atualizados.
+    
+    Returns:
+        bool: True se a atualização foi bem-sucedida (status 200 ou 204),
+              False em caso de erro.
+    
+    Raises:
+        Exception: Erros de conexão com a API são capturados e exibidos
+                  como mensagem de erro na interface.
+    """
     try:
         response = requests.patch(f"{SUPABASE_URL}/rest/v1/professores?id=eq.{id_prof}", json=dados, headers=HEADERS)
         return response.status_code in [200, 204]
@@ -362,6 +759,23 @@ def atualizar_professor(id_prof, dados):
         return False
 
 def excluir_professor(id_prof):
+    """
+    Exclui um professor do banco de dados.
+    
+    Esta função faz uma requisição DELETE à API do Supabase para remover
+    um registro de professor identificado pelo seu ID.
+    
+    Args:
+        id_prof (int): ID do professor a ser excluído.
+    
+    Returns:
+        bool: True se a exclusão foi bem-sucedida (status 200 ou 204),
+              False em caso de erro.
+    
+    Raises:
+        Exception: Erros de conexão com a API são capturados e exibidos
+                  como mensagem de erro na interface.
+    """
     try:
         response = requests.delete(f"{SUPABASE_URL}/rest/v1/professores?id=eq.{id_prof}", headers=HEADERS)
         return response.status_code in [200, 204]
@@ -369,8 +783,27 @@ def excluir_professor(id_prof):
         st.error(f"Erro ao excluir professor: {str(e)}")
         return False
 
+# ============================================================================
+# FUNÇÕES DE CONEXÃO COM SUPABASE - RESPONSÁVEIS
+# ============================================================================
+
 @st.cache_data(ttl=60)
 def carregar_responsaveis():
+    """
+    Carrega todos os responsáveis ativos cadastrados no banco de dados.
+    
+    Esta função faz uma requisição GET à API do Supabase para recuperar
+    todos os registros da tabela 'responsaveis' onde ativo=TRUE.
+    Os dados são cacheados por 60 segundos.
+    
+    Returns:
+        pd.DataFrame: DataFrame contendo todos os responsáveis ativos.
+                     Retorna DataFrame vazio em caso de erro.
+    
+    Raises:
+        Exception: Erros de conexão com a API são capturados e exibidos
+                  como mensagem de erro na interface.
+    """
     try:
         response = requests.get(f"{SUPABASE_URL}/rest/v1/responsaveis?select=*&ativo=eq.true", headers=HEADERS)
         response.raise_for_status()
@@ -380,6 +813,24 @@ def carregar_responsaveis():
         return pd.DataFrame()
 
 def salvar_responsavel(responsavel):
+    """
+    Salva um novo responsável no banco de dados Supabase.
+    
+    Esta função faz uma requisição POST à API do Supabase para criar
+    um novo registro na tabela 'responsaveis'.
+    
+    Args:
+        responsavel (dict): Dicionário contendo os dados do responsável.
+                           Deve incluir: cargo, nome, ativo.
+    
+    Returns:
+        bool: True se o responsável foi salvo com sucesso (status 200 ou 201),
+              False em caso de erro.
+    
+    Raises:
+        Exception: Erros de conexão com a API são capturados e exibidos
+                  como mensagem de erro na interface.
+    """
     try:
         response = requests.post(f"{SUPABASE_URL}/rest/v1/responsaveis", json=responsavel, headers=HEADERS)
         return response.status_code in [200, 201]
@@ -388,6 +839,24 @@ def salvar_responsavel(responsavel):
         return False
 
 def atualizar_responsavel(id_resp, dados):
+    """
+    Atualiza os dados de um responsável existente no banco de dados.
+    
+    Esta função faz uma requisição PATCH à API do Supabase para atualizar
+    os dados de um responsável identificado pelo seu ID.
+    
+    Args:
+        id_resp (int): ID do responsável a ser atualizado.
+        dados (dict): Dicionário contendo os campos e valores a serem atualizados.
+    
+    Returns:
+        bool: True se a atualização foi bem-sucedida (status 200 ou 204),
+              False em caso de erro.
+    
+    Raises:
+        Exception: Erros de conexão com a API são capturados e exibidos
+                  como mensagem de erro na interface.
+    """
     try:
         response = requests.patch(f"{SUPABASE_URL}/rest/v1/responsaveis?id=eq.{id_resp}", json=dados, headers=HEADERS)
         return response.status_code in [200, 204]
@@ -396,6 +865,23 @@ def atualizar_responsavel(id_resp, dados):
         return False
 
 def excluir_responsavel(id_resp):
+    """
+    Exclui um responsável do banco de dados.
+    
+    Esta função faz uma requisição DELETE à API do Supabase para remover
+    um registro de responsável identificado pelo seu ID.
+    
+    Args:
+        id_resp (int): ID do responsável a ser excluído.
+    
+    Returns:
+        bool: True se a exclusão foi bem-sucedida (status 200 ou 204),
+              False em caso de erro.
+    
+    Raises:
+        Exception: Erros de conexão com a API são capturados e exibidos
+                  como mensagem de erro na interface.
+    """
     try:
         response = requests.delete(f"{SUPABASE_URL}/rest/v1/responsaveis?id=eq.{id_resp}", headers=HEADERS)
         return response.status_code in [200, 204]
@@ -403,7 +889,26 @@ def excluir_responsavel(id_resp):
         st.error(f"Erro ao excluir responsável: {str(e)}")
         return False
 
+# ============================================================================
+# FUNÇÕES DE CONEXÃO COM SUPABASE - OCORRÊNCIAS
+# ============================================================================
+
 def carregar_ocorrencias():
+    """
+    Carrega todas as ocorrências cadastradas no banco de dados.
+    
+    Esta função faz uma requisição GET à API do Supabase para recuperar
+    todos os registros da tabela 'ocorrencias', ordenados por ID descendente.
+    Não utiliza cache para garantir dados sempre atualizados.
+    
+    Returns:
+        pd.DataFrame: DataFrame contendo todas as ocorrências cadastradas.
+                     Retorna DataFrame vazio em caso de erro.
+    
+    Raises:
+        Exception: Erros de conexão com a API são capturados e exibidos
+                  como mensagem de erro na interface.
+    """
     try:
         response = requests.get(f"{SUPABASE_URL}/rest/v1/ocorrencias?select=*&order=id.desc", headers=HEADERS)
         response.raise_for_status()
@@ -413,6 +918,25 @@ def carregar_ocorrencias():
         return pd.DataFrame()
 
 def salvar_ocorrencia(ocorrencia):
+    """
+    Salva uma nova ocorrência no banco de dados Supabase.
+    
+    Esta função faz uma requisição POST à API do Supabase para criar
+    um novo registro na tabela 'ocorrencias'.
+    
+    Args:
+        ocorrencia (dict): Dicionário contendo os dados da ocorrência.
+                          Deve incluir: data, aluno, ra, turma, categoria,
+                          gravidade, relato, encaminhamento, professor.
+    
+    Returns:
+        bool: True se a ocorrência foi salva com sucesso (status 200 ou 201),
+              False em caso de erro.
+    
+    Raises:
+        Exception: Erros de conexão com a API são capturados e exibidos
+                  como mensagem de erro na interface.
+    """
     try:
         response = requests.post(f"{SUPABASE_URL}/rest/v1/ocorrencias", json=ocorrencia, headers=HEADERS)
         return response.status_code in [200, 201]
@@ -421,6 +945,23 @@ def salvar_ocorrencia(ocorrencia):
         return False
 
 def excluir_ocorrencia(id_ocorrencia):
+    """
+    Exclui uma ocorrência do banco de dados.
+    
+    Esta função faz uma requisição DELETE à API do Supabase para remover
+    um registro de ocorrência identificado pelo seu ID.
+    
+    Args:
+        id_ocorrencia (int): ID da ocorrência a ser excluída.
+    
+    Returns:
+        bool: True se a exclusão foi bem-sucedida (status 200 ou 204),
+              False em caso de erro.
+    
+    Raises:
+        Exception: Erros de conexão com a API são capturados e exibidos
+                  como mensagem de erro na interface.
+    """
     try:
         response = requests.delete(f"{SUPABASE_URL}/rest/v1/ocorrencias?id=eq.{id_ocorrencia}", headers=HEADERS)
         return response.status_code in [200, 204]
@@ -429,6 +970,24 @@ def excluir_ocorrencia(id_ocorrencia):
         return False
 
 def editar_ocorrencia(id_ocorrencia, dados):
+    """
+    Edita uma ocorrência existente no banco de dados.
+    
+    Esta função faz uma requisição PATCH à API do Supabase para atualizar
+    os dados de uma ocorrência identificada pelo seu ID.
+    
+    Args:
+        id_ocorrencia (int): ID da ocorrência a ser editada.
+        dados (dict): Dicionário contendo os campos e valores a serem atualizados.
+    
+    Returns:
+        bool: True se a edição foi bem-sucedida (status 200 ou 204),
+              False em caso de erro.
+    
+    Raises:
+        Exception: Erros de conexão com a API são capturados e exibidos
+                  como mensagem de erro na interface.
+    """
     try:
         response = requests.patch(f"{SUPABASE_URL}/rest/v1/ocorrencias?id=eq.{id_ocorrencia}", json=dados, headers=HEADERS)
         return response.status_code in [200, 204]
@@ -436,7 +995,27 @@ def editar_ocorrencia(id_ocorrencia, dados):
         st.error(f"Erro ao editar: {str(e)}")
         return False
 
+# ============================================================================
+# FUNÇÕES DE VALIDAÇÃO E VERIFICAÇÃO
+# ============================================================================
+
 def verificar_ocorrencia_duplicada(ra, categoria, data_str, df_ocorrencias):
+    """
+    Verifica se já existe uma ocorrência igual para o mesmo aluno.
+    
+    Esta função verifica se já existe um registro de ocorrência com o mesmo
+    RA do aluno, mesma categoria e mesma data/hora. Isso previne registros
+    duplicados acidentais.
+    
+    Args:
+        ra (str): RA do aluno a ser verificado.
+        categoria (str): Categoria da ocorrência a ser verificada.
+        data_str (str): Data e hora da ocorrência no formato 'DD/MM/YYYY HH:MM'.
+        df_ocorrencias (pd.DataFrame): DataFrame com todas as ocorrências.
+    
+    Returns:
+        bool: True se existir ocorrência duplicada, False caso contrário.
+    """
     if df_ocorrencias.empty:
         return False
     ocorrencias_existentes = df_ocorrencias[
@@ -447,6 +1026,21 @@ def verificar_ocorrencia_duplicada(ra, categoria, data_str, df_ocorrencias):
     return not ocorrencias_existentes.empty
 
 def verificar_professor_duplicado(nome, df_professores, id_atual=None):
+    """
+    Verifica se já existe um professor com o mesmo nome cadastrado.
+    
+    Esta função verifica se já existe um registro de professor com o mesmo
+    nome (ignorando diferenças de maiúsculas/minúsculas e espaços).
+    
+    Args:
+        nome (str): Nome do professor a ser verificado.
+        df_professores (pd.DataFrame): DataFrame com todos os professores.
+        id_atual (int, optional): ID do professor sendo editado (para não
+                                 considerar o próprio registro como duplicado).
+    
+    Returns:
+        bool: True se existir professor duplicado, False caso contrário.
+    """
     if df_professores.empty:
         return False
     nome_normalizado = nome.strip().lower()
@@ -460,16 +1054,24 @@ def verificar_professor_duplicado(nome, df_professores, id_atual=None):
     return not duplicados.empty
 
 # ============================================================================
-# FUNÇÕES DE BACKUP (NOVIDADE v4.0)
+# FUNÇÕES DE BACKUP E RESTAURAÇÃO (NOVIDADE v5.0)
 # ============================================================================
 
 def criar_backup_dados():
     """
     Cria backup de todos os dados do sistema em formato JSON.
+    
+    Esta função exporta todos os dados do sistema (alunos, professores,
+    responsáveis e ocorrências) para um arquivo JSON que pode ser
+    armazenado e restaurado posteriormente.
+    
+    Returns:
+        str: JSON string contendo todos os dados do sistema, ou None em caso de erro.
     """
     try:
         backup = {
             "data_backup": datetime.now().strftime("%d/%m/%Y %H:%M"),
+            "versao": "5.0",
             "alunos": df_alunos.to_dict('records') if not df_alunos.empty else [],
             "professores": df_professores.to_dict('records') if not df_professores.empty else [],
             "responsaveis": df_responsaveis.to_dict('records') if not df_responsaveis.empty else [],
@@ -483,6 +1085,15 @@ def criar_backup_dados():
 def restaurar_backup_dados(backup_json):
     """
     Restaura dados a partir de um backup JSON.
+    
+    Esta função importa dados de um arquivo JSON de backup e os insere
+    no banco de dados Supabase.
+    
+    Args:
+        backup_json (str): JSON string contendo os dados do backup.
+    
+    Returns:
+        bool: True se a restauração foi bem-sucedida, False em caso de erro.
     """
     try:
         backup = json.loads(backup_json)
@@ -515,6 +1126,12 @@ def restaurar_backup_dados(backup_json):
 def criar_backup_codigo():
     """
     Cria backup do código fonte app.py.
+    
+    Esta função lê o arquivo app.py atual e o retorna como string
+    para que possa ser baixado como backup.
+    
+    Returns:
+        str: Conteúdo do arquivo app.py, ou None em caso de erro.
     """
     try:
         if os.path.exists("app.py"):
@@ -526,15 +1143,148 @@ def criar_backup_codigo():
         return None
 
 # ============================================================================
+# FUNÇÕES DE EXTRAÇÃO DE IMAGENS DE PDF (NOVIDADE v5.0)
+# ============================================================================
+
+def extrair_imagens_do_pdf(pdf_path, pasta_destino):
+    """
+    Extrai todas as imagens de um arquivo PDF e salva em uma pasta.
+    
+    Esta função usa a biblioteca PyMuPDF (fitz) para extrair imagens
+    incorporadas em um documento PDF. Útil para extrair fotos de alunos
+    de documentos de matrícula da SED.
+    
+    Args:
+        pdf_path (str): Caminho completo do arquivo PDF.
+        pasta_destino (str): Pasta onde as imagens serão salvas.
+    
+    Returns:
+        list: Lista com os nomes das imagens extraídas.
+    
+    Raises:
+        Exception: Erros na extração são capturados e exibidos como mensagem.
+    """
+    if not PDF_SUPPORT:
+        st.error("❌ PyMuPDF não está instalado. Instale com: pip install PyMuPDF")
+        return []
+    
+    try:
+        imagens_salvas = []
+        os.makedirs(pasta_destino, exist_ok=True)
+        
+        doc = fitz.open(pdf_path)
+        
+        for pagina_num in range(len(doc)):
+            pagina = doc.load_page(pagina_num)
+            imagens = pagina.get_images(full=True)
+            
+            for img_index, img in enumerate(imagens):
+                xref = img[0]
+                base_image = doc.extract_image(xref)
+                image_bytes = base_image["image"]
+                image_ext = base_image["ext"]
+                
+                nome_imagem = f"pagina_{pagina_num+1}_img_{img_index}.{image_ext}"
+                caminho_imagem = os.path.join(pasta_destino, nome_imagem)
+                
+                with open(caminho_imagem, "wb") as f:
+                    f.write(image_bytes)
+                
+                imagens_salvas.append(nome_imagem)
+        
+        doc.close()
+        return imagens_salvas
+    
+    except Exception as e:
+        st.error(f"Erro ao extrair imagens: {str(e)}")
+        return []
+
+def associar_foto_ao_aluno(ra, imagem_path):
+    """
+    Associa uma imagem/foto a um aluno pelo seu RA.
+    
+    Esta função lê uma imagem do disco, converte para base64 e armazena
+    no banco de dados Supabase associada ao RA do aluno.
+    
+    Args:
+        ra (str): RA do aluno.
+        imagem_path (str): Caminho da imagem a ser associada.
+    
+    Returns:
+        bool: True se sucesso, False se erro.
+    
+    Raises:
+        Exception: Erros são capturados e exibidos como mensagem.
+    """
+    try:
+        with open(imagem_path, "rb") as f:
+            imagem_bytes = f.read()
+        
+        imagem_base64 = base64.b64encode(imagem_bytes).decode('utf-8')
+        
+        dados = {"foto": imagem_base64}
+        return atualizar_aluno(ra, dados)
+    
+    except Exception as e:
+        st.error(f"Erro ao associar foto: {str(e)}")
+        return False
+
+def exibir_foto_aluno(ra, df_alunos):
+    """
+    Exibe a foto de um aluno se estiver cadastrada.
+    
+    Esta função busca a foto do aluno no DataFrame, decodifica de base64
+    e exibe na interface Streamlit.
+    
+    Args:
+        ra (str): RA do aluno.
+        df_alunos (pd.DataFrame): DataFrame com dados dos alunos.
+    
+    Returns:
+        None: Exibe a imagem na interface Streamlit.
+    """
+    try:
+        aluno = df_alunos[df_alunos['ra'] == ra]
+        
+        if not aluno.empty and 'foto' in aluno.columns:
+            foto_base64 = aluno['foto'].values[0]
+            
+            if foto_base64:
+                imagem_bytes = base64.b64decode(foto_base64)
+                st.image(imagem_bytes, width=150, caption=f"RA: {ra}")
+            else:
+                st.info("📷 Sem foto")
+        else:
+            st.info("📷 Sem foto")
+    
+    except Exception as e:
+        st.info("📷 Sem foto")
+
+# ============================================================================
 # FUNÇÕES DE GERAÇÃO DE PDF
 # ============================================================================
 
 def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
+    """
+    Gera um documento PDF de registro de ocorrência escolar.
+    
+    Esta função cria um documento PDF formatado contendo todos os dados
+    de uma ocorrência, incluindo informações do aluno, categoria, gravidade,
+    relato, encaminhamentos e assinaturas dos responsáveis.
+    
+    Args:
+        ocorrencia (dict): Dicionário contendo os dados da ocorrência.
+        responsaveis (pd.DataFrame): DataFrame com os responsáveis cadastrados.
+    
+    Returns:
+        BytesIO: Objeto BytesIO contendo o PDF gerado em memória.
+    """
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1*cm, leftMargin=1*cm, topMargin=1.5*cm, bottomMargin=1.5*cm)
     elementos = []
     estilos = getSampleStyleSheet()
     
+    # Cabeçalho com logo da escola
     try:
         if os.path.exists(ESCOLA_LOGO):
             logo = Image(ESCOLA_LOGO, width=16*cm, height=4*cm)
@@ -607,6 +1357,23 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     return buffer
 
 def gerar_pdf_comunicado(aluno_data, ocorrencia_data, medidas_aplicadas, observacoes, responsaveis):
+    """
+    Gera um documento PDF de comunicado aos pais/responsáveis.
+    
+    Esta função cria um documento PDF formatado contendo informações sobre
+    uma ocorrência específica para ser enviado aos pais ou responsáveis
+    do aluno.
+    
+    Args:
+        aluno_data (dict): Dicionário com dados do aluno (nome, ra, turma, total).
+        ocorrencia_data (dict): Dicionário com dados da ocorrência.
+        medidas_aplicadas (str): String com medidas aplicadas separadas por '|'.
+        observacoes (str): Observações adicionais sobre a ocorrência.
+        responsaveis (pd.DataFrame): DataFrame com responsáveis cadastrados.
+    
+    Returns:
+        BytesIO: Objeto BytesIO contendo o PDF gerado em memória.
+    """
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1*cm, leftMargin=1*cm, topMargin=1.5*cm, bottomMargin=1.5*cm)
     elementos = []
@@ -706,7 +1473,11 @@ def gerar_pdf_comunicado(aluno_data, ocorrencia_data, medidas_aplicadas, observa
     return buffer
 
 # ============================================================================
-# SESSION STATE
+# SESSION STATE - GERENCIAMENTO DE ESTADO DA APLICAÇÃO
+# ============================================================================
+# O Session State do Streamlit permite persistir dados entre interações
+# do usuário com a aplicação. Estas variáveis armazenam o estado atual
+# de edições, seleções e operações em andamento.
 # ============================================================================
 
 if 'editando_id' not in st.session_state:
@@ -717,11 +1488,19 @@ if 'editando_prof' not in st.session_state:
     st.session_state.editando_prof = None
 if 'editando_resp' not in st.session_state:
     st.session_state.editando_resp = None
+if 'turma_para_deletar' not in st.session_state:
+    st.session_state.turma_para_deletar = None
+if 'turma_selecionada' not in st.session_state:
+    st.session_state.turma_selecionada = None
 if 'ocorrencia_salva_sucesso' not in st.session_state:
     st.session_state.ocorrencia_salva_sucesso = False
 
 # ============================================================================
-# CARREGAR DADOS
+# CARREGAMENTO INICIAL DE DADOS
+# ============================================================================
+# Carrega todos os dados do banco de dados ao iniciar a aplicação
+# Estes DataFrames são usados em toda a aplicação para exibir e
+# manipular informações de alunos, professores, responsáveis e ocorrências
 # ============================================================================
 
 df_alunos = carregar_alunos()
@@ -730,7 +1509,7 @@ df_professores = carregar_professores()
 df_responsaveis = carregar_responsaveis()
 
 # ============================================================================
-# 1. HOME
+# 1. PÁGINA INICIAL - DASHBOARD PRINCIPAL
 # ============================================================================
 if menu == "🏠 Início":
     st.markdown(f"""
@@ -750,7 +1529,7 @@ if menu == "🏠 Início":
     with col4: st.metric("Professores", len(df_professores))
 
 # ============================================================================
-# 2. PROFESSORES
+# 2. CADASTRAR PROFESSORES
 # ============================================================================
 elif menu == "👨‍ Cadastrar Professores":
     st.header("👨‍🏫 Cadastrar Professores")
@@ -782,7 +1561,7 @@ elif menu == "👨‍ Cadastrar Professores":
                         st.rerun()
 
 # ============================================================================
-# 3. RESPONSÁVEIS
+# 3. CADASTRAR RESPONSÁVEIS POR ASSINATURA
 # ============================================================================
 elif menu == "👤 Cadastrar Responsáveis por Assinatura":
     st.header("👤 Responsáveis por Assinatura")
@@ -807,7 +1586,7 @@ elif menu == "👤 Cadastrar Responsáveis por Assinatura":
         st.markdown("")
 
 # ============================================================================
-# 4. REGISTRAR OCORRÊNCIA (SIMPLIFICADO E FUNCIONAL)
+# 4. REGISTRAR OCORRÊNCIA
 # ============================================================================
 elif menu == "📝 Registrar Ocorrência":
     st.header("📝 Nova Ocorrência")
@@ -927,7 +1706,7 @@ elif menu == "📝 Registrar Ocorrência":
                 st.error("❌ Preencha todos os campos!")
 
 # ============================================================================
-# 5. COMUNICADO
+# 5. COMUNICADO AOS PAIS
 # ============================================================================
 elif menu == "📄 Comunicado aos Pais":
     st.header("📄 Comunicado")
@@ -993,17 +1772,26 @@ elif menu == "📋 Gerenciar Turmas Importadas":
                         st.rerun()
 
 # ============================================================================
-# 8. LISTA DE ALUNOS
+# 8. LISTA DE ALUNOS (COM FOTOS - NOVIDADE v5.0)
 # ============================================================================
 elif menu == "👥 Lista de Alunos":
     st.header("👥 Alunos")
     if not df_alunos.empty:
-        st.dataframe(df_alunos, use_container_width=True)
+        # ✅ NOVO: Exibir com fotos
+        for idx, aluno in df_alunos.iterrows():
+            col1, col2, col3 = st.columns([1, 3, 2])
+            with col1:
+                exibir_foto_aluno(aluno['ra'], df_alunos)
+            with col2:
+                st.markdown(f"**{aluno['nome']}**")
+                st.write(f"RA: {aluno['ra']} | Turma: {aluno['turma']}")
+            with col3:
+                st.button("📝 Editar", key=f"edit_{aluno['ra']}")
     else:
         st.write("📭 Nenhum aluno cadastrado.")
 
 # ============================================================================
-# 9. HISTÓRICO
+# 9. HISTÓRICO DE OCORRÊNCIAS
 # ============================================================================
 elif menu == "📋 Histórico de Ocorrências":
     st.header("📋 Histórico")
@@ -1038,7 +1826,7 @@ elif menu == "📋 Histórico de Ocorrências":
                     st.rerun()
 
 # ============================================================================
-# 10. GRÁFICOS (COLORIDOS E PROFISSIONAIS)
+# 10. GRÁFICOS E INDICADORES
 # ============================================================================
 elif menu == "📊 Gráficos e Indicadores":
     st.header("📊 Dashboard")
@@ -1116,7 +1904,7 @@ elif menu == "🖨️ Imprimir PDF":
             st.download_button(label="📥 Baixar", data=pdf_buffer, file_name=f"Ocorrencia_{occ['id']}.pdf", mime="application/pdf")
 
 # ============================================================================
-# 12. BACKUP E RESTAURAÇÃO (NOVIDADE v4.0)
+# 12. BACKUP E RESTAURAÇÃO (NOVIDADE v5.0)
 # ============================================================================
 elif menu == "💾 Backup e Restauração":
     st.header("💾 Backup e Restauração de Dados")
@@ -1165,5 +1953,5 @@ elif menu == "💾 Backup e Restauração":
             )
 
 # ============================================================================
-# FIM DO CÓDIGO
+# FIM DO CÓDIGO - SISTEMA CONVIVA 179 v5.0
 # ============================================================================
