@@ -1,7 +1,7 @@
 # ============================================================================
 # SISTEMA CONVIVA 179 - GESTÃO DE OCORRÊNCIAS ESCOLARES
 # Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI
-# Versão: 8.0 FINAL COMPLETA - PDF CORRIGIDO
+# Versão: 8.2 FINAL - DATA/HORA EDITÁVEIS CORRIGIDA
 # Desenvolvido para SEDUC/SP - Protocolo de Convivência e Proteção Escolar
 # ============================================================================
 
@@ -64,7 +64,7 @@ ESCOLA_ENDERECO = "R. Valter Souza Costa, 147 - Jardim Primavera, Ferraz de Vasc
 ESCOLA_CEP = "CEP: 08535-310"
 ESCOLA_TELEFONE = "(11) 4675-1855"
 ESCOLA_EMAIL = "e918623@educacao.sp.gov.br"
-ESCOLA_LOGO = "eliane_dantas.png"  # ✅ CORREÇÃO: Logo correta
+ESCOLA_LOGO = "eliane_dantas.png"
 SENHA_EXCLUSAO = "040600"
 
 # ============================================================================
@@ -184,7 +184,7 @@ ENCAMINHAMENTOS_POR_GRAVIDADE = {
 }
 
 # ============================================================================
-# INICIALIZAÇÃO DO SESSION STATE
+# INICIALIZAÇÃO DO SESSION STATE (COM DATA/HORA)
 # ============================================================================
 if 'editando_id' not in st.session_state:
     st.session_state.editando_id = None
@@ -202,6 +202,11 @@ if 'salvando_ocorrencia' not in st.session_state:
     st.session_state.salvando_ocorrencia = False
 if 'gravidade_alterada' not in st.session_state:
     st.session_state.gravidade_alterada = False
+# ✅ CORREÇÃO: Session state para data/hora editáveis
+if 'data_fato' not in st.session_state:
+    st.session_state.data_fato = datetime.now().date()
+if 'hora_fato' not in st.session_state:
+    st.session_state.hora_fato = datetime.now().time()
 
 # ============================================================================
 # CSS PERSONALIZADO
@@ -628,11 +633,6 @@ def remover_duplicatas_encaminhamentos(encaminhamentos):
 # ============================================================================
 
 def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
-    """
-    Gera PDF de ocorrência com layout profissional.
-    ✅ CORREÇÃO: Apenas logo, sem dados da escola em texto
-    ✅ CORREÇÃO: Logo eliane_dantas.png 16cm x 4cm
-    """
     buffer = io.BytesIO()
     
     doc = SimpleDocTemplate(
@@ -647,7 +647,6 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
     elementos = []
     estilos = getSampleStyleSheet()
     
-    # Estilos personalizados
     estilos.add(ParagraphStyle(
         'Titulo',
         parent=estilos['Heading1'],
@@ -681,28 +680,25 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
         spaceAfter=0.5*cm
     ))
     
-    # ✅ CABEÇALHO COM LOGO - 16cm x 4cm (SEM DADOS DA ESCOLA EM TEXTO)
+    # CABEÇALHO COM LOGO - 16cm x 4cm
     try:
         if os.path.exists(ESCOLA_LOGO):
-            logo = Image(ESCOLA_LOGO, width=16*cm, height=4*cm)  # ✅ CORREÇÃO: Medidas corretas
+            logo = Image(ESCOLA_LOGO, width=16*cm, height=4*cm)
             logo.hAlign = 'CENTER'
             elementos.append(logo)
             elementos.append(Spacer(1, 0.3*cm))
     except:
         pass
     
-    # Título do documento
     elementos.append(Paragraph("📋 REGISTRO DE OCORRÊNCIA DISCIPLINAR", estilos['Titulo']))
     elementos.append(Spacer(1, 0.5*cm))
     
-    # Dados do aluno
     elementos.append(Paragraph("<b>DADOS DO(A) ESTUDANTE:</b>", estilos['Secao']))
     elementos.append(Paragraph(f"<b>Nome:</b> {ocorrencia.get('aluno', 'N/A')}", estilos['Texto']))
     elementos.append(Paragraph(f"<b>RA:</b> {ocorrencia.get('ra', 'N/A')}", estilos['Texto']))
     elementos.append(Paragraph(f"<b>Turma:</b> {ocorrencia.get('turma', 'N/A')}", estilos['Texto']))
     elementos.append(Spacer(1, 0.3*cm))
     
-    # Dados da ocorrência
     elementos.append(Paragraph("<b>DADOS DA OCORRÊNCIA:</b>", estilos['Secao']))
     elementos.append(Paragraph(f"<b>Data:</b> {ocorrencia.get('data', 'N/A')}", estilos['Texto']))
     elementos.append(Paragraph(f"<b>Categoria:</b> {ocorrencia.get('categoria', 'N/A')}", estilos['Texto']))
@@ -715,13 +711,11 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
     ))
     elementos.append(Spacer(1, 0.3*cm))
     
-    # Relato
     elementos.append(Paragraph("<b>Relato:</b>", estilos['Secao']))
     relato_formatado = formatar_texto(ocorrencia.get('relato', ''))
     elementos.append(Paragraph(relato_formatado, estilos['Texto']))
     elementos.append(Spacer(1, 0.3*cm))
     
-    # Encaminhamentos
     elementos.append(Paragraph("<b>Encaminhamentos:</b>", estilos['Secao']))
     encaminhamentos = ocorrencia.get('encaminhamentos', [])
     
@@ -737,24 +731,20 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
     
     elementos.append(Spacer(1, 0.5*cm))
     
-    # Professor responsável
     elementos.append(Paragraph("<b>Professor Responsável:</b>", estilos['Secao']))
     elementos.append(Paragraph(f"{ocorrencia.get('professor', 'N/A')}", estilos['Texto']))
     elementos.append(Spacer(1, 0.5*cm))
     
-    # Testemunhas (se houver)
     if ocorrencia.get('testemunhas'):
         elementos.append(Paragraph("<b>Testemunhas:</b>", estilos['Secao']))
         elementos.append(Paragraph(f"{ocorrencia.get('testemunhas', '')}", estilos['Texto']))
         elementos.append(Spacer(1, 0.3*cm))
     
-    # Evidências (se houver)
     if ocorrencia.get('evidencias'):
         elementos.append(Paragraph("<b>Evidências:</b>", estilos['Secao']))
         elementos.append(Paragraph(f"{ocorrencia.get('evidencias', '')}", estilos['Texto']))
         elementos.append(Spacer(1, 0.5*cm))
     
-    # Assinaturas
     elementos.append(Paragraph("<b>ASSINATURAS:</b>", estilos['Secao']))
     elementos.append(Spacer(1, 0.5*cm))
     
@@ -771,7 +761,6 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
             elementos.append(Paragraph(f"<b>{cargo}:</b> _________________________________", estilos['Texto']))
         elementos.append(Spacer(1, 0.5*cm))
     
-    # Rodapé
     elementos.append(Spacer(1, 0.5*cm))
     estilo_rodape = ParagraphStyle(
         'Rodape',
@@ -782,23 +771,13 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
     )
     elementos.append(Paragraph(f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}", estilo_rodape))
     
-    # Construir PDF
     doc.build(elementos)
     buffer.seek(0)
     
     return buffer
 
 
-# ============================================================================
-# FUNÇÕES DE GERAÇÃO DE PDF - COMUNICADO AOS PAIS
-# ============================================================================
-
 def gerar_pdf_comunicado(ocorrencia, responsaveis=None):
-    """
-    Gera PDF de comunicado aos pais com layout profissional.
-    ✅ CORREÇÃO: Apenas logo, sem dados da escola em texto
-    ✅ CORREÇÃO: Logo eliane_dantas.png 16cm x 4cm
-    """
     buffer = io.BytesIO()
     
     doc = SimpleDocTemplate(
@@ -813,7 +792,6 @@ def gerar_pdf_comunicado(ocorrencia, responsaveis=None):
     elementos = []
     estilos = getSampleStyleSheet()
     
-    # Estilos personalizados
     estilos.add(ParagraphStyle(
         'TituloComunicado',
         parent=estilos['Heading1'],
@@ -847,27 +825,23 @@ def gerar_pdf_comunicado(ocorrencia, responsaveis=None):
         spaceAfter=0.5*cm
     ))
     
-    # ✅ CABEÇALHO COM LOGO - 16cm x 4cm (SEM DADOS DA ESCOLA EM TEXTO)
     try:
         if os.path.exists(ESCOLA_LOGO):
-            logo = Image(ESCOLA_LOGO, width=16*cm, height=4*cm)  # ✅ CORREÇÃO: Medidas corretas
+            logo = Image(ESCOLA_LOGO, width=16*cm, height=4*cm)
             logo.hAlign = 'CENTER'
             elementos.append(logo)
             elementos.append(Spacer(1, 0.3*cm))
     except:
         pass
     
-    # Título do documento
     elementos.append(Paragraph("📬 COMUNICADO AOS PAIS/RESPONSÁVEIS", estilos['TituloComunicado']))
     elementos.append(Spacer(1, 0.5*cm))
     
-    # Saudação
     elementos.append(Paragraph(f"Prezados responsáveis pelo(a) estudante <b>{ocorrencia.get('aluno', 'N/A')}</b>,", estilos['TextoComunicado']))
     elementos.append(Spacer(1, 0.3*cm))
     elementos.append(Paragraph("Venho por meio deste comunicar que foi registrada uma ocorrência disciplinar conforme detalhes abaixo:", estilos['TextoComunicado']))
     elementos.append(Spacer(1, 0.5*cm))
     
-    # Dados da ocorrência
     elementos.append(Paragraph("<b>DADOS DA OCORRÊNCIA:</b>", estilos['Secao']))
     elementos.append(Paragraph(f"<b>Data:</b> {ocorrencia.get('data', 'N/A')}", estilos['TextoComunicado']))
     elementos.append(Paragraph(f"<b>Turma:</b> {ocorrencia.get('turma', 'N/A')}", estilos['TextoComunicado']))
@@ -881,13 +855,11 @@ def gerar_pdf_comunicado(ocorrencia, responsaveis=None):
     ))
     elementos.append(Spacer(1, 0.3*cm))
     
-    # Relato
     elementos.append(Paragraph("<b>Relato:</b>", estilos['Secao']))
     relato_formatado = formatar_texto(ocorrencia.get('relato', ''))
     elementos.append(Paragraph(relato_formatado, estilos['TextoComunicado']))
     elementos.append(Spacer(1, 0.3*cm))
     
-    # Encaminhamentos
     elementos.append(Paragraph("<b>Encaminhamentos:</b>", estilos['Secao']))
     encaminhamentos = ocorrencia.get('encaminhamentos', [])
     
@@ -903,12 +875,10 @@ def gerar_pdf_comunicado(ocorrencia, responsaveis=None):
     
     elementos.append(Spacer(1, 0.5*cm))
     
-    # Professor responsável
     elementos.append(Paragraph("<b>Professor Responsável:</b>", estilos['Secao']))
     elementos.append(Paragraph(f"{ocorrencia.get('professor', 'N/A')}", estilos['TextoComunicado']))
     elementos.append(Spacer(1, 0.5*cm))
     
-    # Assinaturas
     elementos.append(Paragraph("<b>ASSINATURAS:</b>", estilos['Secao']))
     elementos.append(Spacer(1, 0.5*cm))
     
@@ -925,7 +895,6 @@ def gerar_pdf_comunicado(ocorrencia, responsaveis=None):
             elementos.append(Paragraph(f"<b>{cargo}:</b> _________________________________", estilos['TextoComunicado']))
         elementos.append(Spacer(1, 0.5*cm))
     
-    # Rodapé
     elementos.append(Spacer(1, 0.5*cm))
     estilo_rodape = ParagraphStyle(
         'Rodape',
@@ -936,7 +905,6 @@ def gerar_pdf_comunicado(ocorrencia, responsaveis=None):
     )
     elementos.append(Paragraph(f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}", estilo_rodape))
     
-    # Construir PDF
     doc.build(elementos)
     buffer.seek(0)
     
@@ -947,7 +915,6 @@ def gerar_pdf_comunicado(ocorrencia, responsaveis=None):
 # INTERFACE PRINCIPAL - CABEÇALHO E MENU LATERAL
 # ============================================================================
 
-# Cabeçalho
 st.markdown(f"""
 <div class="main-header">
     <img src="https://raw.githubusercontent.com/Fr34k1981/SistemaConviva/main/logo.jpg" 
@@ -960,7 +927,6 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Menu Lateral
 menu = st.sidebar.selectbox(
     "📋 Menu Principal",
     [
@@ -1093,18 +1059,20 @@ if menu == "🏠 Home":
 
 
 # ============================================================================
-# PÁGINA: REGISTRAR OCORRÊNCIA
+# PÁGINA: REGISTRAR OCORRÊNCIA (DATA/HORA EDITÁVEIS CORRIGIDO)
 # ============================================================================
 
 elif menu == "📝 Registrar Ocorrência":
     st.title("📝 Registrar Nova Ocorrência")
     
+    # Carregar dados
     df_ocorrencias = carregar_ocorrencias()
     df_alunos = carregar_alunos()
     
     if df_alunos.empty:
         st.warning("⚠️ Nenhum aluno cadastrado. Importe alunos primeiro.")
     else:
+        # Mostrar sucesso após salvar
         if st.session_state.get('ocorrencia_salva_sucesso', False):
             st.markdown('<div class="success-box">✅ OCORRÊNCIA(S) REGISTRADA(S) COM SUCESSO!</div>', unsafe_allow_html=True)
             st.session_state.ocorrencia_salva_sucesso = False
@@ -1118,6 +1086,12 @@ elif menu == "📝 Registrar Ocorrência":
             tz_sp = pytz.timezone('America/Sao_Paulo')
             data_hora_sp = datetime.now(tz_sp)
             
+            # ✅ CORREÇÃO: Inicializar session state para data/hora apenas se não existir
+            if 'data_fato' not in st.session_state:
+                st.session_state.data_fato = data_hora_sp.date()
+            if 'hora_fato' not in st.session_state:
+                st.session_state.hora_fato = data_hora_sp.time()
+            
             st.subheader("🏫 Selecionar Turma(s)")
             modo_multiplas_turmas = st.checkbox("📚 Registrar para múltiplas turmas", key="modo_multiplas_turmas")
             turmas = df_alunos["turma"].unique().tolist()
@@ -1129,7 +1103,7 @@ elif menu == "📝 Registrar Ocorrência":
                 turmas_selecionadas = [turma_selecionada] if turma_selecionada else []
             
             if turmas_selecionadas:
-                alunos = df_alunos[df_alunos["turma"].isin(turmas_selecionadas)]
+                alunos = df_alunos[df_alunos["turma"].isin(turmas_selecionadas)].copy()
                 
                 if len(alunos) > 0:
                     col1, col2 = st.columns(2)
@@ -1158,9 +1132,24 @@ elif menu == "📝 Registrar Ocorrência":
                             alunos_selecionados = [aluno_selecionado] if aluno_selecionado else []
                     
                     with col2:
-                        st.markdown("### 📅 Data e Hora")
-                        data = st.date_input("Data", value=datetime.now().date())
-                        hora = st.time_input("Hora", value=datetime.now().time())
+                        st.markdown("### 📅 Data e Hora do Fato")
+                        st.info("💡 Você pode editar a data e hora para registrar fatos passados")
+                        # ✅ CORREÇÃO: Usar session_state para manter valor editado
+                        data = st.date_input(
+                            "📅 Data",
+                            value=st.session_state.data_fato,
+                            key="data_fato_input",
+                            on_change=lambda: setattr(st.session_state, 'data_fato', st.session_state.data_fato_input)
+                        )
+                        hora = st.time_input(
+                            "⏰ Hora",
+                            value=st.session_state.hora_fato,
+                            key="hora_fato_input",
+                            on_change=lambda: setattr(st.session_state, 'hora_fato', st.session_state.hora_fato_input)
+                        )
+                        # ✅ CORREÇÃO: Atualizar session state imediatamente
+                        st.session_state.data_fato = data
+                        st.session_state.hora_fato = hora
                     
                     st.markdown("---")
                     
@@ -1205,38 +1194,42 @@ elif menu == "📝 Registrar Ocorrência":
                     
                     if st.session_state.get('salvando_ocorrencia', False):
                         if prof and prof != "Selecione..." and relato and alunos_selecionados:
-                            st.session_state.salvando_ocorrencia = True
-                            data_str = f"{data.strftime('%d/%m/%Y')} {hora.strftime('%H:%M')}"
+                            # ✅ CORREÇÃO: Usar data/hora do session state (valor editado pelo usuário)
+                            data_str = f"{st.session_state.data_fato.strftime('%d/%m/%Y')} {st.session_state.hora_fato.strftime('%H:%M')}"
                             categoria_str = categoria
                             contagem_salvas = 0
                             contagem_duplicadas = 0
                             erros = 0
                             
                             for nome_aluno in alunos_selecionados:
-                                ra_aluno = alunos[alunos["nome"] == nome_aluno]["ra"].values[0]
-                                turma_aluno = alunos[alunos["nome"] == nome_aluno]["turma"].values[0]
+                                aluno_info = alunos[alunos["nome"] == nome_aluno]
                                 
-                                if verificar_ocorrencia_duplicada(ra_aluno, categoria_str, data_str, df_ocorrencias):
-                                    contagem_duplicadas += 1
-                                else:
-                                    ocorrencia_dict = {
-                                        'data': data_str,
-                                        'aluno': nome_aluno,
-                                        'ra': ra_aluno,
-                                        'turma': turma_aluno,
-                                        'categoria': categoria_str,
-                                        'gravidade': gravidade_select,
-                                        'relato': relato,
-                                        'professor': prof,
-                                        'encaminhamentos': encaminhamentos_selecionados,
-                                        'testemunhas': testemunhas,
-                                        'evidencias': evidencias
-                                    }
-                                    sucesso, mensagem = salvar_ocorrencia(ocorrencia_dict)
-                                    if sucesso:
-                                        contagem_salvas += 1
+                                if not aluno_info.empty:
+                                    ra_aluno = str(aluno_info["ra"].values[0])
+                                    turma_aluno = str(aluno_info["turma"].values[0])
+                                    
+                                    if verificar_ocorrencia_duplicada(ra_aluno, categoria_str, data_str, df_ocorrencias):
+                                        contagem_duplicadas += 1
                                     else:
-                                        erros += 1
+                                        ocorrencia_dict = {
+                                            'data': data_str,
+                                            'aluno': nome_aluno,
+                                            'ra': ra_aluno,
+                                            'turma': turma_aluno,
+                                            'categoria': categoria_str,
+                                            'gravidade': gravidade_select,
+                                            'relato': relato,
+                                            'professor': prof,
+                                            'encaminhamentos': encaminhamentos_selecionados,
+                                            'testemunhas': testemunhas,
+                                            'evidencias': evidencias
+                                        }
+                                        sucesso, mensagem = salvar_ocorrencia(ocorrencia_dict)
+                                        if sucesso:
+                                            contagem_salvas += 1
+                                        else:
+                                            erros += 1
+                                            st.error(f"Erro ao salvar para {nome_aluno}: {mensagem}")
                             
                             if contagem_salvas > 0:
                                 st.success(f"✅ {contagem_salvas} ocorrência(s) registrada(s) com sucesso!")
@@ -1247,6 +1240,7 @@ elif menu == "📝 Registrar Ocorrência":
                             
                             st.session_state.ocorrencia_salva_sucesso = True
                             st.session_state.salvando_ocorrencia = False
+                            carregar_ocorrencias.clear()
                             st.rerun()
                         else:
                             st.error("❌ Nenhuma ocorrência foi salva. Verifique os dados.")
@@ -1336,10 +1330,11 @@ elif menu == "📊 Lista de Ocorrências":
         
         if st.button("🗑️ Excluir"):
             senha = st.text_input("Digite a senha de exclusão (040600)", type="password")
-            if senha == "040600":
+            if senha == SENHA_EXCLUSAO:
                 sucesso, msg = excluir_ocorrencia(id_excluir)
                 if sucesso:
                     st.success(f"✅ {msg}")
+                    carregar_ocorrencias.clear()
                     st.rerun()
                 else:
                     st.error(f"❌ {msg}")
@@ -1392,10 +1387,11 @@ elif menu == "👥 Alunos":
         
         if st.button("🗑️ Excluir Aluno"):
             senha = st.text_input("Digite a senha de exclusão (040600)", type="password", key="senha_aluno")
-            if senha == "040600":
+            if senha == SENHA_EXCLUSAO:
                 sucesso, msg = excluir_aluno(ra_excluir)
                 if sucesso:
                     st.success(f"✅ {msg}")
+                    carregar_alunos.clear()
                     st.rerun()
                 else:
                     st.error(f"❌ {msg}")
@@ -1537,7 +1533,7 @@ elif menu == "👨‍🏫 Professores":
                 with col5:
                     if st.button("🗑️", key=f"del_prof_{prof.get('id', idx)}"):
                         senha = st.text_input("Senha (040600)", type="password", key=f"senha_prof_{prof.get('id', idx)}")
-                        if senha == "040600":
+                        if senha == SENHA_EXCLUSAO:
                             sucesso, msg = excluir_professor(prof.get('id'))
                             if sucesso:
                                 st.success(f"✅ {msg}")
@@ -1686,7 +1682,7 @@ elif menu == "📈 Gráficos":
 
 
 # ============================================================================
-# PÁGINA: RELATÓRIOS / IMPRIMIR PDF
+# PÁGINA: RELATÓRIOS
 # ============================================================================
 
 elif menu == "🖨️ Relatórios":
@@ -1696,16 +1692,13 @@ elif menu == "🖨️ Relatórios":
     df_responsaveis = carregar_responsaveis()
     
     if not df_ocorrencias.empty:
-        # ✅ CORREÇÃO: Menu suspenso com ocorrências em ordem de registro
-        # Criar lista de opções visual com ID, Data e Nome do Estudante
-        df_ocorrencias_sorted = df_ocorrencias.sort_values('id', ascending=False)  # Mais recentes primeiro
+        df_ocorrencias_sorted = df_ocorrencias.sort_values('id', ascending=False)
         
         opcoes_ocorrencias = []
         for idx, occ in df_ocorrencias_sorted.iterrows():
             opcao = f"ID {occ['id']} | {occ['data']} | {occ['aluno']} | {occ['categoria']}"
             opcoes_ocorrencias.append(opcao)
         
-        # ✅ Menu suspenso organizado e visual
         ocorrencia_selecionada = st.selectbox(
             "📋 Selecione a Ocorrência para Imprimir",
             opcoes_ocorrencias,
@@ -1713,11 +1706,9 @@ elif menu == "🖨️ Relatórios":
         )
         
         if ocorrencia_selecionada:
-            # Extrair ID da ocorrência selecionada
             id_selecionado = int(ocorrencia_selecionada.split(' | ')[0].replace('ID ', ''))
             ocorrencia = df_ocorrencias[df_ocorrencias['id'] == id_selecionado].iloc[0].to_dict()
             
-            # Mostrar preview
             st.markdown("### 📄 Preview da Ocorrência")
             col1, col2 = st.columns(2)
             with col1:
@@ -1729,14 +1720,12 @@ elif menu == "🖨️ Relatórios":
                 st.info(f"**Categoria:** {ocorrencia.get('categoria', 'N/A')}")
                 st.info(f"**Gravidade:** {ocorrencia.get('gravidade', 'N/A')}")
             
-            # Tipo de documento
             tipo_documento = st.selectbox(
                 "📄 Tipo de Documento",
                 ["Ocorrência", "Comunicado aos Pais"],
                 help="Escolha o tipo de documento a ser gerado"
             )
             
-            # Botão gerar PDF
             if st.button("🖨️ Gerar PDF", type="primary"):
                 if tipo_documento == "Ocorrência":
                     pdf_buffer = gerar_pdf_ocorrencia(ocorrencia, df_responsaveis)
@@ -1825,7 +1814,7 @@ elif menu == "⚙️ Configurações":
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.metric("Versão", "8.0 FINAL")
+        st.metric("Versão", "8.2 FINAL")
     
     with col2:
         st.metric("Framework", "Streamlit")
@@ -1857,7 +1846,7 @@ elif menu == "💾 Backup":
             'ocorrencias': df_ocorrencias.to_dict('records') if not df_ocorrencias.empty else [],
             'responsaveis': df_responsaveis.to_dict('records') if not df_responsaveis.empty else [],
             'data_backup': datetime.now().strftime('%d/%m/%Y %H:%M'),
-            'versao_sistema': '8.0 FINAL'
+            'versao_sistema': '8.2 FINAL'
         }
         
         json_str = json.dumps(backup_data, ensure_ascii=False, indent=2)
@@ -1889,7 +1878,7 @@ elif menu == "💾 Backup":
         if st.button("📤 Importar Backup"):
             senha = st.text_input("Digite a senha de confirmação (040600)", type="password")
             
-            if senha == "040600":
+            if senha == SENHA_EXCLUSAO:
                 try:
                     backup_data = json.load(arquivo_backup)
                     
@@ -1950,6 +1939,6 @@ st.markdown("""
     <p><b>Sistema Conviva 179</b> - Gestão de Ocorrências Escolares</p>
     <p>Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI</p>
     <p>Protocolo de Convivência e Proteção Escolar - SEDUC/SP</p>
-    <p>Versão 8.0 FINAL | Desenvolvido com Streamlit + Supabase (Requests)</p>
+    <p>Versão 8.2 FINAL | Desenvolvido com Streamlit + Supabase (Requests)</p>
 </div>
 """, unsafe_allow_html=True)
