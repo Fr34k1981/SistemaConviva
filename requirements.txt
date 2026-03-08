@@ -1,9 +1,9 @@
 streamlit
 pandas
-plotly
 reportlab
+openpyxl
 requests
 python-dotenv
-pytz
-PyMuPDF
-Pillow
+plotly
+fuzzywuzzy
+python-Levenshtein
