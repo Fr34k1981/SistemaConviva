@@ -1,7 +1,7 @@
 # ============================================================================
 # SISTEMA CONVIVA 179 - GESTÃO DE OCORRÊNCIAS ESCOLARES
 # Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI
-# Versão: 7.0 FINAL COMPLETA - USANDO REQUESTS (SEM BIBLIOTECA SUPABASE)
+# Versão: 8.0 FINAL COMPLETA - PDF CORRIGIDO
 # Desenvolvido para SEDUC/SP - Protocolo de Convivência e Proteção Escolar
 # ============================================================================
 
@@ -27,10 +27,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 from fuzzywuzzy import process
 import pytz
-from dotenv import load_dotenv
-
-# Carregar variáveis de ambiente
-load_dotenv()
 
 # ============================================================================
 # CONFIGURAÇÃO DA PÁGINA
@@ -39,12 +35,7 @@ st.set_page_config(
     page_title="Sistema Conviva 179",
     page_icon="📋",
     layout="wide",
-    initial_sidebar_state="expanded",
-    menu_items={
-        'Get Help': 'https://github.com/Fr34k1981/SistemaConviva',
-        'Report a bug': 'https://github.com/Fr34k1981/SistemaConviva/issues',
-        'About': "# Sistema Conviva 179\nVersão 7.0.0\nDesenvolvido para SEDUC/SP"
-    }
+    initial_sidebar_state="expanded"
 )
 
 # ============================================================================
@@ -63,6 +54,18 @@ HEADERS = {
     "Content-Type": "application/json",
     "Prefer": "return=representation"
 }
+
+# ============================================================================
+# DADOS COMPLETOS DA ESCOLA
+# ============================================================================
+ESCOLA_NOME = "Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI"
+ESCOLA_SUBTITULO = "🌟 Escola dos Sonhos"
+ESCOLA_ENDERECO = "R. Valter Souza Costa, 147 - Jardim Primavera, Ferraz de Vasconcelos - SP"
+ESCOLA_CEP = "CEP: 08535-310"
+ESCOLA_TELEFONE = "(11) 4675-1855"
+ESCOLA_EMAIL = "e918623@educacao.sp.gov.br"
+ESCOLA_LOGO = "eliane_dantas.png"  # ✅ CORREÇÃO: Logo correta
+SENHA_EXCLUSAO = "040600"
 
 # ============================================================================
 # DICIONÁRIOS DO PROTOCOLO 179
@@ -181,17 +184,6 @@ ENCAMINHAMENTOS_POR_GRAVIDADE = {
 }
 
 # ============================================================================
-# CONFIGURAÇÕES DA ESCOLA
-# ============================================================================
-ESCOLA_NOME = "Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI"
-ESCOLA_SUBTITULO = "Protocolo de Convivência e Proteção Escolar - SEDUC/SP"
-ESCOLA_ENDERECO = "R. Valter Souza Costa, 147 - Jardim Primavera, Ferraz de Vasconcelos - SP"
-ESCOLA_CEP = "CEP: 08535-310"
-ESCOLA_TELEFONE = "(11) 4675-1855"
-ESCOLA_EMAIL = "e918623@educacao.sp.gov.br"
-ESCOLA_LOGO = "logo.jpg"
-
-# ============================================================================
 # INICIALIZAÇÃO DO SESSION STATE
 # ============================================================================
 if 'editando_id' not in st.session_state:
@@ -210,10 +202,67 @@ if 'salvando_ocorrencia' not in st.session_state:
     st.session_state.salvando_ocorrencia = False
 if 'gravidade_alterada' not in st.session_state:
     st.session_state.gravidade_alterada = False
-if 'adicionar_outra_infracao' not in st.session_state:
-    st.session_state.adicionar_outra_infracao = False
-if 'infracoes_adicionais' not in st.session_state:
-    st.session_state.infracoes_adicionais = []
+
+# ============================================================================
+# CSS PERSONALIZADO
+# ============================================================================
+st.markdown("""
+<style>
+.main-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 2rem;
+    border-radius: 10px;
+    color: white;
+    text-align: center;
+    margin-bottom: 2rem;
+}
+.school-name {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+.school-subtitle {
+    font-size: 1.2rem;
+    font-style: italic;
+    opacity: 0.9;
+}
+.school-address {
+    font-size: 0.9rem;
+    margin-top: 1rem;
+    opacity: 0.8;
+}
+.school-contact {
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+    opacity: 0.9;
+}
+.metric-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 1.5rem;
+    border-radius: 10px;
+    color: white;
+    text-align: center;
+}
+.metric-value {
+    font-size: 2.5rem;
+    font-weight: bold;
+}
+.metric-label {
+    font-size: 1rem;
+    opacity: 0.9;
+}
+.success-box {
+    background: #d4edda;
+    border: 2px solid #28a745;
+    border-radius: 8px;
+    padding: 1rem;
+    margin: 1rem 0;
+    text-align: center;
+    font-weight: bold;
+    color: #155724;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # ============================================================================
 # FUNÇÕES DE CARREGAMENTO DE DADOS DO SUPABASE (VIA REQUESTS)
@@ -221,15 +270,8 @@ if 'infracoes_adicionais' not in st.session_state:
 
 @st.cache_data(ttl=60)
 def carregar_alunos():
-    """
-    Carrega todos os alunos do banco de dados Supabase via Requests API.
-    
-    Returns:
-        pd.DataFrame: DataFrame com todos os alunos cadastrados.
-    """
     if not SUPABASE_URL:
         return pd.DataFrame(columns=['nome', 'ra', 'turma', 'nascimento', 'responsavel', 'telefone', 'foto_url'])
-    
     try:
         response = requests.get(f"{SUPABASE_URL}/rest/v1/alunos?select=*", headers=HEADERS)
         if response.status_code == 200:
@@ -246,21 +288,13 @@ def carregar_alunos():
 
 @st.cache_data(ttl=60)
 def carregar_professores():
-    """
-    Carrega todos os professores do banco de dados Supabase via Requests API.
-    
-    Returns:
-        pd.DataFrame: DataFrame com todos os professores cadastrados.
-    """
     if not SUPABASE_URL:
         return pd.DataFrame(columns=['id', 'nome', 'email', 'cargo', 'foto_url'])
-    
     try:
         response = requests.get(f"{SUPABASE_URL}/rest/v1/professores?select=*", headers=HEADERS)
         if response.status_code == 200:
             df = pd.DataFrame(response.json())
             if not df.empty:
-                # CORREÇÃO 4: Ordenar professores por nome (alfabética)
                 df = df.sort_values('nome')
             return df
         else:
@@ -272,17 +306,10 @@ def carregar_professores():
 
 @st.cache_data(ttl=60)
 def carregar_ocorrencias():
-    """
-    Carrega todas as ocorrências do banco de dados Supabase via Requests API.
-    
-    Returns:
-        pd.DataFrame: DataFrame com todas as ocorrências registradas.
-    """
     if not SUPABASE_URL:
         return pd.DataFrame(columns=['id', 'data', 'aluno', 'ra', 'turma', 'categoria', 'gravidade', 'relato', 'professor', 'encaminhamentos', 'testemunhas', 'evidencias'])
-    
     try:
-        response = requests.get(f"{SUPABASE_URL}/rest/v1/ocorrencias?select=*&order=data.desc", headers=HEADERS)
+        response = requests.get(f"{SUPABASE_URL}/rest/v1/ocorrencias?select=*&order=id.desc", headers=HEADERS)
         if response.status_code == 200:
             return pd.DataFrame(response.json())
         else:
@@ -294,15 +321,8 @@ def carregar_ocorrencias():
 
 @st.cache_data(ttl=60)
 def carregar_responsaveis():
-    """
-    Carrega todos os responsáveis por assinatura do banco de dados Supabase via Requests API.
-    
-    Returns:
-        pd.DataFrame: DataFrame com todos os responsáveis cadastrados.
-    """
     if not SUPABASE_URL:
         return pd.DataFrame(columns=['id', 'nome', 'cargo'])
-    
     try:
         response = requests.get(f"{SUPABASE_URL}/rest/v1/responsaveis?select=*", headers=HEADERS)
         if response.status_code == 200:
@@ -322,23 +342,11 @@ def carregar_responsaveis():
 # ============================================================================
 
 def salvar_ocorrencia(ocorrencia_dict):
-    """
-    Salva uma ocorrência no banco de dados Supabase via Requests API.
-    
-    Args:
-        ocorrencia_dict (dict): Dicionário com os dados da ocorrência.
-    
-    Returns:
-        tuple: (bool, str) - Sucesso e mensagem de retorno.
-    """
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
-    
     try:
-        # Converter lista de encaminhamentos para string separada por |
         if 'encaminhamentos' in ocorrencia_dict and isinstance(ocorrencia_dict['encaminhamentos'], list):
             ocorrencia_dict['encaminhamentos'] = '| '.join(ocorrencia_dict['encaminhamentos'])
-        
         response = requests.post(f"{SUPABASE_URL}/rest/v1/ocorrencias", json=ocorrencia_dict, headers=HEADERS)
         if response.status_code in [200, 201]:
             return True, "Ocorrência salva com sucesso!"
@@ -350,24 +358,11 @@ def salvar_ocorrencia(ocorrencia_dict):
 
 
 def atualizar_ocorrencia(id_ocorrencia, ocorrencia_dict):
-    """
-    Atualiza uma ocorrência existente no banco de dados Supabase via Requests API.
-    
-    Args:
-        id_ocorrencia (int): ID da ocorrência a ser atualizada.
-        ocorrencia_dict (dict): Dicionário com os dados atualizados.
-    
-    Returns:
-        tuple: (bool, str) - Sucesso e mensagem de retorno.
-    """
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
-    
     try:
-        # Converter lista de encaminhamentos para string separada por |
         if 'encaminhamentos' in ocorrencia_dict and isinstance(ocorrencia_dict['encaminhamentos'], list):
             ocorrencia_dict['encaminhamentos'] = '| '.join(ocorrencia_dict['encaminhamentos'])
-        
         response = requests.patch(f"{SUPABASE_URL}/rest/v1/ocorrencias?id=eq.{id_ocorrencia}", json=ocorrencia_dict, headers=HEADERS)
         if response.status_code in [200, 201]:
             return True, "Ocorrência atualizada com sucesso!"
@@ -379,18 +374,8 @@ def atualizar_ocorrencia(id_ocorrencia, ocorrencia_dict):
 
 
 def excluir_ocorrencia(id_ocorrencia):
-    """
-    Exclui uma ocorrência do banco de dados Supabase via Requests API.
-    
-    Args:
-        id_ocorrencia (int): ID da ocorrência a ser excluída.
-    
-    Returns:
-        tuple: (bool, str) - Sucesso e mensagem de retorno.
-    """
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
-    
     try:
         response = requests.delete(f"{SUPABASE_URL}/rest/v1/ocorrencias?id=eq.{id_ocorrencia}", headers=HEADERS)
         if response.status_code in [200, 201]:
@@ -403,18 +388,8 @@ def excluir_ocorrencia(id_ocorrencia):
 
 
 def salvar_aluno(aluno_dict):
-    """
-    Salva um aluno no banco de dados Supabase via Requests API.
-    
-    Args:
-        aluno_dict (dict): Dicionário com os dados do aluno.
-    
-    Returns:
-        tuple: (bool, str) - Sucesso e mensagem de retorno.
-    """
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
-    
     try:
         response = requests.post(f"{SUPABASE_URL}/rest/v1/alunos", json=aluno_dict, headers=HEADERS)
         if response.status_code in [200, 201]:
@@ -427,19 +402,8 @@ def salvar_aluno(aluno_dict):
 
 
 def atualizar_aluno(ra_aluno, aluno_dict):
-    """
-    Atualiza um aluno existente no banco de dados Supabase via Requests API.
-    
-    Args:
-        ra_aluno (str): RA do aluno a ser atualizado.
-        aluno_dict (dict): Dicionário com os dados atualizados.
-    
-    Returns:
-        tuple: (bool, str) - Sucesso e mensagem de retorno.
-    """
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
-    
     try:
         response = requests.patch(f"{SUPABASE_URL}/rest/v1/alunos?ra=eq.{ra_aluno}", json=aluno_dict, headers=HEADERS)
         if response.status_code in [200, 201]:
@@ -452,18 +416,8 @@ def atualizar_aluno(ra_aluno, aluno_dict):
 
 
 def excluir_aluno(ra_aluno):
-    """
-    Exclui um aluno do banco de dados Supabase via Requests API.
-    
-    Args:
-        ra_aluno (str): RA do aluno a ser excluído.
-    
-    Returns:
-        tuple: (bool, str) - Sucesso e mensagem de retorno.
-    """
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
-    
     try:
         response = requests.delete(f"{SUPABASE_URL}/rest/v1/alunos?ra=eq.{ra_aluno}", headers=HEADERS)
         if response.status_code in [200, 201]:
@@ -476,18 +430,8 @@ def excluir_aluno(ra_aluno):
 
 
 def salvar_professor(professor_dict):
-    """
-    Salva um professor no banco de dados Supabase via Requests API.
-    
-    Args:
-        professor_dict (dict): Dicionário com os dados do professor.
-    
-    Returns:
-        tuple: (bool, str) - Sucesso e mensagem de retorno.
-    """
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
-    
     try:
         response = requests.post(f"{SUPABASE_URL}/rest/v1/professores", json=professor_dict, headers=HEADERS)
         if response.status_code in [200, 201]:
@@ -500,19 +444,8 @@ def salvar_professor(professor_dict):
 
 
 def atualizar_professor(id_prof, professor_dict):
-    """
-    Atualiza um professor existente no banco de dados Supabase via Requests API.
-    
-    Args:
-        id_prof (int): ID do professor a ser atualizado.
-        professor_dict (dict): Dicionário com os dados atualizados.
-    
-    Returns:
-        tuple: (bool, str) - Sucesso e mensagem de retorno.
-    """
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
-    
     try:
         response = requests.patch(f"{SUPABASE_URL}/rest/v1/professores?id=eq.{id_prof}", json=professor_dict, headers=HEADERS)
         if response.status_code in [200, 201]:
@@ -525,18 +458,8 @@ def atualizar_professor(id_prof, professor_dict):
 
 
 def excluir_professor(id_prof):
-    """
-    Exclui um professor do banco de dados Supabase via Requests API.
-    
-    Args:
-        id_prof (int): ID do professor a ser excluído.
-    
-    Returns:
-        tuple: (bool, str) - Sucesso e mensagem de retorno.
-    """
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
-    
     try:
         response = requests.delete(f"{SUPABASE_URL}/rest/v1/professores?id=eq.{id_prof}", headers=HEADERS)
         if response.status_code in [200, 201]:
@@ -549,18 +472,8 @@ def excluir_professor(id_prof):
 
 
 def salvar_responsavel(responsavel_dict):
-    """
-    Salva um responsável por assinatura no banco de dados Supabase via Requests API.
-    
-    Args:
-        responsavel_dict (dict): Dicionário com os dados do responsável.
-    
-    Returns:
-        tuple: (bool, str) - Sucesso e mensagem de retorno.
-    """
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
-    
     try:
         response = requests.post(f"{SUPABASE_URL}/rest/v1/responsaveis", json=responsavel_dict, headers=HEADERS)
         if response.status_code in [200, 201]:
@@ -573,19 +486,8 @@ def salvar_responsavel(responsavel_dict):
 
 
 def atualizar_responsavel(id_resp, responsavel_dict):
-    """
-    Atualiza um responsável existente no banco de dados Supabase via Requests API.
-    
-    Args:
-        id_resp (int): ID do responsável a ser atualizado.
-        responsavel_dict (dict): Dicionário com os dados atualizados.
-    
-    Returns:
-        tuple: (bool, str) - Sucesso e mensagem de retorno.
-    """
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
-    
     try:
         response = requests.patch(f"{SUPABASE_URL}/rest/v1/responsaveis?id=eq.{id_resp}", json=responsavel_dict, headers=HEADERS)
         if response.status_code in [200, 201]:
@@ -598,18 +500,8 @@ def atualizar_responsavel(id_resp, responsavel_dict):
 
 
 def excluir_responsavel(id_resp):
-    """
-    Exclui um responsável do banco de dados Supabase via Requests API.
-    
-    Args:
-        id_resp (int): ID do responsável a ser excluído.
-    
-    Returns:
-        tuple: (bool, str) - Sucesso e mensagem de retorno.
-    """
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
-    
     try:
         response = requests.delete(f"{SUPABASE_URL}/rest/v1/responsaveis?id=eq.{id_resp}", headers=HEADERS)
         if response.status_code in [200, 201]:
@@ -626,24 +518,10 @@ def excluir_responsavel(id_resp):
 # ============================================================================
 
 def upload_foto_supabase(file, folder, filename):
-    """
-    Faz upload de foto para o Supabase Storage via Requests API.
-    
-    Args:
-        file: Arquivo de foto enviado pelo usuário.
-        folder (str): Pasta no bucket onde a foto será salva.
-        filename (str): Nome do arquivo.
-    
-    Returns:
-        tuple: (str, str) - URL pública e mensagem de retorno.
-    """
     if not SUPABASE_URL:
         return None, "Supabase não configurado"
-    
     try:
         file_bytes = file.getvalue()
-        
-        # CORREÇÃO 1: Verificar se bucket existe antes de upload
         storage_url = SUPABASE_URL.replace("/rest/v1", "/storage/v1")
         upload_headers = HEADERS.copy()
         upload_headers["Content-Type"] = file.type
@@ -655,8 +533,7 @@ def upload_foto_supabase(file, folder, filename):
                 headers=upload_headers
             )
         except Exception as upload_error:
-            # Se bucket não existir, tentar criar mensagem de erro clara
-            if 'Bucket not found' in str(upload_error) or response.status_code == 404:
+            if 'Bucket not found' in str(upload_error) or (response.status_code == 404 if 'response' in locals() else False):
                 return None, "Bucket 'fotos' não encontrado. Crie o bucket no Supabase primeiro!"
             raise upload_error
         
@@ -671,19 +548,8 @@ def upload_foto_supabase(file, folder, filename):
 
 
 def atualizar_foto_aluno(ra_aluno, foto_url):
-    """
-    Atualiza a URL da foto de um aluno no banco de dados.
-    
-    Args:
-        ra_aluno (str): RA do aluno.
-        foto_url (str): URL da foto no Supabase Storage.
-    
-    Returns:
-        tuple: (bool, str) - Sucesso e mensagem de retorno.
-    """
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
-    
     try:
         response = requests.patch(
             f"{SUPABASE_URL}/rest/v1/alunos?ra=eq.{ra_aluno}",
@@ -700,19 +566,8 @@ def atualizar_foto_aluno(ra_aluno, foto_url):
 
 
 def atualizar_foto_professor(id_prof, foto_url):
-    """
-    Atualiza a URL da foto de um professor no banco de dados.
-    
-    Args:
-        id_prof (int): ID do professor.
-        foto_url (str): URL da foto no Supabase Storage.
-    
-    Returns:
-        tuple: (bool, str) - Sucesso e mensagem de retorno.
-    """
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
-    
     try:
         response = requests.patch(
             f"{SUPABASE_URL}/rest/v1/professores?id=eq.{id_prof}",
@@ -733,35 +588,17 @@ def atualizar_foto_professor(id_prof, foto_url):
 # ============================================================================
 
 def verificar_ocorrencia_duplicada(ra_aluno, categoria, data, df_ocorrencias):
-    """
-    Verifica se já existe uma ocorrência igual para o mesmo aluno na mesma data.
-    
-    Args:
-        ra_aluno (str): RA do aluno.
-        categoria (str): Categoria da ocorrência.
-        data (str): Data da ocorrência.
-        df_ocorrencias (pd.DataFrame): DataFrame com todas as ocorrências.
-    
-    Returns:
-        bool: True se ocorrência duplicada existir, False caso contrário.
-    """
-    # CORREÇÃO 6: Verificar se df_ocorrencias não é None ou vazio
     if df_ocorrencias is None or df_ocorrencias.empty:
         return False
-    
     try:
-        # Extrair apenas a data (sem hora) para comparação
         data_comparacao = data.split(' ')[0] if ' ' in data else data
-        
         for idx, ocorrencia in df_ocorrencias.iterrows():
             data_ocorrencia = str(ocorrencia.get('data', ''))
             data_ocorrencia_comparacao = data_ocorrencia.split(' ')[0] if ' ' in data_ocorrencia else data_ocorrencia
-            
             if (str(ocorrencia.get('ra', '')) == str(ra_aluno) and 
                 str(ocorrencia.get('categoria', '')) == str(categoria) and 
                 data_ocorrencia_comparacao == data_comparacao):
                 return True
-        
         return False
     except Exception as e:
         st.error(f"Erro ao verificar duplicidade: {str(e)}")
@@ -769,64 +606,21 @@ def verificar_ocorrencia_duplicada(ra_aluno, categoria, data, df_ocorrencias):
 
 
 def formatar_texto(texto):
-    """
-    Formata texto para exibição no PDF, convertendo quebras de linha.
-    
-    Args:
-        texto (str): Texto original.
-    
-    Returns:
-        str: Texto formatado.
-    """
     if not texto:
         return ""
-    
-    # Substituir quebras de linha HTML por quebras reais
     texto_formatado = str(texto).replace('<br/>', '\n').replace('<br>', '\n').replace('\n', '\n')
     return texto_formatado
 
 
 def remover_duplicatas_encaminhamentos(encaminhamentos):
-    """
-    Remove encaminhamentos duplicados de uma lista.
-    
-    Args:
-        encaminhamentos (str): String com encaminhamentos separados por |.
-    
-    Returns:
-        str: String com encaminhamentos únicos.
-    """
     if not encaminhamentos:
         return ""
-    
     todos = []
     for linha in str(encaminhamentos).split('|'):
         linha = linha.strip()
         if linha and linha not in todos:
             todos.append(linha)
-    
     return '| '.join(todos)
-
-
-def excluir_alunos_por_turma(turma):
-    """
-    Exclui todos os alunos de uma turma específica.
-    
-    Args:
-        turma (str): Nome da turma.
-    
-    Returns:
-        bool: True se excluído com sucesso, False caso contrário.
-    """
-    if not SUPABASE_URL:
-        return False
-    
-    try:
-        response = requests.delete(f"{SUPABASE_URL}/rest/v1/alunos?turma=eq.{turma}", headers=HEADERS)
-        return response.status_code in [200, 201]
-    except Exception as e:
-        st.error(f"Erro ao excluir alunos da turma: {str(e)}")
-        return False
 
 
 # ============================================================================
@@ -836,17 +630,11 @@ def excluir_alunos_por_turma(turma):
 def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
     """
     Gera PDF de ocorrência com layout profissional.
-    
-    Args:
-        ocorrencia (dict): Dados da ocorrência.
-        responsaveis (pd.DataFrame): DataFrame com responsáveis por assinatura.
-    
-    Returns:
-        BytesIO: Buffer com o PDF gerado.
+    ✅ CORREÇÃO: Apenas logo, sem dados da escola em texto
+    ✅ CORREÇÃO: Logo eliane_dantas.png 16cm x 4cm
     """
     buffer = io.BytesIO()
     
-    # CORREÇÃO 5: Margens reduzidas para caber em 1 página
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
@@ -893,10 +681,10 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
         spaceAfter=0.5*cm
     ))
     
-    # CABEÇALHO COM LOGO (16cm x 4.5cm) - CORREÇÃO
+    # ✅ CABEÇALHO COM LOGO - 16cm x 4cm (SEM DADOS DA ESCOLA EM TEXTO)
     try:
         if os.path.exists(ESCOLA_LOGO):
-            logo = Image(ESCOLA_LOGO, width=16*cm, height=4.5*cm)
+            logo = Image(ESCOLA_LOGO, width=16*cm, height=4*cm)  # ✅ CORREÇÃO: Medidas corretas
             logo.hAlign = 'CENTER'
             elementos.append(logo)
             elementos.append(Spacer(1, 0.3*cm))
@@ -905,12 +693,6 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
     
     # Título do documento
     elementos.append(Paragraph("📋 REGISTRO DE OCORRÊNCIA DISCIPLINAR", estilos['Titulo']))
-    elementos.append(Spacer(1, 0.5*cm))
-    
-    # Dados da escola
-    elementos.append(Paragraph(f"<b>{ESCOLA_NOME}</b>", estilos['Texto']))
-    elementos.append(Paragraph(f"{ESCOLA_ENDERECO}", estilos['Texto']))
-    elementos.append(Paragraph(f"{ESCOLA_CEP} | {ESCOLA_TELEFONE}", estilos['Texto']))
     elementos.append(Spacer(1, 0.5*cm))
     
     # Dados do aluno
@@ -925,7 +707,6 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
     elementos.append(Paragraph(f"<b>Data:</b> {ocorrencia.get('data', 'N/A')}", estilos['Texto']))
     elementos.append(Paragraph(f"<b>Categoria:</b> {ocorrencia.get('categoria', 'N/A')}", estilos['Texto']))
     
-    # CORREÇÃO 8: Badge de gravidade colorida
     gravidade = ocorrencia.get('gravidade', 'N/A')
     cor_gravidade = CORES_GRAVIDADE.get(gravidade, '#9E9E9E')
     elementos.append(Paragraph(
@@ -990,15 +771,6 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
             elementos.append(Paragraph(f"<b>{cargo}:</b> _________________________________", estilos['Texto']))
         elementos.append(Spacer(1, 0.5*cm))
     
-    # Ciência dos pais/responsáveis
-    elementos.append(Spacer(1, 1*cm))
-    elementos.append(Paragraph("<b>CIÊNCIA DOS PAIS/RESPONSÁVEIS:</b>", estilos['Secao']))
-    elementos.append(Spacer(1, 0.3*cm))
-    elementos.append(Paragraph("Declaro que recebi e tomei conhecimento deste comunicado.", estilos['Texto']))
-    elementos.append(Spacer(1, 1.5*cm))
-    elementos.append(Paragraph("_" * 50, estilos['Normal']))
-    elementos.append(Paragraph("Assinatura do Responsável", estilos['Assinatura']))
-    
     # Rodapé
     elementos.append(Spacer(1, 0.5*cm))
     estilo_rodape = ParagraphStyle(
@@ -1008,7 +780,6 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
         alignment=TA_CENTER,
         textColor=colors.grey
     )
-    elementos.append(Paragraph("_" * 75, estilos['Normal']))
     elementos.append(Paragraph(f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}", estilo_rodape))
     
     # Construir PDF
@@ -1025,17 +796,11 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
 def gerar_pdf_comunicado(ocorrencia, responsaveis=None):
     """
     Gera PDF de comunicado aos pais com layout profissional.
-    
-    Args:
-        ocorrencia (dict): Dados da ocorrência.
-        responsaveis (pd.DataFrame): DataFrame com responsáveis por assinatura.
-    
-    Returns:
-        BytesIO: Buffer com o PDF gerado.
+    ✅ CORREÇÃO: Apenas logo, sem dados da escola em texto
+    ✅ CORREÇÃO: Logo eliane_dantas.png 16cm x 4cm
     """
     buffer = io.BytesIO()
     
-    # Margens reduzidas para caber em 1 página
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
@@ -1082,10 +847,10 @@ def gerar_pdf_comunicado(ocorrencia, responsaveis=None):
         spaceAfter=0.5*cm
     ))
     
-    # CABEÇALHO COM LOGO (16cm x 4.5cm)
+    # ✅ CABEÇALHO COM LOGO - 16cm x 4cm (SEM DADOS DA ESCOLA EM TEXTO)
     try:
         if os.path.exists(ESCOLA_LOGO):
-            logo = Image(ESCOLA_LOGO, width=16*cm, height=4.5*cm)
+            logo = Image(ESCOLA_LOGO, width=16*cm, height=4*cm)  # ✅ CORREÇÃO: Medidas corretas
             logo.hAlign = 'CENTER'
             elementos.append(logo)
             elementos.append(Spacer(1, 0.3*cm))
@@ -1094,12 +859,6 @@ def gerar_pdf_comunicado(ocorrencia, responsaveis=None):
     
     # Título do documento
     elementos.append(Paragraph("📬 COMUNICADO AOS PAIS/RESPONSÁVEIS", estilos['TituloComunicado']))
-    elementos.append(Spacer(1, 0.5*cm))
-    
-    # Dados da escola
-    elementos.append(Paragraph(f"<b>{ESCOLA_NOME}</b>", estilos['TextoComunicado']))
-    elementos.append(Paragraph(f"{ESCOLA_ENDERECO}", estilos['TextoComunicado']))
-    elementos.append(Paragraph(f"{ESCOLA_CEP} | {ESCOLA_TELEFONE}", estilos['TextoComunicado']))
     elementos.append(Spacer(1, 0.5*cm))
     
     # Saudação
@@ -1114,7 +873,6 @@ def gerar_pdf_comunicado(ocorrencia, responsaveis=None):
     elementos.append(Paragraph(f"<b>Turma:</b> {ocorrencia.get('turma', 'N/A')}", estilos['TextoComunicado']))
     elementos.append(Paragraph(f"<b>Categoria:</b> {ocorrencia.get('categoria', 'N/A')}", estilos['TextoComunicado']))
     
-    # Gravidade com cor
     gravidade = ocorrencia.get('gravidade', 'N/A')
     cor_gravidade = CORES_GRAVIDADE.get(gravidade, '#9E9E9E')
     elementos.append(Paragraph(
@@ -1167,15 +925,6 @@ def gerar_pdf_comunicado(ocorrencia, responsaveis=None):
             elementos.append(Paragraph(f"<b>{cargo}:</b> _________________________________", estilos['TextoComunicado']))
         elementos.append(Spacer(1, 0.5*cm))
     
-    # Ciência dos pais/responsáveis
-    elementos.append(Spacer(1, 1*cm))
-    elementos.append(Paragraph("<b>CIÊNCIA DOS PAIS/RESPONSÁVEIS:</b>", estilos['Secao']))
-    elementos.append(Spacer(1, 0.3*cm))
-    elementos.append(Paragraph("Declaro que recebi e tomei conhecimento deste comunicado.", estilos['TextoComunicado']))
-    elementos.append(Spacer(1, 1.5*cm))
-    elementos.append(Paragraph("_" * 50, estilos['Normal']))
-    elementos.append(Paragraph("Assinatura do Responsável", estilos['Assinatura']))
-    
     # Rodapé
     elementos.append(Spacer(1, 0.5*cm))
     estilo_rodape = ParagraphStyle(
@@ -1185,7 +934,6 @@ def gerar_pdf_comunicado(ocorrencia, responsaveis=None):
         alignment=TA_CENTER,
         textColor=colors.grey
     )
-    elementos.append(Paragraph("_" * 75, estilos['Normal']))
     elementos.append(Paragraph(f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}", estilo_rodape))
     
     # Construir PDF
@@ -1193,163 +941,6 @@ def gerar_pdf_comunicado(ocorrencia, responsaveis=None):
     buffer.seek(0)
     
     return buffer
-
-
-# ============================================================================
-# CSS PERSONALIZADO
-# ============================================================================
-
-st.markdown("""
-<style>
-.main-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    padding: 2rem;
-    border-radius: 10px;
-    color: white;
-    text-align: center;
-    margin-bottom: 2rem;
-}
-.school-name {
-    font-size: 2rem;
-    font-weight: bold;
-    margin-bottom: 0.5rem;
-}
-.school-subtitle {
-    font-size: 1.2rem;
-    font-style: italic;
-    opacity: 0.9;
-}
-.school-address {
-    font-size: 0.9rem;
-    margin-top: 1rem;
-    opacity: 0.8;
-}
-.school-contact {
-    font-size: 0.85rem;
-    margin-top: 0.5rem;
-    opacity: 0.9;
-}
-.card {
-    background: #f8f9fa;
-    padding: 1rem;
-    border-radius: 8px;
-    margin: 0.5rem 0;
-}
-.card-title {
-    font-weight: bold;
-    color: #333;
-}
-.card-value {
-    font-size: 1.5rem;
-    color: #667eea;
-}
-.success-box {
-    background: #d4edda;
-    border: 2px solid #28a745;
-    border-radius: 8px;
-    padding: 1rem;
-    margin: 1rem 0;
-    text-align: center;
-    font-weight: bold;
-    color: #155724;
-}
-.alert-critical {
-    background: #fee;
-    border-left: 5px solid #e74c3c;
-    padding: 1rem;
-    border-radius: 5px;
-    margin: 1rem 0;
-}
-.alert-warning {
-    background: #fff3cd;
-    border-left: 5px solid #ffc107;
-    padding: 1rem;
-    border-radius: 5px;
-    margin: 1rem 0;
-}
-.protocolo-info {
-    background: #fff3cd;
-    border: 2px solid #ffc107;
-    border-radius: 8px;
-    padding: 1rem;
-    margin: 1rem 0;
-}
-.metric-card {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    padding: 1.5rem;
-    border-radius: 10px;
-    color: white;
-    text-align: center;
-}
-.metric-value {
-    font-size: 2.5rem;
-    font-weight: bold;
-}
-.metric-label {
-    font-size: 1rem;
-    opacity: 0.9;
-}
-.info-box {
-    background: #e3f2fd;
-    border-left: 4px solid #2196F3;
-    padding: 1rem;
-    margin: 1rem 0;
-    border-radius: 4px;
-}
-.warning-box {
-    background: #fff3cd;
-    border-left: 4px solid #ffc107;
-    padding: 1rem;
-    margin: 1rem 0;
-    border-radius: 4px;
-}
-.student-photo, .professor-photo {
-    max-width: 120px;
-    max-height: 120px;
-    border-radius: 10px;
-    border: 3px solid #667eea;
-    object-fit: cover;
-}
-.encam-container {
-    background: #f8f9fa;
-    padding: 1rem;
-    border-radius: 8px;
-    border-left: 4px solid #667eea;
-    margin: 1rem 0;
-}
-.sidebar-menu {
-    background: #f8f9fa;
-    padding: 1rem;
-    border-radius: 8px;
-}
-.gravidade-alert {
-    background: #f8d7da;
-    border: 2px solid #dc3545;
-    border-radius: 8px;
-    padding: 0.5rem;
-    margin: 0.5rem 0;
-    color: #721c24;
-}
-.infracao-tag {
-    background: #667eea;
-    color: white;
-    padding: 0.3rem 0.8rem;
-    border-radius: 15px;
-    display: inline-block;
-    margin: 0.2rem;
-    font-size: 0.9rem;
-}
-.infracao-principal-tag {
-    background: #28a745;
-    color: white;
-    padding: 0.5rem 1rem;
-    border-radius: 15px;
-    display: inline-block;
-    margin: 0.5rem 0;
-    font-weight: bold;
-}
-</style>
-""", unsafe_allow_html=True)
 
 
 # ============================================================================
@@ -1396,13 +987,11 @@ st.session_state.pagina_atual = menu
 if menu == "🏠 Home":
     st.title("🏠 Dashboard")
     
-    # Carregar dados
     df_ocorrencias = carregar_ocorrencias()
     df_alunos = carregar_alunos()
     df_professores = carregar_professores()
     
     if not df_ocorrencias.empty:
-        # Calcular métricas
         total_ocorrencias = len(df_ocorrencias)
         total_gravissima = len(df_ocorrencias[df_ocorrencias['gravidade'] == 'Gravíssima'])
         total_grave = len(df_ocorrencias[df_ocorrencias['gravidade'] == 'Grave'])
@@ -1410,7 +999,6 @@ if menu == "🏠 Home":
         total_leve = len(df_ocorrencias[df_ocorrencias['gravidade'] == 'Leve'])
         turmas_afetadas = df_ocorrencias['turma'].nunique()
         
-        # Cards de métricas
         col1, col2, col3, col4, col5 = st.columns(5)
         
         with col1:
@@ -1455,7 +1043,6 @@ if menu == "🏠 Home":
         
         st.markdown("---")
         
-        # Gráficos
         col1, col2 = st.columns(2)
         
         with col1:
@@ -1486,14 +1073,12 @@ if menu == "🏠 Home":
                 fig.update_layout(height=400)
                 st.plotly_chart(fig, use_container_width=True)
         
-        # Últimas ocorrências
         st.subheader("📋 Últimas Ocorrências")
         st.dataframe(df_ocorrencias.head(10), use_container_width=True)
     
     else:
         st.info("📭 Nenhuma ocorrência registrada ainda.")
     
-    # Resumo de alunos
     if not df_alunos.empty:
         st.subheader("👥 Resumo de Alunos")
         col1, col2 = st.columns(2)
@@ -1502,7 +1087,6 @@ if menu == "🏠 Home":
         with col2:
             st.metric("Total de Turmas", df_alunos['turma'].nunique())
     
-    # Resumo de professores
     if not df_professores.empty:
         st.subheader("👨‍🏫 Resumo de Professores")
         st.metric("Total de Professores", len(df_professores))
@@ -1515,14 +1099,12 @@ if menu == "🏠 Home":
 elif menu == "📝 Registrar Ocorrência":
     st.title("📝 Registrar Nova Ocorrência")
     
-    # CORREÇÃO 6: Carregar ocorrências ANTES de usar na verificação de duplicidade
     df_ocorrencias = carregar_ocorrencias()
     df_alunos = carregar_alunos()
     
     if df_alunos.empty:
         st.warning("⚠️ Nenhum aluno cadastrado. Importe alunos primeiro.")
     else:
-        # Sucesso após salvar
         if st.session_state.get('ocorrencia_salva_sucesso', False):
             st.markdown('<div class="success-box">✅ OCORRÊNCIA(S) REGISTRADA(S) COM SUCESSO!</div>', unsafe_allow_html=True)
             st.session_state.ocorrencia_salva_sucesso = False
@@ -1564,7 +1146,6 @@ elif menu == "📝 Registrar Ocorrência":
                                 key="alunos_multiselect"
                             )
                         else:
-                            # CORREÇÃO 10: Busca fuzzy para alunos
                             lista_alunos = alunos['nome'].tolist()
                             busca_aluno = st.text_input("🔍 Buscar Aluno (digite o nome)", "")
                             
@@ -1583,17 +1164,14 @@ elif menu == "📝 Registrar Ocorrência":
                     
                     st.markdown("---")
                     
-                    # Dados da ocorrência
                     col1, col2 = st.columns(2)
                     
                     with col1:
-                        # CORREÇÃO 12: Listener para atualizar gravidade automaticamente
                         categoria_grupo = st.selectbox("📁 Categoria", list(CATEGORIAS_OCORRENCIAS.keys()))
                         categorias_grupo = list(CATEGORIAS_OCORRENCIAS[categoria_grupo].keys())
                         categoria = st.selectbox("📋 Ocorrência", categorias_grupo)
                     
                     with col2:
-                        # Gravidade automática baseada na categoria
                         gravidade = CATEGORIAS_OCORRENCIAS[categoria_grupo].get(categoria, "Leve")
                         gravidade_select = st.selectbox(
                             "⚡ Gravidade",
@@ -1601,14 +1179,11 @@ elif menu == "📝 Registrar Ocorrência":
                             index=["Gravíssima", "Grave", "Média", "Leve"].index(gravidade)
                         )
                     
-                    # CORREÇÃO 13: Mostrar fluxo de ações
                     if categoria in FLUXO_ACOES:
                         st.warning(f"📌 {FLUXO_ACOES[categoria]}")
                     
-                    # Relato
                     relato = st.text_area("📝 Relato da Ocorrência", height=200)
                     
-                    # CORREÇÃO 14: Encaminhamentos como checkboxes
                     st.subheader("🔄 Encaminhamentos")
                     encaminhamentos_disponiveis = ENCAMINHAMENTOS_POR_GRAVIDADE.get(gravidade_select, [])
                     encaminhamentos_selecionados = st.multiselect(
@@ -1617,21 +1192,15 @@ elif menu == "📝 Registrar Ocorrência":
                         default=encaminhamentos_disponiveis[:2] if encaminhamentos_disponiveis else []
                     )
                     
-                    # Professor responsável
                     df_professores = carregar_professores()
                     if not df_professores.empty:
-                        # CORREÇÃO 4: Professores ordenados alfabeticamente
                         prof = st.selectbox("👨‍🏫 Professor Responsável", ["Selecione..."] + df_professores['nome'].tolist())
                     else:
                         prof = st.text_input("👨‍🏫 Professor Responsável")
                     
-                    # Testemunhas
                     testemunhas = st.text_input("👀 Testemunhas (opcional)")
-                    
-                    # Evidências
                     evidencias = st.text_area("📎 Evidências (opcional)")
                     
-                    # Botão salvar
                     st.markdown("---")
                     
                     if st.session_state.get('salvando_ocorrencia', False):
@@ -1647,7 +1216,6 @@ elif menu == "📝 Registrar Ocorrência":
                                 ra_aluno = alunos[alunos["nome"] == nome_aluno]["ra"].values[0]
                                 turma_aluno = alunos[alunos["nome"] == nome_aluno]["turma"].values[0]
                                 
-                                # CORREÇÃO 6: df_ocorrencias já carregado no início
                                 if verificar_ocorrencia_duplicada(ra_aluno, categoria_str, data_str, df_ocorrencias):
                                     contagem_duplicadas += 1
                                 else:
@@ -1711,7 +1279,6 @@ elif menu == "📊 Lista de Ocorrências":
     df_alunos = carregar_alunos()
     
     if not df_ocorrencias.empty:
-        # Filtros
         col1, col2, col3 = st.columns(3)
         
         with col1:
@@ -1723,7 +1290,6 @@ elif menu == "📊 Lista de Ocorrências":
         with col3:
             filtro_turma = st.multiselect("Turma", df_alunos['turma'].unique().tolist())
         
-        # Aplicar filtros
         df_filtrado = df_ocorrencias.copy()
         
         if filtro_gravidade:
@@ -1738,7 +1304,6 @@ elif menu == "📊 Lista de Ocorrências":
         st.markdown(f"**Total:** {len(df_filtrado)} ocorrência(s)")
         st.dataframe(df_filtrado, use_container_width=True)
         
-        # Ações em lote
         st.subheader("📄 Gerar Documentos")
         col1, col2 = st.columns(2)
         
@@ -1766,7 +1331,6 @@ elif menu == "📊 Lista de Ocorrências":
                     mime="application/pdf"
                 )
         
-        # CORREÇÃO 3: Opção de excluir ocorrência
         st.subheader("🗑️ Excluir Ocorrência")
         id_excluir = st.number_input("ID para Excluir", min_value=1, step=1, key="excluir_occ")
         
@@ -1796,7 +1360,6 @@ elif menu == "👥 Alunos":
     df_alunos = carregar_alunos()
     
     if not df_alunos.empty:
-        # Filtros
         col1, col2 = st.columns(2)
         
         with col1:
@@ -1824,7 +1387,6 @@ elif menu == "👥 Alunos":
                 mime="text/csv"
             )
         
-        # CORREÇÃO 3: Opção de excluir aluno
         st.subheader("🗑️ Excluir Aluno")
         ra_excluir = st.text_input("RA do Aluno para Excluir")
         
@@ -1840,7 +1402,6 @@ elif menu == "👥 Alunos":
             else:
                 st.error("❌ Senha incorreta!")
         
-        # Upload de foto
         st.subheader("📷 Upload de Foto")
         col1, col2 = st.columns(2)
         
@@ -1852,7 +1413,6 @@ elif menu == "👥 Alunos":
             foto_file = st.file_uploader("Selecione a foto", type=['jpg', 'jpeg', 'png'])
             
             if foto_file and st.button("📷 Enviar Foto"):
-                # CORREÇÃO 1: Tratamento de erro de bucket
                 url, msg = upload_foto_supabase(foto_file, 'alunos', f"{ra_aluno}.jpg")
                 
                 if url:
@@ -1877,7 +1437,6 @@ elif menu == "👨‍🏫 Professores":
     
     df_professores = carregar_professores()
     
-    # CORREÇÃO 2: Botão editar cadastro professor
     st.subheader("📝 Novo Professor")
     
     col1, col2 = st.columns(2)
@@ -1890,7 +1449,6 @@ elif menu == "👨‍🏫 Professores":
         cargo_prof = st.text_input("Cargo")
         foto_prof = st.file_uploader("Foto (opcional)", type=['jpg', 'jpeg', 'png'])
     
-    # Verificar se está editando
     if st.session_state.get('editando_prof', None) is not None:
         st.info(f"✏️ Editando professor ID: {st.session_state.editando_prof}")
         
@@ -1924,7 +1482,6 @@ elif menu == "👨‍🏫 Professores":
     else:
         if st.button("💾 Salvar Professor"):
             if nome_prof:
-                # Verificar duplicidade
                 nomes_existentes = [n.lower().strip() for n in df_professores['nome'].tolist()]
                 
                 if nome_prof.lower().strip() in nomes_existentes:
@@ -1953,7 +1510,6 @@ elif menu == "👨‍🏫 Professores":
     
     st.markdown("---")
     
-    # CORREÇÃO 4: Professores ordenados alfabeticamente
     st.subheader("📋 Professores Cadastrados")
     
     if not df_professores.empty:
@@ -1974,13 +1530,11 @@ elif menu == "👨‍🏫 Professores":
                     st.write(f"📧 {prof.get('email', 'N/A')}")
                 
                 with col4:
-                    # CORREÇÃO 2: Botão editar funcionando
                     if st.button("✏️", key=f"edit_prof_{prof.get('id', idx)}"):
                         st.session_state.editando_prof = prof.get('id')
                         st.rerun()
                 
                 with col5:
-                    # CORREÇÃO 3: Opção de excluir professor
                     if st.button("🗑️", key=f"del_prof_{prof.get('id', idx)}"):
                         senha = st.text_input("Senha (040600)", type="password", key=f"senha_prof_{prof.get('id', idx)}")
                         if senha == "040600":
@@ -2011,7 +1565,6 @@ elif menu == "📈 Gráficos":
     df_alunos = carregar_alunos()
     
     if not df_ocorrencias.empty:
-        # Filtros de período
         st.subheader("🔍 Filtros")
         col1, col2, col3 = st.columns(3)
         
@@ -2024,7 +1577,6 @@ elif menu == "📈 Gráficos":
         with col3:
             filtro_categoria = st.multiselect("Categoria", df_ocorrencias['categoria'].unique())
         
-        # Aplicar filtros
         df_filtrado = df_ocorrencias.copy()
         
         if filtro_turma:
@@ -2039,7 +1591,6 @@ elif menu == "📈 Gráficos":
         st.markdown(f"**Total:** {len(df_filtrado)} ocorrência(s)")
         st.markdown("---")
         
-        # Gráfico 1: Ocorrências por Categoria
         col1, col2 = st.columns(2)
         
         with col1:
@@ -2070,7 +1621,6 @@ elif menu == "📈 Gráficos":
                 fig.update_layout(height=400)
                 st.plotly_chart(fig, use_container_width=True)
         
-        # Gráfico 2: Ocorrências por Turma
         col1, col2 = st.columns(2)
         
         with col1:
@@ -2101,7 +1651,6 @@ elif menu == "📈 Gráficos":
                 fig.update_layout(height=400, showlegend=False)
                 st.plotly_chart(fig, use_container_width=True)
         
-        # Gráfico 3: Mapa de Calor por Categoria e Gravidade
         st.subheader("🔥 Mapa de Calor: Categoria x Gravidade")
         if 'categoria' in df_filtrado.columns and 'gravidade' in df_filtrado.columns and not df_filtrado.empty:
             heatmap_data = pd.crosstab(df_filtrado['categoria'], df_filtrado['gravidade'])
@@ -2114,7 +1663,6 @@ elif menu == "📈 Gráficos":
             fig.update_layout(height=500)
             st.plotly_chart(fig, use_container_width=True)
         
-        # Estatísticas resumidas
         st.markdown("---")
         st.subheader("📊 Estatísticas Resumidas")
         
@@ -2138,120 +1686,74 @@ elif menu == "📈 Gráficos":
 
 
 # ============================================================================
-# PÁGINA: RELATÓRIOS
+# PÁGINA: RELATÓRIOS / IMPRIMIR PDF
 # ============================================================================
 
 elif menu == "🖨️ Relatórios":
-    st.title("🖨️ Relatórios e Documentos")
+    st.title("🖨️ Imprimir PDF de Ocorrência")
     
     df_ocorrencias = carregar_ocorrencias()
-    df_alunos = carregar_alunos()
     df_responsaveis = carregar_responsaveis()
     
     if not df_ocorrencias.empty:
-        # Filtros
-        st.subheader("🔍 Filtros do Relatório")
-        col1, col2, col3 = st.columns(3)
+        # ✅ CORREÇÃO: Menu suspenso com ocorrências em ordem de registro
+        # Criar lista de opções visual com ID, Data e Nome do Estudante
+        df_ocorrencias_sorted = df_ocorrencias.sort_values('id', ascending=False)  # Mais recentes primeiro
         
-        with col1:
-            filtro_turma = st.multiselect("Turma", df_alunos['turma'].unique().tolist())
+        opcoes_ocorrencias = []
+        for idx, occ in df_ocorrencias_sorted.iterrows():
+            opcao = f"ID {occ['id']} | {occ['data']} | {occ['aluno']} | {occ['categoria']}"
+            opcoes_ocorrencias.append(opcao)
         
-        with col2:
-            filtro_gravidade = st.multiselect("Gravidade", ["Gravíssima", "Grave", "Média", "Leve"])
+        # ✅ Menu suspenso organizado e visual
+        ocorrencia_selecionada = st.selectbox(
+            "📋 Selecione a Ocorrência para Imprimir",
+            opcoes_ocorrencias,
+            help="Selecione a ocorrência desejada na lista abaixo"
+        )
         
-        with col3:
-            filtro_data_inicio = st.date_input("Data Início", value=datetime.now() - timedelta(days=30))
-            filtro_data_fim = st.date_input("Data Fim", value=datetime.now())
-        
-        # Aplicar filtros
-        df_filtrado = df_ocorrencias.copy()
-        
-        if filtro_turma:
-            df_filtrado = df_filtrado[df_filtrado['turma'].isin(filtro_turma)]
-        
-        if filtro_gravidade:
-            df_filtrado = df_filtrado[df_filtrado['gravidade'].isin(filtro_gravidade)]
-        
-        # Filtro de data
-        if 'data' in df_filtrado.columns:
-            df_filtrado['data_dt'] = pd.to_datetime(df_filtrado['data'], format='%d/%m/%Y %H:%M', errors='coerce')
-            df_filtrado = df_filtrado[
-                (df_filtrado['data_dt'] >= pd.to_datetime(filtro_data_inicio)) &
-                (df_filtrado['data_dt'] <= pd.to_datetime(filtro_data_fim))
-            ]
-        
-        st.markdown(f"**Total:** {len(df_filtrado)} ocorrência(s) no período")
-        
-        # Opções de exportação
-        st.subheader("📄 Exportar Dados")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            if st.button("📥 Exportar CSV"):
-                csv = df_filtrado.to_csv(index=False, encoding='utf-8-sig')
-                st.download_button(
-                    label="📥 Baixar CSV",
-                    data=csv,
-                    file_name=f"relatorio_ocorrencias_{datetime.now().strftime('%Y%m%d')}.csv",
-                    mime="text/csv"
-                )
-        
-        with col2:
-            if st.button("📥 Exportar Excel"):
-                output = io.BytesIO()
-                with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                    df_filtrado.to_excel(writer, index=False, sheet_name='Ocorrências')
-                st.download_button(
-                    label="📥 Baixar Excel",
-                    data=output.getvalue(),
-                    file_name=f"relatorio_ocorrencias_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-        
-        # Gerar PDF de ocorrência específica
-        st.subheader("📄 Gerar PDF de Ocorrência")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            id_ocorrencia = st.number_input("ID da Ocorrência", min_value=1, step=1)
-        
-        with col2:
-            tipo_documento = st.selectbox("Tipo de Documento", ["Ocorrência", "Comunicado aos Pais"])
-        
-        if st.button("📄 Gerar PDF"):
-            ocorrencia = df_filtrado[df_filtrado['id'] == id_ocorrencia]
+        if ocorrencia_selecionada:
+            # Extrair ID da ocorrência selecionada
+            id_selecionado = int(ocorrencia_selecionada.split(' | ')[0].replace('ID ', ''))
+            ocorrencia = df_ocorrencias[df_ocorrencias['id'] == id_selecionado].iloc[0].to_dict()
             
-            if not ocorrencia.empty:
-                ocorrencia_dict = ocorrencia.iloc[0].to_dict()
-                
+            # Mostrar preview
+            st.markdown("### 📄 Preview da Ocorrência")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.info(f"**ID:** {ocorrencia.get('id', 'N/A')}")
+                st.info(f"**Data:** {ocorrencia.get('data', 'N/A')}")
+                st.info(f"**Aluno:** {ocorrencia.get('aluno', 'N/A')}")
+            with col2:
+                st.info(f"**Turma:** {ocorrencia.get('turma', 'N/A')}")
+                st.info(f"**Categoria:** {ocorrencia.get('categoria', 'N/A')}")
+                st.info(f"**Gravidade:** {ocorrencia.get('gravidade', 'N/A')}")
+            
+            # Tipo de documento
+            tipo_documento = st.selectbox(
+                "📄 Tipo de Documento",
+                ["Ocorrência", "Comunicado aos Pais"],
+                help="Escolha o tipo de documento a ser gerado"
+            )
+            
+            # Botão gerar PDF
+            if st.button("🖨️ Gerar PDF", type="primary"):
                 if tipo_documento == "Ocorrência":
-                    pdf_buffer = gerar_pdf_ocorrencia(ocorrencia_dict, df_responsaveis)
-                    st.download_button(
-                        label="📥 Baixar PDF de Ocorrência",
-                        data=pdf_buffer,
-                        file_name=f"ocorrencia_{id_ocorrencia}.pdf",
-                        mime="application/pdf"
-                    )
+                    pdf_buffer = gerar_pdf_ocorrencia(ocorrencia, df_responsaveis)
+                    nome_arquivo = f"ocorrencia_{id_selecionado}_{ocorrencia.get('aluno', 'aluno')}.pdf"
                 else:
-                    pdf_buffer = gerar_pdf_comunicado(ocorrencia_dict, df_responsaveis)
-                    st.download_button(
-                        label="📥 Baixar Comunicado",
-                        data=pdf_buffer,
-                        file_name=f"comunicado_{id_ocorrencia}.pdf",
-                        mime="application/pdf"
-                    )
-            else:
-                st.error("❌ Ocorrência não encontrada com este ID.")
-        
-        # Visualizar dados
-        st.markdown("---")
-        st.subheader("📋 Dados Filtrados")
-        st.dataframe(df_filtrado, use_container_width=True)
-    
+                    pdf_buffer = gerar_pdf_comunicado(ocorrencia, df_responsaveis)
+                    nome_arquivo = f"comunicado_{id_selecionado}_{ocorrencia.get('aluno', 'aluno')}.pdf"
+                
+                st.download_button(
+                    label="📥 Baixar PDF",
+                    data=pdf_buffer,
+                    file_name=nome_arquivo,
+                    mime="application/pdf"
+                )
+                st.success("✅ PDF gerado com sucesso! Clique em Baixar para salvar.")
     else:
-        st.info("📭 Nenhuma ocorrência registrada para gerar relatórios.")
+        st.info("📭 Nenhuma ocorrência registrada para imprimir.")
 
 
 # ============================================================================
@@ -2261,7 +1763,6 @@ elif menu == "🖨️ Relatórios":
 elif menu == "⚙️ Configurações":
     st.title("⚙️ Configurações do Sistema")
     
-    # Informações da escola
     st.subheader("🏫 Informações da Escola")
     
     col1, col2 = st.columns(2)
@@ -2280,7 +1781,6 @@ elif menu == "⚙️ Configurações":
         **Logo:** {ESCOLA_LOGO}
         """)
     
-    # Protocolo 179
     st.subheader("📋 Protocolo 179")
     
     col1, col2 = st.columns(2)
@@ -2292,7 +1792,6 @@ elif menu == "⚙️ Configurações":
     with col2:
         st.metric("Níveis de Gravidade", "4 (Gravíssima, Grave, Média, Leve)")
     
-    # Segurança
     st.subheader("🔐 Configurações de Segurança")
     
     st.warning("""
@@ -2305,7 +1804,6 @@ elif menu == "⚙️ Configurações":
     - Responsáveis
     """)
     
-    # Banco de dados
     st.subheader("💾 Banco de Dados")
     
     col1, col2 = st.columns(2)
@@ -2322,36 +1820,18 @@ elif menu == "⚙️ Configurações":
         **Bucket:** fotos
         """)
     
-    # Informações do sistema
     st.subheader("📊 Informações do Sistema")
     
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.metric("Versão", "7.0 FINAL")
+        st.metric("Versão", "8.0 FINAL")
     
     with col2:
         st.metric("Framework", "Streamlit")
     
     with col3:
         st.metric("Python", "3.9+")
-    
-    # Bibliotecas
-    st.subheader("📦 Bibliotecas Utilizadas")
-    
-    st.code("""
-    streamlit
-    pandas
-    numpy
-    requests
-    reportlab
-    openpyxl
-    plotly
-    fuzzywuzzy
-    python-Levenshtein
-    pytz
-    python-dotenv
-    """, language="text")
 
 
 # ============================================================================
@@ -2361,32 +1841,27 @@ elif menu == "⚙️ Configurações":
 elif menu == "💾 Backup":
     st.title("💾 Backup e Restauração")
     
-    # Gerar backup
     st.subheader("📥 Gerar Backup")
     
     st.info("💡 O backup contém todos os dados do sistema: alunos, professores, ocorrências e responsáveis.")
     
     if st.button("📥 Gerar Backup Completo"):
-        # Carregar todos os dados
         df_alunos = carregar_alunos()
         df_professores = carregar_professores()
         df_ocorrencias = carregar_ocorrencias()
         df_responsaveis = carregar_responsaveis()
         
-        # Criar dicionário de backup
         backup_data = {
             'alunos': df_alunos.to_dict('records') if not df_alunos.empty else [],
             'professores': df_professores.to_dict('records') if not df_professores.empty else [],
             'ocorrencias': df_ocorrencias.to_dict('records') if not df_ocorrencias.empty else [],
             'responsaveis': df_responsaveis.to_dict('records') if not df_responsaveis.empty else [],
             'data_backup': datetime.now().strftime('%d/%m/%Y %H:%M'),
-            'versao_sistema': '7.0 FINAL'
+            'versao_sistema': '8.0 FINAL'
         }
         
-        # Converter para JSON
         json_str = json.dumps(backup_data, ensure_ascii=False, indent=2)
         
-        # Botão de download
         st.download_button(
             label="📥 Baixar Backup JSON",
             data=json_str,
@@ -2398,7 +1873,6 @@ elif menu == "💾 Backup":
     
     st.markdown("---")
     
-    # Importar backup
     st.subheader("📤 Importar Backup")
     
     st.warning("""
@@ -2417,34 +1891,28 @@ elif menu == "💾 Backup":
             
             if senha == "040600":
                 try:
-                    # Ler arquivo JSON
                     backup_data = json.load(arquivo_backup)
                     
-                    # Restaurar dados
                     contagem_alunos = 0
                     contagem_professores = 0
                     contagem_ocorrencias = 0
                     contagem_responsaveis = 0
                     
-                    # Restaurar alunos
                     if 'alunos' in backup_data and backup_data['alunos']:
                         for aluno in backup_data['alunos']:
                             salvar_aluno(aluno)
                             contagem_alunos += 1
                     
-                    # Restaurar professores
                     if 'professores' in backup_data and backup_data['professores']:
                         for professor in backup_data['professores']:
                             salvar_professor(professor)
                             contagem_professores += 1
                     
-                    # Restaurar ocorrências
                     if 'ocorrencias' in backup_data and backup_data['ocorrencias']:
                         for ocorrencia in backup_data['ocorrencias']:
                             salvar_ocorrencia(ocorrencia)
                             contagem_ocorrencias += 1
                     
-                    # Restaurar responsáveis
                     if 'responsaveis' in backup_data and backup_data['responsaveis']:
                         for responsavel in backup_data['responsaveis']:
                             salvar_responsavel(responsavel)
@@ -2459,7 +1927,6 @@ elif menu == "💾 Backup":
                     - Responsáveis: {contagem_responsaveis}
                     """)
                     
-                    # Limpar cache
                     carregar_alunos.clear()
                     carregar_professores.clear()
                     carregar_ocorrencias.clear()
@@ -2483,6 +1950,6 @@ st.markdown("""
     <p><b>Sistema Conviva 179</b> - Gestão de Ocorrências Escolares</p>
     <p>Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI</p>
     <p>Protocolo de Convivência e Proteção Escolar - SEDUC/SP</p>
-    <p>Versão 7.0 FINAL | Desenvolvido com Streamlit + Supabase (Requests)</p>
+    <p>Versão 8.0 FINAL | Desenvolvido com Streamlit + Supabase (Requests)</p>
 </div>
 """, unsafe_allow_html=True)
