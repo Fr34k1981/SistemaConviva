@@ -1,7 +1,7 @@
 # ============================================================================
 # SISTEMA CONVIVA 179 - GESTÃO DE OCORRÊNCIAS ESCOLARES
 # Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI
-# Versão: 7.0 FINAL COMPLETA CORRIGIDA
+# Versão: 7.0 FINAL CORRIGIDA
 # ============================================================================
 
 # ============================================================================
@@ -69,12 +69,13 @@ HEADERS = {
 # ============================================================================
 
 ESCOLA_NOME = "Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI"
-ESCOLA_SUBTITULO = "🌟 Educação de Excelência"
+ESCOLA_SUBTITULO = "🌟 Escola dos Sonhos"
 ESCOLA_ENDERECO = "R. Valter Souza Costa, 147 - Jardim Primavera, Ferraz de Vasconcelos - SP"
 ESCOLA_CEP = "CEP: 08535-310"
 ESCOLA_TELEFONE = "Telefone: (11) 4675-1855"
 ESCOLA_EMAIL = "Email: e918623@educacao.sp.gov.br"
-ESCOLA_LOGO = "https://raw.githubusercontent.com/Fr34k1981/SistemaConviva/main/logo.jpg"
+ESCOLA_LOGO = "eliane_dantas.png"
+SENHA_EXCLUSAO = "040600"
 
 # ============================================================================
 # DICIONÁRIOS DO PROTOCOLO 179 - CATEGORIAS E GRAVIDADES
@@ -153,7 +154,7 @@ CATEGORIAS_OCORRENCIAS = {
         "Pornografia Infantil": "Gravíssima",
         "Grooming": "Gravíssima"
     },
-    "👨‍👩‍‍ Família e Vulnerabilidade": {
+    "👨‍👩‍👧‍👦 Família e Vulnerabilidade": {
         "Violência Doméstica / Maus Tratos": "Gravíssima",
         "Vulnerabilidade Familiar / Negligência": "Gravíssima",
         "Alerta de Desaparecimento": "Gravíssima",
@@ -768,7 +769,7 @@ def gerar_pdf_ocorrencia(ocorrencia, df_responsaveis=None):
         pagesize=A4,
         rightMargin=1*cm,
         leftMargin=1*cm,
-        topMargin=1.5*cm,
+        topMargin=4.5*cm,
         bottomMargin=1.5*cm
     )
     
@@ -806,6 +807,16 @@ def gerar_pdf_ocorrencia(ocorrencia, df_responsaveis=None):
         alignment=TA_CENTER,
         spaceAfter=0.5*cm
     ))
+    
+    # CABEÇALHO COM LOGO (16cm x 4.5cm) - CORREÇÃO
+    try:
+        if os.path.exists(ESCOLA_LOGO):
+            logo = Image(ESCOLA_LOGO, width=16*cm, height=4.5*cm)
+            logo.hAlign = 'CENTER'
+            elementos.append(logo)
+            elementos.append(Spacer(1, 0.3*cm))
+    except:
+        pass
     
     def formatar_texto(texto):
         if texto:
@@ -918,7 +929,7 @@ def gerar_pdf_comunicado(ocorrencia, df_responsaveis=None):
         pagesize=A4,
         rightMargin=1*cm,
         leftMargin=1*cm,
-        topMargin=1.5*cm,
+        topMargin=4.5*cm,
         bottomMargin=1.5*cm
     )
     
@@ -956,6 +967,16 @@ def gerar_pdf_comunicado(ocorrencia, df_responsaveis=None):
         alignment=TA_CENTER,
         spaceAfter=0.5*cm
     ))
+    
+    # CABEÇALHO COM LOGO (16cm x 4.5cm) - CORREÇÃO
+    try:
+        if os.path.exists(ESCOLA_LOGO):
+            logo = Image(ESCOLA_LOGO, width=16*cm, height=4.5*cm)
+            logo.hAlign = 'CENTER'
+            elementos.append(logo)
+            elementos.append(Spacer(1, 0.3*cm))
+    except:
+        pass
     
     elementos.append(Paragraph("📬 COMUNICADO AOS PAIS/RESPONSÁVEIS", estilos['TituloComunicado']))
     elementos.append(Spacer(1, 0.5*cm))
@@ -1036,7 +1057,7 @@ def gerar_pdf_comunicado_editavel(aluno_info, occ_info, medidas_aplicadas, obser
         pagesize=A4,
         rightMargin=1.5*cm,
         leftMargin=1.5*cm,
-        topMargin=2*cm,
+        topMargin=4.5*cm,
         bottomMargin=2*cm
     )
     
@@ -1060,12 +1081,17 @@ def gerar_pdf_comunicado_editavel(aluno_info, occ_info, medidas_aplicadas, obser
         leading=14
     ))
     
-    elementos.append(Paragraph("📬 COMUNICADO AOS PAIS/RESPONSÁVEIS", estilos['TituloComunicado']))
-    elementos.append(Spacer(1, 0.5*cm))
+    # CABEÇALHO COM LOGO (16cm x 4.5cm) - CORREÇÃO
+    try:
+        if os.path.exists(ESCOLA_LOGO):
+            logo = Image(ESCOLA_LOGO, width=16*cm, height=4.5*cm)
+            logo.hAlign = 'CENTER'
+            elementos.append(logo)
+            elementos.append(Spacer(1, 0.3*cm))
+    except:
+        pass
     
-    elementos.append(Paragraph(f"<b>{ESCOLA_NOME}</b>", estilos['TextoComunicado']))
-    elementos.append(Paragraph(f"{ESCOLA_ENDERECO}", estilos['TextoComunicado']))
-    elementos.append(Paragraph(f"{ESCOLA_TELEFONE} | {ESCOLA_EMAIL}", estilos['TextoComunicado']))
+    elementos.append(Paragraph("📬 COMUNICADO AOS PAIS/RESPONSÁVEIS", estilos['TituloComunicado']))
     elementos.append(Spacer(1, 0.5*cm))
     
     elementos.append(Paragraph(f"<b>Aluno(a):</b> {aluno_info.get('nome', 'N/A')}", estilos['TextoComunicado']))
@@ -1122,80 +1148,19 @@ def gerar_pdf_comunicado_editavel(aluno_info, occ_info, medidas_aplicadas, obser
 
 
 # ============================================================================
-# FUNÇÕES DE BACKUP
-# ============================================================================
-
-def criar_backup_dados():
-    """Cria backup de todos os dados do sistema."""
-    backup_data = {
-        'ocorrencias': carregar_ocorrencias().to_dict('records'),
-        'alunos': carregar_alunos().to_dict('records'),
-        'professores': carregar_professores().to_dict('records'),
-        'responsaveis': carregar_responsaveis().to_dict('records'),
-        'data_backup': datetime.now().strftime('%d/%m/%Y %H:%M')
-    }
-    return json.dumps(backup_data, ensure_ascii=False, indent=2)
-
-
-def restaurar_backup_dados(backup_json):
-    """Restaura backup de dados."""
-    try:
-        backup_data = json.loads(backup_json)
-        
-        contagem_ocorrencias = 0
-        contagem_alunos = 0
-        contagem_professores = 0
-        contagem_responsaveis = 0
-        
-        if 'ocorrencias' in backup_data:
-            for occ in backup_data['ocorrencias']:
-                if salvar_ocorrencia(occ)[0]:
-                    contagem_ocorrencias += 1
-        
-        if 'alunos' in backup_data:
-            for aluno in backup_data['alunos']:
-                if salvar_aluno(aluno):
-                    contagem_alunos += 1
-        
-        if 'professores' in backup_data:
-            for prof in backup_data['professores']:
-                if salvar_professor(prof):
-                    contagem_professores += 1
-        
-        if 'responsaveis' in backup_data:
-            for resp in backup_data['responsaveis']:
-                if salvar_responsavel(resp):
-                    contagem_responsaveis += 1
-        
-        return True, {
-            'ocorrencias': contagem_ocorrencias,
-            'alunos': contagem_alunos,
-            'professores': contagem_professores,
-            'responsaveis': contagem_responsaveis
-        }
-    except Exception as e:
-        return False, str(e)
-
-
-def criar_backup_codigo():
-    """Cria backup do código fonte."""
-    try:
-        with open('app.py', 'r', encoding='utf-8') as f:
-            return f.read()
-    except:
-        return None
-
-
-# ============================================================================
 # INTERFACE PRINCIPAL - CABEÇALHO E MENU LATERAL
 # ============================================================================
 
+# Cabeçalho principal com logo e dados da escola - CORREÇÃO
 st.markdown(f"""
 <div class="main-header">
+    <img src="https://raw.githubusercontent.com/Fr34k1981/SistemaConviva/main/logo.jpg" 
+         style="max-width: 150px; margin-bottom: 1rem;" 
+         alt="Logo da Escola">
     <div class="school-name">🏫 {ESCOLA_NOME}</div>
     <div class="school-subtitle">{ESCOLA_SUBTITULO}</div>
-    <div class="school-address">{ESCOLA_ENDERECO}</div>
-    <div class="school-contact">{ESCOLA_CEP} | {ESCOLA_TELEFONE} | {ESCOLA_EMAIL}</div>
+    <div class="school-address">📍 {ESCOLA_ENDERECO}</div>
+    <div class="school-contact">{ESCOLA_CEP} • {ESCOLA_TELEFONE} • {ESCOLA_EMAIL}</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -1203,7 +1168,7 @@ menu = st.sidebar.selectbox(
     "📋 Menu Principal",
     [
         "🏠 Início",
-        "👨‍ Cadastrar Professores",
+        "👨‍🏫 Cadastrar Professores",
         "👤 Cadastrar Responsáveis por Assinatura",
         "📝 Registrar Ocorrência",
         "📄 Comunicado aos Pais",
@@ -1294,10 +1259,10 @@ if menu == "🏠 Início":
         st.write(f"**Total de Alunos:** {len(df_alunos)}")
 
 # ============================================================================
-# PÁGINA: CADASTRAR PROFESSORES (CORRIGIDO)
+# PÁGINA: CADASTRAR PROFESSORES
 # ============================================================================
 
-elif menu == "👨‍ Cadastrar Professores":
+elif menu == "👨‍🏫 Cadastrar Professores":
     st.title("👨‍🏫 Cadastrar Professores")
     
     df_professores = carregar_professores()
@@ -1462,7 +1427,7 @@ elif menu == "👤 Cadastrar Responsáveis por Assinatura":
         st.info("📭 Nenhum responsável cadastrado.")
 
 # ============================================================================
-# PÁGINA: REGISTRAR OCORRÊNCIA (COM MÚLTIPLAS TURMAS E ALUNOS)
+# PÁGINA: REGISTRAR OCORRÊNCIA
 # ============================================================================
 
 elif menu == "📝 Registrar Ocorrência":
@@ -1530,7 +1495,7 @@ elif menu == "📝 Registrar Ocorrência":
                     data = st.date_input("Data", value=data_hora_sp.date())
                     hora = st.time_input("Hora", value=data_hora_sp.time())
                     
-                    st.markdown("### 👨‍ Professor Responsável")
+                    st.markdown("### 👨‍🏫 Professor Responsável")
                     df_professores = carregar_professores()
                     if not df_professores.empty:
                         prof_lista = df_professores["nome"].tolist()
@@ -1641,7 +1606,7 @@ elif menu == "📝 Registrar Ocorrência":
             st.warning("⚠️ Selecione pelo menos uma turma.")
 
 # ============================================================================
-# PÁGINA: COMUNICADO AOS PAIS (COM CAMPOS EDITÁVEIS + HISTÓRICO)
+# PÁGINA: COMUNICADO AOS PAIS (COM MENU DE TURMAS - CORREÇÃO)
 # ============================================================================
 
 elif menu == "📄 Comunicado aos Pais":
@@ -1656,15 +1621,25 @@ elif menu == "📄 Comunicado aos Pais":
     if df_alunos.empty:
         st.warning("⚠️ Cadastre alunos primeiro.")
     else:
-        busca = st.text_input("🔍 Buscar por nome ou RA", placeholder="Digite o nome ou RA do aluno")
+        # CORREÇÃO: MENU DE TURMAS PARA FILTRAR ALUNOS
+        st.subheader("🏫 Selecionar Turma")
         
-        if busca:
-            df_filtrado = df_alunos[
-                (df_alunos['nome'].str.contains(busca, case=False, na=False)) |
-                (df_alunos['ra'].astype(str).str.contains(busca, na=False))
-            ]
+        turmas = df_alunos['turma'].unique().tolist()
+        turma_selecionada = st.selectbox("Selecione a Turma", ["Todas"] + turmas)
+        
+        if turma_selecionada != "Todas":
+            df_filtrado = df_alunos[df_alunos['turma'] == turma_selecionada]
         else:
             df_filtrado = df_alunos
+        
+        # Busca adicional por nome ou RA
+        busca = st.text_input("🔍 Buscar por nome ou RA (opcional)", placeholder="Digite o nome ou RA do aluno")
+        
+        if busca:
+            df_filtrado = df_filtrado[
+                (df_filtrado['nome'].str.contains(busca, case=False, na=False)) |
+                (df_filtrado['ra'].astype(str).str.contains(busca, na=False))
+            ]
         
         if not df_filtrado.empty:
             aluno_sel = st.selectbox("Selecione o Aluno", df_filtrado['nome'].tolist(), key="comm_aluno_sel")
@@ -1849,7 +1824,7 @@ Direção / Coordenação
                 else:
                     st.info("ℹ️ Este aluno ainda não tem ocorrências registradas.")
         else:
-            st.warning("⚠️ Nenhum aluno encontrado com esta busca.")
+            st.warning("⚠️ Nenhum aluno encontrado nesta turma.")
 
 # ============================================================================
 # PÁGINA: IMPORTAR ALUNOS
@@ -2108,7 +2083,7 @@ elif menu == "📊 Histórico de Ocorrências":
         senha = st.text_input("🔒 Senha para Excluir", type="password", value="", key="senha_excluir")
         
         if st.button("🗑️ Excluir Ocorrência"):
-            if senha == "040600":
+            if senha == SENHA_EXCLUSAO:
                 sucesso, mensagem = excluir_ocorrencia(id_selecionado)
                 if sucesso:
                     st.success(f"✅ {mensagem}")
@@ -2407,22 +2382,22 @@ elif menu == "💾 Backup de Dados":
                 contagem_professores = 0
                 contagem_responsaveis = 0
                 
-                if 'ocorrencias' in backup_data:
+                if 'ocorrencias' in backup_
                     for occ in backup_data['ocorrencias']:
                         if salvar_ocorrencia(occ)[0]:
                             contagem_ocorrencias += 1
                 
-                if 'alunos' in backup_data:
+                if 'alunos' in backup_
                     for aluno in backup_data['alunos']:
                         if salvar_aluno(aluno):
                             contagem_alunos += 1
                 
-                if 'professores' in backup_data:
+                if 'professores' in backup_
                     for prof in backup_data['professores']:
                         if salvar_professor(prof):
                             contagem_professores += 1
                 
-                if 'responsaveis' in backup_data:
+                if 'responsaveis' in backup_
                     for resp in backup_data['responsaveis']:
                         if salvar_responsavel(resp):
                             contagem_responsaveis += 1
@@ -2464,7 +2439,7 @@ elif menu == "⚙️ Configurações":
         st.text_input("Email", ESCOLA_EMAIL)
     
     st.subheader("🔐 Configurações de Segurança")
-    st.info("Senha para exclusão: 040600")
+    st.info(f"Senha para exclusão: {SENHA_EXCLUSAO}")
     
     st.subheader("📊 Protocolo 179")
     st.write(f"**Total de Categorias:** {sum(len(v) for v in CATEGORIAS_OCORRENCIAS.values())}")
