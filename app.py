@@ -1389,82 +1389,110 @@ elif menu == "👨‍🏫 Cadastrar Professores":
     st.title("👨‍🏫 Cadastrar Professores")
     
     # Cadastro de professor
+    st.subheader("📝 Novo Professor")# ============================================================================
+# PÁGINA: CADASTRAR PROFESSORES
+# ============================================================================
+
+elif menu == "👨‍🏫 Cadastrar Professores":
+    st.title("👨‍🏫 Cadastrar Professores")
+    
+    # Carregar professores existentes
+    df_professores = carregar_professores()
+    
+    # Formulário de cadastro
     st.subheader("📝 Novo Professor")
     
     col1, col2 = st.columns(2)
     
     with col1:
-        nome_prof = st.text_input("Nome Completo *")
-        email_prof = st.text_input("E-mail (opcional)")
-        cargo_prof = st.text_input("Cargo (opcional)")
+        nome_prof = st.text_input("Nome Completo *", placeholder="Ex: João da Silva", key="nome_prof_input")
+        email_prof = st.text_input("E-mail (opcional)", placeholder="Ex: joao@educacao.sp.gov.br", key="email_prof_input")
     
     with col2:
-        foto_prof = st.file_uploader("Foto do Professor (opcional)", type=['jpg', 'jpeg', 'png'])
-        
-        if st.button("💾 Salvar Professor", type="primary"):
-            if nome_prof:
+        cargo_prof = st.text_input("Cargo (opcional)", placeholder="Ex: Professor de Matemática", key="cargo_prof_input")
+        st.info("💡 Cadastre todos os professores da escola para facilitar o registro de ocorrências.")
+    
+    # Botão salvar
+    if st.button("💾 Salvar Professor", type="primary", key="btn_salvar_prof"):
+        if nome_prof.strip():
+            # Verificar duplicidade (case-insensitive)
+            if not df_professores.empty:
+                nomes_existentes = [n.lower().strip() for n in df_professores['nome'].tolist()]
+                if nome_prof.lower().strip() in nomes_existentes:
+                    st.error("❌ Já existe um professor com este nome cadastrado!")
+                else:
+                    professor_dict = {
+                        'nome': nome_prof.strip(),
+                        'email': email_prof.strip() if email_prof else None,
+                        'cargo': cargo_prof.strip() if cargo_prof else None,
+                        'foto_url': None
+                    }
+                    if salvar_professor(professor_dict):
+                        st.success(f"✅ Professor {nome_prof} cadastrado com sucesso!")
+                        carregar_professores.clear()
+                        st.rerun()
+                    else:
+                        st.error("❌ Erro ao salvar professor")
+            else:
                 professor_dict = {
-                    'nome': nome_prof,
-                    'email': email_prof if email_prof else None,
-                    'cargo': cargo_prof if cargo_prof else None,
+                    'nome': nome_prof.strip(),
+                    'email': email_prof.strip() if email_prof else None,
+                    'cargo': cargo_prof.strip() if cargo_prof else None,
                     'foto_url': None
                 }
-                
                 if salvar_professor(professor_dict):
                     st.success(f"✅ Professor {nome_prof} cadastrado com sucesso!")
-                    
-                    # Upload de foto se houver
-                    if foto_prof:
-                        url, msg = upload_foto_supabase(foto_prof, 'professores', f"{nome_prof}.jpg")
-                        if url:
-                            atualizar_foto_professor(nome_prof, url)
-                            st.success(f"✅ Foto enviada!")
-                    
                     carregar_professores.clear()
                     st.rerun()
                 else:
-                    st.error("❌ Erro ao cadastrar professor")
-            else:
-                st.error("❌ Nome é obrigatório!")
+                    st.error("❌ Erro ao salvar professor")
+        else:
+            st.error("❌ Nome é obrigatório!")
     
     st.markdown("---")
     
-    # Lista de professores
+    # Lista de professores cadastrados
     st.subheader("📋 Professores Cadastrados")
     
-    df_professores = carregar_professores()
-    
     if not df_professores.empty:
+        # Mostrar em formato de tabela com ações
         for idx, prof in df_professores.iterrows():
-            col1, col2, col3, col4 = st.columns([1, 4, 1, 1])
-            
-            with col1:
-                if prof.get('foto_url'):
-                    st.image(prof['foto_url'], width=80)
-                else:
-                    st.write("👤")
-            
-            with col2:
-                st.markdown(f"**{prof['nome']}**")
-                if prof.get('email'):
-                    st.write(f"📧 {prof['email']}")
-                if prof.get('cargo'):
-                    st.write(f"💼 {prof['cargo']}")
-            
-            with col3:
-                if st.button("✏️", key=f"edit_prof_{prof.get('id', idx)}"):
-                    st.session_state.editando_prof = prof.get('id', idx)
-                    st.rerun()
-            
-            with col4:
-                if st.button("🗑️", key=f"del_prof_{prof.get('id', idx)}"):
-                    if excluir_professor(prof.get('id', idx)):
-                        st.success("✅ Excluído!")
-                        carregar_professores.clear()
+            with st.container():
+                col1, col2, col3, col4, col5 = st.columns([1, 4, 2, 1, 1])
+                
+                with col1:
+                    if prof.get('foto_url'):
+                        st.image(prof['foto_url'], width=60)
+                    else:
+                        st.write("👤")
+                
+                with col2:
+                    st.markdown(f"**{prof.get('nome', 'N/A')}**")
+                    if prof.get('email'):
+                        st.write(f"📧 {prof['email']}")
+                    if prof.get('cargo'):
+                        st.write(f"💼 {prof['cargo']}")
+                
+                with col3:
+                    st.write(f"Cargo: {prof.get('cargo', 'Não informado')}")
+                
+                with col4:
+                    if st.button("✏️", key=f"edit_prof_{prof.get('id', idx)}", help="Editar"):
+                        st.session_state.editando_prof = prof.get('id', idx)
                         st.rerun()
+                
+                with col5:
+                    if st.button("🗑️", key=f"del_prof_{prof.get('id', idx)}", help="Excluir"):
+                        if excluir_professor(prof.get('id', idx)):
+                            st.success("✅ Excluído!")
+                            carregar_professores.clear()
+                            st.rerun()
+                
+                st.divider()
+        
+        st.info(f"📊 **Total:** {len(df_professores)} professores cadastrados")
     else:
-        st.info("📭 Nenhum professor cadastrado.")
-
+        st.info("📭 Nenhum professor cadastrado ainda.")
 # ============================================================================
 # PÁGINA: CADASTRAR RESPONSÁVEIS POR ASSINATURA
 # ============================================================================
@@ -1731,34 +1759,247 @@ elif menu == "📝 Registrar Ocorrência":
             st.warning("⚠️ Selecione pelo menos uma turma.")
 
 # ============================================================================
-# PÁGINA: COMUNICADO AOS PAIS
+# ============================================================================
+# PÁGINA: COMUNICADO AOS PAIS (COM CAMPOS EDITÁVEIS + HISTÓRICO)
 # ============================================================================
 
 elif menu == "📄 Comunicado aos Pais":
     st.title("📄 Comunicado aos Pais/Responsáveis")
     
+    st.info("💡 Gere um comunicado personalizado com histórico de ocorrências do aluno")
+    
+    # Carregar dados
+    df_alunos = carregar_alunos()
     df_ocorrencias = carregar_ocorrencias()
     df_responsaveis = carregar_responsaveis()
     
-    if not df_ocorrencias.empty:
-        # Selecionar ocorrência
-        ocorrencia_id = st.number_input("ID da Ocorrência", min_value=1, step=1)
-        
-        if st.button("📄 Gerar Comunicado"):
-            ocorrencia = df_ocorrencias[df_ocorrencias['id'] == ocorrencia_id]
-            
-            if not ocorrencia.empty:
-                pdf_buffer = gerar_pdf_comunicado(ocorrencia.iloc[0].to_dict(), df_responsaveis)
-                st.download_button(
-                    label="📥 Baixar Comunicado PDF",
-                    data=pdf_buffer,
-                    file_name=f"comunicado_{ocorrencia_id}.pdf",
-                    mime="application/pdf"
-                )
-            else:
-                st.error("❌ Ocorrência não encontrada!")
+    if df_alunos.empty:
+        st.warning("⚠️ Cadastre alunos primeiro.")
     else:
-        st.info("📭 Nenhuma ocorrência registrada.")
+        # Busca de aluno
+        st.subheader("👤 Selecionar Aluno")
+        
+        busca = st.text_input("🔍 Buscar por nome ou RA", placeholder="Digite o nome ou RA do aluno")
+        
+        if busca:
+            df_filtrado = df_alunos[
+                (df_alunos['nome'].str.contains(busca, case=False, na=False)) |
+                (df_alunos['ra'].astype(str).str.contains(busca, na=False))
+            ]
+        else:
+            df_filtrado = df_alunos
+        
+        if not df_filtrado.empty:
+            aluno_sel = st.selectbox("Selecione o Aluno", df_filtrado['nome'].tolist(), key="comm_aluno_sel")
+            aluno_info = df_filtrado[df_filtrado['nome'] == aluno_sel].iloc[0]
+            
+            # Dados do aluno
+            ra_aluno = aluno_info.get('ra', 'N/A')
+            turma_aluno = aluno_info.get('turma', 'N/A')
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.info(f"**RA:** {ra_aluno}")
+            with col2:
+                st.info(f"**Turma:** {turma_aluno}")
+            with col3:
+                if aluno_info.get('foto_url'):
+                    st.image(aluno_info['foto_url'], width=80)
+            
+            st.markdown("---")
+            
+            # Histórico de ocorrências do aluno
+            st.subheader("📊 Histórico de Ocorrências do Aluno")
+            
+            if not df_ocorrencias.empty:
+                ocorrencias_aluno = df_ocorrencias[df_ocorrencias['ra'] == ra_aluno]
+                
+                if not ocorrencias_aluno.empty:
+                    total_ocorrencias = len(ocorrencias_aluno)
+                    
+                    # Contador de advertências por gravidade
+                    gravissima_count = len(ocorrencias_aluno[ocorrencias_aluno['gravidade'] == 'Gravíssima'])
+                    grave_count = len(ocorrencias_aluno[ocorrencias_aluno['gravidade'] == 'Grave'])
+                    media_count = len(ocorrencias_aluno[ocorrencias_aluno['gravidade'] == 'Média'])
+                    leve_count = len(ocorrencias_aluno[ocorrencias_aluno['gravidade'] == 'Leve'])
+                    
+                    # Cards de resumo
+                    col1, col2, col3, col4 = st.columns(4)
+                    
+                    with col1:
+                        st.metric("🔴 Gravíssimas", gravissima_count)
+                    with col2:
+                        st.metric("🟠 Graves", grave_count)
+                    with col3:
+                        st.metric("🟡 Médias", media_count)
+                    with col4:
+                        st.metric("🟢 Leves", leve_count)
+                    
+                    st.markdown("---")
+                    
+                    # Selecionar ocorrência específica para o comunicado
+                    st.subheader("📋 Selecionar Ocorrência para Comunicado")
+                    
+                    occ_options = []
+                    for idx, occ in ocorrencias_aluno.iterrows():
+                        occ_options.append(f"{occ['id']} - {occ['data']} - {occ['categoria']} ({occ['gravidade']})")
+                    
+                    occ_sel = st.selectbox("Selecione a Ocorrência", occ_options, key="comm_occ_sel")
+                    
+                    if occ_sel:
+                        occ_id = int(occ_sel.split(" - ")[0])
+                        occ_info = ocorrencias_aluno[ocorrencias_aluno['id'] == occ_id].iloc[0]
+                        
+                        # Mostrar dados da ocorrência
+                        st.markdown("### Dados da Ocorrência Selecionada")
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.write(f"**Data:** {occ_info.get('data', 'N/A')}")
+                            st.write(f"**Categoria:** {occ_info.get('categoria', 'N/A')}")
+                            st.write(f"**Gravidade:** {occ_info.get('gravidade', 'N/A')}")
+                        with col2:
+                            st.write(f"**Professor:** {occ_info.get('professor', 'N/A')}")
+                            st.write(f"**Turma:** {occ_info.get('turma', 'N/A')}")
+                        
+                        st.write(f"**Relato:** {occ_info.get('relato', 'N/A')}")
+                        
+                        st.markdown("---")
+                        
+                        # CAMPOS EDITÁVEIS PARA O PROFESSOR
+                        st.subheader("✏️ Preencher Comunicado")
+                        
+                        # Medidas aplicadas (checkboxes)
+                        st.write("**Medidas Aplicadas (selecione as que foram aplicadas):**")
+                        
+                        medidas_opcoes = [
+                            "Orientação ao Estudante",
+                            "Comunicação aos Pais/Responsáveis",
+                            "Encaminhamento à Coordenação",
+                            "Encaminhamento à Direção",
+                            "Registro em Ata de Ocorrência",
+                            "Conselho Tutelar Notificado",
+                            "Boletim de Ocorrência Registrado",
+                            "Acompanhamento Pedagógico",
+                            "Acompanhamento Psicopedagógico",
+                            "Suspensão Temporária",
+                            "Transferência de Turma",
+                            "Outras Medidas"
+                        ]
+                        
+                        medidas_aplicadas = []
+                        cols = st.columns(2)
+                        for i, medida in enumerate(medidas_opcoes):
+                            with cols[i % 2]:
+                                if st.checkbox(medida, key=f"medida_comm_{i}"):
+                                    medidas_aplicadas.append(medida)
+                        
+                        # Observações editáveis
+                        observacoes = st.text_area(
+                            "📝 Observações Adicionais (editável)",
+                            placeholder="Descreva detalhes das medidas aplicadas, prazos, acompanhamentos necessários, orientações aos pais...",
+                            height=150,
+                            key="obs_comunicado"
+                        )
+                        
+                        # Texto pedagógico automático (editável)
+                        st.write("**Texto do Comunicado (editável):**")
+                        
+                        texto_padrao = f"""COMUNICADO AOS PAIS/RESPONSÁVEIS
+
+Prezados responsáveis pelo(a) estudante {aluno_info['nome']},
+
+Venho por meio deste comunicar que foi registrada uma ocorrência disciplinar conforme detalhes abaixo:
+
+DATA: {occ_info.get('data', 'N/A')}
+CATEGORIA: {occ_info.get('categoria', 'N/A')}
+GRAVIDADE: {occ_info.get('gravidade', 'N/A')}
+PROFESSOR RESPONSÁVEL: {occ_info.get('professor', 'N/A')}
+
+RELATO DA OCORRÊNCIA:
+{occ_info.get('relato', 'N/A')}
+
+MEDIDAS APLICADAS:
+{chr(10).join(['• ' + m for m in medidas_aplicadas]) if medidas_aplicadas else 'Em definição'}
+
+OBSERVAÇÕES:
+{observacoes if observacoes else 'Sem observações adicionais'}
+
+HISTÓRICO DE OCORRÊNCIAS:
+Este(a) estudante possui {total_ocorrencias} ocorrência(s) registrada(s) neste ano letivo, sendo:
+- {gravissima_count} ocorrência(s) Gravíssima(s)
+- {grave_count} ocorrência(s) Grave(s)
+- {media_count} ocorrência(s) Média(s)
+- {leve_count} ocorrência(s) Leve(s)
+
+Solicitamos que tomem conhecimento e compareçam à escola para assinatura deste comunicado.
+
+Atenciosamente,
+
+Direção / Coordenação
+{ESCOLA_NOME}
+{datetime.now().strftime('%d/%m/%Y')}
+"""
+                        
+                        texto_editado = st.text_area(
+                            "Editar Texto do Comunicado",
+                            value=texto_padrao,
+                            height=400,
+                            key="texto_comunicado_edit"
+                        )
+                        
+                        # Botão para gerar PDF
+                        st.markdown("---")
+                        
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            if st.button("🖨️ Gerar Comunicado PDF", type="primary", key="gerar_comm_pdf"):
+                                # Gerar PDF com o texto editado
+                                pdf_buffer = gerar_pdf_comunicado_editavel(
+                                    aluno_info,
+                                    occ_info,
+                                    medidas_aplicadas,
+                                    observacoes,
+                                    total_ocorrencias,
+                                    gravissima_count,
+                                    grave_count,
+                                    media_count,
+                                    leve_count,
+                                    texto_editado,
+                                    df_responsaveis
+                                )
+                                st.download_button(
+                                    label="📥 Baixar Comunicado PDF",
+                                    data=pdf_buffer,
+                                    file_name=f"Comunicado_{ra_aluno}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                                    mime="application/pdf"
+                                )
+                                st.success("✅ Comunicado gerado! Imprima e envie com o aluno.")
+                        
+                        with col2:
+                            if st.button("📋 Copiar Texto", key="copiarTexto"):
+                                st.code(texto_editado, language="text")
+                                st.info("📋 Texto copiado! Use Ctrl+C para copiar.")
+                else:
+                    st.info("ℹ️ Este aluno ainda não tem ocorrências registradas.")
+                    
+                    # Permitir gerar comunicado mesmo sem ocorrências
+                    st.subheader("✏️ Criar Comunicado Geral")
+                    
+                    observacoes_geral = st.text_area(
+                        "📝 Observações",
+                        placeholder="Descreva o motivo do comunicado...",
+                        height=150,
+                        key="obs_geral"
+                    )
+                    
+                    if st.button("🖨️ Gerar Comunicado Geral", key="gerar_geral"):
+                        st.info("📄 Comunicado geral gerado (sem ocorrências específicas)")
+            else:
+                st.info("ℹ️ Nenhuma ocorrência registrada no sistema.")
+        else:
+            st.warning("⚠️ Nenhum aluno encontrado com esta busca.")
 
 # ============================================================================
 # PÁGINA: IMPORTAR ALUNOS
@@ -2349,6 +2590,114 @@ elif menu == "🖨️ Imprimir PDF":
     else:
         st.info("📭 Nenhuma ocorrência registrada.")
 
+# ============================================================================
+# FUNÇÃO PDF COMUNICADO EDITÁVEL
+# ============================================================================
+
+def gerar_pdf_comunicado_editavel(aluno_info, occ_info, medidas_aplicadas, observacoes, 
+                                   total_ocorrencias, gravissima_count, grave_count, 
+                                   media_count, leve_count, texto_editado, df_responsaveis):
+    """
+    Gera PDF de comunicado com texto editável.
+    """
+    buffer = io.BytesIO()
+    
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=1.5*cm,
+        leftMargin=1.5*cm,
+        topMargin=2*cm,
+        bottomMargin=2*cm
+    )
+    
+    elementos = []
+    estilos = getSampleStyleSheet()
+    
+    # Estilo do título
+    estilos.add(ParagraphStyle(
+        'TituloComunicado',
+        parent=estilos['Heading1'],
+        fontSize=16,
+        alignment=TA_CENTER,
+        spaceAfter=1*cm
+    ))
+    
+    # Estilo do texto
+    estilos.add(ParagraphStyle(
+        'TextoComunicado',
+        parent=estilos['Normal'],
+        fontSize=11,
+        alignment=TA_JUSTIFY,
+        spaceAfter=0.3*cm,
+        leading=14
+    ))
+    
+    # Cabeçalho da escola
+    elementos.append(Paragraph("📬 COMUNICADO AOS PAIS/RESPONSÁVEIS", estilos['TituloComunicado']))
+    elementos.append(Spacer(1, 0.5*cm))
+    
+    elementos.append(Paragraph(f"<b>{ESCOLA_NOME}</b>", estilos['TextoComunicado']))
+    elementos.append(Paragraph(f"{ESCOLA_ENDERECO}", estilos['TextoComunicado']))
+    elementos.append(Paragraph(f"{ESCOLA_TELEFONE} | {ESCOLA_EMAIL}", estilos['TextoComunicado']))
+    elementos.append(Spacer(1, 0.5*cm))
+    
+    # Dados do aluno
+    elementos.append(Paragraph(f"<b>Aluno(a):</b> {aluno_info.get('nome', 'N/A')}", estilos['TextoComunicado']))
+    elementos.append(Paragraph(f"<b>RA:</b> {aluno_info.get('ra', 'N/A')}", estilos['TextoComunicado']))
+    elementos.append(Paragraph(f"<b>Turma:</b> {aluno_info.get('turma', 'N/A')}", estilos['TextoComunicado']))
+    elementos.append(Spacer(1, 0.5*cm))
+    
+    # Texto editado
+    texto_linhas = texto_editado.split('\n')
+    for linha in texto_linhas:
+        if linha.strip():
+            elementos.append(Paragraph(linha.strip(), estilos['TextoComunicado']))
+    
+    elementos.append(Spacer(1, 1*cm))
+    
+    # Assinaturas
+    elementos.append(Paragraph("<b>ASSINATURAS:</b>", estilos['TextoComunicado']))
+    elementos.append(Spacer(1, 0.5*cm))
+    
+    cargos = ["Diretor(a)", "Vice-Diretor(a)", "CGPG / Coordenador(a)"]
+    
+    for cargo in cargos:
+        if df_responsaveis is not None and not df_responsaveis.empty:
+            resp = df_responsaveis[df_responsaveis['cargo'] == cargo]
+            if not resp.empty and resp.iloc[0].get('nome'):
+                elementos.append(Paragraph(f"<b>{cargo}:</b> {resp.iloc[0].get('nome', '')}", estilos['TextoComunicado']))
+            else:
+                elementos.append(Paragraph(f"<b>{cargo}:</b> _________________________________", estilos['TextoComunicado']))
+        else:
+            elementos.append(Paragraph(f"<b>{cargo}:</b> _________________________________", estilos['TextoComunicado']))
+        elementos.append(Spacer(1, 0.5*cm))
+    
+    elementos.append(Spacer(1, 1*cm))
+    
+    # Ciência dos pais
+    elementos.append(Paragraph("<b>CIÊNCIA DOS PAIS/RESPONSÁVEIS:</b>", estilos['TextoComunicado']))
+    elementos.append(Spacer(1, 0.5*cm))
+    elementos.append(Paragraph("Declaro que recebi e tomei conhecimento deste comunicado.", estilos['TextoComunicado']))
+    elementos.append(Spacer(1, 1.5*cm))
+    elementos.append(Paragraph("_" * 60, estilos['Normal']))
+    elementos.append(Paragraph("Assinatura do Responsável", estilos['TextoComunicado']))
+    
+    # Rodapé
+    elementos.append(Spacer(1, 1*cm))
+    estilo_rodape = ParagraphStyle(
+        'Rodape',
+        parent=estilos['Normal'],
+        fontSize=8,
+        alignment=TA_CENTER,
+        textColor=colors.grey
+    )
+    elementos.append(Paragraph("_" * 75, estilos['Normal']))
+    elementos.append(Paragraph(f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}", estilo_rodape))
+    
+    doc.build(elementos)
+    buffer.seek(0)
+    return buffer
 # ============================================================================
 # PÁGINA: BACKUP DE DADOS
 # ============================================================================
