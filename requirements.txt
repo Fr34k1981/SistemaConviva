@@ -1,9 +1,11 @@
 streamlit
 pandas
+numpy
+requests
 reportlab
 openpyxl
-requests
-python-dotenv
 plotly
 fuzzywuzzy
 python-Levenshtein
+pytz
+python-dotenv

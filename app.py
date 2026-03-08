@@ -1,7 +1,7 @@
 # ============================================================================
 # SISTEMA CONVIVA 179 - GESTÃO DE OCORRÊNCIAS ESCOLARES
 # Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI
-# Versão: 7.0 FINAL COMPLETA COM CORREÇÕES
+# Versão: 7.0 FINAL COMPLETA - USANDO REQUESTS (SEM BIBLIOTECA SUPABASE)
 # Desenvolvido para SEDUC/SP - Protocolo de Convivência e Proteção Escolar
 # ============================================================================
 
@@ -23,11 +23,14 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
-from supabase import create_client, Client
 import plotly.express as px
 import plotly.graph_objects as go
 from fuzzywuzzy import process
 import pytz
+from dotenv import load_dotenv
+
+# Carregar variáveis de ambiente
+load_dotenv()
 
 # ============================================================================
 # CONFIGURAÇÃO DA PÁGINA
@@ -36,39 +39,30 @@ st.set_page_config(
     page_title="Sistema Conviva 179",
     page_icon="📋",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
+    menu_items={
+        'Get Help': 'https://github.com/Fr34k1981/SistemaConviva',
+        'Report a bug': 'https://github.com/Fr34k1981/SistemaConviva/issues',
+        'About': "# Sistema Conviva 179\nVersão 7.0.0\nDesenvolvido para SEDUC/SP"
+    }
 )
 
 # ============================================================================
-# CONFIGURAÇÃO DO SUPABASE
-# ============================================================================
-@st.cache_resource
-def init_supabase():
-    try:
-        supabase_url = st.secrets["SUPABASE_URL"]
-        supabase_key = st.secrets["SUPABASE_KEY"]
-        return create_client(supabase_url, supabase_key)
-    except:
-        return None
-
-supabase = init_supabase()
-
-# ============================================================================
-# CONFIGURAÇÕES DE CONEXÃO SUPABASE
+# CONFIGURAÇÃO DO SUPABASE (VIA REQUESTS API)
 # ============================================================================
 try:
     SUPABASE_URL = st.secrets["SUPABASE_URL"]
     SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
-    HEADERS = {
-        "apikey": SUPABASE_KEY,
-        "Authorization": f"Bearer {SUPABASE_KEY}",
-        "Content-Type": "application/json",
-        "Prefer": "return=representation"
-    }
 except:
-    SUPABASE_URL = ""
-    SUPABASE_KEY = ""
-    HEADERS = {}
+    SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+    SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
+
+HEADERS = {
+    "apikey": SUPABASE_KEY,
+    "Authorization": f"Bearer {SUPABASE_KEY}",
+    "Content-Type": "application/json",
+    "Prefer": "return=representation"
+}
 
 # ============================================================================
 # DICIONÁRIOS DO PROTOCOLO 179
@@ -191,11 +185,11 @@ ENCAMINHAMENTOS_POR_GRAVIDADE = {
 # ============================================================================
 ESCOLA_NOME = "Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI"
 ESCOLA_SUBTITULO = "Protocolo de Convivência e Proteção Escolar - SEDUC/SP"
-ESCOLA_ENDERECO = "Rua das Flores, 123 - Centro"
-ESCOLA_CEP = "CEP: 01234-567"
-ESCOLA_TELEFONE = "(11) 1234-5678"
-ESCOLA_EMAIL = "escola@educacao.sp.gov.br"
-ESCOLA_LOGO = "logo.png"
+ESCOLA_ENDERECO = "R. Valter Souza Costa, 147 - Jardim Primavera, Ferraz de Vasconcelos - SP"
+ESCOLA_CEP = "CEP: 08535-310"
+ESCOLA_TELEFONE = "(11) 4675-1855"
+ESCOLA_EMAIL = "e918623@educacao.sp.gov.br"
+ESCOLA_LOGO = "logo.jpg"
 
 # ============================================================================
 # INICIALIZAÇÃO DO SESSION STATE
@@ -220,30 +214,31 @@ if 'adicionar_outra_infracao' not in st.session_state:
     st.session_state.adicionar_outra_infracao = False
 if 'infracoes_adicionais' not in st.session_state:
     st.session_state.infracoes_adicionais = []
-    # ============================================================================
-# FUNÇÕES DE CARREGAMENTO DE DADOS DO SUPABASE
+
+# ============================================================================
+# FUNÇÕES DE CARREGAMENTO DE DADOS DO SUPABASE (VIA REQUESTS)
 # ============================================================================
 
 @st.cache_data(ttl=60)
 def carregar_alunos():
     """
-    Carrega todos os alunos do banco de dados Supabase.
+    Carrega todos os alunos do banco de dados Supabase via Requests API.
     
     Returns:
         pd.DataFrame: DataFrame com todos os alunos cadastrados.
     """
-    if supabase is None:
+    if not SUPABASE_URL:
         return pd.DataFrame(columns=['nome', 'ra', 'turma', 'nascimento', 'responsavel', 'telefone', 'foto_url'])
     
     try:
-        response = supabase.table('alunos').select('*').execute()
-        df = pd.DataFrame(response.data)
-        
-        if not df.empty:
-            # Ordenar alunos por nome
-            df = df.sort_values('nome')
-        
-        return df
+        response = requests.get(f"{SUPABASE_URL}/rest/v1/alunos?select=*", headers=HEADERS)
+        if response.status_code == 200:
+            df = pd.DataFrame(response.json())
+            if not df.empty:
+                df = df.sort_values('nome')
+            return df
+        else:
+            return pd.DataFrame(columns=['nome', 'ra', 'turma', 'nascimento', 'responsavel', 'telefone', 'foto_url'])
     except Exception as e:
         st.error(f"Erro ao carregar alunos: {str(e)}")
         return pd.DataFrame(columns=['nome', 'ra', 'turma', 'nascimento', 'responsavel', 'telefone', 'foto_url'])
@@ -252,42 +247,46 @@ def carregar_alunos():
 @st.cache_data(ttl=60)
 def carregar_professores():
     """
-    Carrega todos os professores do banco de dados Supabase.
+    Carrega todos os professores do banco de dados Supabase via Requests API.
     
     Returns:
         pd.DataFrame: DataFrame com todos os professores cadastrados.
     """
-    if supabase is None:
-        return pd.DataFrame(columns=['nome', 'email', 'cargo', 'foto_url'])
+    if not SUPABASE_URL:
+        return pd.DataFrame(columns=['id', 'nome', 'email', 'cargo', 'foto_url'])
     
     try:
-        response = supabase.table('professores').select('*').execute()
-        df = pd.DataFrame(response.data)
-        
-        if not df.empty:
-            # CORREÇÃO 4: Ordenar professores por nome (alfabética)
-            df = df.sort_values('nome')
-        
-        return df
+        response = requests.get(f"{SUPABASE_URL}/rest/v1/professores?select=*", headers=HEADERS)
+        if response.status_code == 200:
+            df = pd.DataFrame(response.json())
+            if not df.empty:
+                # CORREÇÃO 4: Ordenar professores por nome (alfabética)
+                df = df.sort_values('nome')
+            return df
+        else:
+            return pd.DataFrame(columns=['id', 'nome', 'email', 'cargo', 'foto_url'])
     except Exception as e:
         st.error(f"Erro ao carregar professores: {str(e)}")
-        return pd.DataFrame(columns=['nome', 'email', 'cargo', 'foto_url'])
+        return pd.DataFrame(columns=['id', 'nome', 'email', 'cargo', 'foto_url'])
 
 
 @st.cache_data(ttl=60)
 def carregar_ocorrencias():
     """
-    Carrega todas as ocorrências do banco de dados Supabase.
+    Carrega todas as ocorrências do banco de dados Supabase via Requests API.
     
     Returns:
         pd.DataFrame: DataFrame com todas as ocorrências registradas.
     """
-    if supabase is None:
+    if not SUPABASE_URL:
         return pd.DataFrame(columns=['id', 'data', 'aluno', 'ra', 'turma', 'categoria', 'gravidade', 'relato', 'professor', 'encaminhamentos', 'testemunhas', 'evidencias'])
     
     try:
-        response = supabase.table('ocorrencias').select('*').order('data', desc=True).execute()
-        return pd.DataFrame(response.data)
+        response = requests.get(f"{SUPABASE_URL}/rest/v1/ocorrencias?select=*&order=data.desc", headers=HEADERS)
+        if response.status_code == 200:
+            return pd.DataFrame(response.json())
+        else:
+            return pd.DataFrame(columns=['id', 'data', 'aluno', 'ra', 'turma', 'categoria', 'gravidade', 'relato', 'professor', 'encaminhamentos', 'testemunhas', 'evidencias'])
     except Exception as e:
         st.error(f"Erro ao carregar ocorrências: {str(e)}")
         return pd.DataFrame(columns=['id', 'data', 'aluno', 'ra', 'turma', 'categoria', 'gravidade', 'relato', 'professor', 'encaminhamentos', 'testemunhas', 'evidencias'])
@@ -296,34 +295,35 @@ def carregar_ocorrencias():
 @st.cache_data(ttl=60)
 def carregar_responsaveis():
     """
-    Carrega todos os responsáveis por assinatura do banco de dados Supabase.
+    Carrega todos os responsáveis por assinatura do banco de dados Supabase via Requests API.
     
     Returns:
         pd.DataFrame: DataFrame com todos os responsáveis cadastrados.
     """
-    if supabase is None:
-        return pd.DataFrame(columns=['nome', 'cargo'])
+    if not SUPABASE_URL:
+        return pd.DataFrame(columns=['id', 'nome', 'cargo'])
     
     try:
-        response = supabase.table('responsaveis').select('*').execute()
-        df = pd.DataFrame(response.data)
-        
-        if not df.empty:
-            df = df.sort_values('cargo')
-        
-        return df
+        response = requests.get(f"{SUPABASE_URL}/rest/v1/responsaveis?select=*", headers=HEADERS)
+        if response.status_code == 200:
+            df = pd.DataFrame(response.json())
+            if not df.empty:
+                df = df.sort_values('cargo')
+            return df
+        else:
+            return pd.DataFrame(columns=['id', 'nome', 'cargo'])
     except Exception as e:
         st.error(f"Erro ao carregar responsáveis: {str(e)}")
-        return pd.DataFrame(columns=['nome', 'cargo'])
+        return pd.DataFrame(columns=['id', 'nome', 'cargo'])
 
 
 # ============================================================================
-# FUNÇÕES DE SALVAMENTO DE DADOS NO SUPABASE
+# FUNÇÕES DE SALVAMENTO DE DADOS NO SUPABASE (VIA REQUESTS)
 # ============================================================================
 
 def salvar_ocorrencia(ocorrencia_dict):
     """
-    Salva uma ocorrência no banco de dados Supabase.
+    Salva uma ocorrência no banco de dados Supabase via Requests API.
     
     Args:
         ocorrencia_dict (dict): Dicionário com os dados da ocorrência.
@@ -331,7 +331,7 @@ def salvar_ocorrencia(ocorrencia_dict):
     Returns:
         tuple: (bool, str) - Sucesso e mensagem de retorno.
     """
-    if supabase is None:
+    if not SUPABASE_URL:
         return False, "Supabase não configurado"
     
     try:
@@ -339,8 +339,11 @@ def salvar_ocorrencia(ocorrencia_dict):
         if 'encaminhamentos' in ocorrencia_dict and isinstance(ocorrencia_dict['encaminhamentos'], list):
             ocorrencia_dict['encaminhamentos'] = '| '.join(ocorrencia_dict['encaminhamentos'])
         
-        response = supabase.table('ocorrencias').insert(ocorrencia_dict).execute()
-        return True, "Ocorrência salva com sucesso!"
+        response = requests.post(f"{SUPABASE_URL}/rest/v1/ocorrencias", json=ocorrencia_dict, headers=HEADERS)
+        if response.status_code in [200, 201]:
+            return True, "Ocorrência salva com sucesso!"
+        else:
+            return False, f"Erro ao salvar: {response.text}"
     except Exception as e:
         st.error(f"Erro ao salvar ocorrência: {str(e)}")
         return False, f"Erro ao salvar: {str(e)}"
@@ -348,7 +351,7 @@ def salvar_ocorrencia(ocorrencia_dict):
 
 def atualizar_ocorrencia(id_ocorrencia, ocorrencia_dict):
     """
-    Atualiza uma ocorrência existente no banco de dados Supabase.
+    Atualiza uma ocorrência existente no banco de dados Supabase via Requests API.
     
     Args:
         id_ocorrencia (int): ID da ocorrência a ser atualizada.
@@ -357,7 +360,7 @@ def atualizar_ocorrencia(id_ocorrencia, ocorrencia_dict):
     Returns:
         tuple: (bool, str) - Sucesso e mensagem de retorno.
     """
-    if supabase is None:
+    if not SUPABASE_URL:
         return False, "Supabase não configurado"
     
     try:
@@ -365,8 +368,11 @@ def atualizar_ocorrencia(id_ocorrencia, ocorrencia_dict):
         if 'encaminhamentos' in ocorrencia_dict and isinstance(ocorrencia_dict['encaminhamentos'], list):
             ocorrencia_dict['encaminhamentos'] = '| '.join(ocorrencia_dict['encaminhamentos'])
         
-        response = supabase.table('ocorrencias').update(ocorrencia_dict).eq('id', id_ocorrencia).execute()
-        return True, "Ocorrência atualizada com sucesso!"
+        response = requests.patch(f"{SUPABASE_URL}/rest/v1/ocorrencias?id=eq.{id_ocorrencia}", json=ocorrencia_dict, headers=HEADERS)
+        if response.status_code in [200, 201]:
+            return True, "Ocorrência atualizada com sucesso!"
+        else:
+            return False, f"Erro ao atualizar: {response.text}"
     except Exception as e:
         st.error(f"Erro ao atualizar ocorrência: {str(e)}")
         return False, f"Erro ao atualizar: {str(e)}"
@@ -374,7 +380,7 @@ def atualizar_ocorrencia(id_ocorrencia, ocorrencia_dict):
 
 def excluir_ocorrencia(id_ocorrencia):
     """
-    Exclui uma ocorrência do banco de dados Supabase.
+    Exclui uma ocorrência do banco de dados Supabase via Requests API.
     
     Args:
         id_ocorrencia (int): ID da ocorrência a ser excluída.
@@ -382,12 +388,15 @@ def excluir_ocorrencia(id_ocorrencia):
     Returns:
         tuple: (bool, str) - Sucesso e mensagem de retorno.
     """
-    if supabase is None:
+    if not SUPABASE_URL:
         return False, "Supabase não configurado"
     
     try:
-        response = supabase.table('ocorrencias').delete().eq('id', id_ocorrencia).execute()
-        return True, "Ocorrência excluída com sucesso!"
+        response = requests.delete(f"{SUPABASE_URL}/rest/v1/ocorrencias?id=eq.{id_ocorrencia}", headers=HEADERS)
+        if response.status_code in [200, 201]:
+            return True, "Ocorrência excluída com sucesso!"
+        else:
+            return False, f"Erro ao excluir: {response.text}"
     except Exception as e:
         st.error(f"Erro ao excluir ocorrência: {str(e)}")
         return False, f"Erro ao excluir: {str(e)}"
@@ -395,7 +404,7 @@ def excluir_ocorrencia(id_ocorrencia):
 
 def salvar_aluno(aluno_dict):
     """
-    Salva um aluno no banco de dados Supabase.
+    Salva um aluno no banco de dados Supabase via Requests API.
     
     Args:
         aluno_dict (dict): Dicionário com os dados do aluno.
@@ -403,12 +412,15 @@ def salvar_aluno(aluno_dict):
     Returns:
         tuple: (bool, str) - Sucesso e mensagem de retorno.
     """
-    if supabase is None:
+    if not SUPABASE_URL:
         return False, "Supabase não configurado"
     
     try:
-        response = supabase.table('alunos').insert(aluno_dict).execute()
-        return True, "Aluno salvo com sucesso!"
+        response = requests.post(f"{SUPABASE_URL}/rest/v1/alunos", json=aluno_dict, headers=HEADERS)
+        if response.status_code in [200, 201]:
+            return True, "Aluno salvo com sucesso!"
+        else:
+            return False, f"Erro ao salvar: {response.text}"
     except Exception as e:
         st.error(f"Erro ao salvar aluno: {str(e)}")
         return False, f"Erro ao salvar: {str(e)}"
@@ -416,7 +428,7 @@ def salvar_aluno(aluno_dict):
 
 def atualizar_aluno(ra_aluno, aluno_dict):
     """
-    Atualiza um aluno existente no banco de dados Supabase.
+    Atualiza um aluno existente no banco de dados Supabase via Requests API.
     
     Args:
         ra_aluno (str): RA do aluno a ser atualizado.
@@ -425,12 +437,15 @@ def atualizar_aluno(ra_aluno, aluno_dict):
     Returns:
         tuple: (bool, str) - Sucesso e mensagem de retorno.
     """
-    if supabase is None:
+    if not SUPABASE_URL:
         return False, "Supabase não configurado"
     
     try:
-        response = supabase.table('alunos').update(aluno_dict).eq('ra', ra_aluno).execute()
-        return True, "Aluno atualizado com sucesso!"
+        response = requests.patch(f"{SUPABASE_URL}/rest/v1/alunos?ra=eq.{ra_aluno}", json=aluno_dict, headers=HEADERS)
+        if response.status_code in [200, 201]:
+            return True, "Aluno atualizado com sucesso!"
+        else:
+            return False, f"Erro ao atualizar: {response.text}"
     except Exception as e:
         st.error(f"Erro ao atualizar aluno: {str(e)}")
         return False, f"Erro ao atualizar: {str(e)}"
@@ -438,7 +453,7 @@ def atualizar_aluno(ra_aluno, aluno_dict):
 
 def excluir_aluno(ra_aluno):
     """
-    Exclui um aluno do banco de dados Supabase.
+    Exclui um aluno do banco de dados Supabase via Requests API.
     
     Args:
         ra_aluno (str): RA do aluno a ser excluído.
@@ -446,12 +461,15 @@ def excluir_aluno(ra_aluno):
     Returns:
         tuple: (bool, str) - Sucesso e mensagem de retorno.
     """
-    if supabase is None:
+    if not SUPABASE_URL:
         return False, "Supabase não configurado"
     
     try:
-        response = supabase.table('alunos').delete().eq('ra', ra_aluno).execute()
-        return True, "Aluno excluído com sucesso!"
+        response = requests.delete(f"{SUPABASE_URL}/rest/v1/alunos?ra=eq.{ra_aluno}", headers=HEADERS)
+        if response.status_code in [200, 201]:
+            return True, "Aluno excluído com sucesso!"
+        else:
+            return False, f"Erro ao excluir: {response.text}"
     except Exception as e:
         st.error(f"Erro ao excluir aluno: {str(e)}")
         return False, f"Erro ao excluir: {str(e)}"
@@ -459,7 +477,7 @@ def excluir_aluno(ra_aluno):
 
 def salvar_professor(professor_dict):
     """
-    Salva um professor no banco de dados Supabase.
+    Salva um professor no banco de dados Supabase via Requests API.
     
     Args:
         professor_dict (dict): Dicionário com os dados do professor.
@@ -467,12 +485,15 @@ def salvar_professor(professor_dict):
     Returns:
         tuple: (bool, str) - Sucesso e mensagem de retorno.
     """
-    if supabase is None:
+    if not SUPABASE_URL:
         return False, "Supabase não configurado"
     
     try:
-        response = supabase.table('professores').insert(professor_dict).execute()
-        return True, "Professor salvo com sucesso!"
+        response = requests.post(f"{SUPABASE_URL}/rest/v1/professores", json=professor_dict, headers=HEADERS)
+        if response.status_code in [200, 201]:
+            return True, "Professor salvo com sucesso!"
+        else:
+            return False, f"Erro ao salvar: {response.text}"
     except Exception as e:
         st.error(f"Erro ao salvar professor: {str(e)}")
         return False, f"Erro ao salvar: {str(e)}"
@@ -480,7 +501,7 @@ def salvar_professor(professor_dict):
 
 def atualizar_professor(id_prof, professor_dict):
     """
-    Atualiza um professor existente no banco de dados Supabase.
+    Atualiza um professor existente no banco de dados Supabase via Requests API.
     
     Args:
         id_prof (int): ID do professor a ser atualizado.
@@ -489,12 +510,15 @@ def atualizar_professor(id_prof, professor_dict):
     Returns:
         tuple: (bool, str) - Sucesso e mensagem de retorno.
     """
-    if supabase is None:
+    if not SUPABASE_URL:
         return False, "Supabase não configurado"
     
     try:
-        response = supabase.table('professores').update(professor_dict).eq('id', id_prof).execute()
-        return True, "Professor atualizado com sucesso!"
+        response = requests.patch(f"{SUPABASE_URL}/rest/v1/professores?id=eq.{id_prof}", json=professor_dict, headers=HEADERS)
+        if response.status_code in [200, 201]:
+            return True, "Professor atualizado com sucesso!"
+        else:
+            return False, f"Erro ao atualizar: {response.text}"
     except Exception as e:
         st.error(f"Erro ao atualizar professor: {str(e)}")
         return False, f"Erro ao atualizar: {str(e)}"
@@ -502,7 +526,7 @@ def atualizar_professor(id_prof, professor_dict):
 
 def excluir_professor(id_prof):
     """
-    Exclui um professor do banco de dados Supabase.
+    Exclui um professor do banco de dados Supabase via Requests API.
     
     Args:
         id_prof (int): ID do professor a ser excluído.
@@ -510,12 +534,15 @@ def excluir_professor(id_prof):
     Returns:
         tuple: (bool, str) - Sucesso e mensagem de retorno.
     """
-    if supabase is None:
+    if not SUPABASE_URL:
         return False, "Supabase não configurado"
     
     try:
-        response = supabase.table('professores').delete().eq('id', id_prof).execute()
-        return True, "Professor excluído com sucesso!"
+        response = requests.delete(f"{SUPABASE_URL}/rest/v1/professores?id=eq.{id_prof}", headers=HEADERS)
+        if response.status_code in [200, 201]:
+            return True, "Professor excluído com sucesso!"
+        else:
+            return False, f"Erro ao excluir: {response.text}"
     except Exception as e:
         st.error(f"Erro ao excluir professor: {str(e)}")
         return False, f"Erro ao excluir: {str(e)}"
@@ -523,7 +550,7 @@ def excluir_professor(id_prof):
 
 def salvar_responsavel(responsavel_dict):
     """
-    Salva um responsável por assinatura no banco de dados Supabase.
+    Salva um responsável por assinatura no banco de dados Supabase via Requests API.
     
     Args:
         responsavel_dict (dict): Dicionário com os dados do responsável.
@@ -531,12 +558,15 @@ def salvar_responsavel(responsavel_dict):
     Returns:
         tuple: (bool, str) - Sucesso e mensagem de retorno.
     """
-    if supabase is None:
+    if not SUPABASE_URL:
         return False, "Supabase não configurado"
     
     try:
-        response = supabase.table('responsaveis').insert(responsavel_dict).execute()
-        return True, "Responsável salvo com sucesso!"
+        response = requests.post(f"{SUPABASE_URL}/rest/v1/responsaveis", json=responsavel_dict, headers=HEADERS)
+        if response.status_code in [200, 201]:
+            return True, "Responsável salvo com sucesso!"
+        else:
+            return False, f"Erro ao salvar: {response.text}"
     except Exception as e:
         st.error(f"Erro ao salvar responsável: {str(e)}")
         return False, f"Erro ao salvar: {str(e)}"
@@ -544,7 +574,7 @@ def salvar_responsavel(responsavel_dict):
 
 def atualizar_responsavel(id_resp, responsavel_dict):
     """
-    Atualiza um responsável existente no banco de dados Supabase.
+    Atualiza um responsável existente no banco de dados Supabase via Requests API.
     
     Args:
         id_resp (int): ID do responsável a ser atualizado.
@@ -553,12 +583,15 @@ def atualizar_responsavel(id_resp, responsavel_dict):
     Returns:
         tuple: (bool, str) - Sucesso e mensagem de retorno.
     """
-    if supabase is None:
+    if not SUPABASE_URL:
         return False, "Supabase não configurado"
     
     try:
-        response = supabase.table('responsaveis').update(responsavel_dict).eq('id', id_resp).execute()
-        return True, "Responsável atualizado com sucesso!"
+        response = requests.patch(f"{SUPABASE_URL}/rest/v1/responsaveis?id=eq.{id_resp}", json=responsavel_dict, headers=HEADERS)
+        if response.status_code in [200, 201]:
+            return True, "Responsável atualizado com sucesso!"
+        else:
+            return False, f"Erro ao atualizar: {response.text}"
     except Exception as e:
         st.error(f"Erro ao atualizar responsável: {str(e)}")
         return False, f"Erro ao atualizar: {str(e)}"
@@ -566,7 +599,7 @@ def atualizar_responsavel(id_resp, responsavel_dict):
 
 def excluir_responsavel(id_resp):
     """
-    Exclui um responsável do banco de dados Supabase.
+    Exclui um responsável do banco de dados Supabase via Requests API.
     
     Args:
         id_resp (int): ID do responsável a ser excluído.
@@ -574,24 +607,27 @@ def excluir_responsavel(id_resp):
     Returns:
         tuple: (bool, str) - Sucesso e mensagem de retorno.
     """
-    if supabase is None:
+    if not SUPABASE_URL:
         return False, "Supabase não configurado"
     
     try:
-        response = supabase.table('responsaveis').delete().eq('id', id_resp).execute()
-        return True, "Responsável excluído com sucesso!"
+        response = requests.delete(f"{SUPABASE_URL}/rest/v1/responsaveis?id=eq.{id_resp}", headers=HEADERS)
+        if response.status_code in [200, 201]:
+            return True, "Responsável excluído com sucesso!"
+        else:
+            return False, f"Erro ao excluir: {response.text}"
     except Exception as e:
         st.error(f"Erro ao excluir responsável: {str(e)}")
         return False, f"Erro ao excluir: {str(e)}"
 
 
 # ============================================================================
-# FUNÇÕES DE UPLOAD DE FOTOS PARA SUPABASE STORAGE
+# FUNÇÕES DE UPLOAD DE FOTOS PARA SUPABASE STORAGE (VIA REQUESTS)
 # ============================================================================
 
 def upload_foto_supabase(file, folder, filename):
     """
-    Faz upload de foto para o Supabase Storage.
+    Faz upload de foto para o Supabase Storage via Requests API.
     
     Args:
         file: Arquivo de foto enviado pelo usuário.
@@ -601,27 +637,34 @@ def upload_foto_supabase(file, folder, filename):
     Returns:
         tuple: (str, str) - URL pública e mensagem de retorno.
     """
-    if supabase is None:
+    if not SUPABASE_URL:
         return None, "Supabase não configurado"
     
     try:
         file_bytes = file.getvalue()
         
         # CORREÇÃO 1: Verificar se bucket existe antes de upload
+        storage_url = SUPABASE_URL.replace("/rest/v1", "/storage/v1")
+        upload_headers = HEADERS.copy()
+        upload_headers["Content-Type"] = file.type
+        
         try:
-            response = supabase.storage.from_('fotos').upload(
-                f'{folder}/{filename}',
-                file_bytes,
-                {'content-type': file.type}
+            response = requests.post(
+                f"{storage_url}/object/fotos/{folder}/{filename}",
+                data=file_bytes,
+                headers=upload_headers
             )
         except Exception as upload_error:
             # Se bucket não existir, tentar criar mensagem de erro clara
-            if 'Bucket not found' in str(upload_error):
+            if 'Bucket not found' in str(upload_error) or response.status_code == 404:
                 return None, "Bucket 'fotos' não encontrado. Crie o bucket no Supabase primeiro!"
             raise upload_error
         
-        public_url = supabase.storage.from_('fotos').get_public_url(f'{folder}/{filename}')
-        return public_url, "Foto enviada com sucesso!"
+        if response.status_code in [200, 201]:
+            public_url = f"{storage_url}/object/public/fotos/{folder}/{filename}"
+            return public_url, "Foto enviada com sucesso!"
+        else:
+            return None, f"Erro ao enviar foto: {response.text}"
     except Exception as e:
         st.error(f"Erro ao enviar foto: {str(e)}")
         return None, f"Erro ao enviar foto: {str(e)}"
@@ -638,12 +681,19 @@ def atualizar_foto_aluno(ra_aluno, foto_url):
     Returns:
         tuple: (bool, str) - Sucesso e mensagem de retorno.
     """
-    if supabase is None:
+    if not SUPABASE_URL:
         return False, "Supabase não configurado"
     
     try:
-        response = supabase.table('alunos').update({'foto_url': foto_url}).eq('ra', ra_aluno).execute()
-        return True, "Foto atualizada com sucesso!"
+        response = requests.patch(
+            f"{SUPABASE_URL}/rest/v1/alunos?ra=eq.{ra_aluno}",
+            json={'foto_url': foto_url},
+            headers=HEADERS
+        )
+        if response.status_code in [200, 201]:
+            return True, "Foto atualizada com sucesso!"
+        else:
+            return False, f"Erro ao atualizar: {response.text}"
     except Exception as e:
         st.error(f"Erro ao atualizar foto do aluno: {str(e)}")
         return False, f"Erro ao atualizar: {str(e)}"
@@ -660,12 +710,19 @@ def atualizar_foto_professor(id_prof, foto_url):
     Returns:
         tuple: (bool, str) - Sucesso e mensagem de retorno.
     """
-    if supabase is None:
+    if not SUPABASE_URL:
         return False, "Supabase não configurado"
     
     try:
-        response = supabase.table('professores').update({'foto_url': foto_url}).eq('id', id_prof).execute()
-        return True, "Foto atualizada com sucesso!"
+        response = requests.patch(
+            f"{SUPABASE_URL}/rest/v1/professores?id=eq.{id_prof}",
+            json={'foto_url': foto_url},
+            headers=HEADERS
+        )
+        if response.status_code in [200, 201]:
+            return True, "Foto atualizada com sucesso!"
+        else:
+            return False, f"Erro ao atualizar: {response.text}"
     except Exception as e:
         st.error(f"Erro ao atualizar foto do professor: {str(e)}")
         return False, f"Erro ao atualizar: {str(e)}"
@@ -761,12 +818,12 @@ def excluir_alunos_por_turma(turma):
     Returns:
         bool: True se excluído com sucesso, False caso contrário.
     """
-    if supabase is None:
+    if not SUPABASE_URL:
         return False
     
     try:
-        response = supabase.table('alunos').delete().eq('turma', turma).execute()
-        return True
+        response = requests.delete(f"{SUPABASE_URL}/rest/v1/alunos?turma=eq.{turma}", headers=HEADERS)
+        return response.status_code in [200, 201]
     except Exception as e:
         st.error(f"Erro ao excluir alunos da turma: {str(e)}")
         return False
@@ -959,745 +1016,8 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
     buffer.seek(0)
     
     return buffer
-# ============================================================================
-# FUNÇÕES DE CARREGAMENTO DE DADOS DO SUPABASE
-# ============================================================================
-
-@st.cache_data(ttl=60)
-def carregar_alunos():
-    """
-    Carrega todos os alunos do banco de dados Supabase.
-    
-    Returns:
-        pd.DataFrame: DataFrame com todos os alunos cadastrados.
-    """
-    if supabase is None:
-        return pd.DataFrame(columns=['nome', 'ra', 'turma', 'nascimento', 'responsavel', 'telefone', 'foto_url'])
-    
-    try:
-        response = supabase.table('alunos').select('*').execute()
-        df = pd.DataFrame(response.data)
-        
-        if not df.empty:
-            # Ordenar alunos por nome
-            df = df.sort_values('nome')
-        
-        return df
-    except Exception as e:
-        st.error(f"Erro ao carregar alunos: {str(e)}")
-        return pd.DataFrame(columns=['nome', 'ra', 'turma', 'nascimento', 'responsavel', 'telefone', 'foto_url'])
 
 
-@st.cache_data(ttl=60)
-def carregar_professores():
-    """
-    Carrega todos os professores do banco de dados Supabase.
-    
-    Returns:
-        pd.DataFrame: DataFrame com todos os professores cadastrados.
-    """
-    if supabase is None:
-        return pd.DataFrame(columns=['id', 'nome', 'email', 'cargo', 'foto_url'])
-    
-    try:
-        response = supabase.table('professores').select('*').execute()
-        df = pd.DataFrame(response.data)
-        
-        if not df.empty:
-            # CORREÇÃO 4: Ordenar professores por nome (alfabética)
-            df = df.sort_values('nome')
-        
-        return df
-    except Exception as e:
-        st.error(f"Erro ao carregar professores: {str(e)}")
-        return pd.DataFrame(columns=['id', 'nome', 'email', 'cargo', 'foto_url'])
-
-
-@st.cache_data(ttl=60)
-def carregar_ocorrencias():
-    """
-    Carrega todas as ocorrências do banco de dados Supabase.
-    
-    Returns:
-        pd.DataFrame: DataFrame com todas as ocorrências registradas.
-    """
-    if supabase is None:
-        return pd.DataFrame(columns=['id', 'data', 'aluno', 'ra', 'turma', 'categoria', 'gravidade', 'relato', 'professor', 'encaminhamentos', 'testemunhas', 'evidencias'])
-    
-    try:
-        response = supabase.table('ocorrencias').select('*').order('data', desc=True).execute()
-        return pd.DataFrame(response.data)
-    except Exception as e:
-        st.error(f"Erro ao carregar ocorrências: {str(e)}")
-        return pd.DataFrame(columns=['id', 'data', 'aluno', 'ra', 'turma', 'categoria', 'gravidade', 'relato', 'professor', 'encaminhamentos', 'testemunhas', 'evidencias'])
-
-
-@st.cache_data(ttl=60)
-def carregar_responsaveis():
-    """
-    Carrega todos os responsáveis por assinatura do banco de dados Supabase.
-    
-    Returns:
-        pd.DataFrame: DataFrame com todos os responsáveis cadastrados.
-    """
-    if supabase is None:
-        return pd.DataFrame(columns=['id', 'nome', 'cargo'])
-    
-    try:
-        response = supabase.table('responsaveis').select('*').execute()
-        df = pd.DataFrame(response.data)
-        
-        if not df.empty:
-            df = df.sort_values('cargo')
-        
-        return df
-    except Exception as e:
-        st.error(f"Erro ao carregar responsáveis: {str(e)}")
-        return pd.DataFrame(columns=['id', 'nome', 'cargo'])
-
-
-# ============================================================================
-# FUNÇÕES DE SALVAMENTO DE DADOS NO SUPABASE
-# ============================================================================
-
-def salvar_ocorrencia(ocorrencia_dict):
-    """
-    Salva uma ocorrência no banco de dados Supabase.
-    
-    Args:
-        ocorrencia_dict (dict): Dicionário com os dados da ocorrência.
-    
-    Returns:
-        tuple: (bool, str) - Sucesso e mensagem de retorno.
-    """
-    if supabase is None:
-        return False, "Supabase não configurado"
-    
-    try:
-        # Converter lista de encaminhamentos para string separada por |
-        if 'encaminhamentos' in ocorrencia_dict and isinstance(ocorrencia_dict['encaminhamentos'], list):
-            ocorrencia_dict['encaminhamentos'] = '| '.join(ocorrencia_dict['encaminhamentos'])
-        
-        response = supabase.table('ocorrencias').insert(ocorrencia_dict).execute()
-        return True, "Ocorrência salva com sucesso!"
-    except Exception as e:
-        st.error(f"Erro ao salvar ocorrência: {str(e)}")
-        return False, f"Erro ao salvar: {str(e)}"
-
-
-def atualizar_ocorrencia(id_ocorrencia, ocorrencia_dict):
-    """
-    Atualiza uma ocorrência existente no banco de dados Supabase.
-    
-    Args:
-        id_ocorrencia (int): ID da ocorrência a ser atualizada.
-        ocorrencia_dict (dict): Dicionário com os dados atualizados.
-    
-    Returns:
-        tuple: (bool, str) - Sucesso e mensagem de retorno.
-    """
-    if supabase is None:
-        return False, "Supabase não configurado"
-    
-    try:
-        # Converter lista de encaminhamentos para string separada por |
-        if 'encaminhamentos' in ocorrencia_dict and isinstance(ocorrencia_dict['encaminhamentos'], list):
-            ocorrencia_dict['encaminhamentos'] = '| '.join(ocorrencia_dict['encaminhamentos'])
-        
-        response = supabase.table('ocorrencias').update(ocorrencia_dict).eq('id', id_ocorrencia).execute()
-        return True, "Ocorrência atualizada com sucesso!"
-    except Exception as e:
-        st.error(f"Erro ao atualizar ocorrência: {str(e)}")
-        return False, f"Erro ao atualizar: {str(e)}"
-
-
-def excluir_ocorrencia(id_ocorrencia):
-    """
-    Exclui uma ocorrência do banco de dados Supabase.
-    
-    Args:
-        id_ocorrencia (int): ID da ocorrência a ser excluída.
-    
-    Returns:
-        tuple: (bool, str) - Sucesso e mensagem de retorno.
-    """
-    if supabase is None:
-        return False, "Supabase não configurado"
-    
-    try:
-        response = supabase.table('ocorrencias').delete().eq('id', id_ocorrencia).execute()
-        return True, "Ocorrência excluída com sucesso!"
-    except Exception as e:
-        st.error(f"Erro ao excluir ocorrência: {str(e)}")
-        return False, f"Erro ao excluir: {str(e)}"
-
-
-def salvar_aluno(aluno_dict):
-    """
-    Salva um aluno no banco de dados Supabase.
-    
-    Args:
-        aluno_dict (dict): Dicionário com os dados do aluno.
-    
-    Returns:
-        tuple: (bool, str) - Sucesso e mensagem de retorno.
-    """
-    if supabase is None:
-        return False, "Supabase não configurado"
-    
-    try:
-        response = supabase.table('alunos').insert(aluno_dict).execute()
-        return True, "Aluno salvo com sucesso!"
-    except Exception as e:
-        st.error(f"Erro ao salvar aluno: {str(e)}")
-        return False, f"Erro ao salvar: {str(e)}"
-
-
-def atualizar_aluno(ra_aluno, aluno_dict):
-    """
-    Atualiza um aluno existente no banco de dados Supabase.
-    
-    Args:
-        ra_aluno (str): RA do aluno a ser atualizado.
-        aluno_dict (dict): Dicionário com os dados atualizados.
-    
-    Returns:
-        tuple: (bool, str) - Sucesso e mensagem de retorno.
-    """
-    if supabase is None:
-        return False, "Supabase não configurado"
-    
-    try:
-        response = supabase.table('alunos').update(aluno_dict).eq('ra', ra_aluno).execute()
-        return True, "Aluno atualizado com sucesso!"
-    except Exception as e:
-        st.error(f"Erro ao atualizar aluno: {str(e)}")
-        return False, f"Erro ao atualizar: {str(e)}"
-
-
-def excluir_aluno(ra_aluno):
-    """
-    Exclui um aluno do banco de dados Supabase.
-    
-    Args:
-        ra_aluno (str): RA do aluno a ser excluído.
-    
-    Returns:
-        tuple: (bool, str) - Sucesso e mensagem de retorno.
-    """
-    if supabase is None:
-        return False, "Supabase não configurado"
-    
-    try:
-        response = supabase.table('alunos').delete().eq('ra', ra_aluno).execute()
-        return True, "Aluno excluído com sucesso!"
-    except Exception as e:
-        st.error(f"Erro ao excluir aluno: {str(e)}")
-        return False, f"Erro ao excluir: {str(e)}"
-
-
-def salvar_professor(professor_dict):
-    """
-    Salva um professor no banco de dados Supabase.
-    
-    Args:
-        professor_dict (dict): Dicionário com os dados do professor.
-    
-    Returns:
-        tuple: (bool, str) - Sucesso e mensagem de retorno.
-    """
-    if supabase is None:
-        return False, "Supabase não configurado"
-    
-    try:
-        response = supabase.table('professores').insert(professor_dict).execute()
-        return True, "Professor salvo com sucesso!"
-    except Exception as e:
-        st.error(f"Erro ao salvar professor: {str(e)}")
-        return False, f"Erro ao salvar: {str(e)}"
-
-
-def atualizar_professor(id_prof, professor_dict):
-    """
-    Atualiza um professor existente no banco de dados Supabase.
-    
-    Args:
-        id_prof (int): ID do professor a ser atualizado.
-        professor_dict (dict): Dicionário com os dados atualizados.
-    
-    Returns:
-        tuple: (bool, str) - Sucesso e mensagem de retorno.
-    """
-    if supabase is None:
-        return False, "Supabase não configurado"
-    
-    try:
-        response = supabase.table('professores').update(professor_dict).eq('id', id_prof).execute()
-        return True, "Professor atualizado com sucesso!"
-    except Exception as e:
-        st.error(f"Erro ao atualizar professor: {str(e)}")
-        return False, f"Erro ao atualizar: {str(e)}"
-
-
-def excluir_professor(id_prof):
-    """
-    Exclui um professor do banco de dados Supabase.
-    
-    Args:
-        id_prof (int): ID do professor a ser excluído.
-    
-    Returns:
-        tuple: (bool, str) - Sucesso e mensagem de retorno.
-    """
-    if supabase is None:
-        return False, "Supabase não configurado"
-    
-    try:
-        response = supabase.table('professores').delete().eq('id', id_prof).execute()
-        return True, "Professor excluído com sucesso!"
-    except Exception as e:
-        st.error(f"Erro ao excluir professor: {str(e)}")
-        return False, f"Erro ao excluir: {str(e)}"
-
-
-def salvar_responsavel(responsavel_dict):
-    """
-    Salva um responsável por assinatura no banco de dados Supabase.
-    
-    Args:
-        responsavel_dict (dict): Dicionário com os dados do responsável.
-    
-    Returns:
-        tuple: (bool, str) - Sucesso e mensagem de retorno.
-    """
-    if supabase is None:
-        return False, "Supabase não configurado"
-    
-    try:
-        response = supabase.table('responsaveis').insert(responsavel_dict).execute()
-        return True, "Responsável salvo com sucesso!"
-    except Exception as e:
-        st.error(f"Erro ao salvar responsável: {str(e)}")
-        return False, f"Erro ao salvar: {str(e)}"
-
-
-def atualizar_responsavel(id_resp, responsavel_dict):
-    """
-    Atualiza um responsável existente no banco de dados Supabase.
-    
-    Args:
-        id_resp (int): ID do responsável a ser atualizado.
-        responsavel_dict (dict): Dicionário com os dados atualizados.
-    
-    Returns:
-        tuple: (bool, str) - Sucesso e mensagem de retorno.
-    """
-    if supabase is None:
-        return False, "Supabase não configurado"
-    
-    try:
-        response = supabase.table('responsaveis').update(responsavel_dict).eq('id', id_resp).execute()
-        return True, "Responsável atualizado com sucesso!"
-    except Exception as e:
-        st.error(f"Erro ao atualizar responsável: {str(e)}")
-        return False, f"Erro ao atualizar: {str(e)}"
-
-
-def excluir_responsavel(id_resp):
-    """
-    Exclui um responsável do banco de dados Supabase.
-    
-    Args:
-        id_resp (int): ID do responsável a ser excluído.
-    
-    Returns:
-        tuple: (bool, str) - Sucesso e mensagem de retorno.
-    """
-    if supabase is None:
-        return False, "Supabase não configurado"
-    
-    try:
-        response = supabase.table('responsaveis').delete().eq('id', id_resp).execute()
-        return True, "Responsável excluído com sucesso!"
-    except Exception as e:
-        st.error(f"Erro ao excluir responsável: {str(e)}")
-        return False, f"Erro ao excluir: {str(e)}"
-
-
-# ============================================================================
-# FUNÇÕES DE UPLOAD DE FOTOS PARA SUPABASE STORAGE
-# ============================================================================
-
-def upload_foto_supabase(file, folder, filename):
-    """
-    Faz upload de foto para o Supabase Storage.
-    
-    Args:
-        file: Arquivo de foto enviado pelo usuário.
-        folder (str): Pasta no bucket onde a foto será salva.
-        filename (str): Nome do arquivo.
-    
-    Returns:
-        tuple: (str, str) - URL pública e mensagem de retorno.
-    """
-    if supabase is None:
-        return None, "Supabase não configurado"
-    
-    try:
-        file_bytes = file.getvalue()
-        
-        # CORREÇÃO 1: Verificar se bucket existe antes de upload
-        try:
-            response = supabase.storage.from_('fotos').upload(
-                f'{folder}/{filename}',
-                file_bytes,
-                {'content-type': file.type}
-            )
-        except Exception as upload_error:
-            # Se bucket não existir, tentar criar mensagem de erro clara
-            if 'Bucket not found' in str(upload_error):
-                return None, "Bucket 'fotos' não encontrado. Crie o bucket no Supabase primeiro!"
-            raise upload_error
-        
-        public_url = supabase.storage.from_('fotos').get_public_url(f'{folder}/{filename}')
-        return public_url, "Foto enviada com sucesso!"
-    except Exception as e:
-        st.error(f"Erro ao enviar foto: {str(e)}")
-        return None, f"Erro ao enviar foto: {str(e)}"
-
-
-def atualizar_foto_aluno(ra_aluno, foto_url):
-    """
-    Atualiza a URL da foto de um aluno no banco de dados.
-    
-    Args:
-        ra_aluno (str): RA do aluno.
-        foto_url (str): URL da foto no Supabase Storage.
-    
-    Returns:
-        tuple: (bool, str) - Sucesso e mensagem de retorno.
-    """
-    if supabase is None:
-        return False, "Supabase não configurado"
-    
-    try:
-        response = supabase.table('alunos').update({'foto_url': foto_url}).eq('ra', ra_aluno).execute()
-        return True, "Foto atualizada com sucesso!"
-    except Exception as e:
-        st.error(f"Erro ao atualizar foto do aluno: {str(e)}")
-        return False, f"Erro ao atualizar: {str(e)}"
-
-
-def atualizar_foto_professor(id_prof, foto_url):
-    """
-    Atualiza a URL da foto de um professor no banco de dados.
-    
-    Args:
-        id_prof (int): ID do professor.
-        foto_url (str): URL da foto no Supabase Storage.
-    
-    Returns:
-        tuple: (bool, str) - Sucesso e mensagem de retorno.
-    """
-    if supabase is None:
-        return False, "Supabase não configurado"
-    
-    try:
-        response = supabase.table('professores').update({'foto_url': foto_url}).eq('id', id_prof).execute()
-        return True, "Foto atualizada com sucesso!"
-    except Exception as e:
-        st.error(f"Erro ao atualizar foto do professor: {str(e)}")
-        return False, f"Erro ao atualizar: {str(e)}"
-
-
-# ============================================================================
-# FUNÇÕES AUXILIARES DE VALIDAÇÃO E VERIFICAÇÃO
-# ============================================================================
-
-def verificar_ocorrencia_duplicada(ra_aluno, categoria, data, df_ocorrencias):
-    """
-    Verifica se já existe uma ocorrência igual para o mesmo aluno na mesma data.
-    
-    Args:
-        ra_aluno (str): RA do aluno.
-        categoria (str): Categoria da ocorrência.
-        data (str): Data da ocorrência.
-        df_ocorrencias (pd.DataFrame): DataFrame com todas as ocorrências.
-    
-    Returns:
-        bool: True se ocorrência duplicada existir, False caso contrário.
-    """
-    # CORREÇÃO 6: Verificar se df_ocorrencias não é None ou vazio
-    if df_ocorrencias is None or df_ocorrencias.empty:
-        return False
-    
-    try:
-        # Extrair apenas a data (sem hora) para comparação
-        data_comparacao = data.split(' ')[0] if ' ' in data else data
-        
-        for idx, ocorrencia in df_ocorrencias.iterrows():
-            data_ocorrencia = str(ocorrencia.get('data', ''))
-            data_ocorrencia_comparacao = data_ocorrencia.split(' ')[0] if ' ' in data_ocorrencia else data_ocorrencia
-            
-            if (str(ocorrencia.get('ra', '')) == str(ra_aluno) and 
-                str(ocorrencia.get('categoria', '')) == str(categoria) and 
-                data_ocorrencia_comparacao == data_comparacao):
-                return True
-        
-        return False
-    except Exception as e:
-        st.error(f"Erro ao verificar duplicidade: {str(e)}")
-        return False
-
-
-def formatar_texto(texto):
-    """
-    Formata texto para exibição no PDF, convertendo quebras de linha.
-    
-    Args:
-        texto (str): Texto original.
-    
-    Returns:
-        str: Texto formatado.
-    """
-    if not texto:
-        return ""
-    
-    # Substituir quebras de linha HTML por quebras reais
-    texto_formatado = str(texto).replace('<br/>', '\n').replace('<br>', '\n').replace('\n', '\n')
-    return texto_formatado
-
-
-def remover_duplicatas_encaminhamentos(encaminhamentos):
-    """
-    Remove encaminhamentos duplicados de uma lista.
-    
-    Args:
-        encaminhamentos (str): String com encaminhamentos separados por |.
-    
-    Returns:
-        str: String com encaminhamentos únicos.
-    """
-    if not encaminhamentos:
-        return ""
-    
-    todos = []
-    for linha in str(encaminhamentos).split('|'):
-        linha = linha.strip()
-        if linha and linha not in todos:
-            todos.append(linha)
-    
-    return '| '.join(todos)
-
-
-def excluir_alunos_por_turma(turma):
-    """
-    Exclui todos os alunos de uma turma específica.
-    
-    Args:
-        turma (str): Nome da turma.
-    
-    Returns:
-        bool: True se excluído com sucesso, False caso contrário.
-    """
-    if supabase is None:
-        return False
-    
-    try:
-        response = supabase.table('alunos').delete().eq('turma', turma).execute()
-        return True
-    except Exception as e:
-        st.error(f"Erro ao excluir alunos da turma: {str(e)}")
-        return False
-
-
-# ============================================================================
-# FUNÇÕES DE GERAÇÃO DE PDF - OCORRÊNCIA
-# ============================================================================
-
-def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
-    """
-    Gera PDF de ocorrência com layout profissional.
-    
-    Args:
-        ocorrencia (dict): Dados da ocorrência.
-        responsaveis (pd.DataFrame): DataFrame com responsáveis por assinatura.
-    
-    Returns:
-        BytesIO: Buffer com o PDF gerado.
-    """
-    buffer = io.BytesIO()
-    
-    # CORREÇÃO 5: Margens reduzidas para caber em 1 página
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=A4,
-        rightMargin=1*cm,
-        leftMargin=1*cm,
-        topMargin=1.5*cm,
-        bottomMargin=1.5*cm
-    )
-    
-    elementos = []
-    estilos = getSampleStyleSheet()
-    
-    # Estilos personalizados
-    estilos.add(ParagraphStyle(
-        'Titulo',
-        parent=estilos['Heading1'],
-        fontSize=14,
-        alignment=TA_CENTER,
-        spaceAfter=0.5*cm,
-        textColor=colors.HexColor('#667eea')
-    ))
-    
-    estilos.add(ParagraphStyle(
-        'Secao',
-        parent=estilos['Normal'],
-        fontSize=10,
-        textColor=colors.HexColor('#667eea'),
-        spaceAfter=0.3*cm
-    ))
-    
-    estilos.add(ParagraphStyle(
-        'Texto',
-        parent=estilos['Normal'],
-        fontSize=9,
-        alignment=TA_JUSTIFY,
-        spaceAfter=0.2*cm
-    ))
-    
-    estilos.add(ParagraphStyle(
-        'Assinatura',
-        parent=estilos['Normal'],
-        fontSize=8,
-        alignment=TA_CENTER,
-        spaceAfter=0.5*cm
-    ))
-    
-    # CABEÇALHO COM LOGO (16cm x 4.5cm) - CORREÇÃO
-    try:
-        if os.path.exists(ESCOLA_LOGO):
-            logo = Image(ESCOLA_LOGO, width=16*cm, height=4.5*cm)
-            logo.hAlign = 'CENTER'
-            elementos.append(logo)
-            elementos.append(Spacer(1, 0.3*cm))
-    except:
-        pass
-    
-    # Título do documento
-    elementos.append(Paragraph("📋 REGISTRO DE OCORRÊNCIA DISCIPLINAR", estilos['Titulo']))
-    elementos.append(Spacer(1, 0.5*cm))
-    
-    # Dados da escola
-    elementos.append(Paragraph(f"<b>{ESCOLA_NOME}</b>", estilos['Texto']))
-    elementos.append(Paragraph(f"{ESCOLA_ENDERECO}", estilos['Texto']))
-    elementos.append(Paragraph(f"{ESCOLA_CEP} | {ESCOLA_TELEFONE}", estilos['Texto']))
-    elementos.append(Spacer(1, 0.5*cm))
-    
-    # Dados do aluno
-    elementos.append(Paragraph("<b>DADOS DO(A) ESTUDANTE:</b>", estilos['Secao']))
-    elementos.append(Paragraph(f"<b>Nome:</b> {ocorrencia.get('aluno', 'N/A')}", estilos['Texto']))
-    elementos.append(Paragraph(f"<b>RA:</b> {ocorrencia.get('ra', 'N/A')}", estilos['Texto']))
-    elementos.append(Paragraph(f"<b>Turma:</b> {ocorrencia.get('turma', 'N/A')}", estilos['Texto']))
-    elementos.append(Spacer(1, 0.3*cm))
-    
-    # Dados da ocorrência
-    elementos.append(Paragraph("<b>DADOS DA OCORRÊNCIA:</b>", estilos['Secao']))
-    elementos.append(Paragraph(f"<b>Data:</b> {ocorrencia.get('data', 'N/A')}", estilos['Texto']))
-    elementos.append(Paragraph(f"<b>Categoria:</b> {ocorrencia.get('categoria', 'N/A')}", estilos['Texto']))
-    
-    # CORREÇÃO 8: Badge de gravidade colorida
-    gravidade = ocorrencia.get('gravidade', 'N/A')
-    cor_gravidade = CORES_GRAVIDADE.get(gravidade, '#9E9E9E')
-    elementos.append(Paragraph(
-        f"<b>Gravidade:</b> <font color='{cor_gravidade}'><b>{gravidade}</b></font>",
-        estilos['Texto']
-    ))
-    elementos.append(Spacer(1, 0.3*cm))
-    
-    # Relato
-    elementos.append(Paragraph("<b>Relato:</b>", estilos['Secao']))
-    relato_formatado = formatar_texto(ocorrencia.get('relato', ''))
-    elementos.append(Paragraph(relato_formatado, estilos['Texto']))
-    elementos.append(Spacer(1, 0.3*cm))
-    
-    # Encaminhamentos
-    elementos.append(Paragraph("<b>Encaminhamentos:</b>", estilos['Secao']))
-    encaminhamentos = ocorrencia.get('encaminhamentos', [])
-    
-    if isinstance(encaminhamentos, str):
-        encaminhamentos = encaminhamentos.split('|')
-    
-    if isinstance(encaminhamentos, list):
-        for enc in encaminhamentos:
-            if enc.strip():
-                elementos.append(Paragraph(f"• {enc.strip()}", estilos['Texto']))
-    else:
-        elementos.append(Paragraph(str(encaminhamentos), estilos['Texto']))
-    
-    elementos.append(Spacer(1, 0.5*cm))
-    
-    # Professor responsável
-    elementos.append(Paragraph("<b>Professor Responsável:</b>", estilos['Secao']))
-    elementos.append(Paragraph(f"{ocorrencia.get('professor', 'N/A')}", estilos['Texto']))
-    elementos.append(Spacer(1, 0.5*cm))
-    
-    # Testemunhas (se houver)
-    if ocorrencia.get('testemunhas'):
-        elementos.append(Paragraph("<b>Testemunhas:</b>", estilos['Secao']))
-        elementos.append(Paragraph(f"{ocorrencia.get('testemunhas', '')}", estilos['Texto']))
-        elementos.append(Spacer(1, 0.3*cm))
-    
-    # Evidências (se houver)
-    if ocorrencia.get('evidencias'):
-        elementos.append(Paragraph("<b>Evidências:</b>", estilos['Secao']))
-        elementos.append(Paragraph(f"{ocorrencia.get('evidencias', '')}", estilos['Texto']))
-        elementos.append(Spacer(1, 0.5*cm))
-    
-    # Assinaturas
-    elementos.append(Paragraph("<b>ASSINATURAS:</b>", estilos['Secao']))
-    elementos.append(Spacer(1, 0.5*cm))
-    
-    cargos_para_assinatura = ["Diretor(a)", "Vice-Diretor(a)", "CGPG / Coordenador(a)"]
-    
-    for cargo in cargos_para_assinatura:
-        if responsaveis is not None and not responsaveis.empty:
-            resp = responsaveis[responsaveis['cargo'] == cargo]
-            if not resp.empty and resp.iloc[0].get('nome'):
-                elementos.append(Paragraph(f"<b>{cargo}:</b> {resp.iloc[0].get('nome', '')}", estilos['Texto']))
-            else:
-                elementos.append(Paragraph(f"<b>{cargo}:</b> _________________________________", estilos['Texto']))
-        else:
-            elementos.append(Paragraph(f"<b>{cargo}:</b> _________________________________", estilos['Texto']))
-        elementos.append(Spacer(1, 0.5*cm))
-    
-    # Ciência dos pais/responsáveis
-    elementos.append(Spacer(1, 1*cm))
-    elementos.append(Paragraph("<b>CIÊNCIA DOS PAIS/RESPONSÁVEIS:</b>", estilos['Secao']))
-    elementos.append(Spacer(1, 0.3*cm))
-    elementos.append(Paragraph("Declaro que recebi e tomei conhecimento deste comunicado.", estilos['Texto']))
-    elementos.append(Spacer(1, 1.5*cm))
-    elementos.append(Paragraph("_" * 50, estilos['Normal']))
-    elementos.append(Paragraph("Assinatura do Responsável", estilos['Assinatura']))
-    
-    # Rodapé
-    elementos.append(Spacer(1, 0.5*cm))
-    estilo_rodape = ParagraphStyle(
-        'Rodape',
-        parent=estilos['Normal'],
-        fontSize=6,
-        alignment=TA_CENTER,
-        textColor=colors.grey
-    )
-    elementos.append(Paragraph("_" * 75, estilos['Normal']))
-    elementos.append(Paragraph(f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}", estilo_rodape))
-    
-    # Construir PDF
-    doc.build(elementos)
-    buffer.seek(0)
-    
-    return buffer
 # ============================================================================
 # FUNÇÕES DE GERAÇÃO DE PDF - COMUNICADO AOS PAIS
 # ============================================================================
@@ -2186,7 +1506,9 @@ if menu == "🏠 Home":
     if not df_professores.empty:
         st.subheader("👨‍🏫 Resumo de Professores")
         st.metric("Total de Professores", len(df_professores))
-        # ============================================================================
+
+
+# ============================================================================
 # PÁGINA: REGISTRAR OCORRÊNCIA
 # ============================================================================
 
@@ -2676,7 +1998,9 @@ elif menu == "👨‍🏫 Professores":
         st.info(f"📊 **Total:** {len(df_professores)} professores cadastrados")
     else:
         st.info("📭 Nenhum professor cadastrado ainda.")
-        # ============================================================================
+
+
+# ============================================================================
 # PÁGINA: GRÁFICOS
 # ============================================================================
 
@@ -2988,7 +2312,7 @@ elif menu == "⚙️ Configurações":
     
     with col1:
         st.info("""
-        **Tipo:** Supabase
+        **Tipo:** Supabase (via Requests)
         **Status:** ✅ Conectado
         """)
     
@@ -3021,11 +2345,12 @@ elif menu == "⚙️ Configurações":
     numpy
     requests
     reportlab
-    supabase
+    openpyxl
     plotly
     fuzzywuzzy
     python-Levenshtein
     pytz
+    python-dotenv
     """, language="text")
 
 
@@ -3158,6 +2483,6 @@ st.markdown("""
     <p><b>Sistema Conviva 179</b> - Gestão de Ocorrências Escolares</p>
     <p>Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI</p>
     <p>Protocolo de Convivência e Proteção Escolar - SEDUC/SP</p>
-    <p>Versão 7.0 FINAL | Desenvolvido com Streamlit + Supabase</p>
+    <p>Versão 7.0 FINAL | Desenvolvido com Streamlit + Supabase (Requests)</p>
 </div>
 """, unsafe_allow_html=True)
