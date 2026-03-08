@@ -2338,6 +2338,7 @@ elif menu == "🖨️ Imprimir PDF":
         st.info("📭 Nenhuma ocorrência registrada.")
 
 # ============================================================================
+## ============================================================================
 # PÁGINA: BACKUP DE DADOS
 # ============================================================================
 
@@ -2382,22 +2383,23 @@ elif menu == "💾 Backup de Dados":
                 contagem_professores = 0
                 contagem_responsaveis = 0
                 
-                if 'ocorrencias' in backup_
+                # CORREÇÃO: backup_data completo (não backup_)
+                if 'ocorrencias' in backup_data:
                     for occ in backup_data['ocorrencias']:
                         if salvar_ocorrencia(occ)[0]:
                             contagem_ocorrencias += 1
                 
-                if 'alunos' in backup_
+                if 'alunos' in backup_data:
                     for aluno in backup_data['alunos']:
                         if salvar_aluno(aluno):
                             contagem_alunos += 1
                 
-                if 'professores' in backup_
+                if 'professores' in backup_data:
                     for prof in backup_data['professores']:
                         if salvar_professor(prof):
                             contagem_professores += 1
                 
-                if 'responsaveis' in backup_
+                if 'responsaveis' in backup_data:
                     for resp in backup_data['responsaveis']:
                         if salvar_responsavel(resp):
                             contagem_responsaveis += 1
