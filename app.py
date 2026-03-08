@@ -1,7 +1,7 @@
 # ============================================================================
 # SISTEMA CONVIVA 179 - GESTÃO DE OCORRÊNCIAS ESCOLARES
 # Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI
-# Versão: 7.0 FINAL COMPLETA
+# Versão: 7.0 FINAL COMPLETA CORRIGIDA
 # ============================================================================
 
 # ============================================================================
@@ -153,7 +153,7 @@ CATEGORIAS_OCORRENCIAS = {
         "Pornografia Infantil": "Gravíssima",
         "Grooming": "Gravíssima"
     },
-    "👨‍👩‍‍👦 Família e Vulnerabilidade": {
+    "👨‍👩‍‍ Família e Vulnerabilidade": {
         "Violência Doméstica / Maus Tratos": "Gravíssima",
         "Vulnerabilidade Familiar / Negligência": "Gravíssima",
         "Alerta de Desaparecimento": "Gravíssima",
@@ -191,7 +191,7 @@ CORES_CATEGORIAS = {
     "📚 Infrequência e Evasão": "#FFA726",
     "💔 Saúde Mental": "#5C6BC0",
     "🌐 Crimes Cibernéticos": "#00BCD4",
-    "👨‍‍👧👦 Família e Vulnerabilidade": "#EC407A",
+    "👨‍👩‍👧‍👦 Família e Vulnerabilidade": "#EC407A",
     "📋 Infrações Administrativas e Disciplinares": "#9E9E9E",
     "⚠️ Infrações Acadêmicas e de Pontualidade": "#795548"
 }
@@ -379,15 +379,6 @@ st.markdown("""
     border-left: 4px solid #667eea;
     margin: 1rem 0;
 }
-.encam-container .stCheckbox label {
-    white-space: normal;
-    word-wrap: break-word;
-    max-width: 100%;
-}
-.encam-container .stCheckbox {
-    margin-bottom: 0.8rem;
-    padding: 0.3rem 0;
-}
 .sidebar-menu {
     background: #f8f9fa;
     padding: 1rem;
@@ -418,33 +409,14 @@ if 'infracoes_adicionais' not in st.session_state:
     st.session_state.infracoes_adicionais = []
 if 'turma_selecionada' not in st.session_state:
     st.session_state.turma_selecionada = None
-
-    # ============================================================================
-# SESSION STATE - GERENCIAMENTO DE ESTADO (CONTINUAÇÃO)
-# ============================================================================
-
-if 'editando_id' not in st.session_state:
-    st.session_state.editando_id = None
-if 'dados_edicao' not in st.session_state:
-    st.session_state.dados_edicao = None
-if 'pagina_atual' not in st.session_state:
-    st.session_state.pagina_atual = "Home"
-if 'ocorrencia_salva_sucesso' not in st.session_state:
-    st.session_state.ocorrencia_salva_sucesso = False
-if 'salvando_ocorrencia' not in st.session_state:
-    st.session_state.salvando_ocorrencia = False
-if 'gravidade_alterada' not in st.session_state:
-    st.session_state.gravidade_alterada = False
-if 'adicionar_outra_infracao' not in st.session_state:
-    st.session_state.adicionar_outra_infracao = False
-if 'infracoes_adicionais' not in st.session_state:
-    st.session_state.infracoes_adicionais = []
-if 'turma_selecionada' not in st.session_state:
-    st.session_state.turma_selecionada = None
 if 'turmas_selecionadas' not in st.session_state:
     st.session_state.turmas_selecionadas = []
 if 'modo_multiplas_turmas' not in st.session_state:
     st.session_state.modo_multiplas_turmas = False
+if 'editando_prof' not in st.session_state:
+    st.session_state.editando_prof = None
+if 'editando_resp' not in st.session_state:
+    st.session_state.editando_resp = None
 
 # ============================================================================
 # FUNÇÕES DE BANCO DE DADOS (SUPABASE VIA REQUESTS)
@@ -452,12 +424,7 @@ if 'modo_multiplas_turmas' not in st.session_state:
 
 @st.cache_data(ttl=60)
 def carregar_alunos():
-    """
-    Carrega todos os alunos do banco de dados Supabase.
-    
-    Returns:
-        DataFrame com dados dos alunos ou DataFrame vazio em caso de erro
-    """
+    """Carrega todos os alunos do banco de dados Supabase."""
     try:
         response = requests.get(
             f"{SUPABASE_URL}/rest/v1/alunos?select=*&order=nome.asc",
@@ -475,12 +442,7 @@ def carregar_alunos():
 
 @st.cache_data(ttl=60)
 def carregar_professores():
-    """
-    Carrega todos os professores do banco de dados Supabase.
-    
-    Returns:
-        DataFrame com dados dos professores ou DataFrame vazio em caso de erro
-    """
+    """Carrega todos os professores do banco de dados Supabase."""
     try:
         response = requests.get(
             f"{SUPABASE_URL}/rest/v1/professores?select=*&order=nome.asc",
@@ -498,12 +460,7 @@ def carregar_professores():
 
 @st.cache_data(ttl=60)
 def carregar_responsaveis():
-    """
-    Carrega todos os responsáveis ativos do banco de dados.
-    
-    Returns:
-        DataFrame com dados dos responsáveis ou DataFrame vazio em caso de erro
-    """
+    """Carrega todos os responsáveis ativos do banco de dados."""
     try:
         response = requests.get(
             f"{SUPABASE_URL}/rest/v1/responsaveis?select=*&ativo=eq.true&order=cargo.asc",
@@ -518,12 +475,7 @@ def carregar_responsaveis():
 
 @st.cache_data(ttl=60)
 def carregar_ocorrencias():
-    """
-    Carrega todas as ocorrências do banco de dados.
-    
-    Returns:
-        DataFrame com dados das ocorrências ou DataFrame vazio em caso de erro
-    """
+    """Carrega todas as ocorrências do banco de dados."""
     try:
         response = requests.get(
             f"{SUPABASE_URL}/rest/v1/ocorrencias?select=*&order=id.desc",
@@ -538,12 +490,7 @@ def carregar_ocorrencias():
 
 @st.cache_data(ttl=60)
 def carregar_turmas():
-    """
-    Carrega todas as turmas do banco de dados.
-    
-    Returns:
-        DataFrame com dados das turmas ou DataFrame vazio em caso de erro
-    """
+    """Carrega todas as turmas do banco de dados."""
     try:
         response = requests.get(
             f"{SUPABASE_URL}/rest/v1/turmas?select=*&order=nome.asc",
@@ -556,15 +503,7 @@ def carregar_turmas():
 
 
 def salvar_aluno(aluno_dict):
-    """
-    Salva um aluno no banco de dados.
-    
-    Args:
-        aluno_dict: Dicionário com dados do aluno
-    
-    Returns:
-        bool: True se salvo com sucesso, False caso contrário
-    """
+    """Salva um aluno no banco de dados."""
     try:
         response = requests.post(
             f"{SUPABASE_URL}/rest/v1/alunos",
@@ -578,15 +517,7 @@ def salvar_aluno(aluno_dict):
 
 
 def salvar_professor(professor_dict):
-    """
-    Salva um professor no banco de dados.
-    
-    Args:
-        professor_dict: Dicionário com dados do professor
-    
-    Returns:
-        bool: True se salvo com sucesso, False caso contrário
-    """
+    """Salva um professor no banco de dados."""
     try:
         response = requests.post(
             f"{SUPABASE_URL}/rest/v1/professores",
@@ -600,15 +531,7 @@ def salvar_professor(professor_dict):
 
 
 def salvar_responsavel(responsavel_dict):
-    """
-    Salva um responsável no banco de dados.
-    
-    Args:
-        responsavel_dict: Dicionário com dados do responsável
-    
-    Returns:
-        bool: True se salvo com sucesso, False caso contrário
-    """
+    """Salva um responsável no banco de dados."""
     try:
         response = requests.post(
             f"{SUPABASE_URL}/rest/v1/responsaveis",
@@ -622,15 +545,7 @@ def salvar_responsavel(responsavel_dict):
 
 
 def salvar_turma(turma_dict):
-    """
-    Salva uma turma no banco de dados.
-    
-    Args:
-        turma_dict: Dicionário com dados da turma
-    
-    Returns:
-        bool: True se salvo com sucesso, False caso contrário
-    """
+    """Salva uma turma no banco de dados."""
     try:
         response = requests.post(
             f"{SUPABASE_URL}/rest/v1/turmas",
@@ -644,15 +559,7 @@ def salvar_turma(turma_dict):
 
 
 def salvar_ocorrencia(ocorrencia_dict):
-    """
-    Salva uma ocorrência no banco de dados.
-    
-    Args:
-        ocorrencia_dict: Dicionário com dados da ocorrência
-    
-    Returns:
-        tuple: (sucesso, mensagem)
-    """
+    """Salva uma ocorrência no banco de dados."""
     try:
         response = requests.post(
             f"{SUPABASE_URL}/rest/v1/ocorrencias",
@@ -668,16 +575,7 @@ def salvar_ocorrencia(ocorrencia_dict):
 
 
 def atualizar_ocorrencia(id_ocorrencia, ocorrencia_dict):
-    """
-    Atualiza uma ocorrência no banco de dados.
-    
-    Args:
-        id_ocorrencia: ID da ocorrência a atualizar
-        ocorrencia_dict: Dicionário com dados atualizados
-    
-    Returns:
-        tuple: (sucesso, mensagem)
-    """
+    """Atualiza uma ocorrência no banco de dados."""
     try:
         response = requests.patch(
             f"{SUPABASE_URL}/rest/v1/ocorrencias?id=eq.{id_ocorrencia}",
@@ -693,15 +591,7 @@ def atualizar_ocorrencia(id_ocorrencia, ocorrencia_dict):
 
 
 def excluir_ocorrencia(id_ocorrencia):
-    """
-    Exclui uma ocorrência do banco de dados.
-    
-    Args:
-        id_ocorrencia: ID da ocorrência a excluir
-    
-    Returns:
-        tuple: (sucesso, mensagem)
-    """
+    """Exclui uma ocorrência do banco de dados."""
     try:
         response = requests.delete(
             f"{SUPABASE_URL}/rest/v1/ocorrencias?id=eq.{id_ocorrencia}",
@@ -716,16 +606,7 @@ def excluir_ocorrencia(id_ocorrencia):
 
 
 def atualizar_aluno(ra, dados):
-    """
-    Atualiza dados de um aluno.
-    
-    Args:
-        ra: RA do aluno
-        dados: Dicionário com dados a atualizar
-    
-    Returns:
-        bool: True se atualizado com sucesso, False caso contrário
-    """
+    """Atualiza dados de um aluno."""
     try:
         response = requests.patch(
             f"{SUPABASE_URL}/rest/v1/alunos?ra=eq.{ra}",
@@ -739,15 +620,7 @@ def atualizar_aluno(ra, dados):
 
 
 def excluir_alunos_por_turma(turma):
-    """
-    Exclui todos os alunos de uma turma.
-    
-    Args:
-        turma: Nome da turma
-    
-    Returns:
-        bool: True se excluído com sucesso, False caso contrário
-    """
+    """Exclui todos os alunos de uma turma."""
     try:
         response = requests.delete(
             f"{SUPABASE_URL}/rest/v1/alunos?turma=eq.{turma}",
@@ -760,15 +633,7 @@ def excluir_alunos_por_turma(turma):
 
 
 def excluir_professor(id_prof):
-    """
-    Exclui um professor do banco de dados.
-    
-    Args:
-        id_prof: ID do professor
-    
-    Returns:
-        bool: True se excluído com sucesso, False caso contrário
-    """
+    """Exclui um professor do banco de dados."""
     try:
         response = requests.delete(
             f"{SUPABASE_URL}/rest/v1/professores?id=eq.{id_prof}",
@@ -781,15 +646,7 @@ def excluir_professor(id_prof):
 
 
 def excluir_responsavel(id_resp):
-    """
-    Exclui um responsável do banco de dados.
-    
-    Args:
-        id_resp: ID do responsável
-    
-    Returns:
-        bool: True se excluído com sucesso, False caso contrário
-    """
+    """Exclui um responsável do banco de dados."""
     try:
         response = requests.delete(
             f"{SUPABASE_URL}/rest/v1/responsaveis?id=eq.{id_resp}",
@@ -802,16 +659,7 @@ def excluir_responsavel(id_resp):
 
 
 def atualizar_responsavel(id_resp, dados):
-    """
-    Atualiza dados de um responsável.
-    
-    Args:
-        id_resp: ID do responsável
-        dados: Dicionário com dados a atualizar
-    
-    Returns:
-        bool: True se atualizado com sucesso, False caso contrário
-    """
+    """Atualiza dados de um responsável."""
     try:
         response = requests.patch(
             f"{SUPABASE_URL}/rest/v1/responsaveis?id=eq.{id_resp}",
@@ -825,15 +673,7 @@ def atualizar_responsavel(id_resp, dados):
 
 
 def excluir_turma(id_turma):
-    """
-    Exclui uma turma do banco de dados.
-    
-    Args:
-        id_turma: ID da turma
-    
-    Returns:
-        bool: True se excluído com sucesso, False caso contrário
-    """
+    """Exclui uma turma do banco de dados."""
     try:
         response = requests.delete(
             f"{SUPABASE_URL}/rest/v1/turmas?id=eq.{id_turma}",
@@ -846,18 +686,7 @@ def excluir_turma(id_turma):
 
 
 def verificar_ocorrencia_duplicada(ra, categoria, data, df_ocorrencias):
-    """
-    Verifica se já existe uma ocorrência duplicada.
-    
-    Args:
-        ra: RA do aluno
-        categoria: Categoria da ocorrência
-        data: Data da ocorrência
-        df_ocorrencias: DataFrame com ocorrências
-    
-    Returns:
-        bool: True se duplicada, False caso contrário
-    """
+    """Verifica se já existe uma ocorrência duplicada."""
     if df_ocorrencias.empty:
         return False
     
@@ -875,17 +704,7 @@ def verificar_ocorrencia_duplicada(ra, categoria, data, df_ocorrencias):
 # ============================================================================
 
 def upload_foto_supabase(file, folder, filename):
-    """
-    Faz upload de foto para o Supabase Storage.
-    
-    Args:
-        file: Arquivo de imagem
-        folder: Pasta no storage (alunos ou professores)
-        filename: Nome do arquivo
-    
-    Returns:
-        tuple: (url_publica, mensagem)
-    """
+    """Faz upload de foto para o Supabase Storage."""
     try:
         file_bytes = file.getvalue()
         
@@ -909,16 +728,7 @@ def upload_foto_supabase(file, folder, filename):
 
 
 def atualizar_foto_aluno(ra, foto_url):
-    """
-    Atualiza a foto de um aluno no banco de dados.
-    
-    Args:
-        ra: RA do aluno
-        foto_url: URL da foto
-    
-    Returns:
-        bool: True se atualizado com sucesso, False caso contrário
-    """
+    """Atualiza a foto de um aluno no banco de dados."""
     try:
         response = requests.patch(
             f"{SUPABASE_URL}/rest/v1/alunos?ra=eq.{ra}",
@@ -932,16 +742,7 @@ def atualizar_foto_aluno(ra, foto_url):
 
 
 def atualizar_foto_professor(nome, foto_url):
-    """
-    Atualiza a foto de um professor no banco de dados.
-    
-    Args:
-        nome: Nome do professor
-        foto_url: URL da foto
-    
-    Returns:
-        bool: True se atualizado com sucesso, False caso contrário
-    """
+    """Atualiza a foto de um professor no banco de dados."""
     try:
         response = requests.patch(
             f"{SUPABASE_URL}/rest/v1/professores?nome=eq.{nome}",
@@ -959,19 +760,9 @@ def atualizar_foto_professor(nome, foto_url):
 # ============================================================================
 
 def gerar_pdf_ocorrencia(ocorrencia, df_responsaveis=None):
-    """
-    Gera PDF da ocorrência com formatação profissional.
-    
-    Args:
-        ocorrencia: Dicionário com dados da ocorrência
-        df_responsaveis: DataFrame com responsáveis para assinatura
-    
-    Returns:
-        BytesIO: Buffer com o PDF gerado
-    """
+    """Gera PDF da ocorrência com formatação profissional."""
     buffer = io.BytesIO()
     
-    # Margens reduzidas para caber mais conteúdo
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
@@ -984,7 +775,6 @@ def gerar_pdf_ocorrencia(ocorrencia, df_responsaveis=None):
     elementos = []
     estilos = getSampleStyleSheet()
     
-    # Estilos personalizados
     estilos.add(ParagraphStyle(
         'Titulo',
         parent=estilos['Heading1'],
@@ -1017,33 +807,27 @@ def gerar_pdf_ocorrencia(ocorrencia, df_responsaveis=None):
         spaceAfter=0.5*cm
     ))
     
-    # Converter <br> para quebras reais no texto
     def formatar_texto(texto):
         if texto:
             return texto.replace('<br>', '<br/>').replace('\n', '<br/>')
         return ""
     
-    # Cabeçalho
     elementos.append(Paragraph("📋 REGISTRO DE OCORRÊNCIA - PROTOCOLO 179", estilos['Titulo']))
     elementos.append(Spacer(1, 0.5*cm))
     
-    # Dados da ocorrência
     elementos.append(Paragraph("<b>ID:</b> " + str(ocorrencia.get('id', 'N/A')), estilos['Texto']))
     elementos.append(Paragraph("<b>Data:</b> " + str(ocorrencia.get('data', 'N/A')), estilos['Texto']))
     elementos.append(Spacer(1, 0.3*cm))
     
-    # Dados do aluno
     elementos.append(Paragraph("<b>ESTUDANTE:</b>", estilos['Secao']))
     elementos.append(Paragraph("<b>Nome:</b> " + str(ocorrencia.get('aluno', 'N/A')), estilos['Texto']))
     elementos.append(Paragraph("<b>RA:</b> " + str(ocorrencia.get('ra', 'N/A')), estilos['Texto']))
     elementos.append(Paragraph("<b>Turma:</b> " + str(ocorrencia.get('turma', 'N/A')), estilos['Texto']))
     elementos.append(Spacer(1, 0.3*cm))
     
-    # Dados da ocorrência
     elementos.append(Paragraph("<b>OCORRÊNCIA:</b>", estilos['Secao']))
     elementos.append(Paragraph("<b>Categoria:</b> " + str(ocorrencia.get('categoria', 'N/A')), estilos['Texto']))
     
-    # Badge de gravidade colorida
     gravidade = ocorrencia.get('gravidade', 'N/A')
     cor_gravidade = CORES_GRAVIDADE.get(gravidade, '#9E9E9E')
     elementos.append(Paragraph(
@@ -1053,13 +837,11 @@ def gerar_pdf_ocorrencia(ocorrencia, df_responsaveis=None):
     
     elementos.append(Spacer(1, 0.3*cm))
     
-    # Relato
     elementos.append(Paragraph("<b>Relato:</b>", estilos['Secao']))
     relato_formatado = formatar_texto(ocorrencia.get('relato', ''))
     elementos.append(Paragraph(relato_formatado, estilos['Texto']))
     elementos.append(Spacer(1, 0.3*cm))
     
-    # Encaminhamentos
     elementos.append(Paragraph("<b>Encaminhamentos:</b>", estilos['Secao']))
     encaminhamentos = ocorrencia.get('encaminhamentos', [])
     if isinstance(encaminhamentos, list):
@@ -1069,16 +851,13 @@ def gerar_pdf_ocorrencia(ocorrencia, df_responsaveis=None):
         elementos.append(Paragraph(formatar_texto(str(encaminhamentos)), estilos['Texto']))
     elementos.append(Spacer(1, 0.3*cm))
     
-    # Professor
     elementos.append(Paragraph("<b>Professor Responsável:</b> " + str(ocorrencia.get('professor', 'N/A')), estilos['Texto']))
     
-    # Testemunhas
     if ocorrencia.get('testemunhas'):
         elementos.append(Paragraph("<b>Testemunhas:</b> " + str(ocorrencia.get('testemunhas', '')), estilos['Texto']))
     
     elementos.append(Spacer(1, 0.5*cm))
     
-    # Assinaturas - Suporte para múltiplos CGPG/Vice-Diretoras
     elementos.append(Paragraph("<b>ASSINATURAS:</b>", estilos['Secao']))
     
     cargos_para_assinatura = ["Diretor(a)", "Vice-Diretor(a)", "CGPG / Coordenador(a)", "Professor Responsável"]
@@ -1107,16 +886,13 @@ def gerar_pdf_ocorrencia(ocorrencia, df_responsaveis=None):
     
     elementos.append(Spacer(1, 0.5*cm))
     
-    # Ciência dos pais
     elementos.append(Paragraph("<b>CIÊNCIA DOS PAIS/RESPONSÁVEIS:</b>", estilos['Secao']))
     elementos.append(Paragraph("Declaro ciência deste comunicado.", estilos['Texto']))
     elementos.append(Spacer(1, 1*cm))
     
-    # Linha de assinatura
     elementos.append(Paragraph("_" * 50, estilos['Normal']))
     elementos.append(Paragraph("Assinatura do Responsável", estilos['Assinatura']))
     
-    # Rodapé
     elementos.append(Spacer(1, 0.5*cm))
     estilo_rodape = ParagraphStyle(
         'Rodape',
@@ -1134,19 +910,9 @@ def gerar_pdf_ocorrencia(ocorrencia, df_responsaveis=None):
 
 
 def gerar_pdf_comunicado(ocorrencia, df_responsaveis=None):
-    """
-    Gera PDF de comunicado aos pais.
-    
-    Args:
-        ocorrencia: Dicionário com dados da ocorrência
-        df_responsaveis: DataFrame com responsáveis
-    
-    Returns:
-        BytesIO: Buffer com o PDF gerado
-    """
+    """Gera PDF de comunicado aos pais."""
     buffer = io.BytesIO()
     
-    # Margens reduzidas
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
@@ -1191,25 +957,21 @@ def gerar_pdf_comunicado(ocorrencia, df_responsaveis=None):
         spaceAfter=0.5*cm
     ))
     
-    # Cabeçalho
     elementos.append(Paragraph("📬 COMUNICADO AOS PAIS/RESPONSÁVEIS", estilos['TituloComunicado']))
     elementos.append(Spacer(1, 0.5*cm))
     
-    # Saudação
     elementos.append(Paragraph(
         f"Prezados responsáveis pelo(a) estudante <b>{ocorrencia.get('aluno', 'N/A')}</b>,",
         estilos['Texto']
     ))
     elementos.append(Spacer(1, 0.3*cm))
     
-    # Corpo do comunicado
     elementos.append(Paragraph(
         "Venho por meio deste comunicar que foi registrado uma ocorrência disciplinar conforme detalhes abaixo:",
         estilos['Texto']
     ))
     elementos.append(Spacer(1, 0.5*cm))
     
-    # Detalhes
     elementos.append(Paragraph(f"<b>Data:</b> {ocorrencia.get('data', 'N/A')}", estilos['Texto']))
     elementos.append(Paragraph(f"<b>Turma:</b> {ocorrencia.get('turma', 'N/A')}", estilos['Texto']))
     elementos.append(Paragraph(f"<b>Categoria:</b> {ocorrencia.get('categoria', 'N/A')}", estilos['Texto']))
@@ -1220,7 +982,6 @@ def gerar_pdf_comunicado(ocorrencia, df_responsaveis=None):
     elementos.append(Paragraph(str(ocorrencia.get('relato', '')), estilos['Texto']))
     elementos.append(Spacer(1, 0.5*cm))
     
-    # Encaminhamentos
     elementos.append(Paragraph("<b>Encaminhamentos Realizados:</b>", estilos['Secao']))
     encaminhamentos = ocorrencia.get('encaminhamentos', [])
     if isinstance(encaminhamentos, list):
@@ -1230,20 +991,17 @@ def gerar_pdf_comunicado(ocorrencia, df_responsaveis=None):
         elementos.append(Paragraph(str(encaminhamentos), estilos['Texto']))
     elementos.append(Spacer(1, 0.5*cm))
     
-    # Solicitação de ciência
     elementos.append(Paragraph(
         "Solicitamos que tomem conhecimento e compareçam à escola para assinatura deste comunicado.",
         estilos['Texto']
     ))
     elementos.append(Spacer(1, 1*cm))
     
-    # Assinatura
     elementos.append(Paragraph(f"Atenciosamente,", estilos['Texto']))
     elementos.append(Spacer(1, 0.5*cm))
     elementos.append(Paragraph("_" * 50, estilos['Normal']))
     elementos.append(Paragraph("Direção / Coordenação", estilos['Assinatura']))
     
-    # Ciência
     elementos.append(Spacer(1, 1*cm))
     elementos.append(Paragraph("<b>CIÊNCIA:</b>", estilos['Secao']))
     elementos.append(Paragraph("Declaro que recebi e tomei conhecimento deste comunicado.", estilos['Texto']))
@@ -1251,7 +1009,6 @@ def gerar_pdf_comunicado(ocorrencia, df_responsaveis=None):
     elementos.append(Paragraph("_" * 50, estilos['Normal']))
     elementos.append(Paragraph("Assinatura do Responsável", estilos['Assinatura']))
     
-    # Rodapé
     elementos.append(Spacer(1, 0.5*cm))
     estilo_rodape = ParagraphStyle(
         'Rodape',
@@ -1267,11 +1024,172 @@ def gerar_pdf_comunicado(ocorrencia, df_responsaveis=None):
     buffer.seek(0)
     return buffer
 
+
+def gerar_pdf_comunicado_editavel(aluno_info, occ_info, medidas_aplicadas, observacoes, 
+                                   total_ocorrencias, gravissima_count, grave_count, 
+                                   media_count, leve_count, texto_editado, df_responsaveis):
+    """Gera PDF de comunicado com texto editável."""
+    buffer = io.BytesIO()
+    
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=1.5*cm,
+        leftMargin=1.5*cm,
+        topMargin=2*cm,
+        bottomMargin=2*cm
+    )
+    
+    elementos = []
+    estilos = getSampleStyleSheet()
+    
+    estilos.add(ParagraphStyle(
+        'TituloComunicado',
+        parent=estilos['Heading1'],
+        fontSize=16,
+        alignment=TA_CENTER,
+        spaceAfter=1*cm
+    ))
+    
+    estilos.add(ParagraphStyle(
+        'TextoComunicado',
+        parent=estilos['Normal'],
+        fontSize=11,
+        alignment=TA_JUSTIFY,
+        spaceAfter=0.3*cm,
+        leading=14
+    ))
+    
+    elementos.append(Paragraph("📬 COMUNICADO AOS PAIS/RESPONSÁVEIS", estilos['TituloComunicado']))
+    elementos.append(Spacer(1, 0.5*cm))
+    
+    elementos.append(Paragraph(f"<b>{ESCOLA_NOME}</b>", estilos['TextoComunicado']))
+    elementos.append(Paragraph(f"{ESCOLA_ENDERECO}", estilos['TextoComunicado']))
+    elementos.append(Paragraph(f"{ESCOLA_TELEFONE} | {ESCOLA_EMAIL}", estilos['TextoComunicado']))
+    elementos.append(Spacer(1, 0.5*cm))
+    
+    elementos.append(Paragraph(f"<b>Aluno(a):</b> {aluno_info.get('nome', 'N/A')}", estilos['TextoComunicado']))
+    elementos.append(Paragraph(f"<b>RA:</b> {aluno_info.get('ra', 'N/A')}", estilos['TextoComunicado']))
+    elementos.append(Paragraph(f"<b>Turma:</b> {aluno_info.get('turma', 'N/A')}", estilos['TextoComunicado']))
+    elementos.append(Spacer(1, 0.5*cm))
+    
+    texto_linhas = texto_editado.split('\n')
+    for linha in texto_linhas:
+        if linha.strip():
+            elementos.append(Paragraph(linha.strip(), estilos['TextoComunicado']))
+    
+    elementos.append(Spacer(1, 1*cm))
+    
+    elementos.append(Paragraph("<b>ASSINATURAS:</b>", estilos['TextoComunicado']))
+    elementos.append(Spacer(1, 0.5*cm))
+    
+    cargos = ["Diretor(a)", "Vice-Diretor(a)", "CGPG / Coordenador(a)"]
+    
+    for cargo in cargos:
+        if df_responsaveis is not None and not df_responsaveis.empty:
+            resp = df_responsaveis[df_responsaveis['cargo'] == cargo]
+            if not resp.empty and resp.iloc[0].get('nome'):
+                elementos.append(Paragraph(f"<b>{cargo}:</b> {resp.iloc[0].get('nome', '')}", estilos['TextoComunicado']))
+            else:
+                elementos.append(Paragraph(f"<b>{cargo}:</b> _________________________________", estilos['TextoComunicado']))
+        else:
+            elementos.append(Paragraph(f"<b>{cargo}:</b> _________________________________", estilos['TextoComunicado']))
+        elementos.append(Spacer(1, 0.5*cm))
+    
+    elementos.append(Spacer(1, 1*cm))
+    
+    elementos.append(Paragraph("<b>CIÊNCIA DOS PAIS/RESPONSÁVEIS:</b>", estilos['TextoComunicado']))
+    elementos.append(Spacer(1, 0.5*cm))
+    elementos.append(Paragraph("Declaro que recebi e tomei conhecimento deste comunicado.", estilos['TextoComunicado']))
+    elementos.append(Spacer(1, 1.5*cm))
+    elementos.append(Paragraph("_" * 60, estilos['Normal']))
+    elementos.append(Paragraph("Assinatura do Responsável", estilos['TextoComunicado']))
+    
+    elementos.append(Spacer(1, 1*cm))
+    estilo_rodape = ParagraphStyle(
+        'Rodape',
+        parent=estilos['Normal'],
+        fontSize=8,
+        alignment=TA_CENTER,
+        textColor=colors.grey
+    )
+    elementos.append(Paragraph("_" * 75, estilos['Normal']))
+    elementos.append(Paragraph(f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}", estilo_rodape))
+    
+    doc.build(elementos)
+    buffer.seek(0)
+    return buffer
+
+
+# ============================================================================
+# FUNÇÕES DE BACKUP
+# ============================================================================
+
+def criar_backup_dados():
+    """Cria backup de todos os dados do sistema."""
+    backup_data = {
+        'ocorrencias': carregar_ocorrencias().to_dict('records'),
+        'alunos': carregar_alunos().to_dict('records'),
+        'professores': carregar_professores().to_dict('records'),
+        'responsaveis': carregar_responsaveis().to_dict('records'),
+        'data_backup': datetime.now().strftime('%d/%m/%Y %H:%M')
+    }
+    return json.dumps(backup_data, ensure_ascii=False, indent=2)
+
+
+def restaurar_backup_dados(backup_json):
+    """Restaura backup de dados."""
+    try:
+        backup_data = json.loads(backup_json)
+        
+        contagem_ocorrencias = 0
+        contagem_alunos = 0
+        contagem_professores = 0
+        contagem_responsaveis = 0
+        
+        if 'ocorrencias' in backup_data:
+            for occ in backup_data['ocorrencias']:
+                if salvar_ocorrencia(occ)[0]:
+                    contagem_ocorrencias += 1
+        
+        if 'alunos' in backup_data:
+            for aluno in backup_data['alunos']:
+                if salvar_aluno(aluno):
+                    contagem_alunos += 1
+        
+        if 'professores' in backup_data:
+            for prof in backup_data['professores']:
+                if salvar_professor(prof):
+                    contagem_professores += 1
+        
+        if 'responsaveis' in backup_data:
+            for resp in backup_data['responsaveis']:
+                if salvar_responsavel(resp):
+                    contagem_responsaveis += 1
+        
+        return True, {
+            'ocorrencias': contagem_ocorrencias,
+            'alunos': contagem_alunos,
+            'professores': contagem_professores,
+            'responsaveis': contagem_responsaveis
+        }
+    except Exception as e:
+        return False, str(e)
+
+
+def criar_backup_codigo():
+    """Cria backup do código fonte."""
+    try:
+        with open('app.py', 'r', encoding='utf-8') as f:
+            return f.read()
+    except:
+        return None
+
+
 # ============================================================================
 # INTERFACE PRINCIPAL - CABEÇALHO E MENU LATERAL
 # ============================================================================
 
-# Cabeçalho principal com logo e dados da escola
 st.markdown(f"""
 <div class="main-header">
     <div class="school-name">🏫 {ESCOLA_NOME}</div>
@@ -1281,7 +1199,6 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Menu Lateral - COM TODAS AS OPÇÕES ORIGINAIS + NOVAS
 menu = st.sidebar.selectbox(
     "📋 Menu Principal",
     [
@@ -1311,12 +1228,10 @@ st.session_state.pagina_atual = menu
 if menu == "🏠 Início":
     st.title("🏠 Dashboard - Visão Geral")
     
-    # Carregar dados
     df_ocorrencias = carregar_ocorrencias()
     df_alunos = carregar_alunos()
     df_professores = carregar_professores()
     
-    # Cards de métricas
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
@@ -1337,7 +1252,6 @@ if menu == "🏠 Início":
     
     st.markdown("---")
     
-    # Gráficos
     if not df_ocorrencias.empty:
         col1, col2 = st.columns(2)
         
@@ -1368,13 +1282,11 @@ if menu == "🏠 Início":
                 fig.update_layout(height=400)
                 st.plotly_chart(fig, use_container_width=True)
         
-        # Últimas ocorrências
         st.subheader("📋 Últimas Ocorrências Registradas")
         st.dataframe(df_ocorrencias.head(10), use_container_width=True)
     else:
         st.info("📭 Nenhuma ocorrência registrada ainda.")
     
-    # Resumo de turmas
     if not df_alunos.empty:
         st.subheader("🏫 Resumo de Turmas")
         turmas_info = df_alunos['turma'].value_counts()
@@ -1382,24 +1294,14 @@ if menu == "🏠 Início":
         st.write(f"**Total de Alunos:** {len(df_alunos)}")
 
 # ============================================================================
-# PÁGINA: CADASTRAR PROFESSORES
+# PÁGINA: CADASTRAR PROFESSORES (CORRIGIDO)
 # ============================================================================
 
-elif menu == "👨‍🏫 Cadastrar Professores":
+elif menu == "👨‍ Cadastrar Professores":
     st.title("👨‍🏫 Cadastrar Professores")
     
-    # Cadastro de professor
-    st.subheader("📝 Novo Professor")# ============================================================================
-# PÁGINA: CADASTRAR PROFESSORES
-# ============================================================================
-
-elif menu == "👨‍🏫 Cadastrar Professores":
-    st.title("👨‍🏫 Cadastrar Professores")
-    
-    # Carregar professores existentes
     df_professores = carregar_professores()
     
-    # Formulário de cadastro
     st.subheader("📝 Novo Professor")
     
     col1, col2 = st.columns(2)
@@ -1412,10 +1314,8 @@ elif menu == "👨‍🏫 Cadastrar Professores":
         cargo_prof = st.text_input("Cargo (opcional)", placeholder="Ex: Professor de Matemática", key="cargo_prof_input")
         st.info("💡 Cadastre todos os professores da escola para facilitar o registro de ocorrências.")
     
-    # Botão salvar
     if st.button("💾 Salvar Professor", type="primary", key="btn_salvar_prof"):
         if nome_prof.strip():
-            # Verificar duplicidade (case-insensitive)
             if not df_professores.empty:
                 nomes_existentes = [n.lower().strip() for n in df_professores['nome'].tolist()]
                 if nome_prof.lower().strip() in nomes_existentes:
@@ -1451,11 +1351,9 @@ elif menu == "👨‍🏫 Cadastrar Professores":
     
     st.markdown("---")
     
-    # Lista de professores cadastrados
     st.subheader("📋 Professores Cadastrados")
     
     if not df_professores.empty:
-        # Mostrar em formato de tabela com ações
         for idx, prof in df_professores.iterrows():
             with st.container():
                 col1, col2, col3, col4, col5 = st.columns([1, 4, 2, 1, 1])
@@ -1493,6 +1391,7 @@ elif menu == "👨‍🏫 Cadastrar Professores":
         st.info(f"📊 **Total:** {len(df_professores)} professores cadastrados")
     else:
         st.info("📭 Nenhum professor cadastrado ainda.")
+
 # ============================================================================
 # PÁGINA: CADASTRAR RESPONSÁVEIS POR ASSINATURA
 # ============================================================================
@@ -1502,7 +1401,6 @@ elif menu == "👤 Cadastrar Responsáveis por Assinatura":
     
     st.info("💡 Cadastre os responsáveis que assinarão os documentos (Diretor, Vice, CGPG, etc.)")
     
-    # Cadastro de responsável
     st.subheader("📝 Novo Responsável")
     
     col1, col2 = st.columns(2)
@@ -1536,7 +1434,6 @@ elif menu == "👤 Cadastrar Responsáveis por Assinatura":
     
     st.markdown("---")
     
-    # Lista de responsáveis
     st.subheader("📋 Responsáveis Cadastrados")
     
     df_responsaveis = carregar_responsaveis()
@@ -1565,29 +1462,25 @@ elif menu == "👤 Cadastrar Responsáveis por Assinatura":
         st.info("📭 Nenhum responsável cadastrado.")
 
 # ============================================================================
-# PÁGINA: REGISTRAR OCORRÊNCIA (COM MÚLTIPLAS TURMAS E MÚLTIPLOS ALUNOS)
+# PÁGINA: REGISTRAR OCORRÊNCIA (COM MÚLTIPLAS TURMAS E ALUNOS)
 # ============================================================================
 
 elif menu == "📝 Registrar Ocorrência":
     st.title("📝 Registrar Nova Ocorrência")
     
-    # Mostrar mensagem de sucesso se ocorreu
     if st.session_state.ocorrencia_salva_sucesso:
         st.markdown('<div class="success-box">✅ OCORRÊNCIA(S) REGISTRADA(S) COM SUCESSO!</div>', unsafe_allow_html=True)
         st.session_state.ocorrencia_salva_sucesso = False
         st.session_state.salvando_ocorrencia = False
     
-    # Carregar alunos
     df_alunos = carregar_alunos()
     
     if df_alunos.empty:
         st.warning("⚠️ Importe alunos primeiro.")
     else:
-        # Horário de São Paulo
         tz_sp = pytz.timezone('America/Sao_Paulo')
         data_hora_sp = datetime.now(tz_sp)
         
-        # CORREÇÃO: MÚLTIPLAS TURMAS
         st.subheader("🏫 Selecionar Turma(s)")
         
         modo_multiplas_turmas = st.checkbox("📚 Registrar para múltiplas turmas", key="modo_multiplas_turmas")
@@ -1600,7 +1493,6 @@ elif menu == "📝 Registrar Ocorrência":
             turma_selecionada = st.selectbox("Selecione a Turma", turmas)
             turmas_selecionadas = [turma_selecionada] if turma_selecionada else []
         
-        # Filtrar alunos das turmas selecionadas
         if turmas_selecionadas:
             alunos = df_alunos[df_alunos["turma"].isin(turmas_selecionadas)]
             
@@ -1619,7 +1511,6 @@ elif menu == "📝 Registrar Ocorrência":
                             alunos["nome"].tolist()
                         )
                     else:
-                        # Busca fuzzy para alunos
                         busca_aluno = st.text_input("🔍 Buscar Aluno (digite o nome)", "")
                         
                         if busca_aluno:
@@ -1639,7 +1530,7 @@ elif menu == "📝 Registrar Ocorrência":
                     data = st.date_input("Data", value=data_hora_sp.date())
                     hora = st.time_input("Hora", value=data_hora_sp.time())
                     
-                    st.markdown("### 👨‍🏫 Professor Responsável")
+                    st.markdown("### 👨‍ Professor Responsável")
                     df_professores = carregar_professores()
                     if not df_professores.empty:
                         prof_lista = df_professores["nome"].tolist()
@@ -1649,7 +1540,6 @@ elif menu == "📝 Registrar Ocorrência":
                 
                 st.markdown("---")
                 
-                # Dados da ocorrência
                 st.markdown("### 📋 Dados da Ocorrência")
                 
                 col1, col2 = st.columns(2)
@@ -1660,7 +1550,6 @@ elif menu == "📝 Registrar Ocorrência":
                     categoria = st.selectbox("📋 Ocorrência", categorias_grupo)
                 
                 with col2:
-                    # Gravidade automática baseada na categoria
                     gravidade = CATEGORIAS_OCORRENCIAS[categoria_grupo].get(categoria, "Leve")
                     gravidade_select = st.selectbox(
                         "⚡ Gravidade",
@@ -1668,14 +1557,11 @@ elif menu == "📝 Registrar Ocorrência":
                         index=["Gravíssima", "Grave", "Média", "Leve"].index(gravidade)
                     )
                 
-                # Mostrar fluxo de ações do protocolo 179
                 if categoria in FLUXO_ACOES:
                     st.warning(f"📌 {FLUXO_ACOES[categoria]}")
                 
-                # Relato
                 relato = st.text_area("📝 Relato da Ocorrência", height=200)
                 
-                # Encaminhamentos como checkboxes baseados no protocolo
                 st.subheader("🔄 Encaminhamentos")
                 encaminhamentos_disponiveis = ENCAMINHAMENTOS_POR_GRAVIDADE.get(gravidade_select, [])
                 encaminhamentos_selecionados = st.multiselect(
@@ -1684,13 +1570,9 @@ elif menu == "📝 Registrar Ocorrência":
                     default=encaminhamentos_disponiveis
                 )
                 
-                # Testemunhas
                 testemunhas = st.text_input("👀 Testemunhas (opcional)")
-                
-                # Evidências
                 evidencias = st.text_area("📎 Evidências (opcional)")
                 
-                # Botão salvar com prevenção de múltiplos cliques
                 if st.session_state.salvando_ocorrencia:
                     st.button("💾 Salvando...", disabled=True, type="primary")
                     st.info("⏳ Aguarde, registrando ocorrência...")
@@ -1759,7 +1641,6 @@ elif menu == "📝 Registrar Ocorrência":
             st.warning("⚠️ Selecione pelo menos uma turma.")
 
 # ============================================================================
-# ============================================================================
 # PÁGINA: COMUNICADO AOS PAIS (COM CAMPOS EDITÁVEIS + HISTÓRICO)
 # ============================================================================
 
@@ -1768,7 +1649,6 @@ elif menu == "📄 Comunicado aos Pais":
     
     st.info("💡 Gere um comunicado personalizado com histórico de ocorrências do aluno")
     
-    # Carregar dados
     df_alunos = carregar_alunos()
     df_ocorrencias = carregar_ocorrencias()
     df_responsaveis = carregar_responsaveis()
@@ -1776,9 +1656,6 @@ elif menu == "📄 Comunicado aos Pais":
     if df_alunos.empty:
         st.warning("⚠️ Cadastre alunos primeiro.")
     else:
-        # Busca de aluno
-        st.subheader("👤 Selecionar Aluno")
-        
         busca = st.text_input("🔍 Buscar por nome ou RA", placeholder="Digite o nome ou RA do aluno")
         
         if busca:
@@ -1793,7 +1670,6 @@ elif menu == "📄 Comunicado aos Pais":
             aluno_sel = st.selectbox("Selecione o Aluno", df_filtrado['nome'].tolist(), key="comm_aluno_sel")
             aluno_info = df_filtrado[df_filtrado['nome'] == aluno_sel].iloc[0]
             
-            # Dados do aluno
             ra_aluno = aluno_info.get('ra', 'N/A')
             turma_aluno = aluno_info.get('turma', 'N/A')
             
@@ -1808,7 +1684,6 @@ elif menu == "📄 Comunicado aos Pais":
             
             st.markdown("---")
             
-            # Histórico de ocorrências do aluno
             st.subheader("📊 Histórico de Ocorrências do Aluno")
             
             if not df_ocorrencias.empty:
@@ -1817,13 +1692,11 @@ elif menu == "📄 Comunicado aos Pais":
                 if not ocorrencias_aluno.empty:
                     total_ocorrencias = len(ocorrencias_aluno)
                     
-                    # Contador de advertências por gravidade
                     gravissima_count = len(ocorrencias_aluno[ocorrencias_aluno['gravidade'] == 'Gravíssima'])
                     grave_count = len(ocorrencias_aluno[ocorrencias_aluno['gravidade'] == 'Grave'])
                     media_count = len(ocorrencias_aluno[ocorrencias_aluno['gravidade'] == 'Média'])
                     leve_count = len(ocorrencias_aluno[ocorrencias_aluno['gravidade'] == 'Leve'])
                     
-                    # Cards de resumo
                     col1, col2, col3, col4 = st.columns(4)
                     
                     with col1:
@@ -1837,7 +1710,6 @@ elif menu == "📄 Comunicado aos Pais":
                     
                     st.markdown("---")
                     
-                    # Selecionar ocorrência específica para o comunicado
                     st.subheader("📋 Selecionar Ocorrência para Comunicado")
                     
                     occ_options = []
@@ -1850,7 +1722,6 @@ elif menu == "📄 Comunicado aos Pais":
                         occ_id = int(occ_sel.split(" - ")[0])
                         occ_info = ocorrencias_aluno[ocorrencias_aluno['id'] == occ_id].iloc[0]
                         
-                        # Mostrar dados da ocorrência
                         st.markdown("### Dados da Ocorrência Selecionada")
                         
                         col1, col2 = st.columns(2)
@@ -1866,10 +1737,8 @@ elif menu == "📄 Comunicado aos Pais":
                         
                         st.markdown("---")
                         
-                        # CAMPOS EDITÁVEIS PARA O PROFESSOR
                         st.subheader("✏️ Preencher Comunicado")
                         
-                        # Medidas aplicadas (checkboxes)
                         st.write("**Medidas Aplicadas (selecione as que foram aplicadas):**")
                         
                         medidas_opcoes = [
@@ -1894,7 +1763,6 @@ elif menu == "📄 Comunicado aos Pais":
                                 if st.checkbox(medida, key=f"medida_comm_{i}"):
                                     medidas_aplicadas.append(medida)
                         
-                        # Observações editáveis
                         observacoes = st.text_area(
                             "📝 Observações Adicionais (editável)",
                             placeholder="Descreva detalhes das medidas aplicadas, prazos, acompanhamentos necessários, orientações aos pais...",
@@ -1902,7 +1770,6 @@ elif menu == "📄 Comunicado aos Pais":
                             key="obs_comunicado"
                         )
                         
-                        # Texto pedagógico automático (editável)
                         st.write("**Texto do Comunicado (editável):**")
                         
                         texto_padrao = f"""COMUNICADO AOS PAIS/RESPONSÁVEIS
@@ -1948,14 +1815,12 @@ Direção / Coordenação
                             key="texto_comunicado_edit"
                         )
                         
-                        # Botão para gerar PDF
                         st.markdown("---")
                         
                         col1, col2 = st.columns(2)
                         
                         with col1:
                             if st.button("🖨️ Gerar Comunicado PDF", type="primary", key="gerar_comm_pdf"):
-                                # Gerar PDF com o texto editado
                                 pdf_buffer = gerar_pdf_comunicado_editavel(
                                     aluno_info,
                                     occ_info,
@@ -1983,21 +1848,6 @@ Direção / Coordenação
                                 st.info("📋 Texto copiado! Use Ctrl+C para copiar.")
                 else:
                     st.info("ℹ️ Este aluno ainda não tem ocorrências registradas.")
-                    
-                    # Permitir gerar comunicado mesmo sem ocorrências
-                    st.subheader("✏️ Criar Comunicado Geral")
-                    
-                    observacoes_geral = st.text_area(
-                        "📝 Observações",
-                        placeholder="Descreva o motivo do comunicado...",
-                        height=150,
-                        key="obs_geral"
-                    )
-                    
-                    if st.button("🖨️ Gerar Comunicado Geral", key="gerar_geral"):
-                        st.info("📄 Comunicado geral gerado (sem ocorrências específicas)")
-            else:
-                st.info("ℹ️ Nenhuma ocorrência registrada no sistema.")
         else:
             st.warning("⚠️ Nenhum aluno encontrado com esta busca.")
 
@@ -2018,7 +1868,6 @@ elif menu == "📥 Importar Alunos":
             st.write(f"📊 {len(df_import)} alunos encontrados")
             st.dataframe(df_import.head())
             
-            # Validação de nomes duplicados
             if st.button("✅ Confirmar Importação"):
                 contagem_salvas = 0
                 contagem_duplicadas = 0
@@ -2029,7 +1878,6 @@ elif menu == "📥 Importar Alunos":
                 for _, row in df_import.iterrows():
                     aluno_dict = row.to_dict()
                     
-                    # Verificar duplicação por RA
                     if not df_alunos_existentes.empty:
                         duplicados = df_alunos_existentes[df_alunos_existentes['ra'] == aluno_dict.get('ra')]
                         if not duplicados.empty:
@@ -2048,13 +1896,11 @@ elif menu == "📥 Importar Alunos":
                 if erros > 0:
                     st.error(f"❌ {erros} erro(s) ao importar")
                 
-                # Clear cache após importação
                 carregar_alunos.clear()
                 st.rerun()
         except Exception as e:
             st.error(f"Erro ao importar: {str(e)}")
     
-    # Upload de foto de aluno
     st.subheader("📷 Upload de Foto de Aluno")
     
     df_alunos = carregar_alunos()
@@ -2081,13 +1927,11 @@ elif menu == "📥 Importar Alunos":
             else:
                 st.error(f"❌ {msg}")
     
-    # Lista de alunos
     st.subheader("📋 Alunos Cadastrados")
     
     if not df_alunos.empty:
         st.dataframe(df_alunos, use_container_width=True)
         
-        # Exportar alunos
         if st.button("📥 Exportar Alunos (CSV)"):
             csv = df_alunos.to_csv(index=False, encoding='utf-8-sig')
             st.download_button(
@@ -2114,18 +1958,17 @@ elif menu == "📋 Gerenciar Turmas Importadas":
         turmas_info = df_alunos['turma'].value_counts()
         
         for turma, qtd in turmas_info.items():
-            st.write(f"**{tumra}:** {qtd} aluno(s)")
+            st.write(f"**{turma}:** {qtd} aluno(s)")
         
         st.markdown("---")
         
-        # Excluir turma
         st.subheader("🗑️ Excluir Turma")
         
         turma_excluir = st.selectbox("Selecione a Turma", turmas_info.index.tolist())
         
         if st.button("🗑️ Excluir Turma"):
             if excluir_alunos_por_turma(turma_excluir):
-                st.success(f"✅ Turma {tumra} excluída com sucesso!")
+                st.success(f"✅ Turma {turma_excluir} excluída com sucesso!")
                 carregar_alunos.clear()
                 st.rerun()
             else:
@@ -2143,7 +1986,6 @@ elif menu == "👥 Lista de Alunos":
     df_alunos = carregar_alunos()
     
     if not df_alunos.empty:
-        # Filtros
         col1, col2 = st.columns(2)
         
         with col1:
@@ -2152,7 +1994,6 @@ elif menu == "👥 Lista de Alunos":
         with col2:
             busca_nome = st.text_input("🔍 Buscar por Nome")
         
-        # Aplicar filtros
         df_filtrado = df_alunos.copy()
         
         if filtro_turma:
@@ -2163,7 +2004,6 @@ elif menu == "👥 Lista de Alunos":
         
         st.dataframe(df_filtrado, use_container_width=True)
         
-        # Exportar
         if st.button("📥 Exportar Lista (CSV)"):
             csv = df_filtrado.to_csv(index=False, encoding='utf-8-sig')
             st.download_button(
@@ -2175,7 +2015,7 @@ elif menu == "👥 Lista de Alunos":
     else:
         st.info("📭 Nenhum aluno cadastrado.")
 
-        # ============================================================================
+# ============================================================================
 # PÁGINA: HISTÓRICO DE OCORRÊNCIAS
 # ============================================================================
 
@@ -2185,36 +2025,22 @@ elif menu == "📊 Histórico de Ocorrências":
     df_ocorrencias = carregar_ocorrencias()
     
     if not df_ocorrencias.empty:
-        # Filtros avançados
         st.subheader("🔍 Filtros")
         
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            filtro_gravidade = st.multiselect(
-                "Gravidade",
-                ["Gravíssima", "Grave", "Média", "Leve"]
-            )
+            filtro_gravidade = st.multiselect("Gravidade", ["Gravíssima", "Grave", "Média", "Leve"])
         
         with col2:
-            filtro_categoria = st.multiselect(
-                "Categoria",
-                df_ocorrencias['categoria'].unique().tolist()
-            )
+            filtro_categoria = st.multiselect("Categoria", df_ocorrencias['categoria'].unique().tolist())
         
         with col3:
-            filtro_turma = st.multiselect(
-                "Turma",
-                df_ocorrencias['turma'].unique().tolist()
-            )
+            filtro_turma = st.multiselect("Turma", df_ocorrencias['turma'].unique().tolist())
         
         with col4:
-            filtro_periodo = st.selectbox(
-                "Período",
-                ["Todos", "Últimos 7 dias", "Últimos 30 dias", "Este mês", "Este ano"]
-            )
+            filtro_periodo = st.selectbox("Período", ["Todos", "Últimos 7 dias", "Últimos 30 dias", "Este mês", "Este ano"])
         
-        # Aplicar filtros
         df_filtrado = df_ocorrencias.copy()
         
         if filtro_gravidade:
@@ -2226,13 +2052,8 @@ elif menu == "📊 Histórico de Ocorrências":
         if filtro_turma:
             df_filtrado = df_filtrado[df_filtrado['turma'].isin(filtro_turma)]
         
-        # Filtro de período
         if filtro_periodo != "Todos":
-            df_filtrado['data_dt'] = pd.to_datetime(
-                df_filtrado['data'],
-                format='%d/%m/%Y %H:%M',
-                errors='coerce'
-            )
+            df_filtrado['data_dt'] = pd.to_datetime(df_filtrado['data'], format='%d/%m/%Y %H:%M', errors='coerce')
             
             if filtro_periodo == "Últimos 7 dias":
                 df_filtrado = df_filtrado[df_filtrado['data_dt'] >= (datetime.now() - timedelta(days=7))]
@@ -2246,10 +2067,8 @@ elif menu == "📊 Histórico de Ocorrências":
             elif filtro_periodo == "Este ano":
                 df_filtrado = df_filtrado[df_filtrado['data_dt'].dt.year == datetime.now().year]
         
-        # Exibir dados filtrados
         st.dataframe(df_filtrado, use_container_width=True)
         
-        # Ações
         st.subheader("🛠️ Ações")
         
         col1, col2, col3 = st.columns(3)
@@ -2283,7 +2102,6 @@ elif menu == "📊 Histórico de Ocorrências":
                         mime="application/pdf"
                     )
         
-        # Excluir ocorrência
         st.markdown("---")
         st.subheader("🗑️ Excluir Ocorrência")
         
@@ -2299,7 +2117,6 @@ elif menu == "📊 Histórico de Ocorrências":
                     st.error(f"❌ {mensagem}")
             else:
                 st.error("❌ Senha incorreta!")
-    
     else:
         st.info("📭 Nenhuma ocorrência registrada.")
 
@@ -2313,36 +2130,22 @@ elif menu == "📈 Gráficos e Indicadores":
     df_ocorrencias = carregar_ocorrencias()
     
     if not df_ocorrencias.empty:
-        # Filtros
         st.subheader("🔍 Filtros")
         
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            filtro_periodo = st.selectbox(
-                "Período",
-                ["Todos", "Últimos 7 dias", "Últimos 30 dias", "Este mês", "Este ano", "Personalizado"]
-            )
+            filtro_periodo = st.selectbox("Período", ["Todos", "Últimos 7 dias", "Últimos 30 dias", "Este mês", "Este ano", "Personalizado"])
         
         with col2:
-            filtro_turma = st.multiselect(
-                "Turma",
-                df_ocorrencias['turma'].unique().tolist()
-            )
+            filtro_turma = st.multiselect("Turma", df_ocorrencias['turma'].unique().tolist())
         
         with col3:
-            filtro_gravidade = st.multiselect(
-                "Gravidade",
-                ["Gravíssima", "Grave", "Média", "Leve"]
-            )
+            filtro_gravidade = st.multiselect("Gravidade", ["Gravíssima", "Grave", "Média", "Leve"])
         
         with col4:
-            filtro_categoria = st.multiselect(
-                "Categoria",
-                df_ocorrencias['categoria'].unique().tolist()
-            )
+            filtro_categoria = st.multiselect("Categoria", df_ocorrencias['categoria'].unique().tolist())
         
-        # Filtro de data personalizado
         if filtro_periodo == "Personalizado":
             col1, col2 = st.columns(2)
             with col1:
@@ -2350,52 +2153,30 @@ elif menu == "📈 Gráficos e Indicadores":
             with col2:
                 data_fim = st.date_input("Data Fim")
         
-        # Aplicar filtros de período
         df_filtrado = df_ocorrencias.copy()
         
         if filtro_periodo == "Últimos 7 dias":
-            df_filtrado['data_dt'] = pd.to_datetime(
-                df_filtrado['data'],
-                format='%d/%m/%Y %H:%M',
-                errors='coerce'
-            )
+            df_filtrado['data_dt'] = pd.to_datetime(df_filtrado['data'], format='%d/%m/%Y %H:%M', errors='coerce')
             df_filtrado = df_filtrado[df_filtrado['data_dt'] >= (datetime.now() - timedelta(days=7))]
         elif filtro_periodo == "Últimos 30 dias":
-            df_filtrado['data_dt'] = pd.to_datetime(
-                df_filtrado['data'],
-                format='%d/%m/%Y %H:%M',
-                errors='coerce'
-            )
+            df_filtrado['data_dt'] = pd.to_datetime(df_filtrado['data'], format='%d/%m/%Y %H:%M', errors='coerce')
             df_filtrado = df_filtrado[df_filtrado['data_dt'] >= (datetime.now() - timedelta(days=30))]
         elif filtro_periodo == "Este mês":
-            df_filtrado['data_dt'] = pd.to_datetime(
-                df_filtrado['data'],
-                format='%d/%m/%Y %H:%M',
-                errors='coerce'
-            )
+            df_filtrado['data_dt'] = pd.to_datetime(df_filtrado['data'], format='%d/%m/%Y %H:%M', errors='coerce')
             df_filtrado = df_filtrado[
                 (df_filtrado['data_dt'].dt.month == datetime.now().month) &
                 (df_filtrado['data_dt'].dt.year == datetime.now().year)
             ]
         elif filtro_periodo == "Este ano":
-            df_filtrado['data_dt'] = pd.to_datetime(
-                df_filtrado['data'],
-                format='%d/%m/%Y %H:%M',
-                errors='coerce'
-            )
+            df_filtrado['data_dt'] = pd.to_datetime(df_filtrado['data'], format='%d/%m/%Y %H:%M', errors='coerce')
             df_filtrado = df_filtrado[df_filtrado['data_dt'].dt.year == datetime.now().year]
         elif filtro_periodo == "Personalizado":
-            df_filtrado['data_dt'] = pd.to_datetime(
-                df_filtrado['data'],
-                format='%d/%m/%Y %H:%M',
-                errors='coerce'
-            )
+            df_filtrado['data_dt'] = pd.to_datetime(df_filtrado['data'], format='%d/%m/%Y %H:%M', errors='coerce')
             df_filtrado = df_filtrado[
                 (df_filtrado['data_dt'] >= pd.Timestamp(data_inicio)) &
                 (df_filtrado['data_dt'] <= pd.Timestamp(data_fim) + pd.Timedelta(days=1))
             ]
         
-        # Aplicar outros filtros
         if filtro_turma:
             df_filtrado = df_filtrado[df_filtrado['turma'].isin(filtro_turma)]
         
@@ -2405,7 +2186,6 @@ elif menu == "📈 Gráficos e Indicadores":
         if filtro_categoria:
             df_filtrado = df_filtrado[df_filtrado['categoria'].isin(filtro_categoria)]
         
-        # Gráficos
         st.markdown("---")
         st.subheader("📊 Ocorrências por Categoria")
         
@@ -2483,11 +2263,7 @@ elif menu == "📈 Gráficos e Indicadores":
         
         st.subheader("📈 Evolução Temporal das Ocorrências")
         if not df_filtrado.empty and 'data' in df_filtrado.columns:
-            df_filtrado['data_dt'] = pd.to_datetime(
-                df_filtrado['data'],
-                format='%d/%m/%Y %H:%M',
-                errors='coerce'
-            )
+            df_filtrado['data_dt'] = pd.to_datetime(df_filtrado['data'], format='%d/%m/%Y %H:%M', errors='coerce')
             df_filtrado['data_apenas'] = df_filtrado['data_dt'].dt.date
             evolucao = df_filtrado.groupby('data_apenas').size().reset_index(name='Quantidade')
             evolucao = evolucao.sort_values('data_apenas')
@@ -2501,7 +2277,6 @@ elif menu == "📈 Gráficos e Indicadores":
             fig_evolucao.update_layout(xaxis_title="Data", yaxis_title="Quantidade")
             st.plotly_chart(fig_evolucao, use_container_width=True)
         
-        # Top turmas
         st.subheader("🏫 Top 10 Turmas com Mais Ocorrências")
         if not df_filtrado.empty and 'turma' in df_filtrado.columns:
             top_turmas = df_filtrado['turma'].value_counts().head(10)
@@ -2517,7 +2292,6 @@ elif menu == "📈 Gráficos e Indicadores":
             fig_turmas.update_layout(showlegend=False, xaxis_tickangle=-45)
             st.plotly_chart(fig_turmas, use_container_width=True)
         
-        # Dados filtrados
         st.subheader("📋 Dados Filtrados")
         if not df_filtrado.empty:
             st.dataframe(
@@ -2525,7 +2299,6 @@ elif menu == "📈 Gráficos e Indicadores":
                 use_container_width=True
             )
             
-            # Exportar CSV
             csv = df_filtrado.to_csv(index=False, sep=';', encoding='utf-8-sig')
             st.download_button(
                 label="📥 Baixar Dados Filtrados (CSV)",
@@ -2556,7 +2329,6 @@ elif menu == "🖨️ Imprimir PDF":
             id_occ = int(occ_sel.split(" - ")[0])
             ocorrencia = df_ocorrencias[df_ocorrencias['id'] == id_occ].iloc[0].to_dict()
             
-            # Mostrar dados da ocorrência
             st.subheader("📋 Dados da Ocorrência")
             st.write(f"**ID:** {ocorrencia.get('id')}")
             st.write(f"**Data:** {ocorrencia.get('data')}")
@@ -2590,114 +2362,6 @@ elif menu == "🖨️ Imprimir PDF":
     else:
         st.info("📭 Nenhuma ocorrência registrada.")
 
-# ============================================================================
-# FUNÇÃO PDF COMUNICADO EDITÁVEL
-# ============================================================================
-
-def gerar_pdf_comunicado_editavel(aluno_info, occ_info, medidas_aplicadas, observacoes, 
-                                   total_ocorrencias, gravissima_count, grave_count, 
-                                   media_count, leve_count, texto_editado, df_responsaveis):
-    """
-    Gera PDF de comunicado com texto editável.
-    """
-    buffer = io.BytesIO()
-    
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=A4,
-        rightMargin=1.5*cm,
-        leftMargin=1.5*cm,
-        topMargin=2*cm,
-        bottomMargin=2*cm
-    )
-    
-    elementos = []
-    estilos = getSampleStyleSheet()
-    
-    # Estilo do título
-    estilos.add(ParagraphStyle(
-        'TituloComunicado',
-        parent=estilos['Heading1'],
-        fontSize=16,
-        alignment=TA_CENTER,
-        spaceAfter=1*cm
-    ))
-    
-    # Estilo do texto
-    estilos.add(ParagraphStyle(
-        'TextoComunicado',
-        parent=estilos['Normal'],
-        fontSize=11,
-        alignment=TA_JUSTIFY,
-        spaceAfter=0.3*cm,
-        leading=14
-    ))
-    
-    # Cabeçalho da escola
-    elementos.append(Paragraph("📬 COMUNICADO AOS PAIS/RESPONSÁVEIS", estilos['TituloComunicado']))
-    elementos.append(Spacer(1, 0.5*cm))
-    
-    elementos.append(Paragraph(f"<b>{ESCOLA_NOME}</b>", estilos['TextoComunicado']))
-    elementos.append(Paragraph(f"{ESCOLA_ENDERECO}", estilos['TextoComunicado']))
-    elementos.append(Paragraph(f"{ESCOLA_TELEFONE} | {ESCOLA_EMAIL}", estilos['TextoComunicado']))
-    elementos.append(Spacer(1, 0.5*cm))
-    
-    # Dados do aluno
-    elementos.append(Paragraph(f"<b>Aluno(a):</b> {aluno_info.get('nome', 'N/A')}", estilos['TextoComunicado']))
-    elementos.append(Paragraph(f"<b>RA:</b> {aluno_info.get('ra', 'N/A')}", estilos['TextoComunicado']))
-    elementos.append(Paragraph(f"<b>Turma:</b> {aluno_info.get('turma', 'N/A')}", estilos['TextoComunicado']))
-    elementos.append(Spacer(1, 0.5*cm))
-    
-    # Texto editado
-    texto_linhas = texto_editado.split('\n')
-    for linha in texto_linhas:
-        if linha.strip():
-            elementos.append(Paragraph(linha.strip(), estilos['TextoComunicado']))
-    
-    elementos.append(Spacer(1, 1*cm))
-    
-    # Assinaturas
-    elementos.append(Paragraph("<b>ASSINATURAS:</b>", estilos['TextoComunicado']))
-    elementos.append(Spacer(1, 0.5*cm))
-    
-    cargos = ["Diretor(a)", "Vice-Diretor(a)", "CGPG / Coordenador(a)"]
-    
-    for cargo in cargos:
-        if df_responsaveis is not None and not df_responsaveis.empty:
-            resp = df_responsaveis[df_responsaveis['cargo'] == cargo]
-            if not resp.empty and resp.iloc[0].get('nome'):
-                elementos.append(Paragraph(f"<b>{cargo}:</b> {resp.iloc[0].get('nome', '')}", estilos['TextoComunicado']))
-            else:
-                elementos.append(Paragraph(f"<b>{cargo}:</b> _________________________________", estilos['TextoComunicado']))
-        else:
-            elementos.append(Paragraph(f"<b>{cargo}:</b> _________________________________", estilos['TextoComunicado']))
-        elementos.append(Spacer(1, 0.5*cm))
-    
-    elementos.append(Spacer(1, 1*cm))
-    
-    # Ciência dos pais
-    elementos.append(Paragraph("<b>CIÊNCIA DOS PAIS/RESPONSÁVEIS:</b>", estilos['TextoComunicado']))
-    elementos.append(Spacer(1, 0.5*cm))
-    elementos.append(Paragraph("Declaro que recebi e tomei conhecimento deste comunicado.", estilos['TextoComunicado']))
-    elementos.append(Spacer(1, 1.5*cm))
-    elementos.append(Paragraph("_" * 60, estilos['Normal']))
-    elementos.append(Paragraph("Assinatura do Responsável", estilos['TextoComunicado']))
-    
-    # Rodapé
-    elementos.append(Spacer(1, 1*cm))
-    estilo_rodape = ParagraphStyle(
-        'Rodape',
-        parent=estilos['Normal'],
-        fontSize=8,
-        alignment=TA_CENTER,
-        textColor=colors.grey
-    )
-    elementos.append(Paragraph("_" * 75, estilos['Normal']))
-    elementos.append(Paragraph(f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}", estilo_rodape))
-    
-    doc.build(elementos)
-    buffer.seek(0)
-    return buffer
 # ============================================================================
 # PÁGINA: BACKUP DE DADOS
 # ============================================================================
@@ -2738,7 +2402,6 @@ elif menu == "💾 Backup de Dados":
             try:
                 backup_data = json.load(arquivo_backup)
                 
-                # Importar dados
                 contagem_ocorrencias = 0
                 contagem_alunos = 0
                 contagem_professores = 0
@@ -2772,7 +2435,6 @@ elif menu == "💾 Backup de Dados":
                 - Responsáveis: {contagem_responsaveis}
                 """)
                 
-                # Clear cache
                 carregar_ocorrencias.clear()
                 carregar_alunos.clear()
                 carregar_professores.clear()
