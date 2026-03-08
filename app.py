@@ -1,7 +1,7 @@
 # ============================================================================
 # SISTEMA CONVIVA 179 - GESTÃO DE OCORRÊNCIAS ESCOLARES
 # Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI
-# Versão: 6.0 FINAL COMPLETA
+# Versão: 6.0 FINAL COMPLETA - 2436 LINHAS
 # ============================================================================
 
 # ============================================================================
@@ -142,6 +142,13 @@ st.markdown("""
     border-radius: 10px;
     border: 3px solid #667eea;
     object-fit: cover;
+}
+.encam-container {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    border-left: 4px solid #667eea;
+    margin: 1rem 0;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -1570,7 +1577,7 @@ elif menu == "👤 Cadastrar Responsáveis por Assinatura":
         st.write("📭 Nenhum responsável cadastrado.")
 
 # ============================================================================
-# 4. REGISTRAR OCORRÊNCIA (COM 4 COLUNAS PARA ENCAMINHAMENTOS)
+# 4. REGISTRAR OCORRÊNCIA (COM 4 COLUNAS PARA ENCAMINHAMENTOS - VISUAL MELHORADO)
 # ============================================================================
 elif menu == "📝 Registrar Ocorrência":
     st.header("📝 Nova Ocorrência")
@@ -1683,41 +1690,86 @@ elif menu == "📝 Registrar Ocorrência":
                 if gravidade != "Selecione..." and gravidade != gravidade_protocolo:
                     st.warning(f"⚠️ Você alterou a gravidade de **{gravidade_protocolo}** para **{gravidade}**")
                 
-                # ✅ ENCAMINHAMENTOS EM CHECKBOX - LAYOUT VISUAL MELHORADO
-st.markdown("### 🔀 Encaminhamentos (selecione os aplicáveis)")
-encaminhamentos_selecionados = []
-encam_sugeridos_lista = [e.strip() for e in encam_protocolo.split('\n') if e.strip()]
+                # ✅ ENCAMINHAMENTOS EM CHECKBOX - 4 COLUNAS COM VISUAL MELHORADO (ALINHADO À ESQUERDA)
+                st.markdown("### 🔀 Encaminhamentos (selecione os aplicáveis)")
+                encaminhamentos_selecionados = []
+                encam_sugeridos_lista = [e.strip() for e in encam_protocolo.split('\n') if e.strip()]
+                
+                # ✅ Container com borda para melhor visual (ALINHADO À ESQUERDA)
+                with st.container():
+                    st.markdown('<div class="encam-container">', unsafe_allow_html=True)
+                    
+                    # ✅ 4 COLUNAS PARA MELHOR VISUALIZAÇÃO
+                    cols = st.columns(4)
+                    for i, encam_opcao in enumerate(ENCAMINHAMENTOS_OPCOES):
+                        col_idx = i % 4
+                        marcado = encam_opcao in encam_sugeridos_lista
+                        if cols[col_idx].checkbox(encam_opcao, value=marcado, key=f"encam_{i}"):
+                            encaminhamentos_selecionados.append(encam_opcao)
+                    
+                    st.markdown('</div>', unsafe_allow_html=True)
+                
+                encam = '\n'.join(encaminhamentos_selecionados) if encaminhamentos_selecionados else ""
+                
+                st.markdown("---")
+                
+                relato = st.text_area("📝 Relato dos Fatos", height=100, key="relato_novo",
+                                       placeholder="Descreva os fatos de forma clara e objetiva...")
+            
+            if st.session_state.salvando_ocorrencia:
+                st.button("💾 Salvando...", disabled=True, type="primary")
+                st.info("⏳ Aguarde, registrando ocorrência(s)...")
+            else:
+                if st.button("💾 Salvar Ocorrência(s)", type="primary"):
+                    if prof and prof != "Selecione..." and relato and alunos_selecionados and gravidade != "Selecione...":
+                        data_str = f"{data.strftime('%d/%m/%Y')} {hora.strftime('%H:%M')}"
+                        categoria_str = infracao_principal
+                        contagem_salvas = 0
+                        contagem_duplicadas = 0
+                        erros = 0
+                        
+                        for nome_aluno in alunos_selecionados:
+                            ra_aluno = alunos[alunos["nome"] == nome_aluno]["ra"].values[0]
+                            
+                            if verificar_ocorrencia_duplicada(ra_aluno, categoria_str, data_str, df_ocorrencias):
+                                contagem_duplicadas += 1
+                            else:
+                                nova = {
+                                    "data": data_str,
+                                    "aluno": nome_aluno,
+                                    "ra": ra_aluno,
+                                    "turma": turma_sel,
+                                    "categoria": categoria_str,
+                                    "gravidade": gravidade,
+                                    "relato": relato,
+                                    "encaminhamento": encam,
+                                    "professor": prof,
+                                    "medidas_aplicadas": "",
+                                    "medidas_obs": ""
+                                }
+                                if salvar_ocorrencia(nova):
+                                    contagem_salvas += 1
+                                else:
+                                    erros += 1
+                        
+                        if contagem_salvas > 0:
+                            st.success(f"✅ {contagem_salvas} ocorrência(s) registrada(s) com sucesso!")
+                        if contagem_duplicadas > 0:
+                            st.warning(f"⚠️ {contagem_duplicadas} ocorrência(s) já existiam (ignorado)")
+                        if erros > 0:
+                            st.error(f"❌ {erros} erro(s) ao salvar")
+                        
+                        if contagem_salvas > 0:
+                            st.session_state.ocorrencia_salva_sucesso = True
+                            st.rerun()
+                    else:
+                        if not alunos_selecionados:
+                            st.error("❌ Selecione pelo menos um estudante!")
+                        elif gravidade == "Selecione...":
+                            st.error("❌ Selecione a gravidade!")
+                        else:
+                            st.error("❌ Preencha professor e relato obrigatoriamente!")
 
-# ✅ Container com borda para melhor visual
-with st.container():
-    st.markdown("""
-    <style>
-    .encam-container {
-        background: #f8f9fa;
-        padding: 1rem;
-        border-radius: 8px;
-        border-left: 4px solid #667eea;
-        margin: 1rem 0;
-    }
-    </style>
-    <div class="encam-container">
-    """, unsafe_allow_html=True)
-    
-    # ✅ 4 COLUNAS MAIS COMPACTAS
-    cols = st.columns(4)
-    for i, encam_opcao in enumerate(ENCAMINHAMENTOS_OPCOES):
-        col_idx = i % 4
-        marcado = encam_opcao in encam_sugeridos_lista
-        # ✅ Checkbox com label menor para caber melhor
-        if cols[col_idx].checkbox(encam_opcao[:50] + "..." if len(encam_opcao) > 50 else encam_opcao, 
-                                   value=marcado, 
-                                   key=f"encam_{i}",
-                                   help=encam_opcao):  # ✅ Tooltip com texto completo
-            encaminhamentos_selecionados.append(encam_opcao)
-    
-    st.markdown("</div>", unsafe_allow_html=True)
-
-encam = '\n'.join(encaminhamentos_selecionados) if encaminhamentos_selecionados else ""
 # ============================================================================
 # 5. COMUNICADO AOS PAIS
 # ============================================================================
