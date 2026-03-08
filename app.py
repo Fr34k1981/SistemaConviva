@@ -1,3 +1,12 @@
+# ============================================================================
+# SISTEMA CONVIVA 179 - GESTÃO DE OCORRÊNCIAS ESCOLARES
+# Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI
+# Versão: 6.0 FINAL COMPLETA
+# ============================================================================
+
+# ============================================================================
+# IMPORTAÇÃO DE BIBLIOTECAS
+# ============================================================================
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -27,6 +36,8 @@ load_dotenv()
 # ============================================================================
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SENHA_EXCLUSAO = os.getenv("SENHA_EXCLUSAO", "040600")
+
 HEADERS = {
     "apikey": SUPABASE_KEY,
     "Authorization": f"Bearer {SUPABASE_KEY}",
@@ -37,7 +48,11 @@ HEADERS = {
 # ============================================================================
 # CONFIGURAÇÃO DA PÁGINA
 # ============================================================================
-st.set_page_config(page_title="Sistema Conviva 179 - E.E. Profª Eliane", layout="wide", page_icon="🏫")
+st.set_page_config(
+    page_title="Sistema Conviva 179 - E.E. Profª Eliane",
+    layout="wide",
+    page_icon="🏫"
+)
 
 # ============================================================================
 # CSS PERSONALIZADO
@@ -143,11 +158,6 @@ ESCOLA_EMAIL = "Email: e918623@educacao.sp.gov.br"
 ESCOLA_LOGO = "eliane_dantas.png"
 
 # ============================================================================
-# SENHA PARA EXCLUSÃO
-# ============================================================================
-SENHA_EXCLUSAO = os.getenv("SENHA_EXCLUSAO", "040600")
-
-# ============================================================================
 # MENU LATERAL (12 OPÇÕES)
 # ============================================================================
 menu = st.sidebar.selectbox("Menu", [
@@ -239,7 +249,7 @@ CORES_GRAVIDADE = {
 }
 
 # ============================================================================
-# ENCAMINHAMENTOS DISPONÍVEIS (PARA CHECKBOX)
+# ENCAMINHAMENTOS DISPONÍVEIS (PARA CHECKBOX - 4 COLUNAS)
 # ============================================================================
 ENCAMINHAMENTOS_OPCOES = [
     "✅ Registrar em ata",
@@ -530,6 +540,16 @@ PROTOCOLO_179 = {
 # FUNÇÃO DE BUSCA FUZZY
 # ============================================================================
 def buscar_infracao_fuzzy(busca, protocolo):
+    """
+    Função de busca fuzzy para encontrar infrações relacionadas ao termo buscado.
+    
+    Args:
+        busca: Termo de busca do usuário
+        protocolo: Dicionário do Protocolo 179
+    
+    Returns:
+        Dicionário com grupos e infrações encontradas
+    """
     if not busca or len(busca) < 2:
         return {}
     
@@ -579,6 +599,12 @@ def buscar_infracao_fuzzy(busca, protocolo):
 # ============================================================================
 @st.cache_data(ttl=60)
 def carregar_alunos():
+    """
+    Carrega todos os alunos do banco de dados Supabase.
+    
+    Returns:
+        DataFrame com dados dos alunos ou DataFrame vazio em caso de erro
+    """
     try:
         response = requests.get(f"{SUPABASE_URL}/rest/v1/alunos?select=*", headers=HEADERS)
         response.raise_for_status()
@@ -588,6 +614,15 @@ def carregar_alunos():
         return pd.DataFrame()
 
 def salvar_aluno(aluno):
+    """
+    Salva um novo aluno no banco de dados.
+    
+    Args:
+        aluno: Dicionário com dados do aluno
+    
+    Returns:
+        True se salvo com sucesso, False caso contrário
+    """
     try:
         response = requests.post(f"{SUPABASE_URL}/rest/v1/alunos", json=aluno, headers=HEADERS)
         return response.status_code in [200, 201]
@@ -596,6 +631,16 @@ def salvar_aluno(aluno):
         return False
 
 def atualizar_aluno(ra, dados):
+    """
+    Atualiza dados de um aluno existente.
+    
+    Args:
+        ra: RA do aluno
+        dados: Dicionário com dados a atualizar
+    
+    Returns:
+        True se atualizado com sucesso, False caso contrário
+    """
     try:
         response = requests.patch(f"{SUPABASE_URL}/rest/v1/alunos?ra=eq.{ra}", json=dados, headers=HEADERS)
         return response.status_code in [200, 204]
@@ -604,6 +649,15 @@ def atualizar_aluno(ra, dados):
         return False
 
 def excluir_alunos_por_turma(turma):
+    """
+    Exclui todos os alunos de uma turma específica.
+    
+    Args:
+        turma: Nome da turma
+    
+    Returns:
+        True se excluído com sucesso, False caso contrário
+    """
     try:
         response = requests.delete(f"{SUPABASE_URL}/rest/v1/alunos?turma=eq.{turma}", headers=HEADERS)
         return response.status_code in [200, 204]
@@ -613,6 +667,12 @@ def excluir_alunos_por_turma(turma):
 
 @st.cache_data(ttl=60)
 def carregar_professores():
+    """
+    Carrega todos os professores do banco de dados.
+    
+    Returns:
+        DataFrame com dados dos professores ou DataFrame vazio em caso de erro
+    """
     try:
         response = requests.get(f"{SUPABASE_URL}/rest/v1/professores?select=*", headers=HEADERS)
         response.raise_for_status()
@@ -622,6 +682,15 @@ def carregar_professores():
         return pd.DataFrame()
 
 def salvar_professor(professor):
+    """
+    Salva um novo professor no banco de dados.
+    
+    Args:
+        professor: Dicionário com dados do professor
+    
+    Returns:
+        True se salvo com sucesso, False caso contrário
+    """
     try:
         response = requests.post(f"{SUPABASE_URL}/rest/v1/professores", json=professor, headers=HEADERS)
         return response.status_code in [200, 201]
@@ -630,6 +699,16 @@ def salvar_professor(professor):
         return False
 
 def atualizar_professor(id_prof, dados):
+    """
+    Atualiza dados de um professor existente.
+    
+    Args:
+        id_prof: ID do professor
+        dados: Dicionário com dados a atualizar
+    
+    Returns:
+        True se atualizado com sucesso, False caso contrário
+    """
     try:
         response = requests.patch(f"{SUPABASE_URL}/rest/v1/professores?id=eq.{id_prof}", json=dados, headers=HEADERS)
         return response.status_code in [200, 204]
@@ -638,6 +717,15 @@ def atualizar_professor(id_prof, dados):
         return False
 
 def excluir_professor(id_prof):
+    """
+    Exclui um professor do banco de dados.
+    
+    Args:
+        id_prof: ID do professor
+    
+    Returns:
+        True se excluído com sucesso, False caso contrário
+    """
     try:
         response = requests.delete(f"{SUPABASE_URL}/rest/v1/professores?id=eq.{id_prof}", headers=HEADERS)
         return response.status_code in [200, 204]
@@ -647,6 +735,12 @@ def excluir_professor(id_prof):
 
 @st.cache_data(ttl=60)
 def carregar_responsaveis():
+    """
+    Carrega todos os responsáveis ativos do banco de dados.
+    
+    Returns:
+        DataFrame com dados dos responsáveis ou DataFrame vazio em caso de erro
+    """
     try:
         response = requests.get(f"{SUPABASE_URL}/rest/v1/responsaveis?select=*&ativo=eq.true", headers=HEADERS)
         response.raise_for_status()
@@ -656,6 +750,15 @@ def carregar_responsaveis():
         return pd.DataFrame()
 
 def salvar_responsavel(responsavel):
+    """
+    Salva um novo responsável no banco de dados.
+    
+    Args:
+        responsavel: Dicionário com dados do responsável
+    
+    Returns:
+        True se salvo com sucesso, False caso contrário
+    """
     try:
         response = requests.post(f"{SUPABASE_URL}/rest/v1/responsaveis", json=responsavel, headers=HEADERS)
         return response.status_code in [200, 201]
@@ -664,6 +767,16 @@ def salvar_responsavel(responsavel):
         return False
 
 def atualizar_responsavel(id_resp, dados):
+    """
+    Atualiza dados de um responsável existente.
+    
+    Args:
+        id_resp: ID do responsável
+        dados: Dicionário com dados a atualizar
+    
+    Returns:
+        True se atualizado com sucesso, False caso contrário
+    """
     try:
         response = requests.patch(f"{SUPABASE_URL}/rest/v1/responsaveis?id=eq.{id_resp}", json=dados, headers=HEADERS)
         return response.status_code in [200, 204]
@@ -672,6 +785,15 @@ def atualizar_responsavel(id_resp, dados):
         return False
 
 def excluir_responsavel(id_resp):
+    """
+    Exclui um responsável do banco de dados.
+    
+    Args:
+        id_resp: ID do responsável
+    
+    Returns:
+        True se excluído com sucesso, False caso contrário
+    """
     try:
         response = requests.delete(f"{SUPABASE_URL}/rest/v1/responsaveis?id=eq.{id_resp}", headers=HEADERS)
         return response.status_code in [200, 204]
@@ -680,6 +802,12 @@ def excluir_responsavel(id_resp):
         return False
 
 def carregar_ocorrencias():
+    """
+    Carrega todas as ocorrências do banco de dados.
+    
+    Returns:
+        DataFrame com dados das ocorrências ou DataFrame vazio em caso de erro
+    """
     try:
         response = requests.get(f"{SUPABASE_URL}/rest/v1/ocorrencias?select=*&order=id.desc", headers=HEADERS)
         response.raise_for_status()
@@ -689,6 +817,15 @@ def carregar_ocorrencias():
         return pd.DataFrame()
 
 def salvar_ocorrencia(ocorrencia):
+    """
+    Salva uma nova ocorrência no banco de dados.
+    
+    Args:
+        ocorrencia: Dicionário com dados da ocorrência
+    
+    Returns:
+        True se salvo com sucesso, False caso contrário
+    """
     try:
         response = requests.post(f"{SUPABASE_URL}/rest/v1/ocorrencias", json=ocorrencia, headers=HEADERS)
         return response.status_code in [200, 201]
@@ -697,6 +834,15 @@ def salvar_ocorrencia(ocorrencia):
         return False
 
 def excluir_ocorrencia(id_ocorrencia):
+    """
+    Exclui uma ocorrência do banco de dados.
+    
+    Args:
+        id_ocorrencia: ID da ocorrência
+    
+    Returns:
+        True se excluído com sucesso, False caso contrário
+    """
     try:
         response = requests.delete(f"{SUPABASE_URL}/rest/v1/ocorrencias?id=eq.{id_ocorrencia}", headers=HEADERS)
         return response.status_code in [200, 204]
@@ -705,6 +851,16 @@ def excluir_ocorrencia(id_ocorrencia):
         return False
 
 def editar_ocorrencia(id_ocorrencia, dados):
+    """
+    Edita uma ocorrência existente.
+    
+    Args:
+        id_ocorrencia: ID da ocorrência
+        dados: Dicionário com dados a atualizar
+    
+    Returns:
+        True se editado com sucesso, False caso contrário
+    """
     try:
         response = requests.patch(f"{SUPABASE_URL}/rest/v1/ocorrencias?id=eq.{id_ocorrencia}", json=dados, headers=HEADERS)
         return response.status_code in [200, 204]
@@ -713,8 +869,21 @@ def editar_ocorrencia(id_ocorrencia, dados):
         return False
 
 def verificar_ocorrencia_duplicada(ra, categoria, data_str, df_ocorrencias):
+    """
+    Verifica se já existe uma ocorrência duplicada.
+    
+    Args:
+        ra: RA do aluno
+        categoria: Categoria da infração
+        data_str: Data da ocorrência
+        df_ocorrencias: DataFrame com ocorrências
+    
+    Returns:
+        True se duplicada, False caso contrário
+    """
     if df_ocorrencias.empty:
         return False
+    
     ocorrencias_existentes = df_ocorrencias[
         (df_ocorrencias['ra'] == ra) &
         (df_ocorrencias['categoria'] == categoria) &
@@ -723,9 +892,22 @@ def verificar_ocorrencia_duplicada(ra, categoria, data_str, df_ocorrencias):
     return not ocorrencias_existentes.empty
 
 def verificar_professor_duplicado(nome, df_professores, id_atual=None):
+    """
+    Verifica se já existe um professor com o mesmo nome.
+    
+    Args:
+        nome: Nome do professor
+        df_professores: DataFrame com professores
+        id_atual: ID do professor sendo editado (para exclusão na verificação)
+    
+    Returns:
+        True se duplicado, False caso contrário
+    """
     if df_professores.empty:
         return False
+    
     nome_normalizado = nome.strip().lower()
+    
     if id_atual:
         duplicados = df_professores[
             (df_professores['nome'].str.strip().str.lower() == nome_normalizado) &
@@ -733,60 +915,115 @@ def verificar_professor_duplicado(nome, df_professores, id_atual=None):
         ]
     else:
         duplicados = df_professores[df_professores['nome'].str.strip().str.lower() == nome_normalizado]
+    
     return not duplicados.empty
 
 # ============================================================================
-# FUNÇÕES DE FOTO - PROFESSORES E ALUNOS (CORRIGIDAS)
+# FUNÇÕES DE FOTO - PROFESSORES E ALUNOS
 # ============================================================================
 def associar_foto_ao_professor(id_prof, imagem_bytes):
-    """Associa foto ao professor via base64 no Supabase."""
+    """
+    Associa foto ao professor via base64 no Supabase.
+    
+    Args:
+        id_prof: ID do professor
+        imagem_bytes: Bytes da imagem
+    
+    Returns:
+        True se associado com sucesso, False caso contrário
+    """
     try:
         imagem_base64 = base64.b64encode(imagem_bytes).decode('utf-8')
         dados = {"foto": imagem_base64}
-        return atualizar_professor(id_prof, dados)
+        response = requests.patch(f"{SUPABASE_URL}/rest/v1/professores?id=eq.{id_prof}", json=dados, headers=HEADERS)
+        if response.status_code in [200, 204]:
+            carregar_professores.clear()
+            return True
+        return False
     except Exception as e:
-        st.error(f"Erro ao associar foto do professor: {str(e)}")
+        st.error(f"❌ Erro ao associar foto: {str(e)}")
         return False
 
 def associar_foto_ao_aluno(ra, imagem_bytes):
-    """Associa foto ao aluno via base64 no Supabase."""
+    """
+    Associa foto ao aluno via base64 no Supabase.
+    
+    Args:
+        ra: RA do aluno
+        imagem_bytes: Bytes da imagem
+    
+    Returns:
+        True se associado com sucesso, False caso contrário
+    """
     try:
         imagem_base64 = base64.b64encode(imagem_bytes).decode('utf-8')
         dados = {"foto": imagem_base64}
-        return atualizar_aluno(ra, dados)
+        response = requests.patch(f"{SUPABASE_URL}/rest/v1/alunos?ra=eq.{ra}", json=dados, headers=HEADERS)
+        if response.status_code in [200, 204]:
+            carregar_alunos.clear()
+            return True
+        return False
     except Exception as e:
-        st.error(f"Erro ao associar foto do aluno: {str(e)}")
+        st.error(f"❌ Erro ao associar foto: {str(e)}")
         return False
 
 def exibir_foto_professor(id_prof, df_professores):
-    """Exibe foto do professor se existir."""
+    """
+    Exibe foto do professor se existir.
+    
+    Args:
+        id_prof: ID do professor
+        df_professores: DataFrame com professores
+    
+    Returns:
+        True se exibiu foto, False caso contrário
+    """
     try:
         prof = df_professores[df_professores['id'] == id_prof]
-        if not prof.empty and 'foto' in prof.columns:
-            foto_base64 = prof['foto'].values[0]
-            if foto_base64 and str(foto_base64) != 'nan' and str(foto_base64).strip():
-                imagem_bytes = base64.b64decode(foto_base64)
-                st.image(imagem_bytes, width=120, caption="👨‍🏫 Foto")
-                return True
-        st.info("📷 Sem foto")
-        return False
-    except Exception as e:
+        if prof.empty:
+            st.info("📷 Sem foto")
+            return False
+        if 'foto' not in prof.columns:
+            st.warning("⚠️ Coluna 'foto' não existe")
+            return False
+        foto_base64 = prof['foto'].values[0]
+        if not foto_base64 or str(foto_base64) == 'nan' or not str(foto_base64).strip():
+            st.info("📷 Sem foto")
+            return False
+        imagem_bytes = base64.b64decode(foto_base64)
+        st.image(imagem_bytes, width=120, caption="👨‍🏫 Foto")
+        return True
+    except:
         st.info("📷 Sem foto")
         return False
 
 def exibir_foto_aluno(ra, df_alunos):
-    """Exibe foto do aluno se existir."""
+    """
+    Exibe foto do aluno se existir.
+    
+    Args:
+        ra: RA do aluno
+        df_alunos: DataFrame com alunos
+    
+    Returns:
+        True se exibiu foto, False caso contrário
+    """
     try:
         aluno = df_alunos[df_alunos['ra'] == ra]
-        if not aluno.empty and 'foto' in aluno.columns:
-            foto_base64 = aluno['foto'].values[0]
-            if foto_base64 and str(foto_base64) != 'nan' and str(foto_base64).strip():
-                imagem_bytes = base64.b64decode(foto_base64)
-                st.image(imagem_bytes, width=120, caption="👤 Foto")
-                return True
-        st.info("📷 Sem foto")
-        return False
-    except Exception as e:
+        if aluno.empty:
+            st.info("📷 Sem foto")
+            return False
+        if 'foto' not in aluno.columns:
+            st.warning("⚠️ Coluna 'foto' não existe")
+            return False
+        foto_base64 = aluno['foto'].values[0]
+        if not foto_base64 or str(foto_base64) == 'nan' or not str(foto_base64).strip():
+            st.info("📷 Sem foto")
+            return False
+        imagem_bytes = base64.b64decode(foto_base64)
+        st.image(imagem_bytes, width=120, caption="👤 Foto")
+        return True
+    except:
         st.info("📷 Sem foto")
         return False
 
@@ -794,6 +1031,18 @@ def exibir_foto_aluno(ra, df_alunos):
 # FUNÇÕES DE BACKUP
 # ============================================================================
 def criar_backup_dados(df_alunos, df_professores, df_responsaveis, df_ocorrencias):
+    """
+    Cria um backup de todos os dados do sistema em formato JSON.
+    
+    Args:
+        df_alunos: DataFrame com alunos
+        df_professores: DataFrame com professores
+        df_responsaveis: DataFrame com responsáveis
+        df_ocorrencias: DataFrame com ocorrências
+    
+    Returns:
+        BytesIO com o arquivo JSON do backup
+    """
     try:
         backup_data = {
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -802,6 +1051,7 @@ def criar_backup_dados(df_alunos, df_professores, df_responsaveis, df_ocorrencia
             "responsaveis": df_responsaveis.to_dict('records') if not df_responsaveis.empty else [],
             "ocorrencias": df_ocorrencias.to_dict('records') if not df_ocorrencias.empty else []
         }
+        
         json_str = json.dumps(backup_data, ensure_ascii=False, indent=2)
         buffer = BytesIO()
         buffer.write(json_str.encode('utf-8'))
@@ -812,9 +1062,16 @@ def criar_backup_dados(df_alunos, df_professores, df_responsaveis, df_ocorrencia
         return None
 
 def baixar_backup_codigo():
+    """
+    Cria um backup do código fonte atual.
+    
+    Returns:
+        BytesIO com o arquivo de código
+    """
     try:
         with open(__file__, 'r', encoding='utf-8') as f:
             codigo = f.read()
+        
         buffer = BytesIO()
         buffer.write(codigo.encode('utf-8'))
         buffer.seek(0)
@@ -827,6 +1084,16 @@ def baixar_backup_codigo():
 # FUNÇÃO PARA GERAR PDF DE OCORRÊNCIA
 # ============================================================================
 def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
+    """
+    Gera um PDF com os detalhes de uma ocorrência.
+    
+    Args:
+        ocorrencia: Dicionário com dados da ocorrência
+        responsaveis: DataFrame com responsáveis
+    
+    Returns:
+        BytesIO com o arquivo PDF
+    """
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1*cm, leftMargin=1*cm, topMargin=1.5*cm, bottomMargin=1.5*cm)
     elementos = []
@@ -911,6 +1178,7 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
                     elementos.append(Paragraph(f"<b>{cargo}:</b> {resp['nome']}", estilo_texto))
     
     elementos.append(Spacer(1, 0.5*cm))
+    
     estilo_rodape = ParagraphStyle('Rodape', parent=estilos['Normal'],
                                     fontSize=6, alignment=1, textColor=colors.grey)
     elementos.append(Paragraph("_" * 75, estilos['Normal']))
@@ -924,6 +1192,19 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
 # FUNÇÃO PARA GERAR PDF DE COMUNICADO
 # ============================================================================
 def gerar_pdf_comunicado(aluno_data, ocorrencia_data, medidas_aplicadas, observacoes, responsaveis):
+    """
+    Gera um PDF de comunicado aos pais/responsáveis.
+    
+    Args:
+        aluno_data: Dicionário com dados do aluno
+        ocorrencia_data: Dicionário com dados da ocorrência
+        medidas_aplicadas: String com medidas aplicadas
+        observacoes: String com observações
+        responsaveis: DataFrame com responsáveis
+    
+    Returns:
+        BytesIO com o arquivo PDF
+    """
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1*cm, leftMargin=1*cm, topMargin=1.5*cm, bottomMargin=1.5*cm)
     elementos = []
@@ -1109,7 +1390,7 @@ if menu == "🏠 Início":
         st.metric("Professores Cadastrados", profs)
 
 # ============================================================================
-# 2. CADASTRAR PROFESSORES (CORRIGIDO - ORDEM ALFABÉTICA + FOTO)
+# 2. CADASTRAR PROFESSORES (COM FOTO + ORDEM ALFABÉTICA)
 # ============================================================================
 elif menu == "👨‍🏫 Cadastrar Professores":
     st.header("👨‍🏫 Cadastrar Professores")
@@ -1289,7 +1570,7 @@ elif menu == "👤 Cadastrar Responsáveis por Assinatura":
         st.write("📭 Nenhum responsável cadastrado.")
 
 # ============================================================================
-# 4. REGISTRAR OCORRÊNCIA (CORRIGIDO - CHECKBOX + GRAVIDADE VAZIA)
+# 4. REGISTRAR OCORRÊNCIA (COM 4 COLUNAS PARA ENCAMINHAMENTOS)
 # ============================================================================
 elif menu == "📝 Registrar Ocorrência":
     st.header("📝 Nova Ocorrência")
@@ -1395,37 +1676,25 @@ elif menu == "📝 Registrar Ocorrência":
                     if linha.strip():
                         st.write(linha)
                 
-                # ✅ GRAVIDADE COMEÇA VAZIA (com opção "Selecione...")
+                # ✅ GRAVIDADE COMEÇA VAZIA
                 gravidade_opcoes = ["Selecione...", "Leve", "Grave", "Gravíssima"]
-                gravidade_index = 0  # Começa em "Selecione..."
-                gravidade = st.selectbox(
-                    "Gravidade (obrigatório selecionar)",
-                    gravidade_opcoes,
-                    index=gravidade_index,
-                    key="gravidade_select"
-                )
+                gravidade = st.selectbox("Gravidade (obrigatório selecionar)", gravidade_opcoes, index=0, key="gravidade_select")
                 
-                # Aviso se mudar da sugerida
                 if gravidade != "Selecione..." and gravidade != gravidade_protocolo:
                     st.warning(f"⚠️ Você alterou a gravidade de **{gravidade_protocolo}** para **{gravidade}**")
                 
-                # ✅ ENCAMINHAMENTOS EM CHECKBOX (NÃO TEXT_AREA)
+                # ✅ ENCAMINHAMENTOS EM CHECKBOX - 4 COLUNAS PARA MELHOR VISUALIZAÇÃO
                 st.markdown("### 🔀 Encaminhamentos (selecione os aplicáveis)")
                 encaminhamentos_selecionados = []
-                
-                # Converter encaminhamentos sugeridos em lista
                 encam_sugeridos_lista = [e.strip() for e in encam_protocolo.split('\n') if e.strip()]
                 
-                # Criar checkboxes para cada encaminhamento disponível
-                cols = st.columns(2)
+                cols = st.columns(4)  # ← 4 COLUNAS PARA MELHOR VISUALIZAÇÃO
                 for i, encam_opcao in enumerate(ENCAMINHAMENTOS_OPCOES):
-                    col_idx = i % 2
-                    # Marcar como selecionado se estiver nos sugeridos
+                    col_idx = i % 4  # ← DISTRIBUIÇÃO EM 4 COLUNAS
                     marcado = encam_opcao in encam_sugeridos_lista
                     if cols[col_idx].checkbox(encam_opcao, value=marcado, key=f"encam_{i}"):
                         encaminhamentos_selecionados.append(encam_opcao)
                 
-                # Converter lista para string
                 encam = '\n'.join(encaminhamentos_selecionados) if encaminhamentos_selecionados else ""
                 
                 st.markdown("---")
@@ -1857,7 +2126,7 @@ elif menu == "📋 Histórico de Ocorrências":
         st.write("📭 Nenhuma ocorrência.")
 
 # ============================================================================
-# 10. GRÁFICOS E INDICADORES
+# 10. GRÁFICOS E INDICADORES (COLORIDOS)
 # ============================================================================
 elif menu == "📊 Gráficos e Indicadores":
     st.header("📊 Dashboard de Ocorrências - Protocolo 179")
@@ -2199,3 +2468,7 @@ elif menu == "💾 Backup de Dados":
     - **Armazenamento:** Guarde em local seguro (Google Drive, OneDrive, etc.)
     - **Criptografia:** Os dados não são criptografados no backup
     """)
+
+# ============================================================================
+# FIM DO CÓDIGO - SISTEMA CONVIVA 179 v6.0
+# ============================================================================
