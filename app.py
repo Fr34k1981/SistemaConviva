@@ -1,7 +1,7 @@
 # ============================================================================
 # SISTEMA CONVIVA 179 - GESTÃO DE OCORRÊNCIAS ESCOLARES
 # Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI
-# Versão: 7.0 FINAL CORRIGIDA
+# Versão: 7.0 FINAL COMPLETA
 # ============================================================================
 
 # ============================================================================
@@ -764,13 +764,14 @@ def gerar_pdf_ocorrencia(ocorrencia, df_responsaveis=None):
     """Gera PDF da ocorrência com formatação profissional."""
     buffer = io.BytesIO()
     
+    # CORREÇÃO: Margens otimizadas para caber mais conteúdo
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
         rightMargin=1*cm,
         leftMargin=1*cm,
-        topMargin=4.5*cm,
-        bottomMargin=1.5*cm
+        topMargin=2*cm,
+        bottomMargin=1*cm
     )
     
     elementos = []
@@ -808,13 +809,13 @@ def gerar_pdf_ocorrencia(ocorrencia, df_responsaveis=None):
         spaceAfter=0.5*cm
     ))
     
-    # CABEÇALHO COM LOGO (16cm x 4.5cm) - CORREÇÃO
+    # CORREÇÃO: Logo no cabeçalho (16cm x 4.5cm)
     try:
         if os.path.exists(ESCOLA_LOGO):
             logo = Image(ESCOLA_LOGO, width=16*cm, height=4.5*cm)
             logo.hAlign = 'CENTER'
             elementos.append(logo)
-            elementos.append(Spacer(1, 0.3*cm))
+            elementos.append(Spacer(1, 0.2*cm))
     except:
         pass
     
@@ -862,58 +863,41 @@ def gerar_pdf_ocorrencia(ocorrencia, df_responsaveis=None):
         elementos.append(Paragraph(formatar_texto(str(encaminhamentos)), estilos['Texto']))
     elementos.append(Spacer(1, 0.3*cm))
     
-    elementos.append(Paragraph("<b>Professor Responsável:</b> " + str(ocorrencia.get('professor', 'N/A')), estilos['Texto']))
-    
-    if ocorrencia.get('testemunhas'):
-        elementos.append(Paragraph("<b>Testemunhas:</b> " + str(ocorrencia.get('testemunhas', '')), estilos['Texto']))
-    
+    # CORREÇÃO: Professor aparece apenas uma vez nas assinaturas
     elementos.append(Spacer(1, 0.5*cm))
     
+    # Assinaturas - CORREÇÃO: Sem duplicar Professor, alinhado à esquerda
     elementos.append(Paragraph("<b>ASSINATURAS:</b>", estilos['Secao']))
+    elementos.append(Spacer(1, 0.3*cm))
     
-    cargos_para_assinatura = ["Diretor(a)", "Vice-Diretor(a)", "CGPG / Coordenador(a)", "Professor Responsável"]
+    cargos_fixos = ["Diretor(a)", "Vice-Diretor(a)", "CGPG / Coordenador(a)"]
     
     if df_responsaveis is not None and not df_responsaveis.empty:
-        for cargo in cargos_para_assinatura:
-            if cargo == "Professor Responsável":
-                nome = ocorrencia.get("professor", "")
-                if nome:
-                    elementos.append(Paragraph(f"<b>{cargo}:</b> {nome}", estilos['Texto']))
-            else:
-                responsavel = df_responsaveis[df_responsaveis['cargo'] == cargo]
-                if not responsavel.empty and responsavel.iloc[0].get('nome'):
-                    nome_resp = responsavel.iloc[0].get('nome', '')
-                    elementos.append(Paragraph(f"<b>{cargo}:</b> {nome_resp}", estilos['Texto']))
-                else:
-                    elementos.append(Paragraph(f"<b>{cargo}:</b> _________________________________", estilos['Texto']))
-    else:
-        for cargo in cargos_para_assinatura:
-            if cargo == "Professor Responsável":
-                nome = ocorrencia.get("professor", "")
-                if nome:
-                    elementos.append(Paragraph(f"<b>{cargo}:</b> {nome}", estilos['Texto']))
+        for cargo in cargos_fixos:
+            responsavel = df_responsaveis[df_responsaveis['cargo'] == cargo]
+            if not responsavel.empty and responsavel.iloc[0].get('nome'):
+                nome_resp = responsavel.iloc[0].get('nome', '')
+                elementos.append(Paragraph(f"<b>{cargo}:</b> {nome_resp}", estilos['Texto']))
             else:
                 elementos.append(Paragraph(f"<b>{cargo}:</b> _________________________________", estilos['Texto']))
+            elementos.append(Spacer(1, 0.2*cm))
+    else:
+        for cargo in cargos_fixos:
+            elementos.append(Paragraph(f"<b>{cargo}:</b> _________________________________", estilos['Texto']))
+            elementos.append(Spacer(1, 0.2*cm))
+    
+    # Professor Responsável aparece apenas UMA vez aqui
+    if ocorrencia.get('professor'):
+        elementos.append(Paragraph(f"<b>Professor Responsável:</b> {ocorrencia.get('professor')}", estilos['Texto']))
     
     elementos.append(Spacer(1, 0.5*cm))
     
-    elementos.append(Paragraph("<b>CIÊNCIA DOS PAIS/RESPONSÁVEIS:</b>", estilos['Secao']))
-    elementos.append(Paragraph("Declaro ciência deste comunicado.", estilos['Texto']))
-    elementos.append(Spacer(1, 1*cm))
-    
-    elementos.append(Paragraph("_" * 50, estilos['Normal']))
-    elementos.append(Paragraph("Assinatura do Responsável", estilos['Assinatura']))
-    
-    elementos.append(Spacer(1, 0.5*cm))
-    estilo_rodape = ParagraphStyle(
-        'Rodape',
-        parent=estilos['Normal'],
-        fontSize=6,
-        alignment=TA_CENTER,
-        textColor=colors.grey
-    )
-    elementos.append(Paragraph("_" * 75, estilos['Normal']))
-    elementos.append(Paragraph(f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}", estilo_rodape))
+    # CORREÇÃO: Removido "CIÊNCIA DOS PAIS" e rodapé
+    # Não adicionar estas linhas:
+    # - elementos.append(Paragraph("<b>CIÊNCIA DOS PAIS/RESPONSÁVEIS:</b>", ...))
+    # - elementos.append(Paragraph("Declaro ciência...", ...))
+    # - elementos.append(Paragraph("_" * 75, ...))
+    # - elementos.append(Paragraph(f"Gerado em...", ...))
     
     doc.build(elementos)
     buffer.seek(0)
@@ -929,8 +913,8 @@ def gerar_pdf_comunicado(ocorrencia, df_responsaveis=None):
         pagesize=A4,
         rightMargin=1*cm,
         leftMargin=1*cm,
-        topMargin=4.5*cm,
-        bottomMargin=1.5*cm
+        topMargin=2*cm,
+        bottomMargin=1*cm
     )
     
     elementos = []
@@ -968,13 +952,13 @@ def gerar_pdf_comunicado(ocorrencia, df_responsaveis=None):
         spaceAfter=0.5*cm
     ))
     
-    # CABEÇALHO COM LOGO (16cm x 4.5cm) - CORREÇÃO
+    # CORREÇÃO: Logo no cabeçalho
     try:
         if os.path.exists(ESCOLA_LOGO):
             logo = Image(ESCOLA_LOGO, width=16*cm, height=4.5*cm)
             logo.hAlign = 'CENTER'
             elementos.append(logo)
-            elementos.append(Spacer(1, 0.3*cm))
+            elementos.append(Spacer(1, 0.2*cm))
     except:
         pass
     
@@ -1023,23 +1007,7 @@ def gerar_pdf_comunicado(ocorrencia, df_responsaveis=None):
     elementos.append(Paragraph("_" * 50, estilos['Normal']))
     elementos.append(Paragraph("Direção / Coordenação", estilos['Assinatura']))
     
-    elementos.append(Spacer(1, 1*cm))
-    elementos.append(Paragraph("<b>CIÊNCIA:</b>", estilos['Secao']))
-    elementos.append(Paragraph("Declaro que recebi e tomei conhecimento deste comunicado.", estilos['Texto']))
-    elementos.append(Spacer(1, 1*cm))
-    elementos.append(Paragraph("_" * 50, estilos['Normal']))
-    elementos.append(Paragraph("Assinatura do Responsável", estilos['Assinatura']))
-    
-    elementos.append(Spacer(1, 0.5*cm))
-    estilo_rodape = ParagraphStyle(
-        'Rodape',
-        parent=estilos['Normal'],
-        fontSize=6,
-        alignment=TA_CENTER,
-        textColor=colors.grey
-    )
-    elementos.append(Paragraph("_" * 75, estilos['Normal']))
-    elementos.append(Paragraph(f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}", estilo_rodape))
+    # CORREÇÃO: Removido seção de ciência dos pais
     
     doc.build(elementos)
     buffer.seek(0)
@@ -1057,7 +1025,7 @@ def gerar_pdf_comunicado_editavel(aluno_info, occ_info, medidas_aplicadas, obser
         pagesize=A4,
         rightMargin=1.5*cm,
         leftMargin=1.5*cm,
-        topMargin=4.5*cm,
+        topMargin=2*cm,
         bottomMargin=2*cm
     )
     
@@ -1081,7 +1049,7 @@ def gerar_pdf_comunicado_editavel(aluno_info, occ_info, medidas_aplicadas, obser
         leading=14
     ))
     
-    # CABEÇALHO COM LOGO (16cm x 4.5cm) - CORREÇÃO
+    # CORREÇÃO: Logo no cabeçalho
     try:
         if os.path.exists(ESCOLA_LOGO):
             logo = Image(ESCOLA_LOGO, width=16*cm, height=4.5*cm)
@@ -1122,25 +1090,7 @@ def gerar_pdf_comunicado_editavel(aluno_info, occ_info, medidas_aplicadas, obser
             elementos.append(Paragraph(f"<b>{cargo}:</b> _________________________________", estilos['TextoComunicado']))
         elementos.append(Spacer(1, 0.5*cm))
     
-    elementos.append(Spacer(1, 1*cm))
-    
-    elementos.append(Paragraph("<b>CIÊNCIA DOS PAIS/RESPONSÁVEIS:</b>", estilos['TextoComunicado']))
-    elementos.append(Spacer(1, 0.5*cm))
-    elementos.append(Paragraph("Declaro que recebi e tomei conhecimento deste comunicado.", estilos['TextoComunicado']))
-    elementos.append(Spacer(1, 1.5*cm))
-    elementos.append(Paragraph("_" * 60, estilos['Normal']))
-    elementos.append(Paragraph("Assinatura do Responsável", estilos['TextoComunicado']))
-    
-    elementos.append(Spacer(1, 1*cm))
-    estilo_rodape = ParagraphStyle(
-        'Rodape',
-        parent=estilos['Normal'],
-        fontSize=8,
-        alignment=TA_CENTER,
-        textColor=colors.grey
-    )
-    elementos.append(Paragraph("_" * 75, estilos['Normal']))
-    elementos.append(Paragraph(f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}", estilo_rodape))
+    # CORREÇÃO: Removido ciência dos pais e rodapé
     
     doc.build(elementos)
     buffer.seek(0)
@@ -1148,10 +1098,66 @@ def gerar_pdf_comunicado_editavel(aluno_info, occ_info, medidas_aplicadas, obser
 
 
 # ============================================================================
+# FUNÇÕES DE BACKUP
+# ============================================================================
+
+def criar_backup_dados():
+    """Cria backup de todos os dados do sistema."""
+    backup_data = {
+        'ocorrencias': carregar_ocorrencias().to_dict('records'),
+        'alunos': carregar_alunos().to_dict('records'),
+        'professores': carregar_professores().to_dict('records'),
+        'responsaveis': carregar_responsaveis().to_dict('records'),
+        'data_backup': datetime.now().strftime('%d/%m/%Y %H:%M')
+    }
+    return json.dumps(backup_data, ensure_ascii=False, indent=2)
+
+
+def restaurar_backup_dados(backup_json):
+    """Restaura backup de dados."""
+    try:
+        backup_data = json.loads(backup_json)
+        
+        contagem_ocorrencias = 0
+        contagem_alunos = 0
+        contagem_professores = 0
+        contagem_responsaveis = 0
+        
+        if 'ocorrencias' in backup_data:
+            for occ in backup_data['ocorrencias']:
+                if salvar_ocorrencia(occ)[0]:
+                    contagem_ocorrencias += 1
+        
+        if 'alunos' in backup_data:
+            for aluno in backup_data['alunos']:
+                if salvar_aluno(aluno):
+                    contagem_alunos += 1
+        
+        if 'professores' in backup_data:
+            for prof in backup_data['professores']:
+                if salvar_professor(prof):
+                    contagem_professores += 1
+        
+        if 'responsaveis' in backup_data:
+            for resp in backup_data['responsaveis']:
+                if salvar_responsavel(resp):
+                    contagem_responsaveis += 1
+        
+        return True, {
+            'ocorrencias': contagem_ocorrencias,
+            'alunos': contagem_alunos,
+            'professores': contagem_professores,
+            'responsaveis': contagem_responsaveis
+        }
+    except Exception as e:
+        return False, str(e)
+
+
+# ============================================================================
 # INTERFACE PRINCIPAL - CABEÇALHO E MENU LATERAL
 # ============================================================================
 
-# Cabeçalho principal com logo e dados da escola - CORREÇÃO
+# CORREÇÃO: Logo carregando do GitHub na Home
 st.markdown(f"""
 <div class="main-header">
     <img src="https://raw.githubusercontent.com/Fr34k1981/SistemaConviva/main/logo.jpg" 
@@ -1259,7 +1265,7 @@ if menu == "🏠 Início":
         st.write(f"**Total de Alunos:** {len(df_alunos)}")
 
 # ============================================================================
-# PÁGINA: CADASTRAR PROFESSORES
+# PÁGINA: CADASTRAR PROFESSORES (COM UPLOAD DE FOTO)
 # ============================================================================
 
 elif menu == "👨‍🏫 Cadastrar Professores":
@@ -1313,6 +1319,32 @@ elif menu == "👨‍🏫 Cadastrar Professores":
                     st.error("❌ Erro ao salvar professor")
         else:
             st.error("❌ Nome é obrigatório!")
+    
+    st.markdown("---")
+    
+    # CORREÇÃO: Upload de foto de professor restaurado
+    st.subheader("📷 Upload de Foto de Professor")
+    
+    if not df_professores.empty:
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            professor_foto = st.selectbox("Selecione o Professor", df_professores['nome'].tolist(), key="prof_foto_sel")
+        
+        with col2:
+            foto_file = st.file_uploader("Selecione a foto", type=['jpg', 'jpeg', 'png'], key="prof_foto_upload")
+        
+        if foto_file and st.button("📷 Enviar Foto", key="prof_enviar_foto_btn"):
+            url, msg = upload_foto_supabase(foto_file, 'professores', f"{professor_foto}.jpg")
+            if url:
+                if atualizar_foto_professor(professor_foto, url):
+                    st.success(f"✅ {msg}")
+                    carregar_professores.clear()
+                    st.rerun()
+                else:
+                    st.error("❌ Erro ao atualizar foto no banco")
+            else:
+                st.error(f"❌ {msg}")
     
     st.markdown("---")
     
@@ -1427,7 +1459,7 @@ elif menu == "👤 Cadastrar Responsáveis por Assinatura":
         st.info("📭 Nenhum responsável cadastrado.")
 
 # ============================================================================
-# PÁGINA: REGISTRAR OCORRÊNCIA
+# PÁGINA: REGISTRAR OCORRÊNCIA (AUTOMÁTICO PELO PROTOCOLO 179)
 # ============================================================================
 
 elif menu == "📝 Registrar Ocorrência":
@@ -1510,29 +1542,35 @@ elif menu == "📝 Registrar Ocorrência":
                 col1, col2 = st.columns(2)
                 
                 with col1:
-                    categoria_grupo = st.selectbox("📁 Categoria", list(CATEGORIAS_OCORRENCIAS.keys()))
+                    # CORREÇÃO: Seleção de ocorrência com gravidade automática
+                    categoria_grupo = st.selectbox("📁 Categoria", list(CATEGORIAS_OCORRENCIAS.keys()), key="cat_grupo")
                     categorias_grupo = list(CATEGORIAS_OCORRENCIAS[categoria_grupo].keys())
-                    categoria = st.selectbox("📋 Ocorrência", categorias_grupo)
+                    categoria = st.selectbox("📋 Ocorrência", categorias_grupo, key="cat_ocorr")
                 
                 with col2:
+                    # CORREÇÃO: Gravidade automática baseada na ocorrência selecionada
                     gravidade = CATEGORIAS_OCORRENCIAS[categoria_grupo].get(categoria, "Leve")
                     gravidade_select = st.selectbox(
-                        "⚡ Gravidade",
+                        "⚡ Gravidade (Automático pelo Protocolo 179)",
                         ["Gravíssima", "Grave", "Média", "Leve"],
-                        index=["Gravíssima", "Grave", "Média", "Leve"].index(gravidade)
+                        index=["Gravíssima", "Grave", "Média", "Leve"].index(gravidade),
+                        key="grav_select"
                     )
                 
+                # CORREÇÃO: Mostrar fluxo de ações do protocolo 179
                 if categoria in FLUXO_ACOES:
                     st.warning(f"📌 {FLUXO_ACOES[categoria]}")
                 
                 relato = st.text_area("📝 Relato da Ocorrência", height=200)
                 
-                st.subheader("🔄 Encaminhamentos")
+                # CORREÇÃO: Encaminhamentos automáticos baseados na gravidade
+                st.subheader("🔄 Encaminhamentos (Automático pelo Protocolo 179)")
                 encaminhamentos_disponiveis = ENCAMINHAMENTOS_POR_GRAVIDADE.get(gravidade_select, [])
                 encaminhamentos_selecionados = st.multiselect(
                     "Selecione os encaminhamentos realizados",
                     encaminhamentos_disponiveis,
-                    default=encaminhamentos_disponiveis
+                    default=encaminhamentos_disponiveis,
+                    key="encam_select"
                 )
                 
                 testemunhas = st.text_input("👀 Testemunhas (opcional)")
@@ -1606,7 +1644,7 @@ elif menu == "📝 Registrar Ocorrência":
             st.warning("⚠️ Selecione pelo menos uma turma.")
 
 # ============================================================================
-# PÁGINA: COMUNICADO AOS PAIS (COM MENU DE TURMAS - CORREÇÃO)
+# PÁGINA: COMUNICADO AOS PAIS (COM MENU DE TURMAS)
 # ============================================================================
 
 elif menu == "📄 Comunicado aos Pais":
@@ -1621,11 +1659,11 @@ elif menu == "📄 Comunicado aos Pais":
     if df_alunos.empty:
         st.warning("⚠️ Cadastre alunos primeiro.")
     else:
-        # CORREÇÃO: MENU DE TURMAS PARA FILTRAR ALUNOS
+        # CORREÇÃO: Menu de turmas para filtrar alunos
         st.subheader("🏫 Selecionar Turma")
         
         turmas = df_alunos['turma'].unique().tolist()
-        turma_selecionada = st.selectbox("Selecione a Turma", ["Todas"] + turmas)
+        turma_selecionada = st.selectbox("Selecione a Turma", ["Todas"] + turmas, key="comm_turma")
         
         if turma_selecionada != "Todas":
             df_filtrado = df_alunos[df_alunos['turma'] == turma_selecionada]
@@ -1633,7 +1671,7 @@ elif menu == "📄 Comunicado aos Pais":
             df_filtrado = df_alunos
         
         # Busca adicional por nome ou RA
-        busca = st.text_input("🔍 Buscar por nome ou RA (opcional)", placeholder="Digite o nome ou RA do aluno")
+        busca = st.text_input("🔍 Buscar por nome ou RA (opcional)", placeholder="Digite o nome ou RA do aluno", key="comm_busca")
         
         if busca:
             df_filtrado = df_filtrado[
@@ -1827,7 +1865,7 @@ Direção / Coordenação
             st.warning("⚠️ Nenhum aluno encontrado nesta turma.")
 
 # ============================================================================
-# PÁGINA: IMPORTAR ALUNOS
+# PÁGINA: IMPORTAR ALUNOS (COM UPLOAD DE FOTO)
 # ============================================================================
 
 elif menu == "📥 Importar Alunos":
@@ -1876,6 +1914,9 @@ elif menu == "📥 Importar Alunos":
         except Exception as e:
             st.error(f"Erro ao importar: {str(e)}")
     
+    st.markdown("---")
+    
+    # CORREÇÃO: Upload de foto de aluno restaurado
     st.subheader("📷 Upload de Foto de Aluno")
     
     df_alunos = carregar_alunos()
@@ -1884,13 +1925,13 @@ elif menu == "📥 Importar Alunos":
         col1, col2 = st.columns(2)
         
         with col1:
-            aluno_foto = st.selectbox("Selecione o Aluno", df_alunos['nome'].tolist())
-            ra_aluno = df_alunos[df_alunos['nome'] == aluno_foto]['ra'].values[0]
+            aluno_foto = st.selectbox("Selecione o Aluno", df_alunos['nome'].tolist(), key="aluno_foto_sel")
+            ra_aluno = df_alunos[df_alunos['nome'] == aluno_foto]['ra'].values[0] if 'ra' in df_alunos.columns else None
         
         with col2:
-            foto_file = st.file_uploader("Selecione a foto", type=['jpg', 'jpeg', 'png'])
+            foto_file = st.file_uploader("Selecione a foto", type=['jpg', 'jpeg', 'png'], key="aluno_foto_upload")
         
-        if foto_file and st.button("📷 Enviar Foto"):
+        if foto_file and ra_aluno and st.button("📷 Enviar Foto", key="aluno_enviar_foto_btn"):
             url, msg = upload_foto_supabase(foto_file, 'alunos', f"{ra_aluno}.jpg")
             if url:
                 if atualizar_foto_aluno(ra_aluno, url):
@@ -1901,6 +1942,8 @@ elif menu == "📥 Importar Alunos":
                     st.error("❌ Erro ao atualizar foto no banco")
             else:
                 st.error(f"❌ {msg}")
+    
+    st.markdown("---")
     
     st.subheader("📋 Alunos Cadastrados")
     
@@ -2338,7 +2381,6 @@ elif menu == "🖨️ Imprimir PDF":
         st.info("📭 Nenhuma ocorrência registrada.")
 
 # ============================================================================
-## ============================================================================
 # PÁGINA: BACKUP DE DADOS
 # ============================================================================
 
