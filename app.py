@@ -1,7 +1,7 @@
 # ============================================================================
 # SISTEMA CONVIVA 179 - GESTÃO DE OCORRÊNCIAS ESCOLARES
 # Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI
-# Versão: 8.4 FINAL - COLUNA ENCAMINHAMENTO CORRIGIDA
+# Versão: 8.5 FINAL - COLUNAS DO BANCO CORRIGIDAS
 # Desenvolvido para SEDUC/SP - Protocolo de Convivência e Proteção Escolar
 # ============================================================================
 
@@ -303,16 +303,16 @@ def carregar_professores():
 @st.cache_data(ttl=60)
 def carregar_ocorrencias():
     if not SUPABASE_URL:
-        return pd.DataFrame(columns=['id', 'data', 'aluno', 'ra', 'turma', 'categoria', 'gravidade', 'relato', 'professor', 'encaminhamento', 'testemunhas', 'evidencias'])
+        return pd.DataFrame(columns=['id', 'data', 'aluno', 'ra', 'turma', 'categoria', 'gravidade', 'relato', 'professor', 'encaminhamento'])
     try:
         response = requests.get(f"{SUPABASE_URL}/rest/v1/ocorrencias?select=*&order=id.desc", headers=HEADERS)
         if response.status_code == 200:
             return pd.DataFrame(response.json())
         else:
-            return pd.DataFrame(columns=['id', 'data', 'aluno', 'ra', 'turma', 'categoria', 'gravidade', 'relato', 'professor', 'encaminhamento', 'testemunhas', 'evidencias'])
+            return pd.DataFrame(columns=['id', 'data', 'aluno', 'ra', 'turma', 'categoria', 'gravidade', 'relato', 'professor', 'encaminhamento'])
     except Exception as e:
         st.error(f"Erro ao carregar ocorrências: {str(e)}")
-        return pd.DataFrame(columns=['id', 'data', 'aluno', 'ra', 'turma', 'categoria', 'gravidade', 'relato', 'professor', 'encaminhamento', 'testemunhas', 'evidencias'])
+        return pd.DataFrame(columns=['id', 'data', 'aluno', 'ra', 'turma', 'categoria', 'gravidade', 'relato', 'professor', 'encaminhamento'])
 
 
 @st.cache_data(ttl=60)
@@ -339,16 +339,29 @@ def carregar_responsaveis():
 
 def salvar_ocorrencia(ocorrencia_dict):
     """
-    ✅ CORREÇÃO: Usa 'encaminhamento' (singular) não 'encaminhamentos' (plural)
+    ✅ COLUNAS CORRETAS: Apenas colunas que existem no banco
     """
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
-        # ✅ CORREÇÃO: Converter lista para string separada por |
+        # ✅ Converter lista para string (encaminhamento singular)
         if 'encaminhamento' in ocorrencia_dict and isinstance(ocorrencia_dict['encaminhamento'], list):
             ocorrencia_dict['encaminhamento'] = '| '.join(ocorrencia_dict['encaminhamento'])
         
-        response = requests.post(f"{SUPABASE_URL}/rest/v1/ocorrencias", json=ocorrencia_dict, headers=HEADERS)
+        # ✅ REMOVER colunas que não existem no banco
+        ocorrencia_dict_clean = {
+            'data': ocorrencia_dict.get('data', ''),
+            'aluno': ocorrencia_dict.get('aluno', ''),
+            'ra': ocorrencia_dict.get('ra', ''),
+            'turma': ocorrencia_dict.get('turma', ''),
+            'categoria': ocorrencia_dict.get('categoria', ''),
+            'gravidade': ocorrencia_dict.get('gravidade', ''),
+            'relato': ocorrencia_dict.get('relato', ''),
+            'professor': ocorrencia_dict.get('professor', ''),
+            'encaminhamento': ocorrencia_dict.get('encaminhamento', '')
+        }
+        
+        response = requests.post(f"{SUPABASE_URL}/rest/v1/ocorrencias", json=ocorrencia_dict_clean, headers=HEADERS)
         if response.status_code in [200, 201]:
             return True, "Ocorrência salva com sucesso!"
         else:
@@ -365,7 +378,19 @@ def atualizar_ocorrencia(id_ocorrencia, ocorrencia_dict):
         if 'encaminhamento' in ocorrencia_dict and isinstance(ocorrencia_dict['encaminhamento'], list):
             ocorrencia_dict['encaminhamento'] = '| '.join(ocorrencia_dict['encaminhamento'])
         
-        response = requests.patch(f"{SUPABASE_URL}/rest/v1/ocorrencias?id=eq.{id_ocorrencia}", json=ocorrencia_dict, headers=HEADERS)
+        ocorrencia_dict_clean = {
+            'data': ocorrencia_dict.get('data', ''),
+            'aluno': ocorrencia_dict.get('aluno', ''),
+            'ra': ocorrencia_dict.get('ra', ''),
+            'turma': ocorrencia_dict.get('turma', ''),
+            'categoria': ocorrencia_dict.get('categoria', ''),
+            'gravidade': ocorrencia_dict.get('gravidade', ''),
+            'relato': ocorrencia_dict.get('relato', ''),
+            'professor': ocorrencia_dict.get('professor', ''),
+            'encaminhamento': ocorrencia_dict.get('encaminhamento', '')
+        }
+        
+        response = requests.patch(f"{SUPABASE_URL}/rest/v1/ocorrencias?id=eq.{id_ocorrencia}", json=ocorrencia_dict_clean, headers=HEADERS)
         if response.status_code in [200, 201]:
             return True, "Ocorrência atualizada com sucesso!"
         else:
@@ -707,7 +732,6 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
     elementos.append(Paragraph(relato_formatado, estilos['Texto']))
     elementos.append(Spacer(1, 0.3*cm))
     
-    # ✅ CORREÇÃO: Usar 'encaminhamento' (singular)
     elementos.append(Paragraph("<b>Encaminhamento:</b>", estilos['Secao']))
     encaminhamento = ocorrencia.get('encaminhamento', '')
     
@@ -723,16 +747,6 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
     elementos.append(Paragraph("<b>Professor Responsável:</b>", estilos['Secao']))
     elementos.append(Paragraph(f"{ocorrencia.get('professor', 'N/A')}", estilos['Texto']))
     elementos.append(Spacer(1, 0.5*cm))
-    
-    if ocorrencia.get('testemunhas'):
-        elementos.append(Paragraph("<b>Testemunhas:</b>", estilos['Secao']))
-        elementos.append(Paragraph(f"{ocorrencia.get('testemunhas', '')}", estilos['Texto']))
-        elementos.append(Spacer(1, 0.3*cm))
-    
-    if ocorrencia.get('evidencias'):
-        elementos.append(Paragraph("<b>Evidências:</b>", estilos['Secao']))
-        elementos.append(Paragraph(f"{ocorrencia.get('evidencias', '')}", estilos['Texto']))
-        elementos.append(Spacer(1, 0.5*cm))
     
     elementos.append(Paragraph("<b>ASSINATURAS:</b>", estilos['Secao']))
     elementos.append(Spacer(1, 0.5*cm))
@@ -849,7 +863,6 @@ def gerar_pdf_comunicado(ocorrencia, responsaveis=None):
     elementos.append(Paragraph(relato_formatado, estilos['TextoComunicado']))
     elementos.append(Spacer(1, 0.3*cm))
     
-    # ✅ CORREÇÃO: Usar 'encaminhamento' (singular)
     elementos.append(Paragraph("<b>Encaminhamento:</b>", estilos['Secao']))
     encaminhamento = ocorrencia.get('encaminhamento', '')
     
@@ -1046,7 +1059,7 @@ if menu == "🏠 Home":
 
 
 # ============================================================================
-# PÁGINA: REGISTRAR OCORRÊNCIA (CORRIGIDO - ENCAMINHAMENTO SINGULAR)
+# PÁGINA: REGISTRAR OCORRÊNCIA (COLUNAS CORRIGIDAS)
 # ============================================================================
 
 elif menu == "📝 Registrar Ocorrência":
@@ -1130,7 +1143,7 @@ elif menu == "📝 Registrar Ocorrência":
                     key="encam_select"
                 )
                 
-                # ✅ CORREÇÃO: Converter lista para string (singular)
+                # ✅ Converter lista para string (singular)
                 encaminhamento_str = '| '.join(encaminhamentos_selecionados) if encaminhamentos_selecionados else ''
                 
                 df_professores = carregar_professores()
@@ -1138,9 +1151,6 @@ elif menu == "📝 Registrar Ocorrência":
                     prof = st.selectbox("👨‍🏫 Professor Responsável", ["Selecione..."] + df_professores['nome'].tolist(), key="prof_select")
                 else:
                     prof = st.text_input("👨‍🏫 Professor Responsável", key="prof_input")
-                
-                testemunhas = st.text_input("👀 Testemunhas (opcional)", key="test_input")
-                evidencias = st.text_area("📎 Evidências (opcional)", key="evid_input")
                 
                 st.markdown("---")
                 
@@ -1169,7 +1179,7 @@ elif menu == "📝 Registrar Ocorrência":
                                 if verificar_ocorrencia_duplicada(ra_aluno, categoria_str, data_str, df_ocorrencias):
                                     contagem_duplicadas += 1
                                 else:
-                                    # ✅ CORREÇÃO: Usar 'encaminhamento' (singular) não 'encaminhamentos'
+                                    # ✅ COLUNAS CORRETAS - APENAS O QUE EXISTE NO BANCO
                                     ocorrencia_dict = {
                                         'data': data_str,
                                         'aluno': nome_aluno,
@@ -1179,9 +1189,7 @@ elif menu == "📝 Registrar Ocorrência":
                                         'gravidade': gravidade_select,
                                         'relato': relato,
                                         'professor': prof,
-                                        'encaminhamento': encaminhamento_str,  # ✅ SINGULAR
-                                        'testemunhas': testemunhas,
-                                        'evidencias': evidencias
+                                        'encaminhamento': encaminhamento_str  # ✅ SINGULAR, SEM 'evidencias' ou 'testemunhas'
                                     }
                                     
                                     sucesso, mensagem = salvar_ocorrencia(ocorrencia_dict)
@@ -1761,7 +1769,7 @@ elif menu == "⚙️ Configurações":
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.metric("Versão", "8.4 FINAL")
+        st.metric("Versão", "8.5 FINAL")
     
     with col2:
         st.metric("Framework", "Streamlit")
@@ -1793,7 +1801,7 @@ elif menu == "💾 Backup":
             'ocorrencias': df_ocorrencias.to_dict('records') if not df_ocorrencias.empty else [],
             'responsaveis': df_responsaveis.to_dict('records') if not df_responsaveis.empty else [],
             'data_backup': datetime.now().strftime('%d/%m/%Y %H:%M'),
-            'versao_sistema': '8.4 FINAL'
+            'versao_sistema': '8.5 FINAL'
         }
         
         json_str = json.dumps(backup_data, ensure_ascii=False, indent=2)
@@ -1886,6 +1894,6 @@ st.markdown("""
     <p><b>Sistema Conviva 179</b> - Gestão de Ocorrências Escolares</p>
     <p>Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI</p>
     <p>Protocolo de Convivência e Proteção Escolar - SEDUC/SP</p>
-    <p>Versão 8.4 FINAL | Desenvolvido com Streamlit + Supabase (Requests)</p>
+    <p>Versão 8.5 FINAL | Desenvolvido com Streamlit + Supabase (Requests)</p>
 </div>
 """, unsafe_allow_html=True)
