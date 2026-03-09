@@ -1,7 +1,7 @@
 # ============================================================================
 # SISTEMA CONVIVA 179 - GESTÃO DE OCORRÊNCIAS ESCOLARES
 # Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI
-# Versão: 8.3 FINAL - SALVAMENTO CORRIGIDO
+# Versão: 8.4 FINAL - COLUNA ENCAMINHAMENTO CORRIGIDA
 # Desenvolvido para SEDUC/SP - Protocolo de Convivência e Proteção Escolar
 # ============================================================================
 
@@ -303,16 +303,16 @@ def carregar_professores():
 @st.cache_data(ttl=60)
 def carregar_ocorrencias():
     if not SUPABASE_URL:
-        return pd.DataFrame(columns=['id', 'data', 'aluno', 'ra', 'turma', 'categoria', 'gravidade', 'relato', 'professor', 'encaminhamentos', 'testemunhas', 'evidencias'])
+        return pd.DataFrame(columns=['id', 'data', 'aluno', 'ra', 'turma', 'categoria', 'gravidade', 'relato', 'professor', 'encaminhamento', 'testemunhas', 'evidencias'])
     try:
         response = requests.get(f"{SUPABASE_URL}/rest/v1/ocorrencias?select=*&order=id.desc", headers=HEADERS)
         if response.status_code == 200:
             return pd.DataFrame(response.json())
         else:
-            return pd.DataFrame(columns=['id', 'data', 'aluno', 'ra', 'turma', 'categoria', 'gravidade', 'relato', 'professor', 'encaminhamentos', 'testemunhas', 'evidencias'])
+            return pd.DataFrame(columns=['id', 'data', 'aluno', 'ra', 'turma', 'categoria', 'gravidade', 'relato', 'professor', 'encaminhamento', 'testemunhas', 'evidencias'])
     except Exception as e:
         st.error(f"Erro ao carregar ocorrências: {str(e)}")
-        return pd.DataFrame(columns=['id', 'data', 'aluno', 'ra', 'turma', 'categoria', 'gravidade', 'relato', 'professor', 'encaminhamentos', 'testemunhas', 'evidencias'])
+        return pd.DataFrame(columns=['id', 'data', 'aluno', 'ra', 'turma', 'categoria', 'gravidade', 'relato', 'professor', 'encaminhamento', 'testemunhas', 'evidencias'])
 
 
 @st.cache_data(ttl=60)
@@ -338,11 +338,16 @@ def carregar_responsaveis():
 # ============================================================================
 
 def salvar_ocorrencia(ocorrencia_dict):
+    """
+    ✅ CORREÇÃO: Usa 'encaminhamento' (singular) não 'encaminhamentos' (plural)
+    """
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
-        if 'encaminhamentos' in ocorrencia_dict and isinstance(ocorrencia_dict['encaminhamentos'], list):
-            ocorrencia_dict['encaminhamentos'] = '| '.join(ocorrencia_dict['encaminhamentos'])
+        # ✅ CORREÇÃO: Converter lista para string separada por |
+        if 'encaminhamento' in ocorrencia_dict and isinstance(ocorrencia_dict['encaminhamento'], list):
+            ocorrencia_dict['encaminhamento'] = '| '.join(ocorrencia_dict['encaminhamento'])
+        
         response = requests.post(f"{SUPABASE_URL}/rest/v1/ocorrencias", json=ocorrencia_dict, headers=HEADERS)
         if response.status_code in [200, 201]:
             return True, "Ocorrência salva com sucesso!"
@@ -357,8 +362,9 @@ def atualizar_ocorrencia(id_ocorrencia, ocorrencia_dict):
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
-        if 'encaminhamentos' in ocorrencia_dict and isinstance(ocorrencia_dict['encaminhamentos'], list):
-            ocorrencia_dict['encaminhamentos'] = '| '.join(ocorrencia_dict['encaminhamentos'])
+        if 'encaminhamento' in ocorrencia_dict and isinstance(ocorrencia_dict['encaminhamento'], list):
+            ocorrencia_dict['encaminhamento'] = '| '.join(ocorrencia_dict['encaminhamento'])
+        
         response = requests.patch(f"{SUPABASE_URL}/rest/v1/ocorrencias?id=eq.{id_ocorrencia}", json=ocorrencia_dict, headers=HEADERS)
         if response.status_code in [200, 201]:
             return True, "Ocorrência atualizada com sucesso!"
@@ -701,18 +707,16 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
     elementos.append(Paragraph(relato_formatado, estilos['Texto']))
     elementos.append(Spacer(1, 0.3*cm))
     
-    elementos.append(Paragraph("<b>Encaminhamentos:</b>", estilos['Secao']))
-    encaminhamentos = ocorrencia.get('encaminhamentos', [])
+    # ✅ CORREÇÃO: Usar 'encaminhamento' (singular)
+    elementos.append(Paragraph("<b>Encaminhamento:</b>", estilos['Secao']))
+    encaminhamento = ocorrencia.get('encaminhamento', '')
     
-    if isinstance(encaminhamentos, str):
-        encaminhamentos = encaminhamentos.split('|')
-    
-    if isinstance(encaminhamentos, list):
-        for enc in encaminhamentos:
+    if isinstance(encaminhamento, str):
+        for enc in encaminhamento.split('|'):
             if enc.strip():
                 elementos.append(Paragraph(f"• {enc.strip()}", estilos['Texto']))
     else:
-        elementos.append(Paragraph(str(encaminhamentos), estilos['Texto']))
+        elementos.append(Paragraph(str(encaminhamento), estilos['Texto']))
     
     elementos.append(Spacer(1, 0.5*cm))
     
@@ -845,18 +849,16 @@ def gerar_pdf_comunicado(ocorrencia, responsaveis=None):
     elementos.append(Paragraph(relato_formatado, estilos['TextoComunicado']))
     elementos.append(Spacer(1, 0.3*cm))
     
-    elementos.append(Paragraph("<b>Encaminhamentos:</b>", estilos['Secao']))
-    encaminhamentos = ocorrencia.get('encaminhamentos', [])
+    # ✅ CORREÇÃO: Usar 'encaminhamento' (singular)
+    elementos.append(Paragraph("<b>Encaminhamento:</b>", estilos['Secao']))
+    encaminhamento = ocorrencia.get('encaminhamento', '')
     
-    if isinstance(encaminhamentos, str):
-        encaminhamentos = encaminhamentos.split('|')
-    
-    if isinstance(encaminhamentos, list):
-        for enc in encaminhamentos:
+    if isinstance(encaminhamento, str):
+        for enc in encaminhamento.split('|'):
             if enc.strip():
                 elementos.append(Paragraph(f"• {enc.strip()}", estilos['TextoComunicado']))
     else:
-        elementos.append(Paragraph(str(encaminhamentos), estilos['TextoComunicado']))
+        elementos.append(Paragraph(str(encaminhamento), estilos['TextoComunicado']))
     
     elementos.append(Spacer(1, 0.5*cm))
     
@@ -1044,17 +1046,15 @@ if menu == "🏠 Home":
 
 
 # ============================================================================
-# PÁGINA: REGISTRAR OCORRÊNCIA (SALVAMENTO CORRIGIDO)
+# PÁGINA: REGISTRAR OCORRÊNCIA (CORRIGIDO - ENCAMINHAMENTO SINGULAR)
 # ============================================================================
 
 elif menu == "📝 Registrar Ocorrência":
     st.title("📝 Registrar Nova Ocorrência")
     
-    # Carregar dados
     df_ocorrencias = carregar_ocorrencias()
     df_alunos = carregar_alunos()
     
-    # Mostrar sucesso após salvar
     if st.session_state.get('ocorrencia_salva_sucesso', False):
         st.markdown('<div class="success-box">✅ OCORRÊNCIA(S) REGISTRADA(S) COM SUCESSO!</div>', unsafe_allow_html=True)
         st.session_state.ocorrencia_salva_sucesso = False
@@ -1062,7 +1062,6 @@ elif menu == "📝 Registrar Ocorrência":
     if df_alunos.empty:
         st.warning("⚠️ Nenhum aluno cadastrado. Importe alunos primeiro.")
     else:
-        # Seleção de turmas
         st.subheader("🏫 Selecionar Turma(s)")
         modo_multiplas_turmas = st.checkbox("📚 Registrar para múltiplas turmas", key="modo_multiplas_turmas")
         turmas = df_alunos["turma"].unique().tolist()
@@ -1073,7 +1072,6 @@ elif menu == "📝 Registrar Ocorrência":
             turma_selecionada = st.selectbox("Selecione a Turma", turmas, key="turma_unica")
             turmas_selecionadas = [turma_selecionada] if turma_selecionada else []
         
-        # Filtrar alunos das turmas selecionadas
         if turmas_selecionadas:
             alunos = df_alunos[df_alunos["turma"].isin(turmas_selecionadas)].copy()
             
@@ -1102,7 +1100,6 @@ elif menu == "📝 Registrar Ocorrência":
                 
                 st.markdown("---")
                 
-                # Dados da ocorrência
                 col1, col2 = st.columns(2)
                 
                 with col1:
@@ -1124,7 +1121,7 @@ elif menu == "📝 Registrar Ocorrência":
                 
                 relato = st.text_area("📝 Relato da Ocorrência", height=200, key="relato_input")
                 
-                st.subheader("🔄 Encaminhamentos")
+                st.subheader("🔄 Encaminhamento")
                 encaminhamentos_disponiveis = ENCAMINHAMENTOS_POR_GRAVIDADE.get(gravidade_select, [])
                 encaminhamentos_selecionados = st.multiselect(
                     "Selecione os encaminhamentos",
@@ -1132,6 +1129,9 @@ elif menu == "📝 Registrar Ocorrência":
                     default=encaminhamentos_disponiveis[:2] if encaminhamentos_disponiveis else [],
                     key="encam_select"
                 )
+                
+                # ✅ CORREÇÃO: Converter lista para string (singular)
+                encaminhamento_str = '| '.join(encaminhamentos_selecionados) if encaminhamentos_selecionados else ''
                 
                 df_professores = carregar_professores()
                 if not df_professores.empty:
@@ -1144,9 +1144,7 @@ elif menu == "📝 Registrar Ocorrência":
                 
                 st.markdown("---")
                 
-                # ✅ BOTÃO DE SALVAR - LÓGICA SIMPLIFICADA
                 if st.button("💾 Salvar Ocorrência", type="primary", key="btn_salvar"):
-                    # Validações
                     if not alunos_selecionados:
                         st.error("❌ Selecione pelo menos um estudante!")
                     elif not prof or prof == "Selecione...":
@@ -1154,7 +1152,6 @@ elif menu == "📝 Registrar Ocorrência":
                     elif not relato:
                         st.error("❌ Preencha o relato da ocorrência!")
                     else:
-                        # ✅ CAPTURAR DATA/HORA NO MOMENTO DO CLIQUE
                         data_str = f"{data.strftime('%d/%m/%Y')} {hora.strftime('%H:%M')}"
                         categoria_str = categoria
                         
@@ -1162,20 +1159,17 @@ elif menu == "📝 Registrar Ocorrência":
                         contagem_duplicadas = 0
                         erros = 0
                         
-                        # ✅ LOOP PARA CADA ALUNO SELECIONADO
                         for nome_aluno in alunos_selecionados:
-                            # ✅ CAPTURAR DADOS DO ALUNO INDIVIDUALMENTE
                             aluno_info = alunos[alunos["nome"] == nome_aluno]
                             
                             if not aluno_info.empty:
                                 ra_aluno = str(aluno_info["ra"].values[0])
                                 turma_aluno = str(aluno_info["turma"].values[0])
                                 
-                                # Verificar duplicidade
                                 if verificar_ocorrencia_duplicada(ra_aluno, categoria_str, data_str, df_ocorrencias):
                                     contagem_duplicadas += 1
                                 else:
-                                    # Criar dicionário da ocorrência
+                                    # ✅ CORREÇÃO: Usar 'encaminhamento' (singular) não 'encaminhamentos'
                                     ocorrencia_dict = {
                                         'data': data_str,
                                         'aluno': nome_aluno,
@@ -1185,12 +1179,11 @@ elif menu == "📝 Registrar Ocorrência":
                                         'gravidade': gravidade_select,
                                         'relato': relato,
                                         'professor': prof,
-                                        'encaminhamentos': encaminhamentos_selecionados,
+                                        'encaminhamento': encaminhamento_str,  # ✅ SINGULAR
                                         'testemunhas': testemunhas,
                                         'evidencias': evidencias
                                     }
                                     
-                                    # ✅ SALVAR OCORRÊNCIA
                                     sucesso, mensagem = salvar_ocorrencia(ocorrencia_dict)
                                     
                                     if sucesso:
@@ -1199,7 +1192,6 @@ elif menu == "📝 Registrar Ocorrência":
                                         erros += 1
                                         st.error(f"Erro para {nome_aluno}: {mensagem}")
                         
-                        # ✅ EXIBIR RESULTADOS
                         if contagem_salvas > 0:
                             st.success(f"✅ {contagem_salvas} ocorrência(s) registrada(s) com sucesso!")
                         if contagem_duplicadas > 0:
@@ -1207,7 +1199,6 @@ elif menu == "📝 Registrar Ocorrência":
                         if erros > 0:
                             st.error(f"❌ {erros} erro(s) ao salvar")
                         
-                        # ✅ ATUALIZAR SESSION STATE E RECARGAR
                         if contagem_salvas > 0:
                             st.session_state.ocorrencia_salva_sucesso = True
                             carregar_ocorrencias.clear()
@@ -1770,7 +1761,7 @@ elif menu == "⚙️ Configurações":
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.metric("Versão", "8.3 FINAL")
+        st.metric("Versão", "8.4 FINAL")
     
     with col2:
         st.metric("Framework", "Streamlit")
@@ -1802,7 +1793,7 @@ elif menu == "💾 Backup":
             'ocorrencias': df_ocorrencias.to_dict('records') if not df_ocorrencias.empty else [],
             'responsaveis': df_responsaveis.to_dict('records') if not df_responsaveis.empty else [],
             'data_backup': datetime.now().strftime('%d/%m/%Y %H:%M'),
-            'versao_sistema': '8.3 FINAL'
+            'versao_sistema': '8.4 FINAL'
         }
         
         json_str = json.dumps(backup_data, ensure_ascii=False, indent=2)
@@ -1895,6 +1886,6 @@ st.markdown("""
     <p><b>Sistema Conviva 179</b> - Gestão de Ocorrências Escolares</p>
     <p>Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI</p>
     <p>Protocolo de Convivência e Proteção Escolar - SEDUC/SP</p>
-    <p>Versão 8.3 FINAL | Desenvolvido com Streamlit + Supabase (Requests)</p>
+    <p>Versão 8.4 FINAL | Desenvolvido com Streamlit + Supabase (Requests)</p>
 </div>
 """, unsafe_allow_html=True)
