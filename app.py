@@ -1,7 +1,7 @@
 # ============================================================================
 # SISTEMA CONVIVA 179 - GESTÃO DE OCORRÊNCIAS ESCOLARES
 # Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI
-# Versão: 9.0 FINAL - GERENCIAMENTO DE TURMAS RESTAURADO
+# Versão: 9.1 FINAL - EDITAR OCORRÊNCIA RESTAURADO
 # Desenvolvido para SEDUC/SP - Protocolo de Convivência e Proteção Escolar
 # ============================================================================
 
@@ -202,6 +202,8 @@ if 'turma_para_deletar' not in st.session_state:
     st.session_state.turma_para_deletar = None
 if 'turma_selecionada' not in st.session_state:
     st.session_state.turma_selecionada = None
+if 'ocorrencia_excluida_sucesso' not in st.session_state:
+    st.session_state.ocorrencia_excluida_sucesso = False
 
 # ============================================================================
 # CSS PERSONALIZADO
@@ -370,7 +372,6 @@ def salvar_ocorrencia(ocorrencia_dict):
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
-        # ✅ COLUNAS CORRETAS - Apenas o que existe no banco
         ocorrencia_dict_clean = {
             'data': ocorrencia_dict.get('data', ''),
             'aluno': ocorrencia_dict.get('aluno', ''),
@@ -383,7 +384,6 @@ def salvar_ocorrencia(ocorrencia_dict):
             'encaminhamento': ocorrencia_dict.get('encaminhamento', '')
         }
         
-        # Converter lista para string se necessário
         if isinstance(ocorrencia_dict_clean['encaminhamento'], list):
             ocorrencia_dict_clean['encaminhamento'] = '| '.join(ocorrencia_dict_clean['encaminhamento'])
         
@@ -398,6 +398,7 @@ def salvar_ocorrencia(ocorrencia_dict):
 
 
 def atualizar_ocorrencia(id_ocorrencia, ocorrencia_dict):
+    """✅ FUNÇÃO DE EDITAR OCORRÊNCIA RESTAURADA"""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
@@ -1089,7 +1090,6 @@ if menu == "🏠 Home":
     else:
         st.info("📭 Nenhuma ocorrência registrada ainda.")
     
-    # Resumo de turmas
     if not df_turmas.empty:
         st.subheader("🏫 Resumo de Turmas")
         col1, col2 = st.columns(2)
@@ -1123,14 +1123,12 @@ elif menu == "📥 Importar Alunos (Turmas)":
     - Situação do Aluno
     """)
     
-    # ✅ CAMPO DE TURMA
     turma_alunos = st.text_input(
         "🏫 Qual a TURMA destes alunos?",
         placeholder="Ex: 6º Ano A, 7º Ano B, 8º Ano C",
         key="turma_import"
     )
     
-    # ✅ UPLOAD DE ARQUIVO
     arquivo_upload = st.file_uploader(
         "Selecione o arquivo CSV da SEDUC",
         type=["csv"],
@@ -1139,13 +1137,11 @@ elif menu == "📥 Importar Alunos (Turmas)":
     
     if arquivo_upload is not None:
         try:
-            # Ler CSV
             df_import = pd.read_csv(arquivo_upload, sep=';', encoding='utf-8-sig')
             st.success(f"✅ Arquivo lido com sucesso! {len(df_import)} alunos encontrados.")
             st.write("### Pré-visualização:")
             st.dataframe(df_import.head())
             
-            # Mapeamento de colunas
             colunas_csv = df_import.columns.tolist()
             st.write("### 🔍 Mapeamento de Colunas")
             
@@ -1157,14 +1153,12 @@ elif menu == "📥 Importar Alunos (Turmas)":
                 mapeamento_nascimento = st.selectbox("Coluna da Data de Nascimento", colunas_csv, index=colunas_csv.index("Data de Nascimento") if "Data de Nascimento" in colunas_csv else 0)
                 mapeamento_situacao = st.selectbox("Coluna da Situação", colunas_csv, index=colunas_csv.index("Situação do Aluno") if "Situação do Aluno" in colunas_csv else 0)
             
-            # Verificar colunas necessárias
             colunas_necessarias = [mapeamento_ra, mapeamento_nome, mapeamento_nascimento, mapeamento_situacao]
             faltantes = [c for c in colunas_necessarias if c not in colunas_csv]
             
             if faltantes:
                 st.error(f"❌ Colunas não encontradas: {', '.join(faltantes)}")
             else:
-                # Verificar se turma já existe
                 df_alunos = carregar_alunos()
                 turmas_existentes = df_alunos['turma'].unique().tolist() if not df_alunos.empty else []
                 
@@ -1172,7 +1166,6 @@ elif menu == "📥 Importar Alunos (Turmas)":
                     st.warning(f"⚠️ A turma **{turma_alunos}** já existe no sistema!")
                     st.info("💡 Se importar novamente, os alunos serão **atualizados** (não duplicados).")
                 
-                # ✅ BOTÃO DE IMPORTAR
                 if st.button("🚀 Importar Alunos", type="primary"):
                     if not turma_alunos:
                         st.error("❌ Preencha o nome da turma!")
@@ -1196,7 +1189,6 @@ elif menu == "📥 Importar Alunos (Turmas)":
                                     'turma': turma_alunos
                                 }
                                 
-                                # Verificar se aluno já existe
                                 aluno_existente = df_alunos[df_alunos['ra'] == ra_str]
                                 
                                 if not aluno_existente.empty:
@@ -1240,7 +1232,6 @@ elif menu == "📋 Gerenciar Turmas":
     df_alunos = carregar_alunos()
     
     if not df_alunos.empty:
-        # ✅ RESUMO DAS TURMAS
         st.subheader("📊 Resumo das Turmas")
         
         turmas_info = df_alunos.groupby('turma').agg({
@@ -1275,7 +1266,6 @@ elif menu == "📋 Gerenciar Turmas":
                 
                 st.markdown("---")
         
-        # ✅ CONFIRMAR EXCLUSÃO DE TURMA
         if 'turma_para_deletar' in st.session_state:
             st.warning(f"⚠️ Tem certeza que deseja deletar a turma **{st.session_state.turma_para_deletar}?**")
             st.info("Isso removerá TODOS os alunos desta turma!")
@@ -1296,7 +1286,6 @@ elif menu == "📋 Gerenciar Turmas":
                     del st.session_state.turma_para_deletar
                     st.rerun()
         
-        # ✅ EDITAR NOME DA TURMA
         if 'turma_editar' in st.session_state:
             st.info(f"✏️ Editando turma: **{st.session_state.turma_editar}**")
             
@@ -1309,7 +1298,6 @@ elif menu == "📋 Gerenciar Turmas":
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("💾 Salvar Alteração", type="primary"):
-                    # Atualizar todos os alunos da turma
                     df_alunos_turma = df_alunos[df_alunos['turma'] == st.session_state.turma_editar]
                     contagem = 0
                     for idx, aluno in df_alunos_turma.iterrows():
@@ -1332,7 +1320,6 @@ elif menu == "📋 Gerenciar Turmas":
                     del st.session_state.turma_editar
                     st.rerun()
         
-        # ✅ VER ALUNOS DA TURMA SELECIONADA
         if 'turma_selecionada' in st.session_state:
             st.markdown("---")
             st.subheader(f"👥 Alunos da Turma: {st.session_state.turma_selecionada}")
@@ -1509,7 +1496,7 @@ elif menu == "📝 Registrar Ocorrência":
 
 
 # ============================================================================
-# PÁGINA: LISTA DE OCORRÊNCIAS
+# PÁGINA: LISTA DE OCORRÊNCIAS (COM EDITAR E EXCLUIR)
 # ============================================================================
 
 elif menu == "📊 Lista de Ocorrências":
@@ -1517,6 +1504,11 @@ elif menu == "📊 Lista de Ocorrências":
     
     df_ocorrencias = carregar_ocorrencias()
     df_alunos = carregar_alunos()
+    
+    # ✅ MENSAGEM DE EXCLUSÃO COM SUCESSO
+    if st.session_state.get('ocorrencia_excluida_sucesso', False):
+        st.markdown('<div class="success-box">✅ OCORRÊNCIA EXCLUÍDA COM SUCESSO!</div>', unsafe_allow_html=True)
+        st.session_state.ocorrencia_excluida_sucesso = False
     
     if not df_ocorrencias.empty:
         col1, col2, col3 = st.columns(3)
@@ -1544,48 +1536,145 @@ elif menu == "📊 Lista de Ocorrências":
         st.markdown(f"**Total:** {len(df_filtrado)} ocorrência(s)")
         st.dataframe(df_filtrado, use_container_width=True)
         
+        st.markdown("---")
+        
+        # ✅ EDITAR E EXCLUIR OCORRÊNCIA
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("🗑️ Excluir Ocorrência")
+            ids_disponiveis = df_filtrado['id'].tolist() if not df_filtrado.empty else []
+            
+            if ids_disponiveis:
+                id_excluir = st.selectbox("Selecione o ID para excluir", ids_disponiveis, key="select_excluir")
+                senha = st.text_input("Digite a senha (040600)", type="password", key="senha_excluir")
+                
+                if st.button("🗑️ Excluir Ocorrência", type="secondary"):
+                    if senha == SENHA_EXCLUSAO:
+                        sucesso, msg = excluir_ocorrencia(id_excluir)
+                        if sucesso:
+                            st.session_state.ocorrencia_excluida_sucesso = True
+                            carregar_ocorrencias.clear()
+                            st.rerun()
+                        else:
+                            st.error(f"❌ {msg}")
+                    else:
+                        st.error("❌ Senha incorreta!")
+            else:
+                st.info("📭 Nenhuma ocorrência para excluir")
+        
+        with col2:
+            st.subheader("✏️ Editar Ocorrência")
+            
+            if ids_disponiveis:
+                id_editar = st.selectbox("Selecione o ID para editar", ids_disponiveis, key="select_editar")
+                
+                if st.button("✏️ Carregar para Edição", type="primary"):
+                    ocorrencia = df_filtrado[df_filtrado['id'] == id_editar].iloc[0].to_dict()
+                    st.session_state.editando_id = id_editar
+                    st.session_state.dados_edicao = ocorrencia
+                    st.success(f"✅ Ocorrência {id_editar} carregada para edição!")
+        
+        # ✅ FORMULÁRIO DE EDIÇÃO (SE HOUVER)
+        if st.session_state.editando_id is not None:
+            st.markdown("---")
+            st.subheader(f"✏️ Editando Ocorrência ID: {st.session_state.editando_id}")
+            
+            dados = st.session_state.dados_edicao
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                edit_relato = st.text_area(
+                    "📝 Relato",
+                    value=str(dados.get("relato", "")),
+                    height=150,
+                    key="edit_relato"
+                )
+                edit_categoria = st.selectbox(
+                    "📋 Categoria",
+                    list(df_ocorrencias['categoria'].unique()),
+                    index=list(df_ocorrencias['categoria'].unique()).index(str(dados.get("categoria", ""))) if str(dados.get("categoria", "")) in df_ocorrencias['categoria'].unique() else 0,
+                    key="edit_categoria"
+                )
+            
+            with col2:
+                edit_encam = st.text_area(
+                    "🔀 Encaminhamento",
+                    value=str(dados.get("encaminhamento", "")),
+                    height=150,
+                    key="edit_encam"
+                )
+                edit_grav = st.selectbox(
+                    "⚡ Gravidade",
+                    ["Gravíssima", "Grave", "Média", "Leve"],
+                    index=["Gravíssima", "Grave", "Média", "Leve"].index(str(dados.get("gravidade", "Leve"))) if str(dados.get("gravidade", "Leve")) in ["Gravíssima", "Grave", "Média", "Leve"] else 3,
+                    key="edit_grav"
+                )
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                if st.button("💾 Salvar Alterações", type="primary", key="btn_salvar_edicao"):
+                    dados_atualizados = {
+                        'relato': edit_relato,
+                        'categoria': edit_categoria,
+                        'gravidade': edit_grav,
+                        'encaminhamento': edit_encam
+                    }
+                    
+                    sucesso, msg = atualizar_ocorrencia(st.session_state.editando_id, dados_atualizados)
+                    
+                    if sucesso:
+                        st.success(f"✅ {msg}")
+                        st.session_state.editando_id = None
+                        st.session_state.dados_edicao = None
+                        carregar_ocorrencias.clear()
+                        st.rerun()
+                    else:
+                        st.error(f"❌ {msg}")
+            
+            with col2:
+                if st.button("❌ Cancelar Edição", key="btn_cancelar_edicao"):
+                    st.session_state.editando_id = None
+                    st.session_state.dados_edicao = None
+                    st.rerun()
+        
+        st.markdown("---")
+        
+        # ✅ GERAR DOCUMENTOS
         st.subheader("📄 Gerar Documentos")
         col1, col2 = st.columns(2)
         
         with col1:
-            id_selecionado = st.number_input("ID da Ocorrência", min_value=1, step=1)
+            id_selecionado = st.number_input("ID da Ocorrência", min_value=1, step=1, key="id_pdf")
             
             if st.button("📄 Gerar PDF"):
-                ocorrencia = df_filtrado[df_filtrado['id'] == id_selecionado].iloc[0].to_dict()
-                pdf_buffer = gerar_pdf_ocorrencia(ocorrencia)
-                st.download_button(
-                    label="📥 Baixar PDF",
-                    data=pdf_buffer,
-                    file_name=f"ocorrencia_{id_selecionado}.pdf",
-                    mime="application/pdf"
-                )
+                ocorrencia = df_filtrado[df_filtrado['id'] == id_selecionado].iloc[0].to_dict() if not df_filtrado[df_filtrado['id'] == id_selecionado].empty else None
+                if ocorrencia:
+                    pdf_buffer = gerar_pdf_ocorrencia(ocorrencia)
+                    st.download_button(
+                        label="📥 Baixar PDF",
+                        data=pdf_buffer,
+                        file_name=f"ocorrencia_{id_selecionado}.pdf",
+                        mime="application/pdf"
+                    )
+                else:
+                    st.error("❌ Ocorrência não encontrada")
         
         with col2:
             if st.button("📬 Gerar Comunicado"):
-                ocorrencia = df_filtrado[df_filtrado['id'] == id_selecionado].iloc[0].to_dict()
-                pdf_buffer = gerar_pdf_comunicado(ocorrencia)
-                st.download_button(
-                    label="📥 Baixar Comunicado",
-                    data=pdf_buffer,
-                    file_name=f"comunicado_{id_selecionado}.pdf",
-                    mime="application/pdf"
-                )
-        
-        st.subheader("🗑️ Excluir Ocorrência")
-        id_excluir = st.number_input("ID para Excluir", min_value=1, step=1, key="excluir_occ")
-        
-        if st.button("🗑️ Excluir"):
-            senha = st.text_input("Digite a senha de exclusão (040600)", type="password")
-            if senha == SENHA_EXCLUSAO:
-                sucesso, msg = excluir_ocorrencia(id_excluir)
-                if sucesso:
-                    st.success(f"✅ {msg}")
-                    carregar_ocorrencias.clear()
-                    st.rerun()
+                ocorrencia = df_filtrado[df_filtrado['id'] == id_selecionado].iloc[0].to_dict() if not df_filtrado[df_filtrado['id'] == id_selecionado].empty else None
+                if ocorrencia:
+                    pdf_buffer = gerar_pdf_comunicado(ocorrencia)
+                    st.download_button(
+                        label="📥 Baixar Comunicado",
+                        data=pdf_buffer,
+                        file_name=f"comunicado_{id_selecionado}.pdf",
+                        mime="application/pdf"
+                    )
                 else:
-                    st.error(f"❌ {msg}")
-            else:
-                st.error("❌ Senha incorreta!")
+                    st.error("❌ Ocorrência não encontrada")
     
     else:
         st.info("📭 Nenhuma ocorrência registrada ainda.")
@@ -2060,7 +2149,7 @@ elif menu == "⚙️ Configurações":
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.metric("Versão", "9.0 FINAL")
+        st.metric("Versão", "9.1 FINAL")
     
     with col2:
         st.metric("Framework", "Streamlit")
@@ -2092,7 +2181,7 @@ elif menu == "💾 Backup":
             'ocorrencias': df_ocorrencias.to_dict('records') if not df_ocorrencias.empty else [],
             'responsaveis': df_responsaveis.to_dict('records') if not df_responsaveis.empty else [],
             'data_backup': datetime.now().strftime('%d/%m/%Y %H:%M'),
-            'versao_sistema': '9.0 FINAL'
+            'versao_sistema': '9.1 FINAL'
         }
         
         json_str = json.dumps(backup_data, ensure_ascii=False, indent=2)
@@ -2185,6 +2274,6 @@ st.markdown("""
     <p><b>Sistema Conviva 179</b> - Gestão de Ocorrências Escolares</p>
     <p>Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI</p>
     <p>Protocolo de Convivência e Proteção Escolar - SEDUC/SP</p>
-    <p>Versão 9.0 FINAL | Desenvolvido com Streamlit + Supabase (Requests)</p>
+    <p>Versão 9.1 FINAL | Desenvolvido com Streamlit + Supabase (Requests)</p>
 </div>
 """, unsafe_allow_html=True)
