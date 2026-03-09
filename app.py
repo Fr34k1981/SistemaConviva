@@ -1,7 +1,7 @@
 # ============================================================================
 # SISTEMA CONVIVA 179 - GESTÃO DE OCORRÊNCIAS ESCOLARES
 # Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI
-# Versão: 9.1 FINAL - EDITAR OCORRÊNCIA RESTAURADO
+# Versão: 9.2 FINAL - EDIÇÃO E PDF CORRIGIDOS
 # Desenvolvido para SEDUC/SP - Protocolo de Convivência e Proteção Escolar
 # ============================================================================
 
@@ -204,6 +204,8 @@ if 'turma_selecionada' not in st.session_state:
     st.session_state.turma_selecionada = None
 if 'ocorrencia_excluida_sucesso' not in st.session_state:
     st.session_state.ocorrencia_excluida_sucesso = False
+if 'ocorrencia_editada_sucesso' not in st.session_state:
+    st.session_state.ocorrencia_editada_sucesso = False
 
 # ============================================================================
 # CSS PERSONALIZADO
@@ -323,13 +325,21 @@ def carregar_professores():
 
 @st.cache_data(ttl=60)
 def carregar_ocorrencias():
+    """✅ CORREÇÃO: Carregar TODAS as colunas da tabela ocorrencias"""
     if not SUPABASE_URL:
         return pd.DataFrame(columns=['id', 'data', 'aluno', 'ra', 'turma', 'categoria', 'gravidade', 'relato', 'professor', 'encaminhamento'])
     try:
-        response = requests.get(f"{SUPABASE_URL}/rest/v1/ocorrencias?select=*&order=id.desc", headers=HEADERS)
+        # ✅ Selecionar explicitamente todas as colunas
+        response = requests.get(
+            f"{SUPABASE_URL}/rest/v1/ocorrencias?select=id,data,aluno,ra,turma,categoria,gravidade,relato,professor,encaminhamento&order=id.desc",
+            headers=HEADERS
+        )
         if response.status_code == 200:
-            return pd.DataFrame(response.json())
+            dados = response.json()
+            df = pd.DataFrame(dados)
+            return df
         else:
+            st.error(f"Erro ao carregar: {response.text}")
             return pd.DataFrame(columns=['id', 'data', 'aluno', 'ra', 'turma', 'categoria', 'gravidade', 'relato', 'professor', 'encaminhamento'])
     except Exception as e:
         st.error(f"Erro ao carregar ocorrências: {str(e)}")
@@ -398,10 +408,11 @@ def salvar_ocorrencia(ocorrencia_dict):
 
 
 def atualizar_ocorrencia(id_ocorrencia, ocorrencia_dict):
-    """✅ FUNÇÃO DE EDITAR OCORRÊNCIA RESTAURADA"""
+    """✅ CORREÇÃO: Atualizar TODOS os campos corretamente"""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
+        # ✅ Garantir que TODOS os campos estão presentes
         ocorrencia_dict_clean = {
             'data': ocorrencia_dict.get('data', ''),
             'aluno': ocorrencia_dict.get('aluno', ''),
@@ -417,7 +428,15 @@ def atualizar_ocorrencia(id_ocorrencia, ocorrencia_dict):
         if isinstance(ocorrencia_dict_clean['encaminhamento'], list):
             ocorrencia_dict_clean['encaminhamento'] = '| '.join(ocorrencia_dict_clean['encaminhamento'])
         
-        response = requests.patch(f"{SUPABASE_URL}/rest/v1/ocorrencias?id=eq.{id_ocorrencia}", json=ocorrencia_dict_clean, headers=HEADERS)
+        # ✅ Debug: mostrar o que está sendo enviado
+        st.write(f"🔍 Atualizando ID {id_ocorrencia} com dados: {ocorrencia_dict_clean}")
+        
+        response = requests.patch(
+            f"{SUPABASE_URL}/rest/v1/ocorrencias?id=eq.{id_ocorrencia}",
+            json=ocorrencia_dict_clean,
+            headers=HEADERS
+        )
+        
         if response.status_code in [200, 201]:
             return True, "Ocorrência atualizada com sucesso!"
         else:
@@ -692,6 +711,7 @@ def remover_duplicatas_encaminhamentos(encaminhamentos):
 # ============================================================================
 
 def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
+    """✅ CORREÇÃO: Garantir que TODOS os dados são usados no PDF"""
     buffer = io.BytesIO()
     
     doc = SimpleDocTemplate(
@@ -739,6 +759,7 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
         spaceAfter=0.5*cm
     ))
     
+    # CABEÇALHO COM LOGO - 16cm x 4cm
     try:
         if os.path.exists(ESCOLA_LOGO):
             logo = Image(ESCOLA_LOGO, width=16*cm, height=4*cm)
@@ -751,17 +772,19 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
     elementos.append(Paragraph("📋 REGISTRO DE OCORRÊNCIA DISCIPLINAR", estilos['Titulo']))
     elementos.append(Spacer(1, 0.5*cm))
     
+    # ✅ DADOS DO ALUNO - Garantir que todos os campos têm valor
     elementos.append(Paragraph("<b>DADOS DO(A) ESTUDANTE:</b>", estilos['Secao']))
-    elementos.append(Paragraph(f"<b>Nome:</b> {ocorrencia.get('aluno', 'N/A')}", estilos['Texto']))
-    elementos.append(Paragraph(f"<b>RA:</b> {ocorrencia.get('ra', 'N/A')}", estilos['Texto']))
-    elementos.append(Paragraph(f"<b>Turma:</b> {ocorrencia.get('turma', 'N/A')}", estilos['Texto']))
+    elementos.append(Paragraph(f"<b>Nome:</b> {ocorrencia.get('aluno', 'N/A') or 'N/A'}", estilos['Texto']))
+    elementos.append(Paragraph(f"<b>RA:</b> {ocorrencia.get('ra', 'N/A') or 'N/A'}", estilos['Texto']))
+    elementos.append(Paragraph(f"<b>Turma:</b> {ocorrencia.get('turma', 'N/A') or 'N/A'}", estilos['Texto']))
     elementos.append(Spacer(1, 0.3*cm))
     
+    # ✅ DADOS DA OCORRÊNCIA
     elementos.append(Paragraph("<b>DADOS DA OCORRÊNCIA:</b>", estilos['Secao']))
-    elementos.append(Paragraph(f"<b>Data:</b> {ocorrencia.get('data', 'N/A')}", estilos['Texto']))
-    elementos.append(Paragraph(f"<b>Categoria:</b> {ocorrencia.get('categoria', 'N/A')}", estilos['Texto']))
+    elementos.append(Paragraph(f"<b>Data:</b> {ocorrencia.get('data', 'N/A') or 'N/A'}", estilos['Texto']))
+    elementos.append(Paragraph(f"<b>Categoria:</b> {ocorrencia.get('categoria', 'N/A') or 'N/A'}", estilos['Texto']))
     
-    gravidade = ocorrencia.get('gravidade', 'N/A')
+    gravidade = ocorrencia.get('gravidade', 'N/A') or 'N/A'
     cor_gravidade = CORES_GRAVIDADE.get(gravidade, '#9E9E9E')
     elementos.append(Paragraph(
         f"<b>Gravidade:</b> <font color='{cor_gravidade}'><b>{gravidade}</b></font>",
@@ -769,27 +792,37 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
     ))
     elementos.append(Spacer(1, 0.3*cm))
     
+    # ✅ RELATO
     elementos.append(Paragraph("<b>Relato:</b>", estilos['Secao']))
-    relato_formatado = formatar_texto(ocorrencia.get('relato', ''))
+    relato = ocorrencia.get('relato', 'N/A') or 'N/A'
+    relato_formatado = formatar_texto(relato)
     elementos.append(Paragraph(relato_formatado, estilos['Texto']))
     elementos.append(Spacer(1, 0.3*cm))
     
+    # ✅ ENCAMINHAMENTO
     elementos.append(Paragraph("<b>Encaminhamento:</b>", estilos['Secao']))
-    encaminhamento = ocorrencia.get('encaminhamento', '')
+    encaminhamento = ocorrencia.get('encaminhamento', '') or ''
     
-    if isinstance(encaminhamento, str):
+    if isinstance(encaminhamento, str) and encaminhamento:
         for enc in encaminhamento.split('|'):
             if enc.strip():
                 elementos.append(Paragraph(f"• {enc.strip()}", estilos['Texto']))
+    elif isinstance(encaminhamento, list):
+        for enc in encaminhamento:
+            if enc.strip():
+                elementos.append(Paragraph(f"• {enc.strip()}", estilos['Texto']))
     else:
-        elementos.append(Paragraph(str(encaminhamento), estilos['Texto']))
+        elementos.append(Paragraph("Nenhum encaminhamento registrado", estilos['Texto']))
     
     elementos.append(Spacer(1, 0.5*cm))
     
+    # ✅ PROFESSOR RESPONSÁVEL
     elementos.append(Paragraph("<b>Professor Responsável:</b>", estilos['Secao']))
-    elementos.append(Paragraph(f"{ocorrencia.get('professor', 'N/A')}", estilos['Texto']))
+    professor = ocorrencia.get('professor', 'N/A') or 'N/A'
+    elementos.append(Paragraph(f"{professor}", estilos['Texto']))
     elementos.append(Spacer(1, 0.5*cm))
     
+    # ✅ ASSINATURAS
     elementos.append(Paragraph("<b>ASSINATURAS:</b>", estilos['Secao']))
     elementos.append(Spacer(1, 0.5*cm))
     
@@ -806,6 +839,7 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
             elementos.append(Paragraph(f"<b>{cargo}:</b> _________________________________", estilos['Texto']))
         elementos.append(Spacer(1, 0.5*cm))
     
+    # ✅ RODAPÉ
     elementos.append(Spacer(1, 0.5*cm))
     estilo_rodape = ParagraphStyle(
         'Rodape',
@@ -882,17 +916,17 @@ def gerar_pdf_comunicado(ocorrencia, responsaveis=None):
     elementos.append(Paragraph("📬 COMUNICADO AOS PAIS/RESPONSÁVEIS", estilos['TituloComunicado']))
     elementos.append(Spacer(1, 0.5*cm))
     
-    elementos.append(Paragraph(f"Prezados responsáveis pelo(a) estudante <b>{ocorrencia.get('aluno', 'N/A')}</b>,", estilos['TextoComunicado']))
+    elementos.append(Paragraph(f"Prezados responsáveis pelo(a) estudante <b>{ocorrencia.get('aluno', 'N/A') or 'N/A'}</b>,", estilos['TextoComunicado']))
     elementos.append(Spacer(1, 0.3*cm))
     elementos.append(Paragraph("Venho por meio deste comunicar que foi registrada uma ocorrência disciplinar conforme detalhes abaixo:", estilos['TextoComunicado']))
     elementos.append(Spacer(1, 0.5*cm))
     
     elementos.append(Paragraph("<b>DADOS DA OCORRÊNCIA:</b>", estilos['Secao']))
-    elementos.append(Paragraph(f"<b>Data:</b> {ocorrencia.get('data', 'N/A')}", estilos['TextoComunicado']))
-    elementos.append(Paragraph(f"<b>Turma:</b> {ocorrencia.get('turma', 'N/A')}", estilos['TextoComunicado']))
-    elementos.append(Paragraph(f"<b>Categoria:</b> {ocorrencia.get('categoria', 'N/A')}", estilos['TextoComunicado']))
+    elementos.append(Paragraph(f"<b>Data:</b> {ocorrencia.get('data', 'N/A') or 'N/A'}", estilos['TextoComunicado']))
+    elementos.append(Paragraph(f"<b>Turma:</b> {ocorrencia.get('turma', 'N/A') or 'N/A'}", estilos['TextoComunicado']))
+    elementos.append(Paragraph(f"<b>Categoria:</b> {ocorrencia.get('categoria', 'N/A') or 'N/A'}", estilos['TextoComunicado']))
     
-    gravidade = ocorrencia.get('gravidade', 'N/A')
+    gravidade = ocorrencia.get('gravidade', 'N/A') or 'N/A'
     cor_gravidade = CORES_GRAVIDADE.get(gravidade, '#9E9E9E')
     elementos.append(Paragraph(
         f"<b>Gravidade:</b> <font color='{cor_gravidade}'><b>{gravidade}</b></font>",
@@ -901,24 +935,30 @@ def gerar_pdf_comunicado(ocorrencia, responsaveis=None):
     elementos.append(Spacer(1, 0.3*cm))
     
     elementos.append(Paragraph("<b>Relato:</b>", estilos['Secao']))
-    relato_formatado = formatar_texto(ocorrencia.get('relato', ''))
+    relato = ocorrencia.get('relato', 'N/A') or 'N/A'
+    relato_formatado = formatar_texto(relato)
     elementos.append(Paragraph(relato_formatado, estilos['TextoComunicado']))
     elementos.append(Spacer(1, 0.3*cm))
     
     elementos.append(Paragraph("<b>Encaminhamento:</b>", estilos['Secao']))
-    encaminhamento = ocorrencia.get('encaminhamento', '')
+    encaminhamento = ocorrencia.get('encaminhamento', '') or ''
     
-    if isinstance(encaminhamento, str):
+    if isinstance(encaminhamento, str) and encaminhamento:
         for enc in encaminhamento.split('|'):
             if enc.strip():
                 elementos.append(Paragraph(f"• {enc.strip()}", estilos['TextoComunicado']))
+    elif isinstance(encaminhamento, list):
+        for enc in encaminhamento:
+            if enc.strip():
+                elementos.append(Paragraph(f"• {enc.strip()}", estilos['TextoComunicado']))
     else:
-        elementos.append(Paragraph(str(encaminhamento), estilos['TextoComunicado']))
+        elementos.append(Paragraph("Nenhum encaminhamento registrado", estilos['TextoComunicado']))
     
     elementos.append(Spacer(1, 0.5*cm))
     
     elementos.append(Paragraph("<b>Professor Responsável:</b>", estilos['Secao']))
-    elementos.append(Paragraph(f"{ocorrencia.get('professor', 'N/A')}", estilos['TextoComunicado']))
+    professor = ocorrencia.get('professor', 'N/A') or 'N/A'
+    elementos.append(Paragraph(f"{professor}", estilos['TextoComunicado']))
     elementos.append(Spacer(1, 0.5*cm))
     
     elementos.append(Paragraph("<b>ASSINATURAS:</b>", estilos['Secao']))
@@ -1502,15 +1542,23 @@ elif menu == "📝 Registrar Ocorrência":
 elif menu == "📊 Lista de Ocorrências":
     st.title("📊 Lista de Ocorrências")
     
+    # ✅ CORREÇÃO: Carregar ocorrências COM TODAS AS COLUNAS
     df_ocorrencias = carregar_ocorrencias()
     df_alunos = carregar_alunos()
     
-    # ✅ MENSAGEM DE EXCLUSÃO COM SUCESSO
+    # ✅ MENSAGEM DE SUCESSO
     if st.session_state.get('ocorrencia_excluida_sucesso', False):
         st.markdown('<div class="success-box">✅ OCORRÊNCIA EXCLUÍDA COM SUCESSO!</div>', unsafe_allow_html=True)
         st.session_state.ocorrencia_excluida_sucesso = False
     
+    if st.session_state.get('ocorrencia_editada_sucesso', False):
+        st.markdown('<div class="success-box">✅ OCORRÊNCIA EDITADA COM SUCESSO!</div>', unsafe_allow_html=True)
+        st.session_state.ocorrencia_editada_sucesso = False
+    
     if not df_ocorrencias.empty:
+        # ✅ Debug: mostrar colunas disponíveis
+        st.write(f"🔍 Colunas disponíveis: {list(df_ocorrencias.columns)}")
+        
         col1, col2, col3 = st.columns(3)
         
         with col1:
@@ -1520,7 +1568,7 @@ elif menu == "📊 Lista de Ocorrências":
             filtro_categoria = st.multiselect("Categoria", df_ocorrencias['categoria'].unique())
         
         with col3:
-            filtro_turma = st.multiselect("Turma", df_alunos['turma'].unique().tolist())
+            filtro_turma = st.multiselect("Turma", df_alunos['turma'].unique().tolist() if not df_alunos.empty else [])
         
         df_filtrado = df_ocorrencias.copy()
         
@@ -1570,18 +1618,49 @@ elif menu == "📊 Lista de Ocorrências":
                 id_editar = st.selectbox("Selecione o ID para editar", ids_disponiveis, key="select_editar")
                 
                 if st.button("✏️ Carregar para Edição", type="primary"):
-                    ocorrencia = df_filtrado[df_filtrado['id'] == id_editar].iloc[0].to_dict()
-                    st.session_state.editando_id = id_editar
-                    st.session_state.dados_edicao = ocorrencia
-                    st.success(f"✅ Ocorrência {id_editar} carregada para edição!")
+                    # ✅ CORREÇÃO: Carregar TODOS os dados da ocorrência
+                    ocorrencia_row = df_filtrado[df_filtrado['id'] == id_editar]
+                    
+                    if not ocorrencia_row.empty:
+                        ocorrencia = ocorrencia_row.iloc[0].to_dict()
+                        
+                        # ✅ Garantir que TODOS os campos estão no session state
+                        st.session_state.editando_id = id_editar
+                        st.session_state.dados_edicao = {
+                            'id': ocorrencia.get('id', id_editar),
+                            'data': ocorrencia.get('data', ''),
+                            'aluno': ocorrencia.get('aluno', ''),
+                            'ra': ocorrencia.get('ra', ''),
+                            'turma': ocorrencia.get('turma', ''),
+                            'categoria': ocorrencia.get('categoria', ''),
+                            'gravidade': ocorrencia.get('gravidade', ''),
+                            'relato': ocorrencia.get('relato', ''),
+                            'professor': ocorrencia.get('professor', ''),
+                            'encaminhamento': ocorrencia.get('encaminhamento', '')
+                        }
+                        
+                        st.success(f"✅ Ocorrência {id_editar} carregada para edição!")
+                        st.write(f"📋 Dados carregados: {st.session_state.dados_edicao}")
+                    else:
+                        st.error("❌ Ocorrência não encontrada!")
         
         # ✅ FORMULÁRIO DE EDIÇÃO (SE HOUVER)
-        if st.session_state.editando_id is not None:
+        if st.session_state.editando_id is not None and st.session_state.dados_edicao:
             st.markdown("---")
             st.subheader(f"✏️ Editando Ocorrência ID: {st.session_state.editando_id}")
             
             dados = st.session_state.dados_edicao
             
+            # ✅ Mostrar dados atuais
+            st.info(f"""
+            **Dados Atuais:**
+            - Aluno: {dados.get('aluno', 'N/A')}
+            - RA: {dados.get('ra', 'N/A')}
+            - Turma: {dados.get('turma', 'N/A')}
+            - Data: {dados.get('data', 'N/A')}
+            """)
+            
+            # ✅ Campos editáveis
             col1, col2 = st.columns(2)
             
             with col1:
@@ -1593,8 +1672,7 @@ elif menu == "📊 Lista de Ocorrências":
                 )
                 edit_categoria = st.selectbox(
                     "📋 Categoria",
-                    list(df_ocorrencias['categoria'].unique()),
-                    index=list(df_ocorrencias['categoria'].unique()).index(str(dados.get("categoria", ""))) if str(dados.get("categoria", "")) in df_ocorrencias['categoria'].unique() else 0,
+                    list(CATEGORIAS_OCORRENCIAS.keys()),
                     key="edit_categoria"
                 )
             
@@ -1616,17 +1694,26 @@ elif menu == "📊 Lista de Ocorrências":
             
             with col1:
                 if st.button("💾 Salvar Alterações", type="primary", key="btn_salvar_edicao"):
+                    # ✅ CORREÇÃO: Manter TODOS os dados originais e atualizar apenas os editados
                     dados_atualizados = {
-                        'relato': edit_relato,
+                        'data': dados.get('data', ''),
+                        'aluno': dados.get('aluno', ''),
+                        'ra': dados.get('ra', ''),
+                        'turma': dados.get('turma', ''),
                         'categoria': edit_categoria,
                         'gravidade': edit_grav,
+                        'relato': edit_relato,
+                        'professor': dados.get('professor', ''),
                         'encaminhamento': edit_encam
                     }
+                    
+                    st.write(f"🔍 Salvando dados: {dados_atualizados}")
                     
                     sucesso, msg = atualizar_ocorrencia(st.session_state.editando_id, dados_atualizados)
                     
                     if sucesso:
                         st.success(f"✅ {msg}")
+                        st.session_state.ocorrencia_editada_sucesso = True
                         st.session_state.editando_id = None
                         st.session_state.dados_edicao = None
                         carregar_ocorrencias.clear()
@@ -1650,8 +1737,10 @@ elif menu == "📊 Lista de Ocorrências":
             id_selecionado = st.number_input("ID da Ocorrência", min_value=1, step=1, key="id_pdf")
             
             if st.button("📄 Gerar PDF"):
-                ocorrencia = df_filtrado[df_filtrado['id'] == id_selecionado].iloc[0].to_dict() if not df_filtrado[df_filtrado['id'] == id_selecionado].empty else None
-                if ocorrencia:
+                ocorrencia_row = df_filtrado[df_filtrado['id'] == id_selecionado]
+                if not ocorrencia_row.empty:
+                    ocorrencia = ocorrencia_row.iloc[0].to_dict()
+                    st.write(f"🔍 Dados para PDF: {ocorrencia}")
                     pdf_buffer = gerar_pdf_ocorrencia(ocorrencia)
                     st.download_button(
                         label="📥 Baixar PDF",
@@ -1664,8 +1753,9 @@ elif menu == "📊 Lista de Ocorrências":
         
         with col2:
             if st.button("📬 Gerar Comunicado"):
-                ocorrencia = df_filtrado[df_filtrado['id'] == id_selecionado].iloc[0].to_dict() if not df_filtrado[df_filtrado['id'] == id_selecionado].empty else None
-                if ocorrencia:
+                ocorrencia_row = df_filtrado[df_filtrado['id'] == id_selecionado]
+                if not ocorrencia_row.empty:
+                    ocorrencia = ocorrencia_row.iloc[0].to_dict()
                     pdf_buffer = gerar_pdf_comunicado(ocorrencia)
                     st.download_button(
                         label="📥 Baixar Comunicado",
@@ -2149,7 +2239,7 @@ elif menu == "⚙️ Configurações":
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.metric("Versão", "9.1 FINAL")
+        st.metric("Versão", "9.2 FINAL")
     
     with col2:
         st.metric("Framework", "Streamlit")
@@ -2181,7 +2271,7 @@ elif menu == "💾 Backup":
             'ocorrencias': df_ocorrencias.to_dict('records') if not df_ocorrencias.empty else [],
             'responsaveis': df_responsaveis.to_dict('records') if not df_responsaveis.empty else [],
             'data_backup': datetime.now().strftime('%d/%m/%Y %H:%M'),
-            'versao_sistema': '9.1 FINAL'
+            'versao_sistema': '9.2 FINAL'
         }
         
         json_str = json.dumps(backup_data, ensure_ascii=False, indent=2)
@@ -2274,6 +2364,6 @@ st.markdown("""
     <p><b>Sistema Conviva 179</b> - Gestão de Ocorrências Escolares</p>
     <p>Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI</p>
     <p>Protocolo de Convivência e Proteção Escolar - SEDUC/SP</p>
-    <p>Versão 9.1 FINAL | Desenvolvido com Streamlit + Supabase (Requests)</p>
+    <p>Versão 9.2 FINAL | Desenvolvido com Streamlit + Supabase (Requests)</p>
 </div>
 """, unsafe_allow_html=True)
