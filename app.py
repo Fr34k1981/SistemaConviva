@@ -1,7 +1,7 @@
 # ============================================================================
 # SISTEMA CONVIVA 179 - GESTÃO DE OCORRÊNCIAS ESCOLARES
 # Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI
-# Versão: 8.5 FINAL - COLUNAS DO BANCO CORRIGIDAS
+# Versão: 9.0 FINAL - GERENCIAMENTO DE TURMAS RESTAURADO
 # Desenvolvido para SEDUC/SP - Protocolo de Convivência e Proteção Escolar
 # ============================================================================
 
@@ -198,6 +198,10 @@ if 'pagina_atual' not in st.session_state:
     st.session_state.pagina_atual = "Home"
 if 'ocorrencia_salva_sucesso' not in st.session_state:
     st.session_state.ocorrencia_salva_sucesso = False
+if 'turma_para_deletar' not in st.session_state:
+    st.session_state.turma_para_deletar = None
+if 'turma_selecionada' not in st.session_state:
+    st.session_state.turma_selecionada = None
 
 # ============================================================================
 # CSS PERSONALIZADO
@@ -257,6 +261,21 @@ st.markdown("""
     font-weight: bold;
     color: #155724;
 }
+.card {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    margin: 0.5rem 0;
+    border-left: 4px solid #667eea;
+}
+.card-title {
+    font-weight: bold;
+    color: #333;
+}
+.card-value {
+    font-size: 1.5rem;
+    color: #667eea;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -267,7 +286,7 @@ st.markdown("""
 @st.cache_data(ttl=60)
 def carregar_alunos():
     if not SUPABASE_URL:
-        return pd.DataFrame(columns=['nome', 'ra', 'turma', 'nascimento', 'responsavel', 'telefone', 'foto_url'])
+        return pd.DataFrame(columns=['nome', 'ra', 'turma', 'nascimento', 'responsavel', 'telefone', 'foto_url', 'situacao'])
     try:
         response = requests.get(f"{SUPABASE_URL}/rest/v1/alunos?select=*", headers=HEADERS)
         if response.status_code == 200:
@@ -276,10 +295,10 @@ def carregar_alunos():
                 df = df.sort_values('nome')
             return df
         else:
-            return pd.DataFrame(columns=['nome', 'ra', 'turma', 'nascimento', 'responsavel', 'telefone', 'foto_url'])
+            return pd.DataFrame(columns=['nome', 'ra', 'turma', 'nascimento', 'responsavel', 'telefone', 'foto_url', 'situacao'])
     except Exception as e:
         st.error(f"Erro ao carregar alunos: {str(e)}")
-        return pd.DataFrame(columns=['nome', 'ra', 'turma', 'nascimento', 'responsavel', 'telefone', 'foto_url'])
+        return pd.DataFrame(columns=['nome', 'ra', 'turma', 'nascimento', 'responsavel', 'telefone', 'foto_url', 'situacao'])
 
 
 @st.cache_data(ttl=60)
@@ -333,22 +352,25 @@ def carregar_responsaveis():
         return pd.DataFrame(columns=['id', 'nome', 'cargo'])
 
 
+@st.cache_data(ttl=60)
+def carregar_turmas():
+    """Carrega todas as turmas únicas do banco de dados."""
+    df_alunos = carregar_alunos()
+    if not df_alunos.empty and 'turma' in df_alunos.columns:
+        turmas_info = df_alunos.groupby('turma').size().reset_index(name='total_alunos')
+        return turmas_info
+    return pd.DataFrame(columns=['turma', 'total_alunos'])
+
+
 # ============================================================================
 # FUNÇÕES DE SALVAMENTO DE DADOS NO SUPABASE (VIA REQUESTS)
 # ============================================================================
 
 def salvar_ocorrencia(ocorrencia_dict):
-    """
-    ✅ COLUNAS CORRETAS: Apenas colunas que existem no banco
-    """
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
-        # ✅ Converter lista para string (encaminhamento singular)
-        if 'encaminhamento' in ocorrencia_dict and isinstance(ocorrencia_dict['encaminhamento'], list):
-            ocorrencia_dict['encaminhamento'] = '| '.join(ocorrencia_dict['encaminhamento'])
-        
-        # ✅ REMOVER colunas que não existem no banco
+        # ✅ COLUNAS CORRETAS - Apenas o que existe no banco
         ocorrencia_dict_clean = {
             'data': ocorrencia_dict.get('data', ''),
             'aluno': ocorrencia_dict.get('aluno', ''),
@@ -360,6 +382,10 @@ def salvar_ocorrencia(ocorrencia_dict):
             'professor': ocorrencia_dict.get('professor', ''),
             'encaminhamento': ocorrencia_dict.get('encaminhamento', '')
         }
+        
+        # Converter lista para string se necessário
+        if isinstance(ocorrencia_dict_clean['encaminhamento'], list):
+            ocorrencia_dict_clean['encaminhamento'] = '| '.join(ocorrencia_dict_clean['encaminhamento'])
         
         response = requests.post(f"{SUPABASE_URL}/rest/v1/ocorrencias", json=ocorrencia_dict_clean, headers=HEADERS)
         if response.status_code in [200, 201]:
@@ -375,9 +401,6 @@ def atualizar_ocorrencia(id_ocorrencia, ocorrencia_dict):
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
-        if 'encaminhamento' in ocorrencia_dict and isinstance(ocorrencia_dict['encaminhamento'], list):
-            ocorrencia_dict['encaminhamento'] = '| '.join(ocorrencia_dict['encaminhamento'])
-        
         ocorrencia_dict_clean = {
             'data': ocorrencia_dict.get('data', ''),
             'aluno': ocorrencia_dict.get('aluno', ''),
@@ -389,6 +412,9 @@ def atualizar_ocorrencia(id_ocorrencia, ocorrencia_dict):
             'professor': ocorrencia_dict.get('professor', ''),
             'encaminhamento': ocorrencia_dict.get('encaminhamento', '')
         }
+        
+        if isinstance(ocorrencia_dict_clean['encaminhamento'], list):
+            ocorrencia_dict_clean['encaminhamento'] = '| '.join(ocorrencia_dict_clean['encaminhamento'])
         
         response = requests.patch(f"{SUPABASE_URL}/rest/v1/ocorrencias?id=eq.{id_ocorrencia}", json=ocorrencia_dict_clean, headers=HEADERS)
         if response.status_code in [200, 201]:
@@ -453,6 +479,21 @@ def excluir_aluno(ra_aluno):
             return False, f"Erro ao excluir: {response.text}"
     except Exception as e:
         st.error(f"Erro ao excluir aluno: {str(e)}")
+        return False, f"Erro ao excluir: {str(e)}"
+
+
+def excluir_alunos_por_turma(turma):
+    """✅ EXCLUIR TURMA COMPLETA - Todos os alunos da turma"""
+    if not SUPABASE_URL:
+        return False, "Supabase não configurado"
+    try:
+        response = requests.delete(f"{SUPABASE_URL}/rest/v1/alunos?turma=eq.{turma}", headers=HEADERS)
+        if response.status_code in [200, 201]:
+            return True, f"Turma {turma} excluída com sucesso!"
+        else:
+            return False, f"Erro ao excluir turma: {response.text}"
+    except Exception as e:
+        st.error(f"Erro ao excluir turma: {str(e)}")
         return False, f"Erro ao excluir: {str(e)}"
 
 
@@ -931,6 +972,8 @@ menu = st.sidebar.selectbox(
     "📋 Menu Principal",
     [
         "🏠 Home",
+        "📥 Importar Alunos (Turmas)",
+        "📋 Gerenciar Turmas",
         "📝 Registrar Ocorrência",
         "📊 Lista de Ocorrências",
         "👥 Alunos",
@@ -956,6 +999,7 @@ if menu == "🏠 Home":
     df_ocorrencias = carregar_ocorrencias()
     df_alunos = carregar_alunos()
     df_professores = carregar_professores()
+    df_turmas = carregar_turmas()
     
     if not df_ocorrencias.empty:
         total_ocorrencias = len(df_ocorrencias)
@@ -1045,13 +1089,14 @@ if menu == "🏠 Home":
     else:
         st.info("📭 Nenhuma ocorrência registrada ainda.")
     
-    if not df_alunos.empty:
-        st.subheader("👥 Resumo de Alunos")
+    # Resumo de turmas
+    if not df_turmas.empty:
+        st.subheader("🏫 Resumo de Turmas")
         col1, col2 = st.columns(2)
         with col1:
-            st.metric("Total de Alunos", len(df_alunos))
+            st.metric("Total de Turmas", len(df_turmas))
         with col2:
-            st.metric("Total de Turmas", df_alunos['turma'].nunique())
+            st.metric("Total de Alunos", len(df_alunos))
     
     if not df_professores.empty:
         st.subheader("👨‍🏫 Resumo de Professores")
@@ -1059,7 +1104,255 @@ if menu == "🏠 Home":
 
 
 # ============================================================================
-# PÁGINA: REGISTRAR OCORRÊNCIA (COLUNAS CORRIGIDAS)
+# PÁGINA: IMPORTAR ALUNOS (TURMAS)
+# ============================================================================
+
+elif menu == "📥 Importar Alunos (Turmas)":
+    st.title("📥 Importar Alunos por Turma")
+    
+    st.info("""
+    💡 **Como importar:**
+    1. Digite o nome da turma (Ex: 6º Ano A, 7º Ano B)
+    2. Selecione o arquivo CSV da SEDUC
+    3. Clique em "🚀 Importar Alunos"
+    
+    **Colunas necessárias no CSV:**
+    - RA
+    - Nome do Aluno
+    - Data de Nascimento
+    - Situação do Aluno
+    """)
+    
+    # ✅ CAMPO DE TURMA
+    turma_alunos = st.text_input(
+        "🏫 Qual a TURMA destes alunos?",
+        placeholder="Ex: 6º Ano A, 7º Ano B, 8º Ano C",
+        key="turma_import"
+    )
+    
+    # ✅ UPLOAD DE ARQUIVO
+    arquivo_upload = st.file_uploader(
+        "Selecione o arquivo CSV da SEDUC",
+        type=["csv"],
+        key="arquivo_csv"
+    )
+    
+    if arquivo_upload is not None:
+        try:
+            # Ler CSV
+            df_import = pd.read_csv(arquivo_upload, sep=';', encoding='utf-8-sig')
+            st.success(f"✅ Arquivo lido com sucesso! {len(df_import)} alunos encontrados.")
+            st.write("### Pré-visualização:")
+            st.dataframe(df_import.head())
+            
+            # Mapeamento de colunas
+            colunas_csv = df_import.columns.tolist()
+            st.write("### 🔍 Mapeamento de Colunas")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                mapeamento_ra = st.selectbox("Coluna do RA", colunas_csv, index=colunas_csv.index("RA") if "RA" in colunas_csv else 0)
+                mapeamento_nome = st.selectbox("Coluna do Nome", colunas_csv, index=colunas_csv.index("Nome do Aluno") if "Nome do Aluno" in colunas_csv else 0)
+            with col2:
+                mapeamento_nascimento = st.selectbox("Coluna da Data de Nascimento", colunas_csv, index=colunas_csv.index("Data de Nascimento") if "Data de Nascimento" in colunas_csv else 0)
+                mapeamento_situacao = st.selectbox("Coluna da Situação", colunas_csv, index=colunas_csv.index("Situação do Aluno") if "Situação do Aluno" in colunas_csv else 0)
+            
+            # Verificar colunas necessárias
+            colunas_necessarias = [mapeamento_ra, mapeamento_nome, mapeamento_nascimento, mapeamento_situacao]
+            faltantes = [c for c in colunas_necessarias if c not in colunas_csv]
+            
+            if faltantes:
+                st.error(f"❌ Colunas não encontradas: {', '.join(faltantes)}")
+            else:
+                # Verificar se turma já existe
+                df_alunos = carregar_alunos()
+                turmas_existentes = df_alunos['turma'].unique().tolist() if not df_alunos.empty else []
+                
+                if turma_alunos in turmas_existentes:
+                    st.warning(f"⚠️ A turma **{turma_alunos}** já existe no sistema!")
+                    st.info("💡 Se importar novamente, os alunos serão **atualizados** (não duplicados).")
+                
+                # ✅ BOTÃO DE IMPORTAR
+                if st.button("🚀 Importar Alunos", type="primary"):
+                    if not turma_alunos:
+                        st.error("❌ Preencha o nome da turma!")
+                    else:
+                        contagem_novos = 0
+                        contagem_atualizados = 0
+                        erros = 0
+                        
+                        for idx, row in df_import.iterrows():
+                            try:
+                                ra_str = str(row[mapeamento_ra]).strip()
+                                if not ra_str or ra_str == 'nan':
+                                    erros += 1
+                                    continue
+                                
+                                aluno = {
+                                    'ra': ra_str,
+                                    'nome': str(row[mapeamento_nome]).strip(),
+                                    'data_nascimento': str(row[mapeamento_nascimento]).strip(),
+                                    'situacao': str(row[mapeamento_situacao]).strip(),
+                                    'turma': turma_alunos
+                                }
+                                
+                                # Verificar se aluno já existe
+                                aluno_existente = df_alunos[df_alunos['ra'] == ra_str]
+                                
+                                if not aluno_existente.empty:
+                                    if atualizar_aluno(ra_str, aluno):
+                                        contagem_atualizados += 1
+                                    else:
+                                        erros += 1
+                                else:
+                                    if salvar_aluno(aluno):
+                                        contagem_novos += 1
+                                    else:
+                                        erros += 1
+                            except Exception as e:
+                                erros += 1
+                                continue
+                        
+                        st.success(f"✅ **Importação concluída!**")
+                        st.info(f"🆕 **Novos alunos:** {contagem_novos}")
+                        st.info(f"🔄 **Atualizados:** {contagem_atualizados}")
+                        if erros > 0:
+                            st.warning(f"⚠️ **Erros:** {erros}")
+                        
+                        carregar_alunos.clear()
+                        st.rerun()
+                        
+        except Exception as e:
+            st.error(f"❌ Erro ao ler arquivo: {str(e)}")
+            st.info("💡 Tente salvar o CSV com encoding UTF-8 e separador ponto e vírgula (;)")
+    
+    else:
+        st.info("📁 Selecione um arquivo CSV para importar.")
+
+
+# ============================================================================
+# PÁGINA: GERENCIAR TURMAS
+# ============================================================================
+
+elif menu == "📋 Gerenciar Turmas":
+    st.title("📋 Gerenciar Turmas Importadas")
+    
+    df_alunos = carregar_alunos()
+    
+    if not df_alunos.empty:
+        # ✅ RESUMO DAS TURMAS
+        st.subheader("📊 Resumo das Turmas")
+        
+        turmas_info = df_alunos.groupby('turma').agg({
+            'ra': 'count',
+            'nome': 'first'
+        }).reset_index()
+        turmas_info.columns = ['turma', 'total_alunos', 'exemplo_nome']
+        
+        for idx, row in turmas_info.iterrows():
+            with st.container():
+                col1, col2, col3, col4 = st.columns([4, 1, 1, 1])
+                
+                with col1:
+                    st.markdown(f"""
+                    <div class="card">
+                        <div class="card-title">🏫 {row['turma']}</div>
+                        <div class="card-value">{row['total_alunos']} alunos</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                with col2:
+                    if st.button("👁️ Ver", key=f"ver_{row['turma']}"):
+                        st.session_state.turma_selecionada = row['turma']
+                
+                with col3:
+                    if st.button("✏️ Editar", key=f"edit_{row['turma']}"):
+                        st.session_state.turma_editar = row['turma']
+                
+                with col4:
+                    if st.button("🗑️ Excluir", key=f"del_{row['turma']}", type="secondary"):
+                        st.session_state.turma_para_deletar = row['turma']
+                
+                st.markdown("---")
+        
+        # ✅ CONFIRMAR EXCLUSÃO DE TURMA
+        if 'turma_para_deletar' in st.session_state:
+            st.warning(f"⚠️ Tem certeza que deseja deletar a turma **{st.session_state.turma_para_deletar}?**")
+            st.info("Isso removerá TODOS os alunos desta turma!")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("✅ Confirmar Exclusão", type="primary"):
+                    sucesso, msg = excluir_alunos_por_turma(st.session_state.turma_para_deletar)
+                    if sucesso:
+                        st.success(f"✅ {msg}")
+                        del st.session_state.turma_para_deletar
+                        carregar_alunos.clear()
+                        st.rerun()
+                    else:
+                        st.error(f"❌ {msg}")
+            with col2:
+                if st.button("❌ Cancelar"):
+                    del st.session_state.turma_para_deletar
+                    st.rerun()
+        
+        # ✅ EDITAR NOME DA TURMA
+        if 'turma_editar' in st.session_state:
+            st.info(f"✏️ Editando turma: **{st.session_state.turma_editar}**")
+            
+            novo_nome = st.text_input(
+                "Novo nome da turma",
+                value=st.session_state.turma_editar,
+                key="novo_nome_turma"
+            )
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("💾 Salvar Alteração", type="primary"):
+                    # Atualizar todos os alunos da turma
+                    df_alunos_turma = df_alunos[df_alunos['turma'] == st.session_state.turma_editar]
+                    contagem = 0
+                    for idx, aluno in df_alunos_turma.iterrows():
+                        aluno_dict = {
+                            'ra': aluno['ra'],
+                            'nome': aluno['nome'],
+                            'data_nascimento': aluno.get('data_nascimento', ''),
+                            'situacao': aluno.get('situacao', ''),
+                            'turma': novo_nome
+                        }
+                        if atualizar_aluno(aluno['ra'], aluno_dict):
+                            contagem += 1
+                    
+                    st.success(f"✅ {contagem} aluno(s) atualizados para a turma {novo_nome}")
+                    del st.session_state.turma_editar
+                    carregar_alunos.clear()
+                    st.rerun()
+            with col2:
+                if st.button("❌ Cancelar"):
+                    del st.session_state.turma_editar
+                    st.rerun()
+        
+        # ✅ VER ALUNOS DA TURMA SELECIONADA
+        if 'turma_selecionada' in st.session_state:
+            st.markdown("---")
+            st.subheader(f"👥 Alunos da Turma: {st.session_state.turma_selecionada}")
+            
+            alunos_turma = df_alunos[df_alunos['turma'] == st.session_state.turma_selecionada]
+            st.dataframe(alunos_turma[['ra', 'nome', 'situacao']], use_container_width=True)
+            
+            if st.button("❌ Fechar Visualização"):
+                del st.session_state.turma_selecionada
+                st.rerun()
+        
+        st.markdown("---")
+        st.info(f"💡 **Total de turmas:** {len(turmas_info)} | **Total de alunos:** {len(df_alunos)}")
+    
+    else:
+        st.info("📭 Nenhuma turma cadastrada. Use a opção 'Importar Alunos (Turmas)'.")
+
+
+# ============================================================================
+# PÁGINA: REGISTRAR OCORRÊNCIA
 # ============================================================================
 
 elif menu == "📝 Registrar Ocorrência":
@@ -1143,7 +1436,6 @@ elif menu == "📝 Registrar Ocorrência":
                     key="encam_select"
                 )
                 
-                # ✅ Converter lista para string (singular)
                 encaminhamento_str = '| '.join(encaminhamentos_selecionados) if encaminhamentos_selecionados else ''
                 
                 df_professores = carregar_professores()
@@ -1179,7 +1471,6 @@ elif menu == "📝 Registrar Ocorrência":
                                 if verificar_ocorrencia_duplicada(ra_aluno, categoria_str, data_str, df_ocorrencias):
                                     contagem_duplicadas += 1
                                 else:
-                                    # ✅ COLUNAS CORRETAS - APENAS O QUE EXISTE NO BANCO
                                     ocorrencia_dict = {
                                         'data': data_str,
                                         'aluno': nome_aluno,
@@ -1189,7 +1480,7 @@ elif menu == "📝 Registrar Ocorrência":
                                         'gravidade': gravidade_select,
                                         'relato': relato,
                                         'professor': prof,
-                                        'encaminhamento': encaminhamento_str  # ✅ SINGULAR, SEM 'evidencias' ou 'testemunhas'
+                                        'encaminhamento': encaminhamento_str
                                     }
                                     
                                     sucesso, mensagem = salvar_ocorrencia(ocorrencia_dict)
@@ -1769,7 +2060,7 @@ elif menu == "⚙️ Configurações":
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.metric("Versão", "8.5 FINAL")
+        st.metric("Versão", "9.0 FINAL")
     
     with col2:
         st.metric("Framework", "Streamlit")
@@ -1801,7 +2092,7 @@ elif menu == "💾 Backup":
             'ocorrencias': df_ocorrencias.to_dict('records') if not df_ocorrencias.empty else [],
             'responsaveis': df_responsaveis.to_dict('records') if not df_responsaveis.empty else [],
             'data_backup': datetime.now().strftime('%d/%m/%Y %H:%M'),
-            'versao_sistema': '8.5 FINAL'
+            'versao_sistema': '9.0 FINAL'
         }
         
         json_str = json.dumps(backup_data, ensure_ascii=False, indent=2)
@@ -1894,6 +2185,6 @@ st.markdown("""
     <p><b>Sistema Conviva 179</b> - Gestão de Ocorrências Escolares</p>
     <p>Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI</p>
     <p>Protocolo de Convivência e Proteção Escolar - SEDUC/SP</p>
-    <p>Versão 8.5 FINAL | Desenvolvido com Streamlit + Supabase (Requests)</p>
+    <p>Versão 9.0 FINAL | Desenvolvido com Streamlit + Supabase (Requests)</p>
 </div>
 """, unsafe_allow_html=True)
