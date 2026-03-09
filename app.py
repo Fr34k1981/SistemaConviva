@@ -1,7 +1,7 @@
 # ============================================================================
 # SISTEMA CONVIVA 179 - GESTÃO DE OCORRÊNCIAS ESCOLARES
 # Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI
-# Versão: 8.2 FINAL - DATA/HORA EDITÁVEIS CORRIGIDA
+# Versão: 8.3 FINAL - SALVAMENTO CORRIGIDO
 # Desenvolvido para SEDUC/SP - Protocolo de Convivência e Proteção Escolar
 # ============================================================================
 
@@ -184,7 +184,7 @@ ENCAMINHAMENTOS_POR_GRAVIDADE = {
 }
 
 # ============================================================================
-# INICIALIZAÇÃO DO SESSION STATE (COM DATA/HORA)
+# INICIALIZAÇÃO DO SESSION STATE
 # ============================================================================
 if 'editando_id' not in st.session_state:
     st.session_state.editando_id = None
@@ -198,15 +198,6 @@ if 'pagina_atual' not in st.session_state:
     st.session_state.pagina_atual = "Home"
 if 'ocorrencia_salva_sucesso' not in st.session_state:
     st.session_state.ocorrencia_salva_sucesso = False
-if 'salvando_ocorrencia' not in st.session_state:
-    st.session_state.salvando_ocorrencia = False
-if 'gravidade_alterada' not in st.session_state:
-    st.session_state.gravidade_alterada = False
-# ✅ CORREÇÃO: Session state para data/hora editáveis
-if 'data_fato' not in st.session_state:
-    st.session_state.data_fato = datetime.now().date()
-if 'hora_fato' not in st.session_state:
-    st.session_state.hora_fato = datetime.now().time()
 
 # ============================================================================
 # CSS PERSONALIZADO
@@ -531,16 +522,11 @@ def upload_foto_supabase(file, folder, filename):
         upload_headers = HEADERS.copy()
         upload_headers["Content-Type"] = file.type
         
-        try:
-            response = requests.post(
-                f"{storage_url}/object/fotos/{folder}/{filename}",
-                data=file_bytes,
-                headers=upload_headers
-            )
-        except Exception as upload_error:
-            if 'Bucket not found' in str(upload_error) or (response.status_code == 404 if 'response' in locals() else False):
-                return None, "Bucket 'fotos' não encontrado. Crie o bucket no Supabase primeiro!"
-            raise upload_error
+        response = requests.post(
+            f"{storage_url}/object/fotos/{folder}/{filename}",
+            data=file_bytes,
+            headers=upload_headers
+        )
         
         if response.status_code in [200, 201]:
             public_url = f"{storage_url}/object/public/fotos/{folder}/{filename}"
@@ -680,7 +666,6 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
         spaceAfter=0.5*cm
     ))
     
-    # CABEÇALHO COM LOGO - 16cm x 4cm
     try:
         if os.path.exists(ESCOLA_LOGO):
             logo = Image(ESCOLA_LOGO, width=16*cm, height=4*cm)
@@ -1059,7 +1044,7 @@ if menu == "🏠 Home":
 
 
 # ============================================================================
-# PÁGINA: REGISTRAR OCORRÊNCIA (DATA/HORA EDITÁVEIS CORRIGIDO)
+# PÁGINA: REGISTRAR OCORRÊNCIA (SALVAMENTO CORRIGIDO)
 # ============================================================================
 
 elif menu == "📝 Registrar Ocorrência":
@@ -1069,197 +1054,168 @@ elif menu == "📝 Registrar Ocorrência":
     df_ocorrencias = carregar_ocorrencias()
     df_alunos = carregar_alunos()
     
+    # Mostrar sucesso após salvar
+    if st.session_state.get('ocorrencia_salva_sucesso', False):
+        st.markdown('<div class="success-box">✅ OCORRÊNCIA(S) REGISTRADA(S) COM SUCESSO!</div>', unsafe_allow_html=True)
+        st.session_state.ocorrencia_salva_sucesso = False
+    
     if df_alunos.empty:
         st.warning("⚠️ Nenhum aluno cadastrado. Importe alunos primeiro.")
     else:
-        # Mostrar sucesso após salvar
-        if st.session_state.get('ocorrencia_salva_sucesso', False):
-            st.markdown('<div class="success-box">✅ OCORRÊNCIA(S) REGISTRADA(S) COM SUCESSO!</div>', unsafe_allow_html=True)
-            st.session_state.ocorrencia_salva_sucesso = False
-            st.session_state.salvando_ocorrencia = False
+        # Seleção de turmas
+        st.subheader("🏫 Selecionar Turma(s)")
+        modo_multiplas_turmas = st.checkbox("📚 Registrar para múltiplas turmas", key="modo_multiplas_turmas")
+        turmas = df_alunos["turma"].unique().tolist()
         
-        df_alunos = carregar_alunos()
-        
-        if df_alunos.empty:
-            st.warning("⚠️ Importe alunos primeiro.")
+        if modo_multiplas_turmas:
+            turmas_selecionadas = st.multiselect("Selecione as Turmas", turmas, key="turmas_multi")
         else:
-            tz_sp = pytz.timezone('America/Sao_Paulo')
-            data_hora_sp = datetime.now(tz_sp)
+            turma_selecionada = st.selectbox("Selecione a Turma", turmas, key="turma_unica")
+            turmas_selecionadas = [turma_selecionada] if turma_selecionada else []
+        
+        # Filtrar alunos das turmas selecionadas
+        if turmas_selecionadas:
+            alunos = df_alunos[df_alunos["turma"].isin(turmas_selecionadas)].copy()
             
-            # ✅ CORREÇÃO: Inicializar session state para data/hora apenas se não existir
-            if 'data_fato' not in st.session_state:
-                st.session_state.data_fato = data_hora_sp.date()
-            if 'hora_fato' not in st.session_state:
-                st.session_state.hora_fato = data_hora_sp.time()
-            
-            st.subheader("🏫 Selecionar Turma(s)")
-            modo_multiplas_turmas = st.checkbox("📚 Registrar para múltiplas turmas", key="modo_multiplas_turmas")
-            turmas = df_alunos["turma"].unique().tolist()
-            
-            if modo_multiplas_turmas:
-                turmas_selecionadas = st.multiselect("Selecione as Turmas", turmas)
-            else:
-                turma_selecionada = st.selectbox("Selecione a Turma", turmas)
-                turmas_selecionadas = [turma_selecionada] if turma_selecionada else []
-            
-            if turmas_selecionadas:
-                alunos = df_alunos[df_alunos["turma"].isin(turmas_selecionadas)].copy()
+            if len(alunos) > 0:
+                col1, col2 = st.columns(2)
                 
-                if len(alunos) > 0:
-                    col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown("### 👥 Selecionar Estudante(s)")
+                    modo_multiplo = st.checkbox("👥 Múltiplos estudantes", key="modo_multiplo")
                     
-                    with col1:
-                        st.markdown("### 👥 Selecionar Estudante(s)")
-                        st.info("💡 Selecione um ou mais estudantes envolvidos na mesma ocorrência")
-                        modo_multiplo = st.checkbox("👥 Registrar para múltiplos estudantes", key="modo_multiplo")
-                        
-                        if modo_multiplo:
-                            alunos_selecionados = st.multiselect(
-                                "Selecione os Estudantes",
-                                alunos["nome"].tolist(),
-                                key="alunos_multiselect"
-                            )
-                        else:
-                            lista_alunos = alunos['nome'].tolist()
-                            busca_aluno = st.text_input("🔍 Buscar Aluno (digite o nome)", "")
-                            
-                            if busca_aluno:
-                                resultados = process.extract(busca_aluno, lista_alunos, limit=5)
-                                aluno_selecionado = st.selectbox("Selecione o Aluno", [r[0] for r in resultados])
-                            else:
-                                aluno_selecionado = st.selectbox("Selecione o Aluno", lista_alunos)
-                            
-                            alunos_selecionados = [aluno_selecionado] if aluno_selecionado else []
-                    
-                    with col2:
-                        st.markdown("### 📅 Data e Hora do Fato")
-                        st.info("💡 Você pode editar a data e hora para registrar fatos passados")
-                        # ✅ CORREÇÃO: Usar session_state para manter valor editado
-                        data = st.date_input(
-                            "📅 Data",
-                            value=st.session_state.data_fato,
-                            key="data_fato_input",
-                            on_change=lambda: setattr(st.session_state, 'data_fato', st.session_state.data_fato_input)
+                    if modo_multiplo:
+                        alunos_selecionados = st.multiselect(
+                            "Selecione os Estudantes",
+                            alunos["nome"].tolist(),
+                            key="alunos_multiselect"
                         )
-                        hora = st.time_input(
-                            "⏰ Hora",
-                            value=st.session_state.hora_fato,
-                            key="hora_fato_input",
-                            on_change=lambda: setattr(st.session_state, 'hora_fato', st.session_state.hora_fato_input)
-                        )
-                        # ✅ CORREÇÃO: Atualizar session state imediatamente
-                        st.session_state.data_fato = data
-                        st.session_state.hora_fato = hora
-                    
-                    st.markdown("---")
-                    
-                    col1, col2 = st.columns(2)
-                    
-                    with col1:
-                        categoria_grupo = st.selectbox("📁 Categoria", list(CATEGORIAS_OCORRENCIAS.keys()))
-                        categorias_grupo = list(CATEGORIAS_OCORRENCIAS[categoria_grupo].keys())
-                        categoria = st.selectbox("📋 Ocorrência", categorias_grupo)
-                    
-                    with col2:
-                        gravidade = CATEGORIAS_OCORRENCIAS[categoria_grupo].get(categoria, "Leve")
-                        gravidade_select = st.selectbox(
-                            "⚡ Gravidade",
-                            ["Gravíssima", "Grave", "Média", "Leve"],
-                            index=["Gravíssima", "Grave", "Média", "Leve"].index(gravidade)
-                        )
-                    
-                    if categoria in FLUXO_ACOES:
-                        st.warning(f"📌 {FLUXO_ACOES[categoria]}")
-                    
-                    relato = st.text_area("📝 Relato da Ocorrência", height=200)
-                    
-                    st.subheader("🔄 Encaminhamentos")
-                    encaminhamentos_disponiveis = ENCAMINHAMENTOS_POR_GRAVIDADE.get(gravidade_select, [])
-                    encaminhamentos_selecionados = st.multiselect(
-                        "Selecione os encaminhamentos realizados",
-                        encaminhamentos_disponiveis,
-                        default=encaminhamentos_disponiveis[:2] if encaminhamentos_disponiveis else []
-                    )
-                    
-                    df_professores = carregar_professores()
-                    if not df_professores.empty:
-                        prof = st.selectbox("👨‍🏫 Professor Responsável", ["Selecione..."] + df_professores['nome'].tolist())
                     else:
-                        prof = st.text_input("👨‍🏫 Professor Responsável")
-                    
-                    testemunhas = st.text_input("👀 Testemunhas (opcional)")
-                    evidencias = st.text_area("📎 Evidências (opcional)")
-                    
-                    st.markdown("---")
-                    
-                    if st.session_state.get('salvando_ocorrencia', False):
-                        if prof and prof != "Selecione..." and relato and alunos_selecionados:
-                            # ✅ CORREÇÃO: Usar data/hora do session state (valor editado pelo usuário)
-                            data_str = f"{st.session_state.data_fato.strftime('%d/%m/%Y')} {st.session_state.hora_fato.strftime('%H:%M')}"
-                            categoria_str = categoria
-                            contagem_salvas = 0
-                            contagem_duplicadas = 0
-                            erros = 0
+                        lista_alunos = alunos['nome'].tolist()
+                        aluno_selecionado = st.selectbox("Selecione o Aluno", lista_alunos, key="aluno_unico")
+                        alunos_selecionados = [aluno_selecionado] if aluno_selecionado else []
+                
+                with col2:
+                    st.markdown("### 📅 Data e Hora")
+                    data = st.date_input("Data", value=datetime.now().date(), key="data_input")
+                    hora = st.time_input("Hora", value=datetime.now().time(), key="hora_input")
+                
+                st.markdown("---")
+                
+                # Dados da ocorrência
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    categoria_grupo = st.selectbox("📁 Categoria", list(CATEGORIAS_OCORRENCIAS.keys()), key="cat_grupo")
+                    categorias_grupo = list(CATEGORIAS_OCORRENCIAS[categoria_grupo].keys())
+                    categoria = st.selectbox("📋 Ocorrência", categorias_grupo, key="cat_ocorr")
+                
+                with col2:
+                    gravidade = CATEGORIAS_OCORRENCIAS[categoria_grupo].get(categoria, "Leve")
+                    gravidade_select = st.selectbox(
+                        "⚡ Gravidade",
+                        ["Gravíssima", "Grave", "Média", "Leve"],
+                        index=["Gravíssima", "Grave", "Média", "Leve"].index(gravidade),
+                        key="grav_select"
+                    )
+                
+                if categoria in FLUXO_ACOES:
+                    st.warning(f"📌 {FLUXO_ACOES[categoria]}")
+                
+                relato = st.text_area("📝 Relato da Ocorrência", height=200, key="relato_input")
+                
+                st.subheader("🔄 Encaminhamentos")
+                encaminhamentos_disponiveis = ENCAMINHAMENTOS_POR_GRAVIDADE.get(gravidade_select, [])
+                encaminhamentos_selecionados = st.multiselect(
+                    "Selecione os encaminhamentos",
+                    encaminhamentos_disponiveis,
+                    default=encaminhamentos_disponiveis[:2] if encaminhamentos_disponiveis else [],
+                    key="encam_select"
+                )
+                
+                df_professores = carregar_professores()
+                if not df_professores.empty:
+                    prof = st.selectbox("👨‍🏫 Professor Responsável", ["Selecione..."] + df_professores['nome'].tolist(), key="prof_select")
+                else:
+                    prof = st.text_input("👨‍🏫 Professor Responsável", key="prof_input")
+                
+                testemunhas = st.text_input("👀 Testemunhas (opcional)", key="test_input")
+                evidencias = st.text_area("📎 Evidências (opcional)", key="evid_input")
+                
+                st.markdown("---")
+                
+                # ✅ BOTÃO DE SALVAR - LÓGICA SIMPLIFICADA
+                if st.button("💾 Salvar Ocorrência", type="primary", key="btn_salvar"):
+                    # Validações
+                    if not alunos_selecionados:
+                        st.error("❌ Selecione pelo menos um estudante!")
+                    elif not prof or prof == "Selecione...":
+                        st.error("❌ Selecione o professor responsável!")
+                    elif not relato:
+                        st.error("❌ Preencha o relato da ocorrência!")
+                    else:
+                        # ✅ CAPTURAR DATA/HORA NO MOMENTO DO CLIQUE
+                        data_str = f"{data.strftime('%d/%m/%Y')} {hora.strftime('%H:%M')}"
+                        categoria_str = categoria
+                        
+                        contagem_salvas = 0
+                        contagem_duplicadas = 0
+                        erros = 0
+                        
+                        # ✅ LOOP PARA CADA ALUNO SELECIONADO
+                        for nome_aluno in alunos_selecionados:
+                            # ✅ CAPTURAR DADOS DO ALUNO INDIVIDUALMENTE
+                            aluno_info = alunos[alunos["nome"] == nome_aluno]
                             
-                            for nome_aluno in alunos_selecionados:
-                                aluno_info = alunos[alunos["nome"] == nome_aluno]
+                            if not aluno_info.empty:
+                                ra_aluno = str(aluno_info["ra"].values[0])
+                                turma_aluno = str(aluno_info["turma"].values[0])
                                 
-                                if not aluno_info.empty:
-                                    ra_aluno = str(aluno_info["ra"].values[0])
-                                    turma_aluno = str(aluno_info["turma"].values[0])
+                                # Verificar duplicidade
+                                if verificar_ocorrencia_duplicada(ra_aluno, categoria_str, data_str, df_ocorrencias):
+                                    contagem_duplicadas += 1
+                                else:
+                                    # Criar dicionário da ocorrência
+                                    ocorrencia_dict = {
+                                        'data': data_str,
+                                        'aluno': nome_aluno,
+                                        'ra': ra_aluno,
+                                        'turma': turma_aluno,
+                                        'categoria': categoria_str,
+                                        'gravidade': gravidade_select,
+                                        'relato': relato,
+                                        'professor': prof,
+                                        'encaminhamentos': encaminhamentos_selecionados,
+                                        'testemunhas': testemunhas,
+                                        'evidencias': evidencias
+                                    }
                                     
-                                    if verificar_ocorrencia_duplicada(ra_aluno, categoria_str, data_str, df_ocorrencias):
-                                        contagem_duplicadas += 1
+                                    # ✅ SALVAR OCORRÊNCIA
+                                    sucesso, mensagem = salvar_ocorrencia(ocorrencia_dict)
+                                    
+                                    if sucesso:
+                                        contagem_salvas += 1
                                     else:
-                                        ocorrencia_dict = {
-                                            'data': data_str,
-                                            'aluno': nome_aluno,
-                                            'ra': ra_aluno,
-                                            'turma': turma_aluno,
-                                            'categoria': categoria_str,
-                                            'gravidade': gravidade_select,
-                                            'relato': relato,
-                                            'professor': prof,
-                                            'encaminhamentos': encaminhamentos_selecionados,
-                                            'testemunhas': testemunhas,
-                                            'evidencias': evidencias
-                                        }
-                                        sucesso, mensagem = salvar_ocorrencia(ocorrencia_dict)
-                                        if sucesso:
-                                            contagem_salvas += 1
-                                        else:
-                                            erros += 1
-                                            st.error(f"Erro ao salvar para {nome_aluno}: {mensagem}")
-                            
-                            if contagem_salvas > 0:
-                                st.success(f"✅ {contagem_salvas} ocorrência(s) registrada(s) com sucesso!")
-                            if contagem_duplicadas > 0:
-                                st.warning(f"⚠️ {contagem_duplicadas} ocorrência(s) já existiam (ignorado)")
-                            if erros > 0:
-                                st.error(f"❌ {erros} erro(s) ao salvar")
-                            
+                                        erros += 1
+                                        st.error(f"Erro para {nome_aluno}: {mensagem}")
+                        
+                        # ✅ EXIBIR RESULTADOS
+                        if contagem_salvas > 0:
+                            st.success(f"✅ {contagem_salvas} ocorrência(s) registrada(s) com sucesso!")
+                        if contagem_duplicadas > 0:
+                            st.warning(f"⚠️ {contagem_duplicadas} ocorrência(s) já existiam (ignorado)")
+                        if erros > 0:
+                            st.error(f"❌ {erros} erro(s) ao salvar")
+                        
+                        # ✅ ATUALIZAR SESSION STATE E RECARGAR
+                        if contagem_salvas > 0:
                             st.session_state.ocorrencia_salva_sucesso = True
-                            st.session_state.salvando_ocorrencia = False
                             carregar_ocorrencias.clear()
                             st.rerun()
-                        else:
-                            st.error("❌ Nenhuma ocorrência foi salva. Verifique os dados.")
-                            st.session_state.salvando_ocorrencia = False
-                    else:
-                        if st.button("💾 Salvar Ocorrência", type="primary"):
-                            if not alunos_selecionados:
-                                st.error("❌ Selecione pelo menos um estudante!")
-                            elif not prof or prof == "Selecione...":
-                                st.error("❌ Selecione o professor responsável!")
-                            elif not relato:
-                                st.error("❌ Preencha o relato da ocorrência!")
-                            else:
-                                st.session_state.salvando_ocorrencia = True
-                                st.rerun()
-                else:
-                    st.info("📭 Nenhum aluno encontrado nesta(s) turma(s).")
             else:
-                st.info("📭 Selecione pelo menos uma turma.")
+                st.info("📭 Nenhum aluno encontrado nesta(s) turma(s).")
+        else:
+            st.info("📭 Selecione pelo menos uma turma.")
 
 
 # ============================================================================
@@ -1438,19 +1394,19 @@ elif menu == "👨‍🏫 Professores":
     col1, col2 = st.columns(2)
     
     with col1:
-        nome_prof = st.text_input("Nome Completo *")
-        email_prof = st.text_input("Email")
+        nome_prof = st.text_input("Nome Completo *", key="nome_prof_input")
+        email_prof = st.text_input("Email", key="email_prof_input")
     
     with col2:
-        cargo_prof = st.text_input("Cargo")
-        foto_prof = st.file_uploader("Foto (opcional)", type=['jpg', 'jpeg', 'png'])
+        cargo_prof = st.text_input("Cargo", key="cargo_prof_input")
+        foto_prof = st.file_uploader("Foto (opcional)", type=['jpg', 'jpeg', 'png'], key="foto_prof_input")
     
     if st.session_state.get('editando_prof', None) is not None:
         st.info(f"✏️ Editando professor ID: {st.session_state.editando_prof}")
         
         prof_atual = df_professores[df_professores['id'] == st.session_state.editando_prof].iloc[0]
         
-        if st.button("💾 Atualizar Professor"):
+        if st.button("💾 Atualizar Professor", key="btn_atualizar_prof"):
             professor_dict = {
                 'nome': nome_prof.strip(),
                 'email': email_prof.strip() if email_prof else None,
@@ -1472,11 +1428,11 @@ elif menu == "👨‍🏫 Professores":
             else:
                 st.error(f"❌ {msg}")
         
-        if st.button("❌ Cancelar Edição"):
+        if st.button("❌ Cancelar Edição", key="btn_cancelar_prof"):
             st.session_state.editando_prof = None
             st.rerun()
     else:
-        if st.button("💾 Salvar Professor"):
+        if st.button("💾 Salvar Professor", key="btn_salvar_prof"):
             if nome_prof:
                 nomes_existentes = [n.lower().strip() for n in df_professores['nome'].tolist()]
                 
@@ -1814,7 +1770,7 @@ elif menu == "⚙️ Configurações":
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.metric("Versão", "8.2 FINAL")
+        st.metric("Versão", "8.3 FINAL")
     
     with col2:
         st.metric("Framework", "Streamlit")
@@ -1846,7 +1802,7 @@ elif menu == "💾 Backup":
             'ocorrencias': df_ocorrencias.to_dict('records') if not df_ocorrencias.empty else [],
             'responsaveis': df_responsaveis.to_dict('records') if not df_responsaveis.empty else [],
             'data_backup': datetime.now().strftime('%d/%m/%Y %H:%M'),
-            'versao_sistema': '8.2 FINAL'
+            'versao_sistema': '8.3 FINAL'
         }
         
         json_str = json.dumps(backup_data, ensure_ascii=False, indent=2)
@@ -1939,6 +1895,6 @@ st.markdown("""
     <p><b>Sistema Conviva 179</b> - Gestão de Ocorrências Escolares</p>
     <p>Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI</p>
     <p>Protocolo de Convivência e Proteção Escolar - SEDUC/SP</p>
-    <p>Versão 8.2 FINAL | Desenvolvido com Streamlit + Supabase (Requests)</p>
+    <p>Versão 8.3 FINAL | Desenvolvido com Streamlit + Supabase (Requests)</p>
 </div>
 """, unsafe_allow_html=True)
