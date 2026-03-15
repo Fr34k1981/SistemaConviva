@@ -1,7 +1,7 @@
 # ============================================================================
 # SISTEMA CONVIVA 179 - GESTÃO DE OCORRÊNCIAS ESCOLARES
 # Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI
-# Versão: 10.1 FINAL - FLUXO SEMPRE VISÍVEL + GRAVIDADE AUTOMÁTICA
+# Versão: 10.2 FINAL - CATEGORIAS REORGANIZADAS + TODAS FUNCIONALIDADES
 # Desenvolvido para SEDUC/SP - Protocolo de Convivência e Proteção Escolar
 # ============================================================================
 
@@ -68,7 +68,7 @@ ESCOLA_LOGO = "eliane_dantas.png"
 SENHA_EXCLUSAO = "040600"
 
 # ============================================================================
-# ✅ PROTOCOLO 179 COMPLETO - GRAVIDADE AUTOMÁTICA POR CATEGORIA
+# ✅ PROTOCOLO 179 COMPLETO - CATEGORIAS REORGANIZADAS
 # ============================================================================
 CATEGORIAS_OCORRENCIAS = {
     "🔴 Violência Física": {
@@ -130,14 +130,31 @@ CATEGORIAS_OCORRENCIAS = {
         "Crimes Cibernéticos": "Grave",
         "Fake News / Disseminação de Informações Falsas": "Grave",
         "Violação de Dados": "Grave",
-        "Uso Inadequado de Dispositivos Eletrônicos": "Leve",
+        "Uso Inadequado de Dispositivos Eletrônicos": "Leve"
+    },
+    "📋 Infrações Administrativas e Disciplinares": {
         "Copiar atividades / Colar em avaliações": "Leve",
         "Falsificar assinatura de responsáveis": "Média",
         "Indisciplina": "Leve",
+        "Comportamento inadequado para o espaço": "Leve",
+        "Dormir em sala de aula": "Leve",
+        "Não realizar atividades": "Leve",
         "Outros": "Leve"
+    },
+    "👨‍👩‍👧‍👦 Família e Vulnerabilidade": {
+        "Violência Doméstica / Maus Tratos": "Gravíssima",
+        "Vulnerabilidade Familiar / Negligência": "Gravíssima",
+        "Alerta de Desaparecimento": "Gravíssima",
+        "Sequestro": "Gravíssima",
+        "Homicídio / Homicídio Tentado": "Gravíssima",
+        "Feminicídio": "Gravíssima",
+        "Incitamento a Atos Infracionais": "Grave"
     }
 }
 
+# ============================================================================
+# CORES POR CATEGORIA PARA GRÁFICOS
+# ============================================================================
 CORES_CATEGORIAS = {
     "🔴 Violência Física": "#D32F2F",
     "🟠 Violência Verbal/Psicológica": "#F57C00",
@@ -147,10 +164,13 @@ CORES_CATEGORIAS = {
     "📚 Infrequência e Evasão": "#FFA726",
     "💔 Saúde Mental": "#5C6BC0",
     "🌐 Crimes Cibernéticos": "#00BCD4",
-    "👨‍👩‍👧‍👦 Família e Vulnerabilidade": "#EC407A",
-    "📋 Outros": "#9E9E9E"
+    "📋 Infrações Administrativas e Disciplinares": "#9E9E9E",
+    "👨‍👩‍👧‍👦 Família e Vulnerabilidade": "#EC407A"
 }
 
+# ============================================================================
+# CORES POR GRAVIDADE
+# ============================================================================
 CORES_GRAVIDADE = {
     "Gravíssima": "#D32F2F",
     "Grave": "#F57C00",
@@ -158,7 +178,9 @@ CORES_GRAVIDADE = {
     "Leve": "#4CAF50"
 }
 
-# ✅ FLUXO DE AÇÕES - SEMPRE VISÍVEL QUANDO HOUVER INDICAÇÃO
+# ============================================================================
+# FLUXO DE AÇÕES - SEMPRE VISÍVEL QUANDO HOUVER INDICAÇÃO
+# ============================================================================
 FLUXO_ACOES = {
     "Agressão Física": "⚠️ Registrar B.O. se grave. Acionar Conselho Tutelar.",
     "Racismo": "⚖️ CRIME INAFIANÇÁVEL. Registrar B.O. obrigatório.",
@@ -174,14 +196,49 @@ FLUXO_ACOES = {
     "Violência Doméstica / Maus Tratos": "🛡️ PROTEÇÃO. Acionar Conselho Tutelar e CRAS/CREAS.",
     "Vulnerabilidade Familiar / Negligência": "🤝 APOIO. Acionar Conselho Tutelar e CRAS.",
     "Feminicídio": "⚖️ CRIME HEDIONDO. Registrar B.O. e DDM.",
-    "Homicídio / Homicídio Tentado": "⚖️ CRIME HEDIONDO. Registrar B.O."
+    "Homicídio / Homicídio Tentado": "⚖️ CRIME HEDIONDO. Registrar B.O.",
+    "Crimes Cibernéticos": "🔒 B.O. (Delegacia de Crimes Digitais). Preservar provas (prints, URLs).",
+    "Fake News / Disseminação de Informações Falsas": "📰 Trabalho educativo. Notificar famílias. Registrar em ata.",
+    "Violação de Dados": "🔒 B.O. Preservar provas. Notificar afetados.",
+    "Copiar atividades / Colar em avaliações": "📝 Registro em ata. Comunicação aos pais. Medidas pedagógicas.",
+    "Falsificar assinatura de responsáveis": "⚠️ Comunicação urgente aos pais. Registro em ata. Orientação.",
+    "Indisciplina": "📋 Registro em ata. Orientação ao estudante. Comunicação aos pais."
 }
 
+# ============================================================================
+# ENCAMINHAMENTOS AUTOMÁTICOS POR GRAVIDADE (PROTOCOLO 179)
+# ============================================================================
 ENCAMINHAMENTOS_POR_GRAVIDADE = {
-    "Leve": ["Orientação ao Estudante", "Comunicação aos Pais/Responsáveis", "Registro em Ata de Ocorrência"],
-    "Média": ["Orientação ao Estudante", "Comunicação aos Pais/Responsáveis", "Registro em Ata de Ocorrência", "Encaminhamento à Coordenação"],
-    "Grave": ["Orientação ao Estudante", "Comunicação aos Pais/Responsáveis", "Registro em Ata de Ocorrência", "Encaminhamento à Coordenação", "Encaminhamento à Direção", "Acompanhamento Pedagógico"],
-    "Gravíssima": ["Orientação ao Estudante", "Comunicação aos Pais/Responsáveis", "Registro em Ata de Ocorrência", "Encaminhamento à Coordenação", "Encaminhamento à Direção", "Acompanhamento Pedagógico", "Acompanhamento Psicopedagógico", "Registro de B.O.", "Acionamento Conselho Tutelar"]
+    "Leve": [
+        "Orientação ao Estudante",
+        "Comunicação aos Pais/Responsáveis",
+        "Registro em Ata de Ocorrência"
+    ],
+    "Média": [
+        "Orientação ao Estudante",
+        "Comunicação aos Pais/Responsáveis",
+        "Registro em Ata de Ocorrência",
+        "Encaminhamento à Coordenação"
+    ],
+    "Grave": [
+        "Orientação ao Estudante",
+        "Comunicação aos Pais/Responsáveis",
+        "Registro em Ata de Ocorrência",
+        "Encaminhamento à Coordenação",
+        "Encaminhamento à Direção",
+        "Acompanhamento Pedagógico"
+    ],
+    "Gravíssima": [
+        "Orientação ao Estudante",
+        "Comunicação aos Pais/Responsáveis",
+        "Registro em Ata de Ocorrência",
+        "Encaminhamento à Coordenação",
+        "Encaminhamento à Direção",
+        "Acompanhamento Pedagógico",
+        "Acompanhamento Psicopedagógico",
+        "Registro de B.O.",
+        "Acionamento Conselho Tutelar"
+    ]
 }
 
 # ============================================================================
@@ -307,6 +364,7 @@ st.markdown("""
 
 @st.cache_data(ttl=60)
 def carregar_alunos():
+    """Carrega todos os alunos do banco de dados Supabase."""
     if not SUPABASE_URL:
         return pd.DataFrame(columns=['nome', 'ra', 'turma', 'nascimento', 'responsavel', 'telefone', 'foto_url', 'situacao'])
     try:
@@ -325,6 +383,7 @@ def carregar_alunos():
 
 @st.cache_data(ttl=60)
 def carregar_professores():
+    """Carrega todos os professores do banco de dados Supabase."""
     if not SUPABASE_URL:
         return pd.DataFrame(columns=['id', 'nome', 'email', 'cargo', 'foto_url'])
     try:
@@ -343,6 +402,7 @@ def carregar_professores():
 
 @st.cache_data(ttl=60)
 def carregar_ocorrencias():
+    """Carrega todas as ocorrências do banco de dados Supabase."""
     if not SUPABASE_URL:
         return pd.DataFrame(columns=['id', 'data', 'aluno', 'ra', 'turma', 'categoria', 'gravidade', 'relato', 'professor', 'encaminhamento'])
     try:
@@ -364,6 +424,7 @@ def carregar_ocorrencias():
 
 @st.cache_data(ttl=60)
 def carregar_responsaveis():
+    """Carrega todos os responsáveis do banco de dados Supabase."""
     if not SUPABASE_URL:
         return pd.DataFrame(columns=['id', 'nome', 'cargo'])
     try:
@@ -382,6 +443,7 @@ def carregar_responsaveis():
 
 @st.cache_data(ttl=60)
 def carregar_turmas():
+    """Carrega todas as turmas únicas do banco de dados."""
     df_alunos = carregar_alunos()
     if not df_alunos.empty and 'turma' in df_alunos.columns:
         turmas_info = df_alunos.groupby('turma').size().reset_index(name='total_alunos')
@@ -394,6 +456,7 @@ def carregar_turmas():
 # ============================================================================
 
 def salvar_ocorrencia(ocorrencia_dict):
+    """Salva uma ocorrência no banco de dados Supabase."""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
@@ -423,6 +486,7 @@ def salvar_ocorrencia(ocorrencia_dict):
 
 
 def atualizar_ocorrencia(id_ocorrencia, ocorrencia_dict):
+    """Atualiza uma ocorrência existente no banco de dados Supabase."""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
@@ -457,6 +521,7 @@ def atualizar_ocorrencia(id_ocorrencia, ocorrencia_dict):
 
 
 def excluir_ocorrencia(id_ocorrencia):
+    """Exclui uma ocorrência do banco de dados Supabase."""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
@@ -471,6 +536,7 @@ def excluir_ocorrencia(id_ocorrencia):
 
 
 def salvar_aluno(aluno_dict):
+    """Salva um aluno no banco de dados Supabase."""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
@@ -485,6 +551,7 @@ def salvar_aluno(aluno_dict):
 
 
 def atualizar_aluno(ra_aluno, aluno_dict):
+    """Atualiza um aluno existente no banco de dados Supabase."""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
@@ -499,6 +566,7 @@ def atualizar_aluno(ra_aluno, aluno_dict):
 
 
 def excluir_aluno(ra_aluno):
+    """Exclui um aluno do banco de dados Supabase."""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
@@ -513,6 +581,7 @@ def excluir_aluno(ra_aluno):
 
 
 def excluir_alunos_por_turma(turma):
+    """Exclui todos os alunos de uma turma específica."""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
@@ -527,6 +596,7 @@ def excluir_alunos_por_turma(turma):
 
 
 def salvar_professor(professor_dict):
+    """Salva um professor no banco de dados Supabase."""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
@@ -541,6 +611,7 @@ def salvar_professor(professor_dict):
 
 
 def atualizar_professor(id_prof, professor_dict):
+    """Atualiza um professor existente no banco de dados Supabase."""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
@@ -555,6 +626,7 @@ def atualizar_professor(id_prof, professor_dict):
 
 
 def excluir_professor(id_prof):
+    """Exclui um professor do banco de dados Supabase."""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
@@ -569,6 +641,7 @@ def excluir_professor(id_prof):
 
 
 def salvar_responsavel(responsavel_dict):
+    """Salva um responsável no banco de dados Supabase."""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
@@ -583,6 +656,7 @@ def salvar_responsavel(responsavel_dict):
 
 
 def atualizar_responsavel(id_resp, responsavel_dict):
+    """Atualiza um responsável existente no banco de dados Supabase."""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
@@ -597,6 +671,7 @@ def atualizar_responsavel(id_resp, responsavel_dict):
 
 
 def excluir_responsavel(id_resp):
+    """Exclui um responsável do banco de dados Supabase."""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
@@ -615,6 +690,7 @@ def excluir_responsavel(id_resp):
 # ============================================================================
 
 def upload_foto_supabase(file, folder, filename):
+    """Faz upload de foto para o Supabase Storage."""
     if not SUPABASE_URL:
         return None, "Supabase não configurado"
     try:
@@ -640,6 +716,7 @@ def upload_foto_supabase(file, folder, filename):
 
 
 def atualizar_foto_aluno(ra_aluno, foto_url):
+    """Atualiza a URL da foto de um aluno no banco de dados."""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
@@ -658,6 +735,7 @@ def atualizar_foto_aluno(ra_aluno, foto_url):
 
 
 def atualizar_foto_professor(id_prof, foto_url):
+    """Atualiza a URL da foto de um professor no banco de dados."""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
@@ -680,6 +758,7 @@ def atualizar_foto_professor(id_prof, foto_url):
 # ============================================================================
 
 def verificar_ocorrencia_duplicada(ra_aluno, categoria, data, df_ocorrencias):
+    """Verifica se já existe uma ocorrência igual para o mesmo aluno na mesma data."""
     if df_ocorrencias is None or df_ocorrencias.empty:
         return False
     try:
@@ -698,6 +777,7 @@ def verificar_ocorrencia_duplicada(ra_aluno, categoria, data, df_ocorrencias):
 
 
 def formatar_texto(texto):
+    """Formata texto para exibição no PDF, convertendo quebras de linha."""
     if not texto:
         return ""
     texto_formatado = str(texto).replace('<br/>', '\n').replace('<br>', '\n').replace('\n', '\n')
@@ -705,6 +785,7 @@ def formatar_texto(texto):
 
 
 def remover_duplicatas_encaminhamentos(encaminhamentos):
+    """Remove encaminhamentos duplicados de uma lista."""
     if not encaminhamentos:
         return ""
     todos = []
@@ -720,6 +801,7 @@ def remover_duplicatas_encaminhamentos(encaminhamentos):
 # ============================================================================
 
 def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
+    """Gera PDF de ocorrência com layout profissional."""
     buffer = io.BytesIO()
     
     doc = SimpleDocTemplate(
@@ -767,6 +849,7 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
         spaceAfter=0.5*cm
     ))
     
+    # CABEÇALHO COM LOGO - 16cm x 4cm
     try:
         if os.path.exists(ESCOLA_LOGO):
             logo = Image(ESCOLA_LOGO, width=16*cm, height=4*cm)
@@ -857,6 +940,7 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
 
 
 def gerar_pdf_comunicado(ocorrencia, responsaveis=None):
+    """Gera PDF de comunicado aos pais com layout profissional."""
     buffer = io.BytesIO()
     
     doc = SimpleDocTemplate(
@@ -1379,7 +1463,7 @@ elif menu == "📋 Gerenciar Turmas":
 
 
 # ============================================================================
-# PÁGINA: REGISTRAR OCORRÊNCIA (✅ GRAVIDADE AUTOMÁTICA + FLUXO SEMPRE VISÍVEL)
+# PÁGINA: REGISTRAR OCORRÊNCIA (✅ PROTOCOLO 179 COMPLETO)
 # ============================================================================
 
 elif menu == "📝 Registrar Ocorrência":
@@ -1439,26 +1523,21 @@ elif menu == "📝 Registrar Ocorrência":
                 col1, col2 = st.columns(2)
                 
                 with col1:
-                    # Selecionar Grupo da Categoria
                     categoria_grupo = st.selectbox(
                         "📁 Grupo da Categoria",
                         list(CATEGORIAS_OCORRENCIAS.keys()),
                         key="cat_grupo_select"
                     )
                     
-                    # Selecionar Tipo de Ocorrência
                     categorias_grupo = list(CATEGORIAS_OCORRENCIAS[categoria_grupo].keys())
                     categoria = st.selectbox(
                         "📋 Tipo de Ocorrência",
                         categorias_grupo,
                         key="cat_tipo_select",
-                        on_change=lambda: st.session_state.update({
-                            'gravidade_alterada': False
-                        })
+                        on_change=lambda: st.session_state.update({'gravidade_alterada': False})
                     )
                 
                 with col2:
-                    # ✅ GRAVIDADE AUTOMÁTICA BASEADA NA OCORRÊNCIA SELECIONADA
                     gravidade_protocolo = CATEGORIAS_OCORRENCIAS[categoria_grupo].get(categoria, "Leve")
                     
                     gravidade_select = st.selectbox(
@@ -1491,10 +1570,8 @@ elif menu == "📝 Registrar Ocorrência":
                 else:
                     st.session_state.gravidade_alterada = False
                 
-                # Relato da Ocorrência
                 relato = st.text_area("📝 Relato da Ocorrência", height=200, key="relato_input")
                 
-                # Encaminhamentos Sugeridos
                 st.subheader("🔄 Encaminhamentos Sugeridos (Protocolo 179)")
                 encaminhamentos_disponiveis = ENCAMINHAMENTOS_POR_GRAVIDADE.get(gravidade_select, [])
                 
@@ -1518,7 +1595,6 @@ elif menu == "📝 Registrar Ocorrência":
                 
                 encaminhamento_str = '| '.join(encaminhamentos_selecionados) if encaminhamentos_selecionados else ''
                 
-                # Professor Responsável
                 df_professores = carregar_professores()
                 if not df_professores.empty:
                     prof = st.selectbox(
@@ -1531,7 +1607,6 @@ elif menu == "📝 Registrar Ocorrência":
                 
                 st.markdown("---")
                 
-                # Botão de Salvar
                 if st.button("💾 Salvar Ocorrência", type="primary", key="btn_salvar"):
                     if not alunos_selecionados:
                         st.error("❌ Selecione pelo menos um estudante!")
@@ -1595,20 +1670,7 @@ elif menu == "📝 Registrar Ocorrência":
 
 
 # ============================================================================
-# RESTANTE DO CÓDIGO (LISTA DE OCORRÊNCIAS, ALUNOS, PROFESSORES, ETC.)
-# ============================================================================
-# (Mantenha o restante do código das outras páginas igual ao anterior)
-# Por questões de espaço, vou resumir - mantenha as páginas:
-# - Lista de Ocorrências
-# - Alunos
-# - Professores
-# - Gráficos
-# - Relatórios
-# - Configurações
-# - Backup
-
-# ============================================================================
-# PÁGINA: LISTA DE OCORRÊNCIAS
+# PÁGINA: LISTA DE OCORRÊNCIAS (COM EDITAR E EXCLUIR)
 # ============================================================================
 
 elif menu == "📊 Lista de Ocorrências":
@@ -2294,7 +2356,7 @@ elif menu == "⚙️ Configurações":
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.metric("Versão", "10.1 FINAL")
+        st.metric("Versão", "10.2 FINAL")
     
     with col2:
         st.metric("Framework", "Streamlit")
@@ -2326,7 +2388,7 @@ elif menu == "💾 Backup":
             'ocorrencias': df_ocorrencias.to_dict('records') if not df_ocorrencias.empty else [],
             'responsaveis': df_responsaveis.to_dict('records') if not df_responsaveis.empty else [],
             'data_backup': datetime.now().strftime('%d/%m/%Y %H:%M'),
-            'versao_sistema': '10.1 FINAL'
+            'versao_sistema': '10.2 FINAL'
         }
         
         json_str = json.dumps(backup_data, ensure_ascii=False, indent=2)
@@ -2419,6 +2481,6 @@ st.markdown("""
     <p><b>Sistema Conviva 179</b> - Gestão de Ocorrências Escolares</p>
     <p>Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI</p>
     <p>Protocolo de Convivência e Proteção Escolar - SEDUC/SP</p>
-    <p>Versão 10.1 FINAL | Desenvolvido com Streamlit + Supabase (Requests)</p>
+    <p>Versão 10.2 FINAL | Desenvolvido com Streamlit + Supabase (Requests)</p>
 </div>
 """, unsafe_allow_html=True)
