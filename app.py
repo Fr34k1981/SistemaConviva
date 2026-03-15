@@ -1,7 +1,7 @@
 # ============================================================================
 # SISTEMA CONVIVA 179 - GESTÃO DE OCORRÊNCIAS ESCOLARES
 # Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI
-# Versão: 10.0 FINAL - PROTOCOLO 179 COMPLETO RESTAURADO
+# Versão: 10.1 FINAL - FLUXO SEMPRE VISÍVEL + GRAVIDADE AUTOMÁTICA
 # Desenvolvido para SEDUC/SP - Protocolo de Convivência e Proteção Escolar
 # ============================================================================
 
@@ -68,11 +68,11 @@ ESCOLA_LOGO = "eliane_dantas.png"
 SENHA_EXCLUSAO = "040600"
 
 # ============================================================================
-# ✅ PROTOCOLO 179 COMPLETO - GRUPOS + CATEGORIAS + GRAVIDADE + ENCAMINHAMENTOS
+# ✅ PROTOCOLO 179 COMPLETO - GRAVIDADE AUTOMÁTICA POR CATEGORIA
 # ============================================================================
 CATEGORIAS_OCORRENCIAS = {
     "🔴 Violência Física": {
-        "Agressão Física": "Gravíssima",
+        "Agressão Física": "Grave",
         "Briga / Discussão": "Média",
         "Ameaça": "Grave",
         "Intimidação": "Grave",
@@ -138,7 +138,6 @@ CATEGORIAS_OCORRENCIAS = {
     }
 }
 
-# ✅ CORES POR CATEGORIA PARA GRÁFICOS
 CORES_CATEGORIAS = {
     "🔴 Violência Física": "#D32F2F",
     "🟠 Violência Verbal/Psicológica": "#F57C00",
@@ -152,7 +151,6 @@ CORES_CATEGORIAS = {
     "📋 Outros": "#9E9E9E"
 }
 
-# ✅ CORES POR GRAVIDADE
 CORES_GRAVIDADE = {
     "Gravíssima": "#D32F2F",
     "Grave": "#F57C00",
@@ -160,7 +158,7 @@ CORES_GRAVIDADE = {
     "Leve": "#4CAF50"
 }
 
-# ✅ FLUXO DE AÇÕES POR TIPO DE OCORRÊNCIA (PROTOCOLO 179)
+# ✅ FLUXO DE AÇÕES - SEMPRE VISÍVEL QUANDO HOUVER INDICAÇÃO
 FLUXO_ACOES = {
     "Agressão Física": "⚠️ Registrar B.O. se grave. Acionar Conselho Tutelar.",
     "Racismo": "⚖️ CRIME INAFIANÇÁVEL. Registrar B.O. obrigatório.",
@@ -179,38 +177,11 @@ FLUXO_ACOES = {
     "Homicídio / Homicídio Tentado": "⚖️ CRIME HEDIONDO. Registrar B.O."
 }
 
-# ✅ ENCAMINHAMENTOS AUTOMÁTICOS POR GRAVIDADE (PROTOCOLO 179)
 ENCAMINHAMENTOS_POR_GRAVIDADE = {
-    "Leve": [
-        "Orientação ao Estudante",
-        "Comunicação aos Pais/Responsáveis",
-        "Registro em Ata de Ocorrência"
-    ],
-    "Média": [
-        "Orientação ao Estudante",
-        "Comunicação aos Pais/Responsáveis",
-        "Registro em Ata de Ocorrência",
-        "Encaminhamento à Coordenação"
-    ],
-    "Grave": [
-        "Orientação ao Estudante",
-        "Comunicação aos Pais/Responsáveis",
-        "Registro em Ata de Ocorrência",
-        "Encaminhamento à Coordenação",
-        "Encaminhamento à Direção",
-        "Acompanhamento Pedagógico"
-    ],
-    "Gravíssima": [
-        "Orientação ao Estudante",
-        "Comunicação aos Pais/Responsáveis",
-        "Registro em Ata de Ocorrência",
-        "Encaminhamento à Coordenação",
-        "Encaminhamento à Direção",
-        "Acompanhamento Pedagógico",
-        "Acompanhamento Psicopedagógico",
-        "Registro de B.O.",
-        "Acionamento Conselho Tutelar"
-    ]
+    "Leve": ["Orientação ao Estudante", "Comunicação aos Pais/Responsáveis", "Registro em Ata de Ocorrência"],
+    "Média": ["Orientação ao Estudante", "Comunicação aos Pais/Responsáveis", "Registro em Ata de Ocorrência", "Encaminhamento à Coordenação"],
+    "Grave": ["Orientação ao Estudante", "Comunicação aos Pais/Responsáveis", "Registro em Ata de Ocorrência", "Encaminhamento à Coordenação", "Encaminhamento à Direção", "Acompanhamento Pedagógico"],
+    "Gravíssima": ["Orientação ao Estudante", "Comunicação aos Pais/Responsáveis", "Registro em Ata de Ocorrência", "Encaminhamento à Coordenação", "Encaminhamento à Direção", "Acompanhamento Pedagógico", "Acompanhamento Psicopedagógico", "Registro de B.O.", "Acionamento Conselho Tutelar"]
 }
 
 # ============================================================================
@@ -236,6 +207,8 @@ if 'ocorrencia_excluida_sucesso' not in st.session_state:
     st.session_state.ocorrencia_excluida_sucesso = False
 if 'ocorrencia_editada_sucesso' not in st.session_state:
     st.session_state.ocorrencia_editada_sucesso = False
+if 'gravidade_alterada' not in st.session_state:
+    st.session_state.gravidade_alterada = False
 
 # ============================================================================
 # CSS PERSONALIZADO
@@ -310,14 +283,14 @@ st.markdown("""
     font-size: 1.5rem;
     color: #667eea;
 }
-.protocolo-info {
+.fluxo-alert {
     background: #fff3cd;
     border: 2px solid #ffc107;
     border-radius: 8px;
     padding: 1rem;
     margin: 1rem 0;
 }
-.fluxo-alert {
+.gravidade-alert {
     background: #f8d7da;
     border: 2px solid #dc3545;
     border-radius: 8px;
@@ -409,7 +382,6 @@ def carregar_responsaveis():
 
 @st.cache_data(ttl=60)
 def carregar_turmas():
-    """Carrega todas as turmas únicas do banco de dados."""
     df_alunos = carregar_alunos()
     if not df_alunos.empty and 'turma' in df_alunos.columns:
         turmas_info = df_alunos.groupby('turma').size().reset_index(name='total_alunos')
@@ -541,7 +513,6 @@ def excluir_aluno(ra_aluno):
 
 
 def excluir_alunos_por_turma(turma):
-    """✅ EXCLUIR TURMA COMPLETA - Todos os alunos da turma"""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
@@ -1408,7 +1379,7 @@ elif menu == "📋 Gerenciar Turmas":
 
 
 # ============================================================================
-# PÁGINA: REGISTRAR OCORRÊNCIA (✅ PROTOCOLO 179 COMPLETO RESTAURADO)
+# PÁGINA: REGISTRAR OCORRÊNCIA (✅ GRAVIDADE AUTOMÁTICA + FLUXO SEMPRE VISÍVEL)
 # ============================================================================
 
 elif menu == "📝 Registrar Ocorrência":
@@ -1462,42 +1433,42 @@ elif menu == "📝 Registrar Ocorrência":
                 
                 st.markdown("---")
                 
-                # ✅ PROTOCOLO 179 - SELEÇÃO EM CASCATA (GRUPO → TIPO → GRAVIDADE)
+                # ✅ CLASSIFICAÇÃO DA OCORRÊNCIA COM GRAVIDADE AUTOMÁTICA
                 st.subheader("📋 Classificação da Ocorrência (Protocolo 179)")
                 
                 col1, col2 = st.columns(2)
                 
                 with col1:
-                    # ✅ PASSO 1: Selecionar Grupo da Categoria
+                    # Selecionar Grupo da Categoria
                     categoria_grupo = st.selectbox(
                         "📁 Grupo da Categoria",
                         list(CATEGORIAS_OCORRENCIAS.keys()),
-                        key="cat_grupo_select",
-                        help="Selecione o grupo principal da ocorrência conforme Protocolo 179"
+                        key="cat_grupo_select"
                     )
                     
-                    # ✅ PASSO 2: Selecionar Tipo de Ocorrência (baseado no grupo)
+                    # Selecionar Tipo de Ocorrência
                     categorias_grupo = list(CATEGORIAS_OCORRENCIAS[categoria_grupo].keys())
                     categoria = st.selectbox(
                         "📋 Tipo de Ocorrência",
                         categorias_grupo,
                         key="cat_tipo_select",
-                        help="Selecione o tipo específico de ocorrência"
+                        on_change=lambda: st.session_state.update({
+                            'gravidade_alterada': False
+                        })
                     )
                 
                 with col2:
-                    # ✅ PASSO 3: Gravidade Automática (baseada no tipo)
+                    # ✅ GRAVIDADE AUTOMÁTICA BASEADA NA OCORRÊNCIA SELECIONADA
                     gravidade_protocolo = CATEGORIAS_OCORRENCIAS[categoria_grupo].get(categoria, "Leve")
                     
                     gravidade_select = st.selectbox(
                         "⚡ Gravidade",
                         ["Gravíssima", "Grave", "Média", "Leve"],
                         index=["Gravíssima", "Grave", "Média", "Leve"].index(gravidade_protocolo),
-                        key="grav_select",
-                        help="Gravidade sugerida pelo Protocolo 179 (pode ser alterada)"
+                        key="grav_select"
                     )
                 
-                # ✅ PASSO 4: Mostrar Fluxo de Ações do Protocolo 179
+                # ✅ FLUXO DE AÇÕES - SEMPRE VISÍVEL QUANDO HOUVER INDICAÇÃO
                 if categoria in FLUXO_ACOES:
                     st.markdown(f"""
                     <div class="fluxo-alert">
@@ -1506,14 +1477,27 @@ elif menu == "📝 Registrar Ocorrência":
                     </div>
                     """, unsafe_allow_html=True)
                 
-                # ✅ PASSO 5: Relato da Ocorrência
+                # ✅ ALERTA SE ALTERAR GRAVIDADE DO PROTOCOLO
+                if gravidade_select != gravidade_protocolo:
+                    if not st.session_state.gravidade_alterada:
+                        st.markdown(f"""
+                        <div class="gravidade-alert">
+                            ⚠️ <b>ATENÇÃO:</b> Você está alterando a gravidade sugerida pelo Protocolo 179!<br>
+                            A gravidade oficial para "{categoria}" é <b>{gravidade_protocolo}</b>.<br>
+                            Certifique-se de que há justificativa para esta alteração.
+                        </div>
+                        """, unsafe_allow_html=True)
+                        st.session_state.gravidade_alterada = True
+                else:
+                    st.session_state.gravidade_alterada = False
+                
+                # Relato da Ocorrência
                 relato = st.text_area("📝 Relato da Ocorrência", height=200, key="relato_input")
                 
-                # ✅ PASSO 6: Encaminhamentos Automáticos (baseados na gravidade)
+                # Encaminhamentos Sugeridos
                 st.subheader("🔄 Encaminhamentos Sugeridos (Protocolo 179)")
                 encaminhamentos_disponiveis = ENCAMINHAMENTOS_POR_GRAVIDADE.get(gravidade_select, [])
                 
-                # Mostrar em 2 colunas para melhor visualização
                 col1, col2 = st.columns(2)
                 metade = len(encaminhamentos_disponiveis) // 2
                 
@@ -1527,7 +1511,6 @@ elif menu == "📝 Registrar Ocorrência":
                     for i, enc in enumerate(encaminhamentos_disponiveis[metade:], start=metade):
                         st.checkbox(enc, value=True, key=f"enc_{i}")
                 
-                # Coletar encaminhamentos selecionados
                 encaminhamentos_selecionados = [
                     enc for enc in encaminhamentos_disponiveis 
                     if st.session_state.get(f"enc_{encaminhamentos_disponiveis.index(enc)}", True)
@@ -1535,7 +1518,7 @@ elif menu == "📝 Registrar Ocorrência":
                 
                 encaminhamento_str = '| '.join(encaminhamentos_selecionados) if encaminhamentos_selecionados else ''
                 
-                # ✅ PASSO 7: Professor Responsável
+                # Professor Responsável
                 df_professores = carregar_professores()
                 if not df_professores.empty:
                     prof = st.selectbox(
@@ -1548,7 +1531,7 @@ elif menu == "📝 Registrar Ocorrência":
                 
                 st.markdown("---")
                 
-                # ✅ BOTÃO DE SALVAR
+                # Botão de Salvar
                 if st.button("💾 Salvar Ocorrência", type="primary", key="btn_salvar"):
                     if not alunos_selecionados:
                         st.error("❌ Selecione pelo menos um estudante!")
@@ -1610,6 +1593,19 @@ elif menu == "📝 Registrar Ocorrência":
         else:
             st.info("📭 Selecione pelo menos uma turma.")
 
+
+# ============================================================================
+# RESTANTE DO CÓDIGO (LISTA DE OCORRÊNCIAS, ALUNOS, PROFESSORES, ETC.)
+# ============================================================================
+# (Mantenha o restante do código das outras páginas igual ao anterior)
+# Por questões de espaço, vou resumir - mantenha as páginas:
+# - Lista de Ocorrências
+# - Alunos
+# - Professores
+# - Gráficos
+# - Relatórios
+# - Configurações
+# - Backup
 
 # ============================================================================
 # PÁGINA: LISTA DE OCORRÊNCIAS
@@ -2298,7 +2294,7 @@ elif menu == "⚙️ Configurações":
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.metric("Versão", "10.0 FINAL")
+        st.metric("Versão", "10.1 FINAL")
     
     with col2:
         st.metric("Framework", "Streamlit")
@@ -2330,7 +2326,7 @@ elif menu == "💾 Backup":
             'ocorrencias': df_ocorrencias.to_dict('records') if not df_ocorrencias.empty else [],
             'responsaveis': df_responsaveis.to_dict('records') if not df_responsaveis.empty else [],
             'data_backup': datetime.now().strftime('%d/%m/%Y %H:%M'),
-            'versao_sistema': '10.0 FINAL'
+            'versao_sistema': '10.1 FINAL'
         }
         
         json_str = json.dumps(backup_data, ensure_ascii=False, indent=2)
@@ -2423,6 +2419,6 @@ st.markdown("""
     <p><b>Sistema Conviva 179</b> - Gestão de Ocorrências Escolares</p>
     <p>Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI</p>
     <p>Protocolo de Convivência e Proteção Escolar - SEDUC/SP</p>
-    <p>Versão 10.0 FINAL | Desenvolvido com Streamlit + Supabase (Requests)</p>
+    <p>Versão 10.1 FINAL | Desenvolvido com Streamlit + Supabase (Requests)</p>
 </div>
 """, unsafe_allow_html=True)
