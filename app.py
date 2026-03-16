@@ -945,12 +945,10 @@ elif menu == "📥 Importar Alunos (Turmas)":
             # ✅ CORREÇÃO: Encontrar índices corretos para cada coluna
             indice_ra = colunas_csv.index("RA") if "RA" in colunas_csv else 0
             indice_nome = 0
-            if "Nome" in colunas_csv:
-                indice_nome = colunas_csv.index("Nome")
-            elif "Nome do Aluno" in colunas_csv:
-                indice_nome = colunas_csv.index("Nome do Aluno")
-            elif "Aluno" in colunas_csv:
-                indice_nome = colunas_csv.index("Aluno")
+            indice_nome = colunas_csv.index("Nome do Aluno")
+indice_ra = colunas_csv.index("RA")
+indice_nascimento = colunas_csv.index("Data de Nascimento")
+indice_situacao = colunas_csv.index("Situação do Aluno")
             
             indice_nascimento = colunas_csv.index("Data de Nascimento") if "Data de Nascimento" in colunas_csv else 0
             indice_situacao = colunas_csv.index("Situação do Aluno") if "Situação do Aluno" in colunas_csv else 0
