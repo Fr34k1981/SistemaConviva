@@ -1,7 +1,7 @@
 # ============================================================================
 # SISTEMA CONVIVA 179 - GESTÃO DE OCORRÊNCIAS ESCOLARES
 # Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI
-# Versão: 10.7 FINAL - CÓDIGO COMPLETO SEM CORTES
+# Versão: 10.8 FINAL - SEM ERROS DE SINTAXE
 # Desenvolvido para SEDUC/SP - Protocolo de Convivência e Proteção Escolar
 # ============================================================================
 
@@ -14,7 +14,6 @@ import numpy as np
 import requests
 import json
 import io
-import base64
 import os
 import re
 from datetime import datetime, timedelta
@@ -55,7 +54,7 @@ HEADERS = {
 }
 
 # ============================================================================
-# DADOS COMPLETOS DA ESCOLA
+# DADOS DA ESCOLA
 # ============================================================================
 ESCOLA_NOME = "Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI"
 ESCOLA_SUBTITULO = "🌟 Escola dos Sonhos"
@@ -67,7 +66,7 @@ ESCOLA_LOGO = "eliane_dantas.png"
 SENHA_EXCLUSAO = "040600"
 
 # ============================================================================
-# PROTOCOLO 179 - CATEGORIAS COMPLETAS
+# PROTOCOLO 179 - CATEGORIAS
 # ============================================================================
 CATEGORIAS_OCORRENCIAS = {
     "🔴 Violência Física": {
@@ -205,8 +204,6 @@ if 'dados_edicao' not in st.session_state:
     st.session_state.dados_edicao = None
 if 'editando_prof' not in st.session_state:
     st.session_state.editando_prof = None
-if 'editando_resp' not in st.session_state:
-    st.session_state.editando_resp = None
 if 'pagina_atual' not in st.session_state:
     st.session_state.pagina_atual = "Home"
 if 'ocorrencia_salva_sucesso' not in st.session_state:
@@ -318,12 +315,11 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ============================================================================
-# FUNÇÕES DE CARREGAMENTO DE DADOS DO SUPABASE (VIA REQUESTS)
+# FUNÇÕES DE CARREGAMENTO
 # ============================================================================
 
 @st.cache_data(ttl=60)
 def carregar_alunos():
-    """Carrega todos os alunos do banco de dados Supabase."""
     if not SUPABASE_URL:
         return pd.DataFrame(columns=['nome', 'ra', 'turma', 'data_nascimento', 'responsavel', 'telefone', 'foto_url', 'situacao'])
     try:
@@ -344,7 +340,6 @@ def carregar_alunos():
 
 @st.cache_data(ttl=60)
 def carregar_professores():
-    """Carrega todos os professores do banco de dados Supabase."""
     if not SUPABASE_URL:
         return pd.DataFrame(columns=['id', 'nome', 'email', 'cargo', 'foto_url'])
     try:
@@ -363,7 +358,6 @@ def carregar_professores():
 
 @st.cache_data(ttl=60)
 def carregar_ocorrencias():
-    """Carrega todas as ocorrências do banco de dados Supabase."""
     if not SUPABASE_URL:
         return pd.DataFrame(columns=['id', 'data', 'aluno', 'ra', 'turma', 'categoria', 'gravidade', 'relato', 'professor', 'encaminhamento'])
     try:
@@ -385,7 +379,6 @@ def carregar_ocorrencias():
 
 @st.cache_data(ttl=60)
 def carregar_responsaveis():
-    """Carrega todos os responsáveis do banco de dados Supabase."""
     if not SUPABASE_URL:
         return pd.DataFrame(columns=['id', 'nome', 'cargo'])
     try:
@@ -404,7 +397,6 @@ def carregar_responsaveis():
 
 @st.cache_data(ttl=60)
 def carregar_turmas():
-    """Carrega todas as turmas únicas do banco de dados."""
     df_alunos = carregar_alunos()
     if not df_alunos.empty and 'turma' in df_alunos.columns:
         turmas_info = df_alunos.groupby('turma').size().reset_index(name='total_alunos')
@@ -413,11 +405,10 @@ def carregar_turmas():
 
 
 # ============================================================================
-# FUNÇÕES DE SALVAMENTO DE DADOS NO SUPABASE (VIA REQUESTS)
+# FUNÇÕES DE SALVAMENTO
 # ============================================================================
 
 def salvar_ocorrencia(ocorrencia_dict):
-    """Salva uma ocorrência no banco de dados Supabase."""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
@@ -447,7 +438,6 @@ def salvar_ocorrencia(ocorrencia_dict):
 
 
 def atualizar_ocorrencia(id_ocorrencia, ocorrencia_dict):
-    """Atualiza uma ocorrência existente no banco de dados Supabase."""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
@@ -482,7 +472,6 @@ def atualizar_ocorrencia(id_ocorrencia, ocorrencia_dict):
 
 
 def excluir_ocorrencia(id_ocorrencia):
-    """Exclui uma ocorrência do banco de dados Supabase."""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
@@ -497,7 +486,6 @@ def excluir_ocorrencia(id_ocorrencia):
 
 
 def salvar_aluno(aluno_dict):
-    """Salva um aluno no banco de dados Supabase."""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
@@ -512,7 +500,6 @@ def salvar_aluno(aluno_dict):
 
 
 def atualizar_aluno(ra_aluno, aluno_dict):
-    """Atualiza um aluno existente no banco de dados Supabase."""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
@@ -527,7 +514,6 @@ def atualizar_aluno(ra_aluno, aluno_dict):
 
 
 def excluir_aluno(ra_aluno):
-    """Exclui um aluno do banco de dados Supabase."""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
@@ -542,7 +528,6 @@ def excluir_aluno(ra_aluno):
 
 
 def excluir_alunos_por_turma(turma):
-    """Exclui todos os alunos de uma turma específica."""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
@@ -557,7 +542,6 @@ def excluir_alunos_por_turma(turma):
 
 
 def salvar_professor(professor_dict):
-    """Salva um professor no banco de dados Supabase."""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
@@ -572,7 +556,6 @@ def salvar_professor(professor_dict):
 
 
 def atualizar_professor(id_prof, professor_dict):
-    """Atualiza um professor existente no banco de dados Supabase."""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
@@ -587,7 +570,6 @@ def atualizar_professor(id_prof, professor_dict):
 
 
 def excluir_professor(id_prof):
-    """Exclui um professor do banco de dados Supabase."""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
@@ -602,7 +584,6 @@ def excluir_professor(id_prof):
 
 
 def salvar_responsavel(responsavel_dict):
-    """Salva um responsável no banco de dados Supabase."""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
@@ -617,7 +598,6 @@ def salvar_responsavel(responsavel_dict):
 
 
 def atualizar_responsavel(id_resp, responsavel_dict):
-    """Atualiza um responsável existente no banco de dados Supabase."""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
@@ -632,7 +612,6 @@ def atualizar_responsavel(id_resp, responsavel_dict):
 
 
 def excluir_responsavel(id_resp):
-    """Exclui um responsável do banco de dados Supabase."""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
@@ -651,7 +630,6 @@ def excluir_responsavel(id_resp):
 # ============================================================================
 
 def upload_foto_supabase(file, folder, filename):
-    """Faz upload de foto para o Supabase Storage."""
     if not SUPABASE_URL:
         return None, "Supabase não configurado"
     try:
@@ -677,7 +655,6 @@ def upload_foto_supabase(file, folder, filename):
 
 
 def atualizar_foto_aluno(ra_aluno, foto_url):
-    """Atualiza a URL da foto de um aluno no banco de dados."""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
@@ -696,7 +673,6 @@ def atualizar_foto_aluno(ra_aluno, foto_url):
 
 
 def atualizar_foto_professor(id_prof, foto_url):
-    """Atualiza a URL da foto de um professor no banco de dados."""
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
@@ -719,7 +695,6 @@ def atualizar_foto_professor(id_prof, foto_url):
 # ============================================================================
 
 def verificar_ocorrencia_duplicada(ra_aluno, categoria, data, df_ocorrencias):
-    """Verifica se já existe uma ocorrência igual para o mesmo aluno na mesma data."""
     if df_ocorrencias is None or df_ocorrencias.empty:
         return False
     try:
@@ -738,7 +713,6 @@ def verificar_ocorrencia_duplicada(ra_aluno, categoria, data, df_ocorrencias):
 
 
 def formatar_texto(texto):
-    """Formata texto para exibição no PDF, convertendo quebras de linha."""
     if not texto:
         return ""
     texto_formatado = str(texto).replace('<br/>', '\n').replace('<br>', '\n').replace('\n', '\n')
@@ -746,7 +720,6 @@ def formatar_texto(texto):
 
 
 def remover_duplicatas_encaminhamentos(encaminhamentos):
-    """Remove encaminhamentos duplicados de uma lista."""
     if not encaminhamentos:
         return ""
     todos = []
@@ -762,7 +735,6 @@ def remover_duplicatas_encaminhamentos(encaminhamentos):
 # ============================================================================
 
 def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
-    """Gera PDF de ocorrência com layout profissional."""
     buffer = io.BytesIO()
     
     doc = SimpleDocTemplate(
@@ -849,7 +821,6 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
 
 
 def gerar_pdf_comunicado(ocorrencia, responsaveis=None):
-    """Gera PDF de comunicado aos pais com layout profissional."""
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1*cm, leftMargin=1*cm, topMargin=1.5*cm, bottomMargin=1.5*cm)
     elementos = []
@@ -1076,7 +1047,7 @@ if menu == "🏠 Home":
 
 
 # ============================================================================
-# PÁGINA: IMPORTAR ALUNOS (TURMAS) - ✅ CORREÇÕES APLICADAS
+# PÁGINA: IMPORTAR ALUNOS (TURMAS)
 # ============================================================================
 
 elif menu == "📥 Importar Alunos (Turmas)":
@@ -2180,7 +2151,7 @@ elif menu == "⚙️ Configurações":
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.metric("Versão", "10.7 FINAL")
+        st.metric("Versão", "10.8 FINAL")
     
     with col2:
         st.metric("Framework", "Streamlit")
@@ -2212,7 +2183,7 @@ elif menu == "💾 Backup":
             'ocorrencias': df_ocorrencias.to_dict('records') if not df_ocorrencias.empty else [],
             'responsaveis': df_responsaveis.to_dict('records') if not df_responsaveis.empty else [],
             'data_backup': datetime.now().strftime('%d/%m/%Y %H:%M'),
-            'versao_sistema': '10.7 FINAL'
+            'versao_sistema': '10.8 FINAL'
         }
         
         json_str = json.dumps(backup_data, ensure_ascii=False, indent=2)
@@ -2300,6 +2271,6 @@ st.markdown("""
     <p><b>Sistema Conviva 179</b> - Gestão de Ocorrências Escolares</p>
     <p>Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI</p>
     <p>Protocolo de Convivência e Proteção Escolar - SEDUC/SP</p>
-    <p>Versão 10.7 FINAL | Desenvolvido com Streamlit + Supabase (Requests)</p>
+    <p>Versão 10.8 FINAL | Desenvolvido com Streamlit + Supabase (Requests)</p>
 </div>
 """, unsafe_allow_html=True)
