@@ -1280,7 +1280,11 @@ elif menu == "📥 Importar Alunos (Turmas)":
 # PÁGINA: GERENCIAR TURMAS
 # ============================================================================
 
+elif# ✅ CORRETO - Tem código dentro do bloco
 elif menu == "📋 Gerenciar Turmas":
+    st.title("📋 Gerenciar Turmas")
+    # ... código ...
+elif menu == "📝 Registrar Ocorrência":  # ← Funciona!
     st.title("📋 Gerenciar Turmas Importadas")
     
     df_alunos = carregar_alunos()
