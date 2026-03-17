@@ -923,6 +923,7 @@ if menu == "🏠 Home":
 
 elif menu == "📥 Importar Alunos (Turmas)":
     st.title("📥 Importar Alunos por Turma")
+
     st.info("""
     💡 **Como importar:**
     1. Digite o nome da turma (Ex: 1º A, 6º Ano A, 7º Ano B)
@@ -931,141 +932,139 @@ elif menu == "📥 Importar Alunos (Turmas)":
     4. Clique em "🚀 Importar Alunos"
     """)
 
-    turma_alunos = st.text_input("🏫 Qual a TURMA destes alunos?", placeholder="Ex: 1º A, 6º Ano A, 7º Ano B, 8º Ano C", key="turma_import_input")
-    arquivo_upload = st.file_uploader("Selecione o arquivo CSV da SEDUC", type=["csv"], key="arquivo_csv_upload")
+    turma_alunos = st.text_input(
+        "🏫 Qual a TURMA destes alunos?",
+        placeholder="Ex: 1º A, 6º Ano A, 7º Ano B, 8º Ano C",
+        key="turma_import_input"
+    )
 
-    def achar_coluna(possiveis, colunas):
-        colunas_norm = {c.lower().strip(): c for c in colunas}
-        for p in possiveis:
-            p_norm = p.lower().strip()
-            if p_norm in colunas_norm:
-                return colunas_norm[p_norm]
-        return None
+    arquivo_upload = st.file_uploader(
+        "Selecione o arquivo CSV da SEDUC",
+        type=["csv"],
+        key="arquivo_csv_upload"
+    )
 
     if arquivo_upload is not None:
         try:
+            # Lê o arquivo CSV
             df_import = pd.read_csv(arquivo_upload, sep=';', encoding='utf-8-sig')
             st.success(f"✅ Arquivo lido com sucesso! {len(df_import)} alunos encontrados.")
             st.write("### 👁️ Pré-visualização do CSV (5 linhas)")
             st.dataframe(df_import.head())
+
+            # Pega os nomes exatos das colunas
             colunas_csv = df_import.columns.tolist()
+            st.write("### Colunas encontradas:")
+            st.info(f"`{colunas_csv}`")
 
-            poss_nome = ["Nome do Aluno", "Nome", "Aluno", "Nome do Estudante", "Estudante"]
-            poss_ra = ["RA", "Registro do Aluno", "Registro do Estudante"]
-            poss_nasc = ["Data de Nascimento", "Nascimento", "Dt Nascimento", "DTNASC", "Data Nascimento"]
-            poss_sit = ["Situação do Aluno", "Situacao do Aluno", "Situação", "Situacao", "Status"]
+            # Mapeamento direto das colunas do CSV da SED
+            # Procura colunas específicas
+            col_ra = None
+            col_nome = None
+            col_nascimento = None
+            col_situacao = None
 
-            sug_nome = achar_coluna(poss_nome, colunas_csv)
-            sug_ra = achar_coluna(poss_ra, colunas_csv)
-            sug_nasc = achar_coluna(poss_nasc, colunas_csv)
-            sug_sit = achar_coluna(poss_sit, colunas_csv)
+            for col in colunas_csv:
+                col_lower = col.lower().strip()
+                if 'ra' in col_lower and 'dig' not in col_lower and 'uf' not in col_lower:
+                    col_ra = col
+                if 'nome' in col_lower and 'aluno' in col_lower:
+                    col_nome = col
+                if 'data' in col_lower and 'nascimento' in col_lower:
+                    col_nascimento = col
+                if 'situa' in col_lower:  # situação ou situacao
+                    col_situacao = col
 
-            col1, col2 = st.columns(2)
-            with col1:
-                mapeamento_ra = st.selectbox("Coluna do RA", colunas_csv, index=colunas_csv.index(sug_ra) if sug_ra else 0, key="sel_ra")
-                mapeamento_nome = st.selectbox("Coluna do Nome **(NÃO pode ser Data de Nascimento)**", colunas_csv, index=colunas_csv.index(sug_nome) if sug_nome else 0, key="sel_nome")
-            with col2:
-                mapeamento_nascimento = st.selectbox("Coluna da Data de Nascimento", colunas_csv, index=colunas_csv.index(sug_nasc) if sug_nasc else 0, key="sel_nascimento")
-                mapeamento_situacao = st.selectbox("Coluna da Situação", colunas_csv, index=colunas_csv.index(sug_sit) if sug_sit else 0, key="sel_situacao")
+            st.write("### Mapeamento encontrado:")
+            st.write(f"- **RA:** {col_ra}")
+            st.write(f"- **Nome:** {col_nome}")
+            st.write(f"- **Nascimento:** {col_nascimento}")
+            st.write(f"- **Situação:** {col_situacao}")
 
-            st.write("### 🔍 Prévia do mapeamento (5 linhas)")
-            preview_cols = {'RA': mapeamento_ra, 'Nome': mapeamento_nome, 'Data de Nascimento': mapeamento_nascimento, 'Situação': mapeamento_situacao}
-            try:
-                st.dataframe(df_import[list(preview_cols.values())].head().rename(columns={v: k for k, v in preview_cols.items()}))
-            except Exception:
-                st.warning("Não foi possível montar a prévia com as colunas escolhidas. Verifique o mapeamento.")
+            # Verifica se encontrou todas as colunas obrigatórias
+            if col_ra and col_nome and col_nascimento and col_situacao:
+                st.success("✅ Todas as colunas foram encontradas automaticamente!")
+                
+                # Mostra prévia do mapeamento
+                st.write("### 📋 Prévia dos dados (3 primeiros alunos):")
+                preview_df = df_import[[col_ra, col_nome, col_nascimento, col_situacao]].head(3)
+                st.dataframe(preview_df)
 
-            faltantes = []
-            for label, sel in [("RA", mapeamento_ra), ("Nome do Aluno", mapeamento_nome), ("Data de Nascimento", mapeamento_nascimento), ("Situação do Aluno", mapeamento_situacao)]:
-                if not sel or sel not in colunas_csv:
-                    faltantes.append(label)
+                # Botão para importar
+                if st.button("🚀 Importar Alunos", type="primary", key="btn_importar_alunos"):
+                    if not turma_alunos:
+                        st.error("❌ Preencha o nome da turma!")
+                    else:
+                        contagem_novos = 0
+                        contagem_atualizados = 0
+                        erros = 0
+                        df_existentes = carregar_alunos()
 
-            if mapeamento_nome == mapeamento_nascimento:
-                st.error("❌ ERRO: A coluna do **Nome** não pode ser a mesma da **Data de Nascimento**.")
-                faltantes.append("Nome do Aluno (mapeado errado)")
+                        for idx, row in df_import.iterrows():
+                            try:
+                                ra_str = str(row[col_ra]).strip()
+                                if not ra_str or ra_str.lower() == 'nan':
+                                    erros += 1
+                                    continue
 
-            if mapeamento_nome == "Data de Nascimento":
-                st.error("❌ ERRO: A coluna do Nome NÃO pode ser Data de Nascimento.")
-                st.stop()
+                                nome_val = str(row[col_nome]).strip()
+                                nasc_val = str(row[col_nascimento]).strip()
+                                sit_val = str(row[col_situacao]).strip()
 
-            if faltantes:
-                st.error("❌ Selecione corretamente as colunas: " + ", ".join(sorted(set(faltantes))))
-                st.stop()
+                                aluno = {
+                                    'ra': ra_str,
+                                    'nome': nome_val,
+                                    'data_nascimento': nasc_val,
+                                    'situacao': sit_val,
+                                    'turma': turma_alunos
+                                }
 
-            if st.button("🚀 Importar Alunos", type="primary", key="btn_importar_alunos"):
-                if not turma_alunos:
-                    st.error("❌ Preencha o nome da turma!")
-                    st.stop()
-                contagem_novos = 0
-                contagem_atualizados = 0
-                erros = 0
-                col_ra = mapeamento_ra
-                col_nome = mapeamento_nome
-                col_nasc = mapeamento_nascimento
-                col_sit = mapeamento_situacao
-                df_existentes = carregar_alunos()
-
-                for _, row in df_import.iterrows():
-                    try:
-                        ra_str = str(row[col_ra]).strip()
-                        if not ra_str or ra_str.lower() == 'nan':
-                            erros += 1
-                            continue
-                        nome_val = str(row[col_nome]).strip()
-                        nasc_val = str(row[col_nasc]).strip()
-                        sit_val = str(row[col_sit]).strip()
-                        if st.session_state.get("validar_nome_data", True):
-                            if re.match(r"^\s*\d{2}[/-]\d{2}[/-]\d{4}\s*$", nome_val):
-                                st.error(f"❌ Registro RA {ra_str}: a coluna **Nome** parece conter uma DATA ('{nome_val}'). Verifique o mapeamento.")
+                                # Verifica se já existe
+                                if not df_existentes.empty:
+                                    aluno_existente = df_existentes[df_existentes['ra'] == ra_str]
+                                    if not aluno_existente.empty:
+                                        if atualizar_aluno(ra_str, aluno):
+                                            contagem_atualizados += 1
+                                        else:
+                                            erros += 1
+                                    else:
+                                        if salvar_aluno(aluno):
+                                            contagem_novos += 1
+                                        else:
+                                            erros += 1
+                                else:
+                                    if salvar_aluno(aluno):
+                                        contagem_novos += 1
+                                    else:
+                                        erros += 1
+                            except Exception as e:
                                 erros += 1
-                                continue
-                        aluno = {'ra': ra_str, 'nome': nome_val, 'data_nascimento': nasc_val, 'situacao': sit_val, 'turma': turma_alunos}
-                        aluno_existente = df_existentes[df_existentes['ra'] == ra_str] if not df_existentes.empty else pd.DataFrame()
-                        if not aluno_existente.empty:
-                            ok, msg = atualizar_aluno(ra_str, aluno)
-                            if ok:
-                                contagem_atualizados += 1
-                            else:
-                                erros += 1
-                        else:
-                            ok, msg = salvar_aluno(aluno)
-                            if ok:
-                                contagem_novos += 1
-                            else:
-                                erros += 1
-                    except Exception as e:
-                        erros += 1
-                        st.error(f"Erro ao processar RA {row.get(col_ra, '???')}: {e}")
+                                st.error(f"Erro na linha {idx + 1}: {str(e)}")
 
-                st.success("✅ **Importação concluída!**")
-                st.info(f"🆕 **Novos alunos:** {contagem_novos}")
-                st.info(f"🔄 **Atualizados:** {contagem_atualizados}")
-                if erros > 0:
-                    st.warning(f"⚠️ **Erros:** {erros}")
-                carregar_alunos.clear()
-                st.rerun()
+                        st.success("✅ **Importação concluída!**")
+                        st.info(f"🆕 **Novos alunos:** {contagem_novos}")
+                        st.info(f"🔄 **Atualizados:** {contagem_atualizados}")
+                        if erros > 0:
+                            st.warning(f"⚠️ **Erros:** {erros}")
+
+                        carregar_alunos.clear()
+                        st.rerun()
+            else:
+                st.error("❌ Não foi possível encontrar todas as colunas obrigatórias!")
+                if not col_ra:
+                    st.error("- Falta coluna de **RA**")
+                if not col_nome:
+                    st.error("- Falta coluna de **Nome do Aluno**")
+                if not col_nascimento:
+                    st.error("- Falta coluna de **Data de Nascimento**")
+                if not col_situacao:
+                    st.error("- Falta coluna de **Situação do Aluno**")
+
         except Exception as e:
             st.error(f"❌ Erro ao ler arquivo: {str(e)}")
             st.info("💡 Tente salvar o CSV com encoding UTF-8 e separador ponto e vírgula (;)")
     else:
         st.info("📁 Selecione um arquivo CSV para importar.")
-    
-    # ✅ FERRAMENTA OPCIONAL DENTRO DO ELIF
-    with st.expander("🛠️ Ferramenta opcional: detectar e isolar registros com 'nome' parecendo data"):
-        if st.button("🔎 Ver alunos suspeitos", key="btn_ver_suspeitos"):
-            df_a = carregar_alunos()
-            if df_a.empty:
-                st.info("Sem alunos no banco.")
-            else:
-                mask = df_a['nome'].astype(str).str.match(r"^\s*\d{2}[/-]\d{2}[/-]\d{4}\s*$", na=False)
-                suspeitos = df_a[mask]
-                if suspeitos.empty:
-                    st.success("Nenhum registro suspeito encontrado 🎉")
-                else:
-                    st.warning(f"Encontrados {len(suspeitos)} registro(s) com 'nome' no formato de data.")
-                    st.dataframe(suspeitos[['ra', 'nome', 'turma', 'data_nascimento', 'situacao']].head(20))
-                    st.info("➡️ Recomendo reimportar a(s) turma(s) desses RAs com o mapeamento corrigido.")
-
 
 # ============================================================================
 # PÁGINA: GERENCIAR TURMAS
