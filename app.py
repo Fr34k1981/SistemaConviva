@@ -1,7 +1,7 @@
 # ============================================================================
 # SISTEMA CONVIVA 179 - GESTÃO DE OCORRÊNCIAS ESCOLARES
 # Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI
-# Versão: 10.5 FINAL - CÓDIGO COMPLETO 2000+ LINHAS
+# Versão: 10.6 FINAL - CORREÇÕES DE IMPORTAÇÃO APLICADAS
 # Desenvolvido para SEDUC/SP - Protocolo de Convivência e Proteção Escolar
 # ============================================================================
 
@@ -16,6 +16,7 @@ import json
 import io
 import base64
 import os
+import re
 from datetime import datetime, timedelta
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -57,7 +58,7 @@ HEADERS = {
 # DADOS COMPLETOS DA ESCOLA
 # ============================================================================
 ESCOLA_NOME = "Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI"
-ESCOLA_SUBTITULO = "Escola dos Sonhos"
+ESCOLA_SUBTITULO = "🌟 Escola dos Sonhos"
 ESCOLA_ENDERECO = "R. Valter Souza Costa, 147 - Jardim Primavera, Ferraz de Vasconcelos - SP"
 ESCOLA_CEP = "CEP: 08535-310"
 ESCOLA_TELEFONE = "(11) 4675-1855"
@@ -222,6 +223,8 @@ if 'gravidade_alterada' not in st.session_state:
     st.session_state.gravidade_alterada = False
 if 'turma_editar' not in st.session_state:
     st.session_state.turma_editar = None
+if 'validar_nome_data' not in st.session_state:
+    st.session_state.validar_nome_data = True
 
     # ============================================================================
 # CSS PERSONALIZADO
@@ -322,19 +325,23 @@ st.markdown("""
 def carregar_alunos():
     """Carrega todos os alunos do banco de dados Supabase."""
     if not SUPABASE_URL:
-        return pd.DataFrame(columns=['nome', 'ra', 'turma', 'nascimento', 'responsavel', 'telefone', 'foto_url', 'situacao'])
+        # Padronize para 'data_nascimento'
+        return pd.DataFrame(columns=['nome', 'ra', 'turma', 'data_nascimento', 'responsavel', 'telefone', 'foto_url', 'situacao'])
     try:
         response = requests.get(f"{SUPABASE_URL}/rest/v1/alunos?select=*", headers=HEADERS)
         if response.status_code == 200:
             df = pd.DataFrame(response.json())
             if not df.empty:
-                df = df.sort_values('nome')
+                # Se vier 'nascimento' do banco antigo, normalize para 'data_nascimento'
+                if 'nascimento' in df.columns and 'data_nascimento' not in df.columns:
+                    df = df.rename(columns={'nascimento': 'data_nascimento'})
+                df = df.sort_values('nome', na_position='last')
             return df
         else:
-            return pd.DataFrame(columns=['nome', 'ra', 'turma', 'nascimento', 'responsavel', 'telefone', 'foto_url', 'situacao'])
+            return pd.DataFrame(columns=['nome', 'ra', 'turma', 'data_nascimento', 'responsavel', 'telefone', 'foto_url', 'situacao'])
     except Exception as e:
         st.error(f"Erro ao carregar alunos: {str(e)}")
-        return pd.DataFrame(columns=['nome', 'ra', 'turma', 'nascimento', 'responsavel', 'telefone', 'foto_url', 'situacao'])
+        return pd.DataFrame(columns=['nome', 'ra', 'turma', 'data_nascimento', 'responsavel', 'telefone', 'foto_url', 'situacao'])
 
 
 @st.cache_data(ttl=60)
@@ -750,8 +757,177 @@ def remover_duplicatas_encaminhamentos(encaminhamentos):
         if linha and linha not in todos:
             todos.append(linha)
     return '| '.join(todos)
+
 # ============================================================================
-# INTERFACE PRINCIPAL - CABEÇALHO E MENU LATERAL
+# FUNÇÕES DE GERAÇÃO DE PDF
+# ============================================================================
+
+def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
+    """Gera PDF de ocorrência com layout profissional."""
+    buffer = io.BytesIO()
+    
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=1*cm,
+        leftMargin=1*cm,
+        topMargin=1.5*cm,
+        bottomMargin=1.5*cm
+    )
+    
+    elementos = []
+    estilos = getSampleStyleSheet()
+    
+    estilos.add(ParagraphStyle('Titulo', parent=estilos['Heading1'], fontSize=14, alignment=TA_CENTER, spaceAfter=0.5*cm, textColor=colors.HexColor('#667eea')))
+    estilos.add(ParagraphStyle('Secao', parent=estilos['Normal'], fontSize=10, textColor=colors.HexColor('#667eea'), spaceAfter=0.3*cm))
+    estilos.add(ParagraphStyle('Texto', parent=estilos['Normal'], fontSize=9, alignment=TA_JUSTIFY, spaceAfter=0.2*cm))
+    estilos.add(ParagraphStyle('Assinatura', parent=estilos['Normal'], fontSize=8, alignment=TA_CENTER, spaceAfter=0.5*cm))
+    
+    try:
+        if os.path.exists(ESCOLA_LOGO):
+            logo = Image(ESCOLA_LOGO, width=16*cm, height=4*cm)
+            logo.hAlign = 'CENTER'
+            elementos.append(logo)
+            elementos.append(Spacer(1, 0.3*cm))
+    except:
+        pass
+    
+    elementos.append(Paragraph("📋 REGISTRO DE OCORRÊNCIA DISCIPLINAR", estilos['Titulo']))
+    elementos.append(Spacer(1, 0.5*cm))
+    elementos.append(Paragraph("<b>DADOS DO(A) ESTUDANTE:</b>", estilos['Secao']))
+    elementos.append(Paragraph(f"<b>Nome:</b> {ocorrencia.get('aluno', 'N/A') or 'N/A'}", estilos['Texto']))
+    elementos.append(Paragraph(f"<b>RA:</b> {ocorrencia.get('ra', 'N/A') or 'N/A'}", estilos['Texto']))
+    elementos.append(Paragraph(f"<b>Turma:</b> {ocorrencia.get('turma', 'N/A') or 'N/A'}", estilos['Texto']))
+    elementos.append(Spacer(1, 0.3*cm))
+    elementos.append(Paragraph("<b>DADOS DA OCORRÊNCIA:</b>", estilos['Secao']))
+    elementos.append(Paragraph(f"<b>Data:</b> {ocorrencia.get('data', 'N/A') or 'N/A'}", estilos['Texto']))
+    elementos.append(Paragraph(f"<b>Categoria:</b> {ocorrencia.get('categoria', 'N/A') or 'N/A'}", estilos['Texto']))
+    
+    gravidade = ocorrencia.get('gravidade', 'N/A') or 'N/A'
+    cor_gravidade = CORES_GRAVIDADE.get(gravidade, '#9E9E9E')
+    elementos.append(Paragraph(f"<b>Gravidade:</b> <font color='{cor_gravidade}'><b>{gravidade}</b></font>", estilos['Texto']))
+    elementos.append(Spacer(1, 0.3*cm))
+    elementos.append(Paragraph("<b>Relato:</b>", estilos['Secao']))
+    relato = ocorrencia.get('relato', 'N/A') or 'N/A'
+    elementos.append(Paragraph(formatar_texto(relato), estilos['Texto']))
+    elementos.append(Spacer(1, 0.3*cm))
+    elementos.append(Paragraph("<b>Encaminhamento:</b>", estilos['Secao']))
+    encaminhamento = ocorrencia.get('encaminhamento', '') or ''
+    
+    if isinstance(encaminhamento, str) and encaminhamento:
+        for enc in encaminhamento.split('|'):
+            if enc.strip():
+                elementos.append(Paragraph(f"• {enc.strip()}", estilos['Texto']))
+    else:
+        elementos.append(Paragraph("Nenhum encaminhamento registrado", estilos['Texto']))
+    
+    elementos.append(Spacer(1, 0.5*cm))
+    elementos.append(Paragraph("<b>Professor Responsável:</b>", estilos['Secao']))
+    elementos.append(Paragraph(f"{ocorrencia.get('professor', 'N/A') or 'N/A'}", estilos['Texto']))
+    elementos.append(Spacer(1, 0.5*cm))
+    elementos.append(Paragraph("<b>ASSINATURAS:</b>", estilos['Secao']))
+    elementos.append(Spacer(1, 0.5*cm))
+    
+    cargos_para_assinatura = ["Diretor(a)", "Vice-Diretor(a)", "CGPG / Coordenador(a)"]
+    for cargo in cargos_para_assinatura:
+        if responsaveis is not None and not responsaveis.empty:
+            resp = responsaveis[responsaveis['cargo'] == cargo]
+            if not resp.empty and resp.iloc[0].get('nome'):
+                elementos.append(Paragraph(f"<b>{cargo}:</b> {resp.iloc[0].get('nome', '')}", estilos['Texto']))
+            else:
+                elementos.append(Paragraph(f"<b>{cargo}:</b> _________________________________", estilos['Texto']))
+        else:
+            elementos.append(Paragraph(f"<b>{cargo}:</b> _________________________________", estilos['Texto']))
+        elementos.append(Spacer(1, 0.5*cm))
+    
+    elementos.append(Spacer(1, 0.5*cm))
+    estilo_rodape = ParagraphStyle('Rodape', parent=estilos['Normal'], fontSize=6, alignment=TA_CENTER, textColor=colors.grey)
+    elementos.append(Paragraph(f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}", estilo_rodape))
+    
+    doc.build(elementos)
+    buffer.seek(0)
+    return buffer
+
+
+def gerar_pdf_comunicado(ocorrencia, responsaveis=None):
+    """Gera PDF de comunicado aos pais com layout profissional."""
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1*cm, leftMargin=1*cm, topMargin=1.5*cm, bottomMargin=1.5*cm)
+    elementos = []
+    estilos = getSampleStyleSheet()
+    
+    estilos.add(ParagraphStyle('TituloComunicado', parent=estilos['Heading1'], fontSize=16, alignment=TA_CENTER, spaceAfter=1*cm))
+    estilos.add(ParagraphStyle('TextoComunicado', parent=estilos['Normal'], fontSize=11, alignment=TA_JUSTIFY, spaceAfter=0.3*cm, leading=14))
+    estilos.add(ParagraphStyle('Secao', parent=estilos['Normal'], fontSize=10, textColor=colors.HexColor('#667eea'), spaceAfter=0.3*cm))
+    estilos.add(ParagraphStyle('Assinatura', parent=estilos['Normal'], fontSize=8, alignment=TA_CENTER, spaceAfter=0.5*cm))
+    
+    try:
+        if os.path.exists(ESCOLA_LOGO):
+            logo = Image(ESCOLA_LOGO, width=16*cm, height=4*cm)
+            logo.hAlign = 'CENTER'
+            elementos.append(logo)
+            elementos.append(Spacer(1, 0.3*cm))
+    except:
+        pass
+    
+    elementos.append(Paragraph("📬 COMUNICADO AOS PAIS/RESPONSÁVEIS", estilos['TituloComunicado']))
+    elementos.append(Spacer(1, 0.5*cm))
+    elementos.append(Paragraph(f"Prezados responsáveis pelo(a) estudante <b>{ocorrencia.get('aluno', 'N/A') or 'N/A'}</b>,", estilos['TextoComunicado']))
+    elementos.append(Spacer(1, 0.3*cm))
+    elementos.append(Paragraph("Venho por meio deste comunicar que foi registrada uma ocorrência disciplinar conforme detalhes abaixo:", estilos['TextoComunicado']))
+    elementos.append(Spacer(1, 0.5*cm))
+    elementos.append(Paragraph("<b>DADOS DA OCORRÊNCIA:</b>", estilos['Secao']))
+    elementos.append(Paragraph(f"<b>Data:</b> {ocorrencia.get('data', 'N/A') or 'N/A'}", estilos['TextoComunicado']))
+    elementos.append(Paragraph(f"<b>Turma:</b> {ocorrencia.get('turma', 'N/A') or 'N/A'}", estilos['TextoComunicado']))
+    elementos.append(Paragraph(f"<b>Categoria:</b> {ocorrencia.get('categoria', 'N/A') or 'N/A'}", estilos['TextoComunicado']))
+    
+    gravidade = ocorrencia.get('gravidade', 'N/A') or 'N/A'
+    cor_gravidade = CORES_GRAVIDADE.get(gravidade, '#9E9E9E')
+    elementos.append(Paragraph(f"<b>Gravidade:</b> <font color='{cor_gravidade}'><b>{gravidade}</b></font>", estilos['TextoComunicado']))
+    elementos.append(Spacer(1, 0.3*cm))
+    elementos.append(Paragraph("<b>Relato:</b>", estilos['Secao']))
+    elementos.append(Paragraph(formatar_texto(ocorrencia.get('relato', 'N/A') or 'N/A'), estilos['TextoComunicado']))
+    elementos.append(Spacer(1, 0.3*cm))
+    elementos.append(Paragraph("<b>Encaminhamento:</b>", estilos['Secao']))
+    encaminhamento = ocorrencia.get('encaminhamento', '') or ''
+    
+    if isinstance(encaminhamento, str) and encaminhamento:
+        for enc in encaminhamento.split('|'):
+            if enc.strip():
+                elementos.append(Paragraph(f"• {enc.strip()}", estilos['TextoComunicado']))
+    else:
+        elementos.append(Paragraph("Nenhum encaminhamento registrado", estilos['TextoComunicado']))
+    
+    elementos.append(Spacer(1, 0.5*cm))
+    elementos.append(Paragraph("<b>Professor Responsável:</b>", estilos['Secao']))
+    elementos.append(Paragraph(f"{ocorrencia.get('professor', 'N/A') or 'N/A'}", estilos['TextoComunicado']))
+    elementos.append(Spacer(1, 0.5*cm))
+    elementos.append(Paragraph("<b>ASSINATURAS:</b>", estilos['Secao']))
+    elementos.append(Spacer(1, 0.5*cm))
+    
+    cargos_para_assinatura = ["Diretor(a)", "Vice-Diretor(a)", "CGPG / Coordenador(a)"]
+    for cargo in cargos_para_assinatura:
+        if responsaveis is not None and not responsaveis.empty:
+            resp = responsaveis[responsaveis['cargo'] == cargo]
+            if not resp.empty and resp.iloc[0].get('nome'):
+                elementos.append(Paragraph(f"<b>{cargo}:</b> {resp.iloc[0].get('nome', '')}", estilos['TextoComunicado']))
+            else:
+                elementos.append(Paragraph(f"<b>{cargo}:</b> _________________________________", estilos['TextoComunicado']))
+        else:
+            elementos.append(Paragraph(f"<b>{cargo}:</b> _________________________________", estilos['TextoComunicado']))
+        elementos.append(Spacer(1, 0.5*cm))
+    
+    elementos.append(Spacer(1, 0.5*cm))
+    estilo_rodape = ParagraphStyle('Rodape', parent=estilos['Normal'], fontSize=6, alignment=TA_CENTER, textColor=colors.grey)
+    elementos.append(Paragraph(f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}", estilo_rodape))
+    
+    doc.build(elementos)
+    buffer.seek(0)
+    return buffer
+
+
+# ============================================================================
+# INTERFACE PRINCIPAL - CABEÇALHO E MENU
 # ============================================================================
 
 st.markdown(f"""
@@ -786,6 +962,7 @@ menu = st.sidebar.selectbox(
 )
 
 st.session_state.pagina_atual = menu
+
 
 # ============================================================================
 # PÁGINA: HOME
@@ -901,126 +1078,200 @@ if menu == "🏠 Home":
 
 
 # ============================================================================
-# PÁGINA: IMPORTAR ALUNOS (TURMAS)
+# PÁGINA: IMPORTAR ALUNOS (TURMAS) - ✅ CORREÇÕES APLICADAS
 # ============================================================================
 
 elif menu == "📥 Importar Alunos (Turmas)":
     st.title("📥 Importar Alunos por Turma")
-    
+
     st.info("""
     💡 **Como importar:**
-    1. Digite o nome da turma (Ex: 6º Ano A, 7º Ano B)
-    2. Selecione o arquivo CSV da SEDUC
-    3. Clique em "🚀 Importar Alunos"
-    
+    1. Digite o nome da turma (Ex: 1º A, 6º Ano A, 7º Ano B)
+    2. Selecione o arquivo **CSV da SEDUC** (separador `;`, UTF-8)
+    3. Mapeie as colunas
+    4. Clique em "🚀 Importar Alunos"
     **Colunas necessárias no CSV:**
     - RA
     - Nome do Aluno
     - Data de Nascimento
     - Situação do Aluno
     """)
-    
+
     turma_alunos = st.text_input(
         "🏫 Qual a TURMA destes alunos?",
-        placeholder="Ex: 6º Ano A, 7º Ano B, 8º Ano C",
+        placeholder="Ex: 1º A, 6º Ano A, 7º Ano B, 8º Ano C",
         key="turma_import_input"
     )
-    
+
     arquivo_upload = st.file_uploader(
         "Selecione o arquivo CSV da SEDUC",
         type=["csv"],
         key="arquivo_csv_upload"
     )
-    
+
+    def achar_coluna(possiveis, colunas):
+        # Normaliza para busca case-insensitive
+        colunas_norm = {c.lower().strip(): c for c in colunas}
+        for p in possiveis:
+            p_norm = p.lower().strip()
+            if p_norm in colunas_norm:
+                return colunas_norm[p_norm]
+        return None
+
     if arquivo_upload is not None:
         try:
+            # CSV da SEDUC costuma vir com separador ';' e BOM
             df_import = pd.read_csv(arquivo_upload, sep=';', encoding='utf-8-sig')
             st.success(f"✅ Arquivo lido com sucesso! {len(df_import)} alunos encontrados.")
-            st.write("### Pré-visualização:")
+            st.write("### 👁️ Pré-visualização do CSV (5 linhas)")
             st.dataframe(df_import.head())
-            
+
             colunas_csv = df_import.columns.tolist()
-            st.write("### 🔍 Mapeamento de Colunas")
-            
-            # ✅ CORREÇÃO: Encontrar índices corretos para cada coluna
-            indice_ra = colunas_csv.index("RA") if "RA" in colunas_csv else 0
-            indice_nome = 0
-            indice_nome = colunas_csv.index("Nome do Aluno")
-indice_ra = colunas_csv.index("RA")
-indice_nascimento = colunas_csv.index("Data de Nascimento")
-indice_situacao = colunas_csv.index("Situação do Aluno")
-            
-            indice_nascimento = colunas_csv.index("Data de Nascimento") if "Data de Nascimento" in colunas_csv else 0
-            indice_situacao = colunas_csv.index("Situação do Aluno") if "Situação do Aluno" in colunas_csv else 0
-            
+
+            # Variações comuns observadas em planilhas da SEDUC (e escolas)
+            poss_nome = ["Nome do Aluno", "Nome", "Aluno", "Nome do Estudante", "Estudante"]
+            poss_ra = ["RA", "Registro do Aluno", "Registro do Estudante"]
+            poss_nasc = ["Data de Nascimento", "Nascimento", "Dt Nascimento", "DTNASC", "Data Nascimento"]
+            poss_sit = ["Situação do Aluno", "Situacao do Aluno", "Situação", "Situacao", "Status"]
+
+            # Sugestões automáticas (se não achar, retorna None)
+            sug_nome = achar_coluna(poss_nome, colunas_csv)
+            sug_ra = achar_coluna(poss_ra, colunas_csv)
+            sug_nasc = achar_coluna(poss_nasc, colunas_csv)
+            sug_sit = achar_coluna(poss_sit, colunas_csv)
+
             col1, col2 = st.columns(2)
             with col1:
-                mapeamento_ra = st.selectbox("Coluna do RA", colunas_csv, index=indice_ra, key="sel_ra")
-                mapeamento_nome = st.selectbox("Coluna do Nome", colunas_csv, index=indice_nome, key="sel_nome")
+                mapeamento_ra = st.selectbox("Coluna do RA", colunas_csv,
+                                             index=colunas_csv.index(sug_ra) if sug_ra else 0,
+                                             key="sel_ra")
+                mapeamento_nome = st.selectbox("Coluna do Nome **(NÃO pode ser Data de Nascimento)**", colunas_csv,
+                                               index=colunas_csv.index(sug_nome) if sug_nome else 0,
+                                               key="sel_nome")
             with col2:
-                mapeamento_nascimento = st.selectbox("Coluna da Data de Nascimento", colunas_csv, index=indice_nascimento, key="sel_nascimento")
-                mapeamento_situacao = st.selectbox("Coluna da Situação", colunas_csv, index=indice_situacao, key="sel_situacao")
-            
-            colunas_necessarias = [mapeamento_ra, mapeamento_nome, mapeamento_nascimento, mapeamento_situacao]
-            faltantes = [c for c in colunas_necessarias if c not in colunas_csv]
-            
+                mapeamento_nascimento = st.selectbox("Coluna da Data de Nascimento", colunas_csv,
+                                                     index=colunas_csv.index(sug_nasc) if sug_nasc else 0,
+                                                     key="sel_nascimento")
+                mapeamento_situacao = st.selectbox("Coluna da Situação", colunas_csv,
+                                                   index=colunas_csv.index(sug_sit) if sug_sit else 0,
+                                                   key="sel_situacao")
+
+            # 🔎 Prévia do mapeamento para evitar erro humano
+            st.write("### 🔍 Prévia do mapeamento (5 linhas)")
+            preview_cols = {
+                'RA': mapeamento_ra,
+                'Nome': mapeamento_nome,
+                'Data de Nascimento': mapeamento_nascimento,
+                'Situação': mapeamento_situacao
+            }
+            try:
+                st.dataframe(
+                    df_import[list(preview_cols.values())]
+                    .head()
+                    .rename(columns={v: k for k, v in preview_cols.items()})
+                )
+            except Exception:
+                st.warning("Não foi possível montar a prévia com as colunas escolhidas. Verifique o mapeamento.")
+
+            # ✅ Validações fortes antes de permitir importar
+            faltantes = []
+            for label, sel in [
+                ("RA", mapeamento_ra),
+                ("Nome do Aluno", mapeamento_nome),
+                ("Data de Nascimento", mapeamento_nascimento),
+                ("Situação do Aluno", mapeamento_situacao),
+            ]:
+                if not sel or sel not in colunas_csv:
+                    faltantes.append(label)
+
+            # ⚠️ Bloqueia o erro mais comum: mapear Data de Nascimento como Nome
+            if mapeamento_nome == mapeamento_nascimento:
+                st.error("❌ ERRO: A coluna do **Nome** não pode ser a mesma da **Data de Nascimento**.")
+                faltantes.append("Nome do Aluno (mapeado errado)")
+
+            # ✅ Validação adicional: se nome parece data, bloqueia
+            if mapeamento_nome == "Data de Nascimento":
+                st.error("❌ ERRO: A coluna do Nome NÃO pode ser Data de Nascimento.")
+                st.stop()
+
             if faltantes:
-                st.error(f"❌ Colunas não encontradas: {', '.join(faltantes)}")
-            else:
-                # ✅ CORREÇÃO: Permitir importação mesmo se turma já existir
-                if st.button("🚀 Importar Alunos", type="primary", key="btn_importar_alunos"):
-                    if not turma_alunos:
-                        st.error("❌ Preencha o nome da turma!")
-                    else:
-                        contagem_novos = 0
-                        contagem_atualizados = 0
-                        erros = 0
-                        
-                        for idx, row in df_import.iterrows():
-                            try:
-                                ra_str = str(row[mapeamento_ra]).strip()
-                                if not ra_str or ra_str == 'nan':
-                                    erros += 1
-                                    continue
-                                
-                                aluno = {
-                                    'ra': ra_str,
-                                    'nome': str(row[mapeamento_nome]).strip(),
-                                    'data_nascimento': str(row[mapeamento_nascimento]).strip(),
-                                    'situacao': str(row[mapeamento_situacao]).strip(),
-                                    'turma': turma_alunos
-                                }
-                                
-                                df_alunos = carregar_alunos()
-                                aluno_existente = df_alunos[df_alunos['ra'] == ra_str]
-                                
-                                if not aluno_existente.empty:
-                                    if atualizar_aluno(ra_str, aluno):
-                                        contagem_atualizados += 1
-                                    else:
-                                        erros += 1
-                                else:
-                                    if salvar_aluno(aluno):
-                                        contagem_novos += 1
-                                    else:
-                                        erros += 1
-                            except Exception as e:
+                st.error("❌ Selecione corretamente as colunas: " + ", ".join(sorted(set(faltantes))))
+                st.stop()
+
+            # Botão para importar (só aparece se tudo estiver válido)
+            if st.button("🚀 Importar Alunos", type="primary", key="btn_importar_alunos"):
+                if not turma_alunos:
+                    st.error("❌ Preencha o nome da turma!")
+                    st.stop()
+
+                contagem_novos = 0
+                contagem_atualizados = 0
+                erros = 0
+
+                # Normaliza nomes de colunas para indexação direta
+                col_ra = mapeamento_ra
+                col_nome = mapeamento_nome
+                col_nasc = mapeamento_nascimento
+                col_sit = mapeamento_situacao
+
+                df_existentes = carregar_alunos()
+
+                for _, row in df_import.iterrows():
+                    try:
+                        ra_str = str(row[col_ra]).strip()
+                        if not ra_str or ra_str.lower() == 'nan':
+                            erros += 1
+                            continue
+
+                        nome_val = str(row[col_nome]).strip()
+                        nasc_val = str(row[col_nasc]).strip()
+                        sit_val = str(row[col_sit]).strip()
+
+                        # Validação: nome não pode parecer data (dd/mm/aaaa ou dd-mm-aaaa)
+                        if st.session_state.get("validar_nome_data", True):
+                            if re.match(r"^\s*\d{2}[/-]\d{2}[/-]\d{4}\s*$", nome_val):
+                                st.error(f"❌ Registro RA {ra_str}: a coluna **Nome** parece conter uma DATA ('{nome_val}'). Verifique o mapeamento.")
                                 erros += 1
                                 continue
-                        
-                        st.success(f"✅ **Importação concluída!**")
-                        st.info(f"🆕 **Novos alunos:** {contagem_novos}")
-                        st.info(f"🔄 **Atualizados:** {contagem_atualizados}")
-                        if erros > 0:
-                            st.warning(f"⚠️ **Erros:** {erros}")
-                        
-                        carregar_alunos.clear()
-                        st.rerun()
-                        
+
+                        aluno = {
+                            'ra': ra_str,
+                            'nome': nome_val,
+                            'data_nascimento': nasc_val,
+                            'situacao': sit_val,
+                            'turma': turma_alunos
+                        }
+
+                        # Verifica se já existe
+                        aluno_existente = df_existentes[df_existentes['ra'] == ra_str] if not df_existentes.empty else pd.DataFrame()
+                        if not aluno_existente.empty:
+                            ok, msg = atualizar_aluno(ra_str, aluno)
+                            if ok:
+                                contagem_atualizados += 1
+                            else:
+                                erros += 1
+                        else:
+                            ok, msg = salvar_aluno(aluno)
+                            if ok:
+                                contagem_novos += 1
+                            else:
+                                erros += 1
+                    except Exception as e:
+                        erros += 1
+                        st.error(f"Erro ao processar RA {row.get(col_ra, '???')}: {e}")
+
+                st.success("✅ **Importação concluída!**")
+                st.info(f"🆕 **Novos alunos:** {contagem_novos}")
+                st.info(f"🔄 **Atualizados:** {contagem_atualizados}")
+                if erros > 0:
+                    st.warning(f"⚠️ **Erros:** {erros}")
+
+                carregar_alunos.clear()
+                st.rerun()
+
         except Exception as e:
             st.error(f"❌ Erro ao ler arquivo: {str(e)}")
             st.info("💡 Tente salvar o CSV com encoding UTF-8 e separador ponto e vírgula (;)")
-    
     else:
         st.info("📁 Selecione um arquivo CSV para importar.")
 
@@ -1141,8 +1392,27 @@ elif menu == "📋 Gerenciar Turmas":
         st.info(f"💡 **Total de turmas:** {len(turmas_info)} | **Total de alunos:** {len(df_alunos)}")
     else:
         st.info("📭 Nenhuma turma cadastrada. Use a opção 'Importar Alunos (Turmas)'.")
-
         # ============================================================================
+# FERRAMENTA OPCIONAL: DETECTAR NOMES COMO DATA
+# ============================================================================
+
+with st.expander("🛠️ Ferramenta opcional: detectar e isolar registros com 'nome' parecendo data"):
+    if st.button("🔎 Ver alunos suspeitos"):
+        df_a = carregar_alunos()
+        if df_a.empty:
+            st.info("Sem alunos no banco.")
+        else:
+            mask = df_a['nome'].astype(str).str.match(r"^\s*\d{2}[/-]\d{2}[/-]\d{4}\s*$", na=False)
+            suspeitos = df_a[mask]
+            if suspeitos.empty:
+                st.success("Nenhum registro suspeito encontrado 🎉")
+            else:
+                st.warning(f"Encontrados {len(suspeitos)} registro(s) com 'nome' no formato de data.")
+                st.dataframe(suspeitos[['ra', 'nome', 'turma', 'data_nascimento', 'situacao']].head(20))
+                st.info("➡️ Recomendo reimportar a(s) turma(s) desses RAs com o mapeamento corrigido.")
+
+
+# ============================================================================
 # PÁGINA: REGISTRAR OCORRÊNCIA (CONTINUAÇÃO)
 # ============================================================================
 
@@ -1925,7 +2195,7 @@ elif menu == "⚙️ Configurações":
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.metric("Versão", "10.5 FINAL")
+        st.metric("Versão", "10.6 FINAL")
     
     with col2:
         st.metric("Framework", "Streamlit")
@@ -1957,7 +2227,7 @@ elif menu == "💾 Backup":
             'ocorrencias': df_ocorrencias.to_dict('records') if not df_ocorrencias.empty else [],
             'responsaveis': df_responsaveis.to_dict('records') if not df_responsaveis.empty else [],
             'data_backup': datetime.now().strftime('%d/%m/%Y %H:%M'),
-            'versao_sistema': '10.5 FINAL'
+            'versao_sistema': '10.6 FINAL'
         }
         
         json_str = json.dumps(backup_data, ensure_ascii=False, indent=2)
@@ -2045,6 +2315,6 @@ st.markdown("""
     <p><b>Sistema Conviva 179</b> - Gestão de Ocorrências Escolares</p>
     <p>Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI</p>
     <p>Protocolo de Convivência e Proteção Escolar - SEDUC/SP</p>
-    <p>Versão 10.5 FINAL | Desenvolvido com Streamlit + Supabase (Requests)</p>
+    <p>Versão 10.6 FINAL | Desenvolvido com Streamlit + Supabase (Requests)</p>
 </div>
 """, unsafe_allow_html=True)
