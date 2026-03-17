@@ -1,7 +1,7 @@
 # ============================================================================
 # SISTEMA CONVIVA 179 - GESTÃO DE OCORRÊNCIAS ESCOLARES
 # Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI
-# Versão: 10.9 FINAL - ESTRUTURA CORRIGIDA
+# Versão: 11.0 FINAL - TODAS CORREÇÕES + FILTRO MULTI-TURMAS
 # Desenvolvido para SEDUC/SP - Protocolo de Convivência e Proteção Escolar
 # ============================================================================
 
@@ -283,6 +283,14 @@ st.markdown("""
     margin: 1rem 0;
     color: #721c24;
 }
+.alert-multi-turma {
+    background: #cce5ff;
+    border: 2px solid #007bff;
+    border-radius: 8px;
+    padding: 1rem;
+    margin: 1rem 0;
+    color: #004085;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -374,6 +382,38 @@ def carregar_turmas():
         turmas_info = df_alunos.groupby('turma').size().reset_index(name='total_alunos')
         return turmas_info
     return pd.DataFrame(columns=['turma', 'total_alunos'])
+
+
+# ============================================================================
+# FUNÇÃO NOVA: VERIFICAR ALUNOS EM MÚLTIPLAS TURMAS
+# ============================================================================
+
+def verificar_alunos_multi_turmas(df_alunos, status_filtro="Ativo"):
+    """
+    ✅ NOVO: Verifica alunos com status 'Ativo' em mais de uma turma
+    """
+    if df_alunos.empty:
+        return pd.DataFrame()
+    
+    if 'situacao' in df_alunos.columns:
+        df_filtrado = df_alunos[df_alunos['situacao'] == status_filtro].copy()
+    else:
+        df_filtrado = df_alunos.copy()
+    
+    if df_filtrado.empty:
+        return pd.DataFrame()
+    
+    contagem_turmas = df_filtrado.groupby('ra')['turma'].nunique().reset_index(name='total_turmas')
+    multi_turmas = contagem_turmas[contagem_turmas['total_turmas'] > 1]
+    
+    if multi_turmas.empty:
+        return pd.DataFrame()
+    
+    resultado = df_filtrado[df_filtrado['ra'].isin(multi_turmas['ra'])].merge(
+        multi_turmas, on='ra', how='left'
+    )
+    
+    return resultado.sort_values(['total_turmas', 'nome'], ascending=[False, True])
 
 
 # ============================================================================
@@ -838,6 +878,7 @@ menu = st.sidebar.selectbox(
         "🏠 Home",
         "📥 Importar Alunos (Turmas)",
         "📋 Gerenciar Turmas",
+        "🔍 Alunos em Múltiplas Turmas",
         "📝 Registrar Ocorrência",
         "📊 Lista de Ocorrências",
         "👥 Alunos",
@@ -923,7 +964,6 @@ if menu == "🏠 Home":
 
 elif menu == "📥 Importar Alunos (Turmas)":
     st.title("📥 Importar Alunos por Turma")
-
     st.info("""
     💡 **Como importar:**
     1. Digite o nome da turma (Ex: 1º A, 6º Ano A, 7º Ano B)
@@ -932,33 +972,19 @@ elif menu == "📥 Importar Alunos (Turmas)":
     4. Clique em "🚀 Importar Alunos"
     """)
 
-    turma_alunos = st.text_input(
-        "🏫 Qual a TURMA destes alunos?",
-        placeholder="Ex: 1º A, 6º Ano A, 7º Ano B, 8º Ano C",
-        key="turma_import_input"
-    )
-
-    arquivo_upload = st.file_uploader(
-        "Selecione o arquivo CSV da SEDUC",
-        type=["csv"],
-        key="arquivo_csv_upload"
-    )
+    turma_alunos = st.text_input("🏫 Qual a TURMA destes alunos?", placeholder="Ex: 1º A, 6º Ano A, 7º Ano B, 8º Ano C", key="turma_import_input")
+    arquivo_upload = st.file_uploader("Selecione o arquivo CSV da SEDUC", type=["csv"], key="arquivo_csv_upload")
 
     if arquivo_upload is not None:
         try:
-            # Lê o arquivo CSV
             df_import = pd.read_csv(arquivo_upload, sep=';', encoding='utf-8-sig')
             st.success(f"✅ Arquivo lido com sucesso! {len(df_import)} alunos encontrados.")
             st.write("### 👁️ Pré-visualização do CSV (5 linhas)")
             st.dataframe(df_import.head())
-
-            # Pega os nomes exatos das colunas
             colunas_csv = df_import.columns.tolist()
             st.write("### Colunas encontradas:")
             st.info(f"`{colunas_csv}`")
 
-            # Mapeamento direto das colunas do CSV da SED
-            # Procura colunas específicas
             col_ra = None
             col_nome = None
             col_nascimento = None
@@ -972,7 +998,7 @@ elif menu == "📥 Importar Alunos (Turmas)":
                     col_nome = col
                 if 'data' in col_lower and 'nascimento' in col_lower:
                     col_nascimento = col
-                if 'situa' in col_lower:  # situação ou situacao
+                if 'situa' in col_lower:
                     col_situacao = col
 
             st.write("### Mapeamento encontrado:")
@@ -981,16 +1007,12 @@ elif menu == "📥 Importar Alunos (Turmas)":
             st.write(f"- **Nascimento:** {col_nascimento}")
             st.write(f"- **Situação:** {col_situacao}")
 
-            # Verifica se encontrou todas as colunas obrigatórias
             if col_ra and col_nome and col_nascimento and col_situacao:
                 st.success("✅ Todas as colunas foram encontradas automaticamente!")
-                
-                # Mostra prévia do mapeamento
                 st.write("### 📋 Prévia dos dados (3 primeiros alunos):")
                 preview_df = df_import[[col_ra, col_nome, col_nascimento, col_situacao]].head(3)
                 st.dataframe(preview_df)
 
-                # Botão para importar
                 if st.button("🚀 Importar Alunos", type="primary", key="btn_importar_alunos"):
                     if not turma_alunos:
                         st.error("❌ Preencha o nome da turma!")
@@ -1006,20 +1028,10 @@ elif menu == "📥 Importar Alunos (Turmas)":
                                 if not ra_str or ra_str.lower() == 'nan':
                                     erros += 1
                                     continue
-
                                 nome_val = str(row[col_nome]).strip()
                                 nasc_val = str(row[col_nascimento]).strip()
                                 sit_val = str(row[col_situacao]).strip()
-
-                                aluno = {
-                                    'ra': ra_str,
-                                    'nome': nome_val,
-                                    'data_nascimento': nasc_val,
-                                    'situacao': sit_val,
-                                    'turma': turma_alunos
-                                }
-
-                                # Verifica se já existe
+                                aluno = {'ra': ra_str, 'nome': nome_val, 'data_nascimento': nasc_val, 'situacao': sit_val, 'turma': turma_alunos}
                                 if not df_existentes.empty:
                                     aluno_existente = df_existentes[df_existentes['ra'] == ra_str]
                                     if not aluno_existente.empty:
@@ -1046,7 +1058,6 @@ elif menu == "📥 Importar Alunos (Turmas)":
                         st.info(f"🔄 **Atualizados:** {contagem_atualizados}")
                         if erros > 0:
                             st.warning(f"⚠️ **Erros:** {erros}")
-
                         carregar_alunos.clear()
                         st.rerun()
             else:
@@ -1059,12 +1070,12 @@ elif menu == "📥 Importar Alunos (Turmas)":
                     st.error("- Falta coluna de **Data de Nascimento**")
                 if not col_situacao:
                     st.error("- Falta coluna de **Situação do Aluno**")
-
         except Exception as e:
             st.error(f"❌ Erro ao ler arquivo: {str(e)}")
             st.info("💡 Tente salvar o CSV com encoding UTF-8 e separador ponto e vírgula (;)")
     else:
         st.info("📁 Selecione um arquivo CSV para importar.")
+
 
 # ============================================================================
 # PÁGINA: GERENCIAR TURMAS
@@ -1151,11 +1162,51 @@ elif menu == "📋 Gerenciar Turmas":
 
 
 # ============================================================================
+# PÁGINA: ALUNOS EM MÚLTIPLAS TURMAS (NOVO)
+# ============================================================================
+
+elif menu == "🔍 Alunos em Múltiplas Turmas":
+    st.title("🔍 Alunos com Status Ativo em Múltiplas Turmas")
+    st.info("💡 Este relatório mostra alunos com status 'Ativo' cadastrados em mais de uma turma.")
+    
+    df_alunos = carregar_alunos()
+    
+    if not df_alunos.empty:
+        status_filtro = st.selectbox("Filtrar por Status", ["Ativo", "Transferido", "Desligado", "Todos"], index=0)
+        
+        if st.button("🔍 Verificar Alunos", type="primary", key="btn_verificar_multi"):
+            if status_filtro == "Todos":
+                df_multi = verificar_alunos_multi_turmas(df_alunos, status_filtro=None)
+            else:
+                df_multi = verificar_alunos_multi_turmas(df_alunos, status_filtro)
+            
+            if not df_multi.empty:
+                st.success(f"✅ Encontrados **{len(df_multi['ra'].unique())} aluno(s)** em múltiplas turmas!")
+                st.markdown("### 📋 Lista de Alunos:")
+                st.dataframe(df_multi[['ra', 'nome', 'turma', 'situacao', 'total_turmas']], use_container_width=True)
+                
+                st.markdown("### 📊 Resumo:")
+                resumo = df_multi.groupby('ra').agg({
+                    'nome': 'first',
+                    'turma': lambda x: ', '.join(sorted(x.unique())),
+                    'total_turmas': 'first',
+                    'situacao': 'first'
+                }).reset_index()
+                st.dataframe(resumo, use_container_width=True)
+            else:
+                st.info("📭 Nenhum aluno encontrado em múltiplas turmas com o status selecionado.")
+    else:
+        st.info("📭 Nenhum aluno cadastrado no sistema.")
+
+
+# ============================================================================
 # PÁGINA: REGISTRAR OCORRÊNCIA
 # ============================================================================
 
 elif menu == "📝 Registrar Ocorrência":
     st.title("📝 Registrar Nova Ocorrência")
+    
+    # ✅ CORREÇÃO: Carregar df_ocorrencias ANTES de usar
     df_ocorrencias = carregar_ocorrencias()
     df_alunos = carregar_alunos()
     
@@ -1716,7 +1767,7 @@ elif menu == "⚙️ Configurações":
     st.subheader("📊 Informações do Sistema")
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("Versão", "10.9 FINAL")
+        st.metric("Versão", "11.0 FINAL")
     with col2:
         st.metric("Framework", "Streamlit")
     with col3:
@@ -1742,7 +1793,7 @@ elif menu == "💾 Backup":
             'ocorrencias': df_ocorrencias.to_dict('records') if not df_ocorrencias.empty else [],
             'responsaveis': df_responsaveis.to_dict('records') if not df_responsaveis.empty else [],
             'data_backup': datetime.now().strftime('%d/%m/%Y %H:%M'),
-            'versao_sistema': '10.9 FINAL'
+            'versao_sistema': '11.0 FINAL'
         }
         json_str = json.dumps(backup_data, ensure_ascii=False, indent=2)
         st.download_button(label="📥 Baixar Backup JSON", data=json_str, file_name=f"backup_conviva_{datetime.now().strftime('%Y%m%d_%H%M')}.json", mime="application/json")
@@ -1801,6 +1852,6 @@ st.markdown("""
     <p><b>Sistema Conviva 179</b> - Gestão de Ocorrências Escolares</p>
     <p>Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI</p>
     <p>Protocolo de Convivência e Proteção Escolar - SEDUC/SP</p>
-    <p>Versão 10.9 FINAL | Desenvolvido com Streamlit + Supabase (Requests)</p>
+    <p>Versão 11.0 FINAL | Desenvolvido com Streamlit + Supabase (Requests)</p>
 </div>
 """, unsafe_allow_html=True)
