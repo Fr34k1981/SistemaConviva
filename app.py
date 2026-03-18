@@ -1,7 +1,7 @@
 # ============================================================================
 # SISTEMA CONVIVA 179 - GESTÃO DE OCORRÊNCIAS ESCOLARES
 # Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI
-# Versão: 12.0 FINAL - GRÁFICOS AVANÇADOS + TOP 10 ALUNOS + EDIÇÃO COMPLETA
+# Versão: 12.5 FINAL - MÚLTIPLAS INFRAÇÕES + ENVOLVIDOS + EDITAR
 # Desenvolvido para SEDUC/SP - Protocolo de Convivência e Proteção Escolar
 # ============================================================================
 
@@ -203,11 +203,7 @@ FLUXO_ACOES = {
     "Violência Doméstica / Maus Tratos": "🛡️ PROTEÇÃO. Acionar Conselho Tutelar e CRAS/CREAS.",
     "Vulnerabilidade Familiar / Negligência": "🤝 APOIO. Acionar Conselho Tutelar e CRAS.",
     "Feminicídio": "⚖️ CRIME HEDIONDO. Registrar B.O. e DDM.",
-    "Homicídio / Homicídio Tentado": "⚖️ CRIME HEDIONDO. Registrar B.O.",
-    "Indisciplina": "📋 Registro em ata. Orientação ao estudante. Comunicação aos pais.",
-    "Desrespeito a Funcionário": "⚠️ Registro em ata. Comunicação URGENTE aos pais. Encaminhamento à Coordenação.",
-    "Danos ao Patrimônio": "⚠️ Registro em ata. Comunicação aos pais. Reparação do dano.",
-    "Uso de Celular em Sala": "📋 Registro em ata. Retirada do aparelho. Devolução aos pais."
+    "Homicídio / Homicídio Tentado": "⚖️ CRIME HEDIONDO. Registrar B.O."
 }
 
 ENCAMINHAMENTOS_POR_GRAVIDADE = {
@@ -244,6 +240,10 @@ if 'turma_editar' not in st.session_state:
     st.session_state.turma_editar = None
 if 'validar_nome_data' not in st.session_state:
     st.session_state.validar_nome_data = True
+if 'adicionar_infracoes_secundarias' not in st.session_state:
+    st.session_state.adicionar_infracoes_secundarias = False
+if 'infracoes_secundarias' not in st.session_state:
+    st.session_state.infracoes_secundarias = []
 
 # ============================================================================
 # CSS PERSONALIZADO
@@ -313,57 +313,137 @@ st.markdown("""
     margin: 1rem 0;
     color: #004085;
 }
-.top-student-card {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    padding: 1rem;
-    border-radius: 8px;
+.infracao-tag {
+    background: #667eea;
     color: white;
+    padding: 0.3rem 0.8rem;
+    border-radius: 15px;
+    display: inline-block;
+    margin: 0.2rem;
+    font-size: 0.9rem;
+}
+.infracao-principal-tag {
+    background: #28a745;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 15px;
+    display: inline-block;
     margin: 0.5rem 0;
+    font-weight: bold;
 }
 </style>
 """, unsafe_allow_html=True)
 
 # ============================================================================
-# FUNÇÃO: ORDENAR TURMAS (6º AO 3º ANO)
+# FUNÇÕES AUXILIARES PARA FILTROS DE TEMPO
 # ============================================================================
 
+def filtrar_por_periodo(df_ocorrencias, periodo="todos"):
+    """Filtra ocorrências por período: todos, ultimo_mes, semana_atual, semana_passada"""
+    if df_ocorrencias.empty:
+        return df_ocorrencias
+    
+    df_filtrado = df_ocorrencias.copy()
+    df_filtrado['data_dt'] = pd.to_datetime(df_filtrado['data'], format='%d/%m/%Y %H:%M', errors='coerce')
+    hoje = datetime.now()
+    
+    if periodo == "ultimo_mes":
+        data_limite = hoje - timedelta(days=30)
+        df_filtrado = df_filtrado[df_filtrado['data_dt'] >= data_limite]
+    elif periodo == "semana_atual":
+        data_limite = hoje - timedelta(days=7)
+        df_filtrado = df_filtrado[df_filtrado['data_dt'] >= data_limite]
+    elif periodo == "semana_passada":
+        data_limite_superior = hoje - timedelta(days=7)
+        data_limite_inferior = hoje - timedelta(days=14)
+        df_filtrado = df_filtrado[
+            (df_filtrado['data_dt'] >= data_limite_inferior) & 
+            (df_filtrado['data_dt'] < data_limite_superior)
+        ]
+    
+    if 'data_dt' in df_filtrado.columns:
+        df_filtrado = df_filtrado.drop(columns=['data_dt'])
+    
+    return df_filtrado
+
+
+def gerar_relatorio_periodo(df_ocorrencias, periodo_nome="Relatório"):
+    """Gera estatísticas detalhadas para um período específico"""
+    if df_ocorrencias.empty:
+        return None
+    
+    stats = {
+        'periodo': periodo_nome,
+        'total': len(df_ocorrencias),
+        'gravissimas': len(df_ocorrencias[df_ocorrencias['gravidade'] == 'Gravíssima']),
+        'graves': len(df_ocorrencias[df_ocorrencias['gravidade'] == 'Grave']),
+        'medias': len(df_ocorrencias[df_ocorrencias['gravidade'] == 'Média']),
+        'leves': len(df_ocorrencias[df_ocorrencias['gravidade'] == 'Leve']),
+        'turmas_afetadas': df_ocorrencias['turma'].nunique(),
+        'alunos_envolvidos': df_ocorrencias['ra'].nunique() if 'ra' in df_ocorrencias.columns else 0
+    }
+    
+    return stats
+
+
 def ordenar_turmas(turmas):
-    """
-    ✅ NOVO: Ordena turmas do 6º ano ao 3º ano do médio
-    Fundamental: 6º, 7º, 8º, 9º ano
-    Médio: 1º, 2º, 3º ano
-    """
+    """Ordena turmas do 6º ano ao 3º ano do médio"""
     if not turmas:
         return []
     
     def chave_ordenacao(turma):
         turma_str = str(turma).upper().strip()
-        
-        # Extrair número do ano
         numeros = re.findall(r'\d+', turma_str)
         if not numeros:
-            return (99, turma_str)  # Turmas sem número vão para o final
-        
+            return (99, turma_str)
         ano = int(numeros[0])
-        
-        # Identificar se é Fundamental ou Médio
         if '6º' in turma_str or '7º' in turma_str or '8º' in turma_str or '9º' in turma_str or (ano >= 6 and ano <= 9):
-            tipo = 0  # Fundamental
+            tipo = 0
             ano_ord = ano
         elif '1º' in turma_str or '2º' in turma_str or '3º' in turma_str or (ano >= 1 and ano <= 3):
-            tipo = 1  # Médio
-            ano_ord = ano + 10  # Médio vem depois do fundamental
+            tipo = 1
+            ano_ord = ano + 10
         else:
-            tipo = 2  # Outros
+            tipo = 2
             ano_ord = ano
-        
-        # Extrair letra da turma (A, B, C...)
         letras = re.findall(r'[A-Z]', turma_str)
         letra_ord = ord(letras[0]) if letras else 0
-        
         return (tipo, ano_ord, letra_ord, turma_str)
     
     return sorted(turmas, key=chave_ordenacao)
+
+
+def get_top_alunos_ocorrencias(df_ocorrencias, df_alunos, top_n=10):
+    """Retorna top N alunos com mais ocorrências"""
+    if df_ocorrencias.empty:
+        return pd.DataFrame()
+    
+    contagem = df_ocorrencias.groupby(['ra', 'aluno']).size().reset_index(name='total_ocorrencias')
+    contagem = contagem.sort_values('total_ocorrencias', ascending=False).head(top_n)
+    
+    if not df_alunos.empty:
+        contagem = contagem.merge(df_alunos[['ra', 'turma', 'situacao']].drop_duplicates(), on='ra', how='left')
+    
+    return contagem
+
+
+def get_ocorrencias_por_aluno(df_ocorrencias, ra_aluno):
+    """Retorna todas as ocorrências de um aluno específico"""
+    if df_ocorrencias.empty:
+        return pd.DataFrame()
+    
+    return df_ocorrencias[df_ocorrencias['ra'] == ra_aluno].sort_values('data', ascending=False)
+
+
+def obter_gravidade_mais_alta(gravidades):
+    """Obtém a gravidade mais alta entre uma lista de gravidades"""
+    ordem_gravidade = {"Gravíssima": 4, "Grave": 3, "Média": 2, "Leve": 1}
+    if not gravidades:
+        return "Leve"
+    
+    gravidade_max = max(gravidades, key=lambda g: ordem_gravidade.get(g, 0))
+    return gravidade_max
+
 
 # ============================================================================
 # FUNÇÕES DE CARREGAMENTO
@@ -410,10 +490,10 @@ def carregar_professores():
 @st.cache_data(ttl=60)
 def carregar_ocorrencias():
     if not SUPABASE_URL:
-        return pd.DataFrame(columns=['id', 'data', 'aluno', 'ra', 'turma', 'categoria', 'gravidade', 'relato', 'professor', 'encaminhamento'])
+        return pd.DataFrame(columns=['id', 'data', 'aluno', 'ra', 'turma', 'categoria', 'gravidade', 'relato', 'professor', 'encaminhamento', 'envolvidos'])
     try:
         response = requests.get(
-            f"{SUPABASE_URL}/rest/v1/ocorrencias?select=id,data,aluno,ra,turma,categoria,gravidade,relato,professor,encaminhamento&order=id.desc",
+            f"{SUPABASE_URL}/rest/v1/ocorrencias?select=id,data,aluno,ra,turma,categoria,gravidade,relato,professor,encaminhamento,envolvidos&order=id.desc",
             headers=HEADERS
         )
         if response.status_code == 200:
@@ -422,10 +502,10 @@ def carregar_ocorrencias():
             return df
         else:
             st.error(f"Erro ao carregar: {response.text}")
-            return pd.DataFrame(columns=['id', 'data', 'aluno', 'ra', 'turma', 'categoria', 'gravidade', 'relato', 'professor', 'encaminhamento'])
+            return pd.DataFrame(columns=['id', 'data', 'aluno', 'ra', 'turma', 'categoria', 'gravidade', 'relato', 'professor', 'encaminhamento', 'envolvidos'])
     except Exception as e:
         st.error(f"Erro ao carregar ocorrências: {str(e)}")
-        return pd.DataFrame(columns=['id', 'data', 'aluno', 'ra', 'turma', 'categoria', 'gravidade', 'relato', 'professor', 'encaminhamento'])
+        return pd.DataFrame(columns=['id', 'data', 'aluno', 'ra', 'turma', 'categoria', 'gravidade', 'relato', 'professor', 'encaminhamento', 'envolvidos'])
 
 
 @st.cache_data(ttl=60)
@@ -456,42 +536,6 @@ def carregar_turmas():
 
 
 # ============================================================================
-# FUNÇÃO: TOP 10 ALUNOS COM MAIS OCORRÊNCIAS
-# ============================================================================
-
-def get_top_alunos_ocorrencias(df_ocorrencias, df_alunos, top_n=10):
-    """
-    ✅ NOVO: Retorna top N alunos com mais ocorrências
-    """
-    if df_ocorrencias.empty:
-        return pd.DataFrame()
-    
-    # Conta ocorrências por RA
-    contagem = df_ocorrencias.groupby(['ra', 'aluno']).size().reset_index(name='total_ocorrencias')
-    contagem = contagem.sort_values('total_ocorrencias', ascending=False).head(top_n)
-    
-    # Junta com dados dos alunos
-    if not df_alunos.empty:
-        contagem = contagem.merge(df_alunos[['ra', 'turma', 'situacao']].drop_duplicates(), on='ra', how='left')
-    
-    return contagem
-
-
-# ============================================================================
-# FUNÇÃO: OCORRÊNCIAS POR ALUNO
-# ============================================================================
-
-def get_ocorrencias_por_aluno(df_ocorrencias, ra_aluno):
-    """
-    ✅ NOVO: Retorna todas as ocorrências de um aluno específico
-    """
-    if df_ocorrencias.empty:
-        return pd.DataFrame()
-    
-    return df_ocorrencias[df_ocorrencias['ra'] == ra_aluno].sort_values('data', ascending=False)
-
-
-# ============================================================================
 # FUNÇÕES DE SALVAMENTO
 # ============================================================================
 
@@ -508,7 +552,8 @@ def salvar_ocorrencia(ocorrencia_dict):
             'gravidade': ocorrencia_dict.get('gravidade', ''),
             'relato': ocorrencia_dict.get('relato', ''),
             'professor': ocorrencia_dict.get('professor', ''),
-            'encaminhamento': ocorrencia_dict.get('encaminhamento', '')
+            'encaminhamento': ocorrencia_dict.get('encaminhamento', ''),
+            'envolvidos': ocorrencia_dict.get('envolvidos', '')
         }
         if isinstance(ocorrencia_dict_clean['encaminhamento'], list):
             ocorrencia_dict_clean['encaminhamento'] = '| '.join(ocorrencia_dict_clean['encaminhamento'])
@@ -535,7 +580,8 @@ def atualizar_ocorrencia(id_ocorrencia, ocorrencia_dict):
             'gravidade': ocorrencia_dict.get('gravidade', ''),
             'relato': ocorrencia_dict.get('relato', ''),
             'professor': ocorrencia_dict.get('professor', ''),
-            'encaminhamento': ocorrencia_dict.get('encaminhamento', '')
+            'encaminhamento': ocorrencia_dict.get('encaminhamento', ''),
+            'envolvidos': ocorrencia_dict.get('envolvidos', '')
         }
         if isinstance(ocorrencia_dict_clean['encaminhamento'], list):
             ocorrencia_dict_clean['encaminhamento'] = '| '.join(ocorrencia_dict_clean['encaminhamento'])
@@ -828,6 +874,13 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
     cor_gravidade = CORES_GRAVIDADE.get(gravidade, '#9E9E9E')
     elementos.append(Paragraph(f"<b>Gravidade:</b> <font color='{cor_gravidade}'><b>{gravidade}</b></font>", estilos['Texto']))
     elementos.append(Spacer(1, 0.3*cm))
+    
+    # ✅ CAMPO ENVOLVIDOS
+    envolvidos = ocorrencia.get('envolvidos', '') or ''
+    if envolvidos:
+        elementos.append(Paragraph(f"<b>Envolvidos/Queixa:</b> {envolvidos}", estilos['Texto']))
+        elementos.append(Spacer(1, 0.3*cm))
+    
     elementos.append(Paragraph("<b>Relato:</b>", estilos['Secao']))
     elementos.append(Paragraph(formatar_texto(ocorrencia.get('relato', 'N/A') or 'N/A'), estilos['Texto']))
     elementos.append(Spacer(1, 0.3*cm))
@@ -895,6 +948,13 @@ def gerar_pdf_comunicado(ocorrencia, responsaveis=None):
     cor_gravidade = CORES_GRAVIDADE.get(gravidade, '#9E9E9E')
     elementos.append(Paragraph(f"<b>Gravidade:</b> <font color='{cor_gravidade}'><b>{gravidade}</b></font>", estilos['TextoComunicado']))
     elementos.append(Spacer(1, 0.3*cm))
+    
+    # ✅ CAMPO ENVOLVIDOS
+    envolvidos = ocorrencia.get('envolvidos', '') or ''
+    if envolvidos:
+        elementos.append(Paragraph(f"<b>Envolvidos/Queixa:</b> {envolvidos}", estilos['TextoComunicado']))
+        elementos.append(Spacer(1, 0.3*cm))
+    
     elementos.append(Paragraph("<b>Relato:</b>", estilos['Secao']))
     elementos.append(Paragraph(formatar_texto(ocorrencia.get('relato', 'N/A') or 'N/A'), estilos['TextoComunicado']))
     elementos.append(Spacer(1, 0.3*cm))
@@ -932,7 +992,7 @@ def gerar_pdf_comunicado(ocorrencia, responsaveis=None):
 
 
 # ============================================================================
-# INTERFACE PRINCIPAL - CABEÇALHO E MENU (REORGANIZADO)
+# INTERFACE PRINCIPAL - CABEÇALHO E MENU
 # ============================================================================
 
 st.markdown(f"""
@@ -947,7 +1007,6 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ✅ MENU REORGANIZADO - REGISTRAR OCORRÊNCIA EM PRIMEIRO LUGAR
 menu = st.sidebar.selectbox(
     "📋 Menu Principal",
     [
@@ -975,18 +1034,41 @@ st.session_state.pagina_atual = menu
 
 if menu == "🏠 Home":
     st.title("🏠 Dashboard")
+    
     df_ocorrencias = carregar_ocorrencias()
     df_alunos = carregar_alunos()
     df_professores = carregar_professores()
     df_turmas = carregar_turmas()
     
-    if not df_ocorrencias.empty:
-        total_ocorrencias = len(df_ocorrencias)
-        total_gravissima = len(df_ocorrencias[df_ocorrencias['gravidade'] == 'Gravíssima'])
-        total_grave = len(df_ocorrencias[df_ocorrencias['gravidade'] == 'Grave'])
-        total_media = len(df_ocorrencias[df_ocorrencias['gravidade'] == 'Média'])
-        total_leve = len(df_ocorrencias[df_ocorrencias['gravidade'] == 'Leve'])
-        turmas_afetadas = df_ocorrencias['turma'].nunique()
+    # ✅ FILTRO DE PERÍODO
+    st.subheader("🔍 Filtro de Período")
+    col1, col2 = st.columns(2)
+    with col1:
+        periodo_selecionado = st.selectbox(
+            "Selecione o período:",
+            ["Todos", "Último Mês (30 dias)", "Semana Atual (7 dias)", "Semana Passada"],
+            key="sel_periodo_home"
+        )
+    
+    mapa_periodo = {
+        "Todos": "todos",
+        "Último Mês (30 dias)": "ultimo_mes",
+        "Semana Atual (7 dias)": "semana_atual",
+        "Semana Passada": "semana_passada"
+    }
+    
+    periodo_filtro = mapa_periodo.get(periodo_selecionado, "todos")
+    df_filtrado_periodo = filtrar_por_periodo(df_ocorrencias, periodo_filtro)
+    
+    if not df_filtrado_periodo.empty:
+        total_ocorrencias = len(df_filtrado_periodo)
+        total_gravissima = len(df_filtrado_periodo[df_filtrado_periodo['gravidade'] == 'Gravíssima'])
+        total_grave = len(df_filtrado_periodo[df_filtrado_periodo['gravidade'] == 'Grave'])
+        total_media = len(df_filtrado_periodo[df_filtrado_periodo['gravidade'] == 'Média'])
+        total_leve = len(df_filtrado_periodo[df_filtrado_periodo['gravidade'] == 'Leve'])
+        turmas_afetadas = df_filtrado_periodo['turma'].nunique()
+        
+        st.info(f"📅 Período: **{periodo_selecionado}** - Total: **{total_ocorrencias} ocorrências**")
         
         col1, col2, col3, col4, col5 = st.columns(5)
         with col1:
@@ -1001,40 +1083,76 @@ if menu == "🏠 Home":
             st.markdown(f"""<div class="metric-card" style="background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);"><div class="metric-value">{turmas_afetadas}</div><div class="metric-label">Turmas Afetadas</div></div>""", unsafe_allow_html=True)
         
         st.markdown("---")
+        
         col1, col2 = st.columns(2)
         with col1:
             st.subheader("📊 Ocorrências por Categoria")
-            if 'categoria' in df_ocorrencias.columns:
-                cat_counts = df_ocorrencias['categoria'].value_counts().head(10)
+            if 'categoria' in df_filtrado_periodo.columns:
+                cat_counts = df_filtrado_periodo['categoria'].value_counts().head(10)
                 fig = px.bar(x=cat_counts.values, y=cat_counts.index, orientation='h', color=cat_counts.values, color_continuous_scale='Reds', labels={'x': 'Quantidade', 'y': 'Categoria'})
                 fig.update_layout(height=400, showlegend=False)
                 st.plotly_chart(fig, use_container_width=True)
         with col2:
             st.subheader("📊 Ocorrências por Gravidade")
-            if 'gravidade' in df_ocorrencias.columns:
-                grav_counts = df_ocorrencias['gravidade'].value_counts()
+            if 'gravidade' in df_filtrado_periodo.columns:
+                grav_counts = df_filtrado_periodo['gravidade'].value_counts()
                 fig = px.pie(values=grav_counts.values, names=grav_counts.index, color=grav_counts.index, color_discrete_map=CORES_GRAVIDADE)
                 fig.update_layout(height=400)
                 st.plotly_chart(fig, use_container_width=True)
-        st.subheader("📋 Últimas Ocorrências")
-        st.dataframe(df_ocorrencias.head(10), use_container_width=True)
+        
+        st.subheader("📋 Últimas Ocorrências do Período")
+        st.dataframe(df_filtrado_periodo.head(10), use_container_width=True)
+        
+        # ✅ BOTÃO PARA GERAR RELATÓRIO DO PERÍODO
+        st.markdown("---")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button(f"📄 Gerar Relatório - {periodo_selecionado}", type="primary", key="btn_gerar_relatorio_periodo"):
+                stats = gerar_relatorio_periodo(df_filtrado_periodo, periodo_selecionado)
+                if stats:
+                    relatorio_texto = f"""
+# RELATÓRIO DE OCORRÊNCIAS - {periodo_selecionado.upper()}
+
+## 📊 RESUMO GERAL
+- **Total de Ocorrências:** {stats['total']}
+- **Turmas Afetadas:** {stats['turmas_afetadas']}
+- **Alunos Envolvidos:** {stats['alunos_envolvidos']}
+
+## ⚡ DISTRIBUIÇÃO POR GRAVIDADE
+- 🔴 Gravíssimas: {stats['gravissimas']}
+- 🟠 Graves: {stats['graves']}
+- 🟡 Médias: {stats['medias']}
+- 🟢 Leves: {stats['leves']}
+
+## 📅 Data de Geração: {datetime.now().strftime('%d/%m/%Y %H:%M')}
+                    """
+                    st.download_button(
+                        label="📥 Baixar Relatório (TXT)",
+                        data=relatorio_texto,
+                        file_name=f"relatorio_{periodo_filtro}_{datetime.now().strftime('%Y%m%d')}.txt",
+                        mime="text/plain"
+                    )
+                    st.success("✅ Relatório gerado com sucesso!")
+    
     else:
-        st.info("📭 Nenhuma ocorrência registrada ainda.")
+        st.info("📭 Nenhuma ocorrência registrada no período selecionado.")
     
     if not df_turmas.empty:
-        st.subheader("🏫 Resumo de Turmas")
+        st.markdown("---")
+        st.subheader("🏫 Resumo Geral da Escola")
         col1, col2 = st.columns(2)
         with col1:
             st.metric("Total de Turmas", len(df_turmas))
         with col2:
             st.metric("Total de Alunos", len(df_alunos))
+    
     if not df_professores.empty:
         st.subheader("👨‍🏫 Resumo de Professores")
         st.metric("Total de Professores", len(df_professores))
 
 
 # ============================================================================
-# PÁGINA: REGISTRAR OCORRÊNCIA
+# PÁGINA: REGISTRAR OCORRÊNCIA (COM MÚLTIPLAS INFRAÇÕES + ENVOLVIDOS)
 # ============================================================================
 
 elif menu == "📝 Registrar Ocorrência":
@@ -1081,28 +1199,90 @@ elif menu == "📝 Registrar Ocorrência":
                     hora = st.time_input("Hora", value=datetime.now().time(), key="hora_input_occ_reg")
                 
                 st.markdown("---")
+                
+                # ✅ INFRAÇÃO PRINCIPAL
+                st.subheader("📋 Selecionar Infração Principal")
                 col1, col2 = st.columns(2)
                 with col1:
                     categoria_grupo = st.selectbox("📁 Grupo da Categoria", list(CATEGORIAS_OCORRENCIAS.keys()), key="sel_grupo_cat_reg")
                     categorias_grupo = list(CATEGORIAS_OCORRENCIAS[categoria_grupo].keys())
-                    categoria = st.selectbox("📋 Tipo de Ocorrência", categorias_grupo, key="sel_tipo_ocorr_reg", on_change=lambda: st.session_state.update({'gravidade_alterada': False}))
+                    infracao_principal = st.selectbox("📋 Infração Principal", categorias_grupo, key="sel_infracao_principal")
                 with col2:
-                    gravidade_protocolo = CATEGORIAS_OCORRENCIAS[categoria_grupo].get(categoria, "Leve")
+                    gravidade_protocolo = CATEGORIAS_OCORRENCIAS[categoria_grupo].get(infracao_principal, "Leve")
                     gravidade_select = st.selectbox("⚡ Gravidade", ["Gravíssima", "Grave", "Média", "Leve"], index=["Gravíssima", "Grave", "Média", "Leve"].index(gravidade_protocolo), key="sel_gravidade_reg")
                 
-                if categoria in FLUXO_ACOES:
-                    st.markdown(f"""<div class="fluxo-alert"><b>📌 Fluxo de Ações - Protocolo 179:</b><br>{FLUXO_ACOES[categoria]}</div>""", unsafe_allow_html=True)
+                # ✅ MOSTRAR FLUXO DE AÇÕES
+                if infracao_principal in FLUXO_ACOES:
+                    st.markdown(f"""<div class="fluxo-alert"><b>📌 Fluxo de Ações - Protocolo 179:</b><br>{FLUXO_ACOES[infracao_principal]}</div>""", unsafe_allow_html=True)
                 
+                # ✅ ALERTA SE ALTERAR GRAVIDADE
                 if gravidade_select != gravidade_protocolo:
                     if not st.session_state.gravidade_alterada:
-                        st.markdown(f"""<div class="gravidade-alert">⚠️ <b>ATENÇÃO:</b> Você está alterando a gravidade sugerida pelo Protocolo 179!<br>A gravidade oficial para "{categoria}" é <b>{gravidade_protocolo}</b>.</div>""", unsafe_allow_html=True)
+                        st.markdown(f"""<div class="gravidade-alert">⚠️ <b>ATENÇÃO:</b> Você está alterando a gravidade sugerida pelo Protocolo 179!<br>A gravidade oficial para "{infracao_principal}" é <b>{gravidade_protocolo}</b>.</div>""", unsafe_allow_html=True)
                         st.session_state.gravidade_alterada = True
                 else:
                     st.session_state.gravidade_alterada = False
                 
-                relato = st.text_area("📝 Relato da Ocorrência", height=200, key="txt_relato_reg")
+                # ✅ INFRAÇÕES SECUNDÁRIAS (OPCIONAL)
+                st.markdown("---")
+                st.subheader("➕ Infrações Secundárias (Opcional)")
+                st.info("💡 Adicione outras infrações relacionadas ao mesmo incidente (máximo 5)")
+                
+                adicionar_secundarias = st.checkbox("Deseja adicionar infrações secundárias?", key="chk_adicionar_secundarias")
+                
+                infracoes_secundarias = []
+                if adicionar_secundarias:
+                    for i in range(5):
+                        col1, col2 = st.columns([3, 1])
+                        with col1:
+                            categoria_grupo_sec = st.selectbox(
+                                f"📁 Grupo {i+1}",
+                                list(CATEGORIAS_OCORRENCIAS.keys()),
+                                key=f"sel_grupo_cat_sec_{i}"
+                            )
+                            categorias_grupo_sec = list(CATEGORIAS_OCORRENCIAS[categoria_grupo_sec].keys())
+                            infracao_sec = st.selectbox(
+                                f"📋 Infração {i+1}",
+                                categorias_grupo_sec,
+                                key=f"sel_infracao_sec_{i}"
+                            )
+                        with col2:
+                            if st.button("➕ Adicionar", key=f"btn_add_sec_{i}"):
+                                if infracao_sec not in infracoes_secundarias:
+                                    infracoes_secundarias.append(infracao_sec)
+                                    st.success(f"✅ {infracao_sec} adicionada!")
+                
+                # ✅ MOSTRAR TAGS DAS INFRAÇÕES
+                if infracao_principal or infracoes_secundarias:
+                    st.markdown("---")
+                    st.markdown("**Infrações registradas:**")
+                    tags_html = f'<span class="infracao-principal-tag">🎯 {infracao_principal}</span>'
+                    for inf in infracoes_secundarias:
+                        tags_html += f'<span class="infracao-tag">{inf}</span>'
+                    st.markdown(tags_html, unsafe_allow_html=True)
+                
+                # ✅ CALCULAR GRAVIDADE MAIS ALTA
+                todas_gravidades = [gravidade_protocolo]
+                for inf in infracoes_secundarias:
+                    for grupo, infracoes in CATEGORIAS_OCORRENCIAS.items():
+                        if inf in infracoes:
+                            todas_gravidades.append(infracoes[inf])
+                
+                gravidade_final = obter_gravidade_mais_alta(todas_gravidades)
+                
+                # ✅ CAMPO ENVOLVIDOS / QUEM FEZ A QUEIXA
+                st.markdown("---")
+                st.subheader("👥 Envolvidos / Quem Fez a Queixa")
+                envolvidos = st.text_area(
+                    "Descreva os envolvidos ou quem fez a queixa:",
+                    placeholder="Ex: Professor João Silva (queixa), Aluno Pedro Santos (envolvido), Testemunha: Maria Oliveira...",
+                    height=80,
+                    key="txt_envolvidos_reg"
+                )
+                
+                # ✅ ENCAMINHAMENTOS AUTOMÁTICOS
                 st.subheader("🔄 Encaminhamentos Sugeridos (Protocolo 179)")
-                encaminhamentos_disponiveis = ENCAMINHAMENTOS_POR_GRAVIDADE.get(gravidade_select, [])
+                encaminhamentos_disponiveis = ENCAMINHAMENTOS_POR_GRAVIDADE.get(gravidade_final, [])
                 col1, col2 = st.columns(2)
                 metade = len(encaminhamentos_disponiveis) // 2
                 with col1:
@@ -1117,13 +1297,19 @@ elif menu == "📝 Registrar Ocorrência":
                 encaminhamentos_selecionados = [enc for enc in encaminhamentos_disponiveis if st.session_state.get(f"chk_enc_{encaminhamentos_disponiveis.index(enc)}_reg", True) or st.session_state.get(f"chk_enc_{encaminhamentos_disponiveis.index(enc)}_reg2", True)]
                 encaminhamento_str = '| '.join(encaminhamentos_selecionados) if encaminhamentos_selecionados else ''
                 
+                # ✅ PROFESSOR RESPONSÁVEL
                 df_professores = carregar_professores()
                 if not df_professores.empty:
                     prof = st.selectbox("👨‍🏫 Professor Responsável", ["Selecione..."] + df_professores['nome'].tolist(), key="sel_professor_reg")
                 else:
                     prof = st.text_input("👨‍🏫 Professor Responsável", key="txt_professor_reg")
                 
+                # ✅ RELATO
+                relato = st.text_area("📝 Relato da Ocorrência", height=200, key="txt_relato_reg")
+                
                 st.markdown("---")
+                
+                # ✅ BOTÃO SALVAR
                 if st.button("💾 Salvar Ocorrência", type="primary", key="btn_salvar_ocorrencia_reg"):
                     if not alunos_selecionados:
                         st.error("❌ Selecione pelo menos um estudante!")
@@ -1133,31 +1319,51 @@ elif menu == "📝 Registrar Ocorrência":
                         st.error("❌ Preencha o relato da ocorrência!")
                     else:
                         data_str = f"{data.strftime('%d/%m/%Y')} {hora.strftime('%H:%M')}"
-                        categoria_str = categoria
+                        
+                        # ✅ CATEGORIA COM INFRAÇÕES SECUNDÁRIAS
+                        categoria_str = infracao_principal
+                        if infracoes_secundarias:
+                            categoria_str += " | " + " | ".join(infracoes_secundarias)
+                        
                         contagem_salvas = 0
                         contagem_duplicadas = 0
                         erros = 0
+                        
                         for nome_aluno in alunos_selecionados:
                             aluno_info = alunos[alunos["nome"] == nome_aluno]
                             if not aluno_info.empty:
                                 ra_aluno = str(aluno_info["ra"].values[0])
                                 turma_aluno = str(aluno_info["turma"].values[0])
-                                if verificar_ocorrencia_duplicada(ra_aluno, categoria_str, data_str, df_ocorrencias):
+                                
+                                if verificar_ocorrencia_duplicada(ra_aluno, infracao_principal, data_str, df_ocorrencias):
                                     contagem_duplicadas += 1
                                 else:
-                                    ocorrencia_dict = {'data': data_str, 'aluno': nome_aluno, 'ra': ra_aluno, 'turma': turma_aluno, 'categoria': categoria_str, 'gravidade': gravidade_select, 'relato': relato, 'professor': prof, 'encaminhamento': encaminhamento_str}
+                                    ocorrencia_dict = {
+                                        'data': data_str,
+                                        'aluno': nome_aluno,
+                                        'ra': ra_aluno,
+                                        'turma': turma_aluno,
+                                        'categoria': categoria_str,
+                                        'gravidade': gravidade_final,
+                                        'relato': relato,
+                                        'professor': prof,
+                                        'encaminhamento': encaminhamento_str,
+                                        'envolvidos': envolvidos
+                                    }
                                     sucesso, mensagem = salvar_ocorrencia(ocorrencia_dict)
                                     if sucesso:
                                         contagem_salvas += 1
                                     else:
                                         erros += 1
                                         st.error(f"Erro para {nome_aluno}: {mensagem}")
+                        
                         if contagem_salvas > 0:
                             st.success(f"✅ {contagem_salvas} ocorrência(s) registrada(s) com sucesso!")
                         if contagem_duplicadas > 0:
                             st.warning(f"⚠️ {contagem_duplicadas} ocorrência(s) já existiam (ignorado)")
                         if erros > 0:
                             st.error(f"❌ {erros} erro(s) ao salvar")
+                        
                         if contagem_salvas > 0:
                             st.session_state.ocorrencia_salva_sucesso = True
                             carregar_ocorrencias.clear()
@@ -1166,6 +1372,387 @@ elif menu == "📝 Registrar Ocorrência":
                 st.info("📭 Nenhum aluno encontrado nesta(s) turma(s).")
         else:
             st.info("📭 Selecione pelo menos uma turma.")
+
+
+# ============================================================================
+# PÁGINA: LISTA DE OCORRÊNCIAS (COM EDITAR/EXCLUIR)
+# ============================================================================
+
+elif menu == "📊 Lista de Ocorrências":
+    st.title("📊 Lista de Ocorrências")
+    df_ocorrencias = carregar_ocorrencias()
+    df_alunos = carregar_alunos()
+    
+    if st.session_state.get('ocorrencia_excluida_sucesso', False):
+        st.markdown('<div class="success-box">✅ OCORRÊNCIA EXCLUÍDA COM SUCESSO!</div>', unsafe_allow_html=True)
+        st.session_state.ocorrencia_excluida_sucesso = False
+    if st.session_state.get('ocorrencia_editada_sucesso', False):
+        st.markdown('<div class="success-box">✅ OCORRÊNCIA EDITADA COM SUCESSO!</div>', unsafe_allow_html=True)
+        st.session_state.ocorrencia_editada_sucesso = False
+    
+    if not df_ocorrencias.empty:
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            filtro_gravidade = st.multiselect("Gravidade", ["Gravíssima", "Grave", "Média", "Leve"], key="multi_filtro_grav_list")
+        with col2:
+            filtro_categoria = st.multiselect("Categoria", df_ocorrencias['categoria'].unique(), key="multi_filtro_cat_list")
+        with col3:
+            filtro_turma = st.multiselect("Turma", df_alunos['turma'].unique().tolist() if not df_alunos.empty else [], key="multi_filtro_turma_list")
+        
+        df_filtrado = df_ocorrencias.copy()
+        if filtro_gravidade:
+            df_filtrado = df_filtrado[df_filtrado['gravidade'].isin(filtro_gravidade)]
+        if filtro_categoria:
+            df_filtrado = df_filtrado[df_filtrado['categoria'].isin(filtro_categoria)]
+        if filtro_turma:
+            df_filtrado = df_filtrado[df_filtrado['turma'].isin(filtro_turma)]
+        
+        st.markdown(f"**Total:** {len(df_filtrado)} ocorrência(s)")
+        st.dataframe(df_filtrado, use_container_width=True)
+        st.markdown("---")
+        
+        # ✅ EDITAR OCORRÊNCIA
+        st.subheader("✏️ Editar Ocorrência")
+        ids_disponiveis = df_filtrado['id'].tolist() if not df_filtrado.empty else []
+        if ids_disponiveis:
+            id_editar = st.selectbox("Selecione o ID para editar", ids_disponiveis, key="sel_id_editar_list")
+            if st.button("✏️ Carregar para Edição", type="primary", key="btn_carregar_edicao_list"):
+                ocorrencia_row = df_filtrado[df_filtrado['id'] == id_editar]
+                if not ocorrencia_row.empty:
+                    ocorrencia = ocorrencia_row.iloc[0].to_dict()
+                    st.session_state.editando_id = id_editar
+                    st.session_state.dados_edicao = {
+                        'id': ocorrencia.get('id', id_editar),
+                        'data': ocorrencia.get('data', ''),
+                        'aluno': ocorrencia.get('aluno', ''),
+                        'ra': ocorrencia.get('ra', ''),
+                        'turma': ocorrencia.get('turma', ''),
+                        'categoria': ocorrencia.get('categoria', ''),
+                        'gravidade': ocorrencia.get('gravidade', ''),
+                        'relato': ocorrencia.get('relato', ''),
+                        'professor': ocorrencia.get('professor', ''),
+                        'encaminhamento': ocorrencia.get('encaminhamento', ''),
+                        'envolvidos': ocorrencia.get('envolvidos', '')
+                    }
+                    st.success(f"✅ Ocorrência {id_editar} carregada para edição!")
+                else:
+                    st.error("❌ Ocorrência não encontrada!")
+        
+        if st.session_state.editando_id is not None and st.session_state.dados_edicao:
+            st.markdown("---")
+            st.subheader(f"✏️ Editando Ocorrência ID: {st.session_state.editando_id}")
+            dados = st.session_state.dados_edicao
+            st.info(f"**Protocolo (ID):** {dados.get('id', 'N/A')} (NÃO PODE SER ALTERADO)\n\n**Dados Atuais:**\n- Aluno: {dados.get('aluno', 'N/A')}\n- RA: {dados.get('ra', 'N/A')}\n- Turma: {dados.get('turma', 'N/A')}\n- Data: {dados.get('data', 'N/A')}")
+            col1, col2 = st.columns(2)
+            with col1:
+                edit_relato = st.text_area("📝 Relato", value=str(dados.get("relato", "")), height=150, key="txt_edit_relato_list")
+                edit_categoria = st.selectbox("📋 Categoria", list(CATEGORIAS_OCORRENCIAS.keys()), key="sel_edit_categoria_list")
+            with col2:
+                edit_encam = st.text_area("🔀 Encaminhamento", value=str(dados.get("encaminhamento", "")), height=150, key="txt_edit_encam_list")
+                edit_grav = st.selectbox("⚡ Gravidade", ["Gravíssima", "Grave", "Média", "Leve"], index=["Gravíssima", "Grave", "Média", "Leve"].index(str(dados.get("gravidade", "Leve"))) if str(dados.get("gravidade", "Leve")) in ["Gravíssima", "Grave", "Média", "Leve"] else 3, key="sel_edit_grav_list")
+            
+            # ✅ CAMPO ENVOLVIDOS NA EDIÇÃO
+            edit_envolvidos = st.text_area("👥 Envolvidos/Queixa", value=str(dados.get("envolvidos", "")), height=80, key="txt_edit_envolvidos_list")
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                if st.button("💾 Salvar Alterações", type="primary", key="btn_salvar_edicao_list"):
+                    dados_atualizados = {
+                        'data': dados.get('data', ''),
+                        'aluno': dados.get('aluno', ''),
+                        'ra': dados.get('ra', ''),
+                        'turma': dados.get('turma', ''),
+                        'categoria': edit_categoria,
+                        'gravidade': edit_grav,
+                        'relato': edit_relato,
+                        'professor': dados.get('professor', ''),
+                        'encaminhamento': edit_encam,
+                        'envolvidos': edit_envolvidos
+                    }
+                    sucesso, msg = atualizar_ocorrencia(st.session_state.editando_id, dados_atualizados)
+                    if sucesso:
+                        st.success(f"✅ {msg}")
+                        st.session_state.ocorrencia_editada_sucesso = True
+                        st.session_state.editando_id = None
+                        st.session_state.dados_edicao = None
+                        carregar_ocorrencias.clear()
+                        st.rerun()
+                    else:
+                        st.error(f"❌ {msg}")
+            with col2:
+                if st.button("❌ Cancelar Edição", key="btn_cancelar_edicao_occ_list"):
+                    st.session_state.editando_id = None
+                    st.session_state.dados_edicao = None
+                    st.rerun()
+        
+        # ✅ EXCLUIR OCORRÊNCIA
+        st.markdown("---")
+        st.subheader("🗑️ Excluir Ocorrência")
+        if ids_disponiveis:
+            id_excluir = st.selectbox("Selecione o ID para excluir", ids_disponiveis, key="sel_id_excluir_list")
+            senha = st.text_input("Digite a senha (040600)", type="password", key="txt_senha_excluir_list")
+            if st.button("🗑️ Excluir Ocorrência", type="secondary", key="btn_excluir_occ_list"):
+                if senha == SENHA_EXCLUSAO:
+                    sucesso, msg = excluir_ocorrencia(id_excluir)
+                    if sucesso:
+                        st.session_state.ocorrencia_excluida_sucesso = True
+                        carregar_ocorrencias.clear()
+                        st.rerun()
+                    else:
+                        st.error(f"❌ {msg}")
+                else:
+                    st.error("❌ Senha incorreta!")
+        else:
+            st.info("📭 Nenhuma ocorrência para excluir")
+        
+        # ✅ GERAR PDF
+        st.markdown("---")
+        st.subheader("📄 Gerar Documentos")
+        col1, col2 = st.columns(2)
+        with col1:
+            id_selecionado = st.number_input("ID da Ocorrência", min_value=1, step=1, key="num_id_pdf_list")
+            if st.button("📄 Gerar PDF", key="btn_gerar_pdf_list"):
+                ocorrencia_row = df_filtrado[df_filtrado['id'] == id_selecionado]
+                if not ocorrencia_row.empty:
+                    ocorrencia = ocorrencia_row.iloc[0].to_dict()
+                    pdf_buffer = gerar_pdf_ocorrencia(ocorrencia)
+                    st.download_button(label="📥 Baixar PDF", data=pdf_buffer, file_name=f"ocorrencia_{id_selecionado}.pdf", mime="application/pdf")
+                else:
+                    st.error("❌ Ocorrência não encontrada")
+        with col2:
+            if st.button("📬 Gerar Comunicado", key="btn_gerar_comunicado_list"):
+                ocorrencia_row = df_filtrado[df_filtrado['id'] == id_selecionado]
+                if not ocorrencia_row.empty:
+                    ocorrencia = ocorrencia_row.iloc[0].to_dict()
+                    pdf_buffer = gerar_pdf_comunicado(ocorrencia)
+                    st.download_button(label="📥 Baixar Comunicado", data=pdf_buffer, file_name=f"comunicado_{id_selecionado}.pdf", mime="application/pdf")
+                else:
+                    st.error("❌ Ocorrência não encontrada")
+    else:
+        st.info("📭 Nenhuma ocorrência registrada ainda.")
+
+
+# ============================================================================
+# PÁGINA: GRÁFICOS (COM FILTROS DE PERÍODO)
+# ============================================================================
+
+elif menu == "📈 Gráficos":
+    st.title("📈 Gráficos e Estatísticas")
+    
+    df_ocorrencias = carregar_ocorrencias()
+    df_alunos = carregar_alunos()
+    
+    if not df_ocorrencias.empty:
+        # ✅ FILTRO DE PERÍODO
+        st.subheader("🔍 Filtro de Período")
+        col1, col2 = st.columns(2)
+        with col1:
+            periodo_selecionado = st.selectbox(
+                "Selecione o período:",
+                ["Todos", "Último Mês (30 dias)", "Semana Atual (7 dias)", "Semana Passada"],
+                key="sel_periodo_graficos"
+            )
+        with col2:
+            filtro_turma = st.multiselect("Turma", df_alunos['turma'].unique().tolist(), key="multi_graf_turma_page")
+        
+        mapa_periodo = {
+            "Todos": "todos",
+            "Último Mês (30 dias)": "ultimo_mes",
+            "Semana Atual (7 dias)": "semana_atual",
+            "Semana Passada": "semana_passada"
+        }
+        
+        periodo_filtro = mapa_periodo.get(periodo_selecionado, "todos")
+        df_filtrado_periodo = filtrar_por_periodo(df_ocorrencias, periodo_filtro)
+        
+        if filtro_turma:
+            df_filtrado_periodo = df_filtrado_periodo[df_filtrado_periodo['turma'].isin(filtro_turma)]
+        
+        st.info(f"📅 Período: **{periodo_selecionado}** - Total: **{len(df_filtrado_periodo)} ocorrências**")
+        st.markdown("---")
+        
+        if not df_filtrado_periodo.empty:
+            col1, col2 = st.columns(2)
+            with col1:
+                st.subheader("📊 Ocorrências por Categoria")
+                if 'categoria' in df_filtrado_periodo.columns:
+                    cat_counts = df_filtrado_periodo['categoria'].value_counts().head(10)
+                    fig = px.bar(x=cat_counts.values, y=cat_counts.index, orientation='h', color=cat_counts.values, color_continuous_scale='Reds')
+                    fig.update_layout(height=400, showlegend=False)
+                    st.plotly_chart(fig, use_container_width=True)
+            with col2:
+                st.subheader("📊 Ocorrências por Gravidade")
+                if 'gravidade' in df_filtrado_periodo.columns:
+                    grav_counts = df_filtrado_periodo['gravidade'].value_counts()
+                    fig = px.pie(values=grav_counts.values, names=grav_counts.index, color=grav_counts.index, color_discrete_map=CORES_GRAVIDADE)
+                    fig.update_layout(height=400)
+                    st.plotly_chart(fig, use_container_width=True)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.subheader("📊 Ocorrências por Turma")
+                if 'turma' in df_filtrado_periodo.columns:
+                    turma_counts = df_filtrado_periodo['turma'].value_counts().head(10)
+                    fig = px.bar(x=turma_counts.index, y=turma_counts.values, color=turma_counts.values, color_continuous_scale='Blues')
+                    fig.update_layout(height=400, showlegend=False)
+                    st.plotly_chart(fig, use_container_width=True)
+            with col2:
+                st.subheader("📊 Ocorrências por Mês")
+                if 'data' in df_filtrado_periodo.columns:
+                    df_filtrado_periodo['mes'] = pd.to_datetime(df_filtrado_periodo['data'], format='%d/%m/%Y %H:%M', errors='coerce').dt.strftime('%m/%Y')
+                    mes_counts = df_filtrado_periodo['mes'].value_counts().sort_index()
+                    fig = px.line(x=mes_counts.index, y=mes_counts.values, markers=True)
+                    fig.update_layout(height=400, showlegend=False)
+                    st.plotly_chart(fig, use_container_width=True)
+            
+            st.subheader("🔥 Mapa de Calor: Categoria x Gravidade")
+            if 'categoria' in df_filtrado_periodo.columns and 'gravidade' in df_filtrado_periodo.columns:
+                heatmap_data = pd.crosstab(df_filtrado_periodo['categoria'], df_filtrado_periodo['gravidade'])
+                fig = px.imshow(heatmap_data, text_auto=True, aspect="auto", color_continuous_scale='YlOrRd')
+                fig.update_layout(height=500)
+                st.plotly_chart(fig, use_container_width=True)
+            
+            st.markdown("---")
+            st.subheader("📊 Estatísticas Resumidas")
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("Total de Ocorrências", len(df_filtrado_periodo))
+            with col2:
+                st.metric("Turmas Afetadas", df_filtrado_periodo['turma'].nunique() if 'turma' in df_filtrado_periodo.columns else 0)
+            with col3:
+                st.metric("Alunos Envolvidos", df_filtrado_periodo['ra'].nunique() if 'ra' in df_filtrado_periodo.columns else 0)
+            with col4:
+                gravissima_count = len(df_filtrado_periodo[df_filtrado_periodo['gravidade'] == 'Gravíssima']) if 'gravidade' in df_filtrado_periodo.columns else 0
+                st.metric("Ocorrências Gravíssimas", gravissima_count)
+        else:
+            st.info("📭 Nenhuma ocorrência registrada no período selecionado.")
+    else:
+        st.info("📭 Nenhuma ocorrência registrada para gerar gráficos.")
+
+
+# ============================================================================
+# PÁGINA: RELATÓRIOS (TOP 10 ALUNOS + PESQUISA)
+# ============================================================================
+
+elif menu == "🖨️ Relatórios":
+    st.title("🖨️ Relatórios e Top 10 Alunos")
+    
+    df_ocorrencias = carregar_ocorrencias()
+    df_alunos = carregar_alunos()
+    df_responsaveis = carregar_responsaveis()
+    
+    if not df_ocorrencias.empty:
+        # ✅ TOP 10 ALUNOS COM MAIS OCORRÊNCIAS
+        st.subheader("🏆 Top 10 Estudantes com Mais Ocorrências")
+        top_alunos = get_top_alunos_ocorrencias(df_ocorrencias, df_alunos, top_n=10)
+        
+        if not top_alunos.empty:
+            for idx, row in top_alunos.iterrows():
+                st.markdown(f"""
+                <div class="top-student-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span style="font-size: 1.5rem; font-weight: bold;">#{idx + 1}</span>
+                            <span style="font-size: 1.2rem; margin-left: 1rem;">{row['aluno']}</span>
+                        </div>
+                        <div style="font-size: 2rem; font-weight: bold;">{row['total_ocorrencias']} 📋</div>
+                    </div>
+                    <div style="margin-top: 0.5rem; font-size: 0.9rem;">
+                        RA: {row['ra']} | Turma: {row.get('turma', 'N/A')} | Situação: {row.get('situacao', 'N/A')}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            # ✅ PESQUISA POR ALUNO
+            st.markdown("---")
+            st.subheader("🔍 Pesquisar Ocorrências por Estudante")
+            
+            busca_aluno = st.text_input("Digite o nome do estudante para localizar suas ocorrências:", key="txt_busca_aluno_rel")
+            
+            if busca_aluno:
+                df_alunos_filtrado = df_alunos[df_alunos['nome'].str.contains(busca_aluno, case=False, na=False)]
+                
+                if not df_alunos_filtrado.empty:
+                    aluno_selecionado = st.selectbox("Selecione o aluno:", df_alunos_filtrado['nome'].tolist(), key="sel_aluno_rel")
+                    aluno_info = df_alunos_filtrado[df_alunos_filtrado['nome'] == aluno_selecionado].iloc[0]
+                    ra_aluno = aluno_info['ra']
+                    
+                    ocorrencias_aluno = get_ocorrencias_por_aluno(df_ocorrencias, ra_aluno)
+                    
+                    if not ocorrencias_aluno.empty:
+                        st.info(f"**Total de Ocorrências:** {len(ocorrencias_aluno)}")
+                        st.dataframe(ocorrencias_aluno[['id', 'data', 'categoria', 'gravidade', 'professor', 'turma']], use_container_width=True)
+                        
+                        # ✅ AÇÕES (EDITAR/EXCLUIR)
+                        st.subheader("🛠️ Ações")
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            id_editar = st.selectbox("ID para Editar", ocorrencias_aluno['id'].tolist(), key="sel_id_editar_rel")
+                            if st.button("✏️ Editar", key="btn_editar_rel"):
+                                ocorrencia = ocorrencias_aluno[ocorrencias_aluno['id'] == id_editar].iloc[0].to_dict()
+                                st.session_state.editando_id = id_editar
+                                st.session_state.dados_edicao = {
+                                    'id': ocorrencia.get('id', id_editar),
+                                    'data': ocorrencia.get('data', ''),
+                                    'aluno': ocorrencia.get('aluno', ''),
+                                    'ra': ocorrencia.get('ra', ''),
+                                    'turma': ocorrencia.get('turma', ''),
+                                    'categoria': ocorrencia.get('categoria', ''),
+                                    'gravidade': ocorrencia.get('gravidade', ''),
+                                    'relato': ocorrencia.get('relato', ''),
+                                    'professor': ocorrencia.get('professor', ''),
+                                    'encaminhamento': ocorrencia.get('encaminhamento', ''),
+                                    'envolvidos': ocorrencia.get('envolvidos', '')
+                                }
+                                st.success(f"✅ Ocorrência {id_editar} carregada para edição! Vá em 'Lista de Ocorrências' para editar.")
+                        
+                        with col2:
+                            id_excluir = st.selectbox("ID para Excluir", ocorrencias_aluno['id'].tolist(), key="sel_id_excluir_rel")
+                            senha = st.text_input("Senha (040600)", type="password", key="txt_senha_excluir_rel")
+                            if st.button("🗑️ Excluir", key="btn_excluir_rel"):
+                                if senha == SENHA_EXCLUSAO:
+                                    sucesso, msg = excluir_ocorrencia(id_excluir)
+                                    if sucesso:
+                                        st.success(f"✅ {msg}")
+                                        carregar_ocorrencias.clear()
+                                        st.rerun()
+                                    else:
+                                        st.error(f"❌ {msg}")
+                                else:
+                                    st.error("❌ Senha incorreta!")
+                    else:
+                        st.info("📭 Nenhuma ocorrência registrada para este aluno.")
+                else:
+                    st.info("📭 Nenhum aluno encontrado com este nome.")
+        else:
+            st.info("📭 Nenhuma ocorrência registrada.")
+        
+        # ✅ GERAR PDF
+        st.markdown("---")
+        st.subheader("📄 Gerar PDF de Ocorrência")
+        col1, col2 = st.columns(2)
+        with col1:
+            id_selecionado = st.number_input("ID da Ocorrência", min_value=1, step=1, key="num_id_pdf_rel")
+        with col2:
+            tipo_documento = st.selectbox("Tipo de Documento", ["Ocorrência", "Comunicado aos Pais"], key="sel_tipo_doc_rel")
+        
+        if st.button("🖨️ Gerar PDF", type="primary", key="btn_gerar_pdf_rel"):
+            ocorrencia_row = df_ocorrencias[df_ocorrencias['id'] == id_selecionado]
+            if not ocorrencia_row.empty:
+                ocorrencia = ocorrencia_row.iloc[0].to_dict()
+                if tipo_documento == "Ocorrência":
+                    pdf_buffer = gerar_pdf_ocorrencia(ocorrencia, df_responsaveis)
+                    nome_arquivo = f"ocorrencia_{id_selecionado}_{ocorrencia.get('aluno', 'aluno')}.pdf"
+                else:
+                    pdf_buffer = gerar_pdf_comunicado(ocorrencia, df_responsaveis)
+                    nome_arquivo = f"comunicado_{id_selecionado}_{ocorrencia.get('aluno', 'aluno')}.pdf"
+                st.download_button(label="📥 Baixar PDF", data=pdf_buffer, file_name=nome_arquivo, mime="application/pdf")
+                st.success("✅ PDF gerado com sucesso!")
+            else:
+                st.error("❌ Ocorrência não encontrada.")
+    else:
+        st.info("📭 Nenhuma ocorrência registrada para imprimir.")
 
 
 # ============================================================================
@@ -1322,404 +1909,6 @@ elif menu == "👨‍🏫 Professores":
 
 
 # ============================================================================
-# PÁGINA: LISTA DE OCORRÊNCIAS (COM EDITAR/EXCLUIR)
-# ============================================================================
-
-elif menu == "📊 Lista de Ocorrências":
-    st.title("📊 Lista de Ocorrências")
-    df_ocorrencias = carregar_ocorrencias()
-    df_alunos = carregar_alunos()
-    
-    if st.session_state.get('ocorrencia_excluida_sucesso', False):
-        st.markdown('<div class="success-box">✅ OCORRÊNCIA EXCLUÍDA COM SUCESSO!</div>', unsafe_allow_html=True)
-        st.session_state.ocorrencia_excluida_sucesso = False
-    if st.session_state.get('ocorrencia_editada_sucesso', False):
-        st.markdown('<div class="success-box">✅ OCORRÊNCIA EDITADA COM SUCESSO!</div>', unsafe_allow_html=True)
-        st.session_state.ocorrencia_editada_sucesso = False
-    
-    if not df_ocorrencias.empty:
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            filtro_gravidade = st.multiselect("Gravidade", ["Gravíssima", "Grave", "Média", "Leve"], key="multi_filtro_grav_list")
-        with col2:
-            filtro_categoria = st.multiselect("Categoria", df_ocorrencias['categoria'].unique(), key="multi_filtro_cat_list")
-        with col3:
-            filtro_turma = st.multiselect("Turma", df_alunos['turma'].unique().tolist() if not df_alunos.empty else [], key="multi_filtro_turma_list")
-        
-        df_filtrado = df_ocorrencias.copy()
-        if filtro_gravidade:
-            df_filtrado = df_filtrado[df_filtrado['gravidade'].isin(filtro_gravidade)]
-        if filtro_categoria:
-            df_filtrado = df_filtrado[df_filtrado['categoria'].isin(filtro_categoria)]
-        if filtro_turma:
-            df_filtrado = df_filtrado[df_filtrado['turma'].isin(filtro_turma)]
-        
-        st.markdown(f"**Total:** {len(df_filtrado)} ocorrência(s)")
-        st.dataframe(df_filtrado, use_container_width=True)
-        st.markdown("---")
-        
-        # ✅ EDITAR OCORRÊNCIA
-        st.subheader("✏️ Editar Ocorrência")
-        ids_disponiveis = df_filtrado['id'].tolist() if not df_filtrado.empty else []
-        if ids_disponiveis:
-            id_editar = st.selectbox("Selecione o ID para editar", ids_disponiveis, key="sel_id_editar_list")
-            if st.button("✏️ Carregar para Edição", type="primary", key="btn_carregar_edicao_list"):
-                ocorrencia_row = df_filtrado[df_filtrado['id'] == id_editar]
-                if not ocorrencia_row.empty:
-                    ocorrencia = ocorrencia_row.iloc[0].to_dict()
-                    st.session_state.editando_id = id_editar
-                    st.session_state.dados_edicao = {
-                        'id': ocorrencia.get('id', id_editar),
-                        'data': ocorrencia.get('data', ''),
-                        'aluno': ocorrencia.get('aluno', ''),
-                        'ra': ocorrencia.get('ra', ''),
-                        'turma': ocorrencia.get('turma', ''),
-                        'categoria': ocorrencia.get('categoria', ''),
-                        'gravidade': ocorrencia.get('gravidade', ''),
-                        'relato': ocorrencia.get('relato', ''),
-                        'professor': ocorrencia.get('professor', ''),
-                        'encaminhamento': ocorrencia.get('encaminhamento', '')
-                    }
-                    st.success(f"✅ Ocorrência {id_editar} carregada para edição!")
-                else:
-                    st.error("❌ Ocorrência não encontrada!")
-        
-        if st.session_state.editando_id is not None and st.session_state.dados_edicao:
-            st.markdown("---")
-            st.subheader(f"✏️ Editando Ocorrência ID: {st.session_state.editando_id}")
-            dados = st.session_state.dados_edicao
-            st.info(f"**Protocolo (ID):** {dados.get('id', 'N/A')} (NÃO PODE SER ALTERADO)\n\n**Dados Atuais:**\n- Aluno: {dados.get('aluno', 'N/A')}\n- RA: {dados.get('ra', 'N/A')}\n- Turma: {dados.get('turma', 'N/A')}\n- Data: {dados.get('data', 'N/A')}")
-            col1, col2 = st.columns(2)
-            with col1:
-                edit_relato = st.text_area("📝 Relato", value=str(dados.get("relato", "")), height=150, key="txt_edit_relato_list")
-                edit_categoria = st.selectbox("📋 Categoria", list(CATEGORIAS_OCORRENCIAS.keys()), key="sel_edit_categoria_list")
-            with col2:
-                edit_encam = st.text_area("🔀 Encaminhamento", value=str(dados.get("encaminhamento", "")), height=150, key="txt_edit_encam_list")
-                edit_grav = st.selectbox("⚡ Gravidade", ["Gravíssima", "Grave", "Média", "Leve"], index=["Gravíssima", "Grave", "Média", "Leve"].index(str(dados.get("gravidade", "Leve"))) if str(dados.get("gravidade", "Leve")) in ["Gravíssima", "Grave", "Média", "Leve"] else 3, key="sel_edit_grav_list")
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                if st.button("💾 Salvar Alterações", type="primary", key="btn_salvar_edicao_list"):
-                    dados_atualizados = {
-                        'data': dados.get('data', ''),
-                        'aluno': dados.get('aluno', ''),
-                        'ra': dados.get('ra', ''),
-                        'turma': dados.get('turma', ''),
-                        'categoria': edit_categoria,
-                        'gravidade': edit_grav,
-                        'relato': edit_relato,
-                        'professor': dados.get('professor', ''),
-                        'encaminhamento': edit_encam
-                    }
-                    sucesso, msg = atualizar_ocorrencia(st.session_state.editando_id, dados_atualizados)
-                    if sucesso:
-                        st.success(f"✅ {msg}")
-                        st.session_state.ocorrencia_editada_sucesso = True
-                        st.session_state.editando_id = None
-                        st.session_state.dados_edicao = None
-                        carregar_ocorrencias.clear()
-                        st.rerun()
-                    else:
-                        st.error(f"❌ {msg}")
-            with col2:
-                if st.button("❌ Cancelar Edição", key="btn_cancelar_edicao_occ_list"):
-                    st.session_state.editando_id = None
-                    st.session_state.dados_edicao = None
-                    st.rerun()
-        
-        # ✅ EXCLUIR OCORRÊNCIA
-        st.markdown("---")
-        st.subheader("🗑️ Excluir Ocorrência")
-        if ids_disponiveis:
-            id_excluir = st.selectbox("Selecione o ID para excluir", ids_disponiveis, key="sel_id_excluir_list")
-            senha = st.text_input("Digite a senha (040600)", type="password", key="txt_senha_excluir_list")
-            if st.button("🗑️ Excluir Ocorrência", type="secondary", key="btn_excluir_occ_list"):
-                if senha == SENHA_EXCLUSAO:
-                    sucesso, msg = excluir_ocorrencia(id_excluir)
-                    if sucesso:
-                        st.session_state.ocorrencia_excluida_sucesso = True
-                        carregar_ocorrencias.clear()
-                        st.rerun()
-                    else:
-                        st.error(f"❌ {msg}")
-                else:
-                    st.error("❌ Senha incorreta!")
-        else:
-            st.info("📭 Nenhuma ocorrência para excluir")
-        
-        # ✅ GERAR PDF
-        st.markdown("---")
-        st.subheader("📄 Gerar Documentos")
-        col1, col2 = st.columns(2)
-        with col1:
-            id_selecionado = st.number_input("ID da Ocorrência", min_value=1, step=1, key="num_id_pdf_list")
-            if st.button("📄 Gerar PDF", key="btn_gerar_pdf_list"):
-                ocorrencia_row = df_filtrado[df_filtrado['id'] == id_selecionado]
-                if not ocorrencia_row.empty:
-                    ocorrencia = ocorrencia_row.iloc[0].to_dict()
-                    pdf_buffer = gerar_pdf_ocorrencia(ocorrencia)
-                    st.download_button(label="📥 Baixar PDF", data=pdf_buffer, file_name=f"ocorrencia_{id_selecionado}.pdf", mime="application/pdf")
-                else:
-                    st.error("❌ Ocorrência não encontrada")
-        with col2:
-            if st.button("📬 Gerar Comunicado", key="btn_gerar_comunicado_list"):
-                ocorrencia_row = df_filtrado[df_filtrado['id'] == id_selecionado]
-                if not ocorrencia_row.empty:
-                    ocorrencia = ocorrencia_row.iloc[0].to_dict()
-                    pdf_buffer = gerar_pdf_comunicado(ocorrencia)
-                    st.download_button(label="📥 Baixar Comunicado", data=pdf_buffer, file_name=f"comunicado_{id_selecionado}.pdf", mime="application/pdf")
-                else:
-                    st.error("❌ Ocorrência não encontrada")
-    else:
-        st.info("📭 Nenhuma ocorrência registrada ainda.")
-
-
-# ============================================================================
-# PÁGINA: GRÁFICOS
-# ============================================================================
-
-elif menu == "📈 Gráficos":
-    st.title("📈 Gráficos e Estatísticas")
-    df_ocorrencias = carregar_ocorrencias()
-    df_alunos = carregar_alunos()
-    
-    if not df_ocorrencias.empty:
-        st.subheader("🔍 Filtros")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            filtro_turma = st.multiselect("Turma", df_alunos['turma'].unique().tolist(), key="multi_graf_turma_page")
-        with col2:
-            filtro_gravidade = st.multiselect("Gravidade", ["Gravíssima", "Grave", "Média", "Leve"], key="multi_graf_grav_page")
-        with col3:
-            filtro_categoria = st.multiselect("Categoria", df_ocorrencias['categoria'].unique(), key="multi_graf_cat_page")
-        
-        df_filtrado = df_ocorrencias.copy()
-        if filtro_turma:
-            df_filtrado = df_filtrado[df_filtrado['turma'].isin(filtro_turma)]
-        if filtro_gravidade:
-            df_filtrado = df_filtrado[df_filtrado['gravidade'].isin(filtro_gravidade)]
-        if filtro_categoria:
-            df_filtrado = df_filtrado[df_filtrado['categoria'].isin(filtro_categoria)]
-        
-        st.markdown(f"**Total:** {len(df_filtrado)} ocorrência(s)")
-        st.markdown("---")
-        
-        # ✅ GRÁFICOS TRADICIONAIS
-        col1, col2 = st.columns(2)
-        with col1:
-            st.subheader("📊 Ocorrências por Categoria")
-            if 'categoria' in df_filtrado.columns and not df_filtrado.empty:
-                cat_counts = df_filtrado['categoria'].value_counts().head(10)
-                fig = px.bar(x=cat_counts.values, y=cat_counts.index, orientation='h', color=cat_counts.values, color_continuous_scale='Reds')
-                fig.update_layout(height=400, showlegend=False)
-                st.plotly_chart(fig, use_container_width=True)
-        with col2:
-            st.subheader("📊 Ocorrências por Gravidade")
-            if 'gravidade' in df_filtrado.columns and not df_filtrado.empty:
-                grav_counts = df_filtrado['gravidade'].value_counts()
-                # ✅ CORREÇÃO: pie usa color_discrete_sequence, NÃO color_continuous_scale
-                fig = px.pie(values=grav_counts.values, names=grav_counts.index,
-                            color=grav_counts.index,
-                            color_discrete_map={
-                                "Gravíssima": "#D32F2F",
-                                "Grave": "#F57C00",
-                                "Média": "#FFB300",
-                                "Leve": "#4CAF50"
-                            })
-                fig.update_layout(height=400)
-                st.plotly_chart(fig, use_container_width=True)
-        
-        # ✅ NOVOS GRÁFICOS SOLICITADOS
-        st.markdown("---")
-        st.subheader("📊 Indicadores Avançados")
-        
-        col1, col2 = st.columns(2)
-        
-        # ✅ GRÁFICO 1: ALUNO COM MAIS OCORRÊNCIAS
-        with col1:
-            st.subheader("👤 Top 10 Alunos com Mais Ocorrências")
-            if not df_filtrado.empty:
-                top_alunos = df_filtrado.groupby(['ra', 'aluno']).size().reset_index(name='total')
-                top_alunos = top_alunos.sort_values('total', ascending=False).head(10)
-                fig = px.bar(top_alunos, x='total', y='aluno', orientation='h', color='total', color_continuous_scale='Reds')
-                fig.update_layout(height=400, showlegend=False, xaxis_title="Ocorrências", yaxis_title="Aluno")
-                st.plotly_chart(fig, use_container_width=True)
-        
-        # ✅ GRÁFICO 2: PROFESSOR QUE MAIS REGISTRA
-        with col2:
-            st.subheader("👨‍🏫 Professores que Mais Registram")
-            if 'professor' in df_filtrado.columns and not df_filtrado.empty:
-                prof_counts = df_filtrado['professor'].value_counts().head(10)
-                fig = px.bar(x=prof_counts.values, y=prof_counts.index, orientation='h', color=prof_counts.values, color_continuous_scale='Blues')
-                fig.update_layout(height=400, showlegend=False, xaxis_title="Ocorrências", yaxis_title="Professor")
-                st.plotly_chart(fig, use_container_width=True)
-        
-        col1, col2 = st.columns(2)
-        
-        # ✅ GRÁFICO 3: TURMA COM MAIS OCORRÊNCIAS
-        with col1:
-            st.subheader("🏫 Turmas com Mais Ocorrências")
-            if 'turma' in df_filtrado.columns and not df_filtrado.empty:
-                turma_counts = df_filtrado['turma'].value_counts().head(10)
-                fig = px.bar(x=turma_counts.index, y=turma_counts.values, color=turma_counts.values, color_continuous_scale='Oranges')
-                fig.update_layout(height=400, showlegend=False, xaxis_title="Turma", yaxis_title="Ocorrências")
-                st.plotly_chart(fig, use_container_width=True)
-        
-        # ✅ GRÁFICO 4: OCORRÊNCIA MAIS REGISTRADA
-        with col2:
-            st.subheader("📋 Ocorrências Mais Registradas")
-            if 'categoria' in df_filtrado.columns and not df_filtrado.empty:
-                cat_counts = df_filtrado['categoria'].value_counts().head(10)
-                # ✅ CORREÇÃO: pie usa color_discrete_sequence
-                fig = px.pie(values=cat_counts.values, names=cat_counts.index,
-                            color=cat_counts.index,
-                            color_discrete_sequence=px.colors.qualitative.Pastel)
-                fig.update_layout(height=400)
-                st.plotly_chart(fig, use_container_width=True)
-        
-        # ✅ ESTATÍSTICAS RESUMIDAS
-        st.markdown("---")
-        st.subheader("📊 Estatísticas Resumidas")
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("Total de Ocorrências", len(df_filtrado))
-        with col2:
-            st.metric("Turmas Afetadas", df_filtrado['turma'].nunique() if 'turma' in df_filtrado.columns else 0)
-        with col3:
-            st.metric("Alunos Envolvidos", df_filtrado['ra'].nunique() if 'ra' in df_filtrado.columns else 0)
-        with col4:
-            gravissima_count = len(df_filtrado[df_filtrado['gravidade'] == 'Gravíssima']) if 'gravidade' in df_filtrado.columns else 0
-            st.metric("Ocorrências Gravíssimas", gravissima_count)
-    else:
-        st.info("📭 Nenhuma ocorrência registrada para gerar gráficos.")
-
-
-# ============================================================================
-# PÁGINA: RELATÓRIOS (TOP 10 ALUNOS + PESQUISA)
-# ============================================================================
-
-elif menu == "🖨️ Relatórios":
-    st.title("🖨️ Relatórios e Top 10 Alunos")
-    
-    df_ocorrencias = carregar_ocorrencias()
-    df_alunos = carregar_alunos()
-    df_responsaveis = carregar_responsaveis()
-    
-    if not df_ocorrencias.empty:
-        # ✅ TOP 10 ALUNOS COM MAIS OCORRÊNCIAS
-        st.subheader("🏆 Top 10 Estudantes com Mais Ocorrências")
-        top_alunos = get_top_alunos_ocorrencias(df_ocorrencias, df_alunos, top_n=10)
-        
-        if not top_alunos.empty:
-            # Exibir em cards
-            for idx, row in top_alunos.iterrows():
-                st.markdown(f"""
-                <div class="top-student-card">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <span style="font-size: 1.5rem; font-weight: bold;">#{idx + 1}</span>
-                            <span style="font-size: 1.2rem; margin-left: 1rem;">{row['aluno']}</span>
-                        </div>
-                        <div style="font-size: 2rem; font-weight: bold;">{row['total_ocorrencias']} 📋</div>
-                    </div>
-                    <div style="margin-top: 0.5rem; font-size: 0.9rem;">
-                        RA: {row['ra']} | Turma: {row.get('turma', 'N/A')} | Situação: {row.get('situacao', 'N/A')}
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            # ✅ PESQUISA POR ALUNO
-            st.markdown("---")
-            st.subheader("🔍 Pesquisar Ocorrências por Estudante")
-            
-            busca_aluno = st.text_input("Digite o nome do estudante para localizar suas ocorrências:", key="txt_busca_aluno_rel")
-            
-            if busca_aluno:
-                df_alunos_filtrado = df_alunos[df_alunos['nome'].str.contains(busca_aluno, case=False, na=False)]
-                
-                if not df_alunos_filtrado.empty:
-                    aluno_selecionado = st.selectbox("Selecione o aluno:", df_alunos_filtrado['nome'].tolist(), key="sel_aluno_rel")
-                    aluno_info = df_alunos_filtrado[df_alunos_filtrado['nome'] == aluno_selecionado].iloc[0]
-                    ra_aluno = aluno_info['ra']
-                    
-                    # ✅ OCORRÊNCIAS DO ALUNO
-                    ocorrencias_aluno = get_ocorrencias_por_aluno(df_ocorrencias, ra_aluno)
-                    
-                    if not ocorrencias_aluno.empty:
-                        st.info(f"**Total de Ocorrências:** {len(ocorrencias_aluno)}")
-                        st.dataframe(ocorrencias_aluno[['id', 'data', 'categoria', 'gravidade', 'professor', 'turma']], use_container_width=True)
-                        
-                        # ✅ AÇÕES (EDITAR/EXCLUIR)
-                        st.subheader("🛠️ Ações")
-                        col1, col2 = st.columns(2)
-                        
-                        with col1:
-                            id_editar = st.selectbox("ID para Editar", ocorrencias_aluno['id'].tolist(), key="sel_id_editar_rel")
-                            if st.button("✏️ Editar", key="btn_editar_rel"):
-                                ocorrencia = ocorrencias_aluno[ocorrencias_aluno['id'] == id_editar].iloc[0].to_dict()
-                                st.session_state.editando_id = id_editar
-                                st.session_state.dados_edicao = {
-                                    'id': ocorrencia.get('id', id_editar),
-                                    'data': ocorrencia.get('data', ''),
-                                    'aluno': ocorrencia.get('aluno', ''),
-                                    'ra': ocorrencia.get('ra', ''),
-                                    'turma': ocorrencia.get('turma', ''),
-                                    'categoria': ocorrencia.get('categoria', ''),
-                                    'gravidade': ocorrencia.get('gravidade', ''),
-                                    'relato': ocorrencia.get('relato', ''),
-                                    'professor': ocorrencia.get('professor', ''),
-                                    'encaminhamento': ocorrencia.get('encaminhamento', '')
-                                }
-                                st.success(f"✅ Ocorrência {id_editar} carregada para edição! Vá em 'Lista de Ocorrências' para editar.")
-                        
-                        with col2:
-                            id_excluir = st.selectbox("ID para Excluir", ocorrencias_aluno['id'].tolist(), key="sel_id_excluir_rel")
-                            senha = st.text_input("Senha (040600)", type="password", key="txt_senha_excluir_rel")
-                            if st.button("🗑️ Excluir", key="btn_excluir_rel"):
-                                if senha == SENHA_EXCLUSAO:
-                                    sucesso, msg = excluir_ocorrencia(id_excluir)
-                                    if sucesso:
-                                        st.success(f"✅ {msg}")
-                                        carregar_ocorrencias.clear()
-                                        st.rerun()
-                                    else:
-                                        st.error(f"❌ {msg}")
-                                else:
-                                    st.error("❌ Senha incorreta!")
-                    else:
-                        st.info("📭 Nenhuma ocorrência registrada para este aluno.")
-                else:
-                    st.info("📭 Nenhum aluno encontrado com este nome.")
-        else:
-            st.info("📭 Nenhuma ocorrência registrada.")
-        
-        # ✅ GERAR PDF
-        st.markdown("---")
-        st.subheader("📄 Gerar PDF de Ocorrência")
-        col1, col2 = st.columns(2)
-        with col1:
-            id_selecionado = st.number_input("ID da Ocorrência", min_value=1, step=1, key="num_id_pdf_rel")
-        with col2:
-            tipo_documento = st.selectbox("Tipo de Documento", ["Ocorrência", "Comunicado aos Pais"], key="sel_tipo_doc_rel")
-        
-        if st.button("🖨️ Gerar PDF", type="primary", key="btn_gerar_pdf_rel"):
-            ocorrencia_row = df_ocorrencias[df_ocorrencias['id'] == id_selecionado]
-            if not ocorrencia_row.empty:
-                ocorrencia = ocorrencia_row.iloc[0].to_dict()
-                if tipo_documento == "Ocorrência":
-                    pdf_buffer = gerar_pdf_ocorrencia(ocorrencia, df_responsaveis)
-                    nome_arquivo = f"ocorrencia_{id_selecionado}_{ocorrencia.get('aluno', 'aluno')}.pdf"
-                else:
-                    pdf_buffer = gerar_pdf_comunicado(ocorrencia, df_responsaveis)
-                    nome_arquivo = f"comunicado_{id_selecionado}_{ocorrencia.get('aluno', 'aluno')}.pdf"
-                st.download_button(label="📥 Baixar PDF", data=pdf_buffer, file_name=nome_arquivo, mime="application/pdf")
-                st.success("✅ PDF gerado com sucesso!")
-            else:
-                st.error("❌ Ocorrência não encontrada.")
-    else:
-        st.info("📭 Nenhuma ocorrência registrada para imprimir.")
-
-
-# ============================================================================
 # PÁGINA: GERENCIAR TURMAS
 # ============================================================================
 
@@ -1842,7 +2031,7 @@ elif menu == "🔍 Alunos em Múltiplas Turmas":
 
 
 # ============================================================================
-# PÁGINA: IMPORTAR ALUNOS (TURMAS)
+# PÁGINA: IMPORTAR ALUNOS
 # ============================================================================
 
 elif menu == "📥 Importar Alunos":
@@ -1990,7 +2179,7 @@ elif menu == "⚙️ Configurações":
     st.subheader("📊 Informações do Sistema")
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("Versão", "12.0 FINAL")
+        st.metric("Versão", "12.5 FINAL")
     with col2:
         st.metric("Framework", "Streamlit")
     with col3:
@@ -2016,7 +2205,7 @@ elif menu == "💾 Backup":
             'ocorrencias': df_ocorrencias.to_dict('records') if not df_ocorrencias.empty else [],
             'responsaveis': df_responsaveis.to_dict('records') if not df_responsaveis.empty else [],
             'data_backup': datetime.now().strftime('%d/%m/%Y %H:%M'),
-            'versao_sistema': '12.0 FINAL'
+            'versao_sistema': '12.5 FINAL'
         }
         json_str = json.dumps(backup_data, ensure_ascii=False, indent=2)
         st.download_button(label="📥 Baixar Backup JSON", data=json_str, file_name=f"backup_conviva_{datetime.now().strftime('%Y%m%d_%H%M')}.json", mime="application/json")
@@ -2075,6 +2264,6 @@ st.markdown("""
     <p><b>Sistema Conviva 179</b> - Gestão de Ocorrências Escolares</p>
     <p>Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI</p>
     <p>Protocolo de Convivência e Proteção Escolar - SEDUC/SP</p>
-    <p>Versão 12.0 FINAL | Desenvolvido com Streamlit + Supabase (Requests)</p>
+    <p>Versão 12.5 FINAL | Desenvolvido com Streamlit + Supabase (Requests)</p>
 </div>
 """, unsafe_allow_html=True)
