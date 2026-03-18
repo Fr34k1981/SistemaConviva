@@ -1,7 +1,7 @@
 # ============================================================================
 # SISTEMA CONVIVA 179 - GESTÃO DE OCORRÊNCIAS ESCOLARES
 # Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI
-# Versão: 11.0 FINAL - TODAS CORREÇÕES + FILTRO MULTI-TURMAS
+# Versão: 11.1 FINAL - NOVA CATEGORIA INDISCIPLINA INTEGRADA
 # Desenvolvido para SEDUC/SP - Protocolo de Convivência e Proteção Escolar
 # ============================================================================
 
@@ -66,11 +66,11 @@ ESCOLA_LOGO = "eliane_dantas.png"
 SENHA_EXCLUSAO = "040600"
 
 # ============================================================================
-# PROTOCOLO 179 - CATEGORIAS
+# PROTOCOLO 179 - CATEGORIAS COMPLETAS (COM NOVA CATEGORIA)
 # ============================================================================
 CATEGORIAS_OCORRENCIAS = {
     "🔴 Violência Física": {
-        "Agressão Física": "Grave",
+        "Agressão Física": "Gravíssima",
         "Briga / Discussão": "Média",
         "Ameaça": "Grave",
         "Intimidação": "Grave",
@@ -130,6 +130,24 @@ CATEGORIAS_OCORRENCIAS = {
         "Violação de Dados": "Grave",
         "Uso Inadequado de Dispositivos Eletrônicos": "Leve"
     },
+    # ✅ NOVA CATEGORIA ADICIONADA - INDISCIPLINA E DESCUMPRIMENTO DE NORMAS
+    "📋 Indisciplina e Descumprimento de Normas": {
+        "Indisciplina": "Leve",
+        "Descumprimento de Normas Escolares": "Leve",
+        "Comportamento Inadequado em Sala": "Leve",
+        "Desrespeito a Funcionário": "Grave",
+        "Desrespeito a Colega": "Média",
+        "Recusa em Realizar Atividades": "Leve",
+        "Uso Indevido de Material Escolar": "Leve",
+        "Danos ao Patrimônio": "Grave",
+        "Saída não Autorizada da Sala": "Média",
+        "Atraso Frequente": "Média",
+        "Ausência sem Justificativa": "Leve",
+        "Uso de Celular em Sala": "Leve",
+        "Alimentação em Sala de Aula": "Leve",
+        "Perturbação do Ambiente Escolar": "Média",
+        "Outros": "Leve"
+    },
     "📋 Infrações Administrativas e Disciplinares": {
         "Copiar atividades / Colar em avaliações": "Leve",
         "Falsificar assinatura de responsáveis": "Média",
@@ -150,6 +168,9 @@ CATEGORIAS_OCORRENCIAS = {
     }
 }
 
+# ============================================================================
+# CORES POR CATEGORIA
+# ============================================================================
 CORES_CATEGORIAS = {
     "🔴 Violência Física": "#D32F2F",
     "🟠 Violência Verbal/Psicológica": "#F57C00",
@@ -159,10 +180,14 @@ CORES_CATEGORIAS = {
     "📚 Infrequência e Evasão": "#FFA726",
     "💔 Saúde Mental": "#5C6BC0",
     "🌐 Crimes Cibernéticos": "#00BCD4",
-    "📋 Infrações Administrativas e Disciplinares": "#9E9E9E",
+    "📋 Indisciplina e Descumprimento de Normas": "#9E9E9E",
+    "📋 Infrações Administrativas e Disciplinares": "#757575",
     "👨‍👩‍👧‍👦 Família e Vulnerabilidade": "#EC407A"
 }
 
+# ============================================================================
+# CORES POR GRAVIDADE
+# ============================================================================
 CORES_GRAVIDADE = {
     "Gravíssima": "#D32F2F",
     "Grave": "#F57C00",
@@ -170,6 +195,9 @@ CORES_GRAVIDADE = {
     "Leve": "#4CAF50"
 }
 
+# ============================================================================
+# FLUXO DE AÇÕES - PROTOCOLO 179 (COM NOVA CATEGORIA)
+# ============================================================================
 FLUXO_ACOES = {
     "Agressão Física": "⚠️ Registrar B.O. se grave. Acionar Conselho Tutelar.",
     "Racismo": "⚖️ CRIME INAFIANÇÁVEL. Registrar B.O. obrigatório.",
@@ -185,9 +213,28 @@ FLUXO_ACOES = {
     "Violência Doméstica / Maus Tratos": "🛡️ PROTEÇÃO. Acionar Conselho Tutelar e CRAS/CREAS.",
     "Vulnerabilidade Familiar / Negligência": "🤝 APOIO. Acionar Conselho Tutelar e CRAS.",
     "Feminicídio": "⚖️ CRIME HEDIONDO. Registrar B.O. e DDM.",
-    "Homicídio / Homicídio Tentado": "⚖️ CRIME HEDIONDO. Registrar B.O."
+    "Homicídio / Homicídio Tentado": "⚖️ CRIME HEDIONDO. Registrar B.O.",
+    
+    # ✅ NOVAS AÇÕES - INDISCIPLINA E DESCUMPRIMENTO DE NORMAS
+    "Indisciplina": "📋 Registro em ata. Orientação ao estudante. Comunicação aos pais.",
+    "Descumprimento de Normas Escolares": "📋 Registro em ata. Orientação individual. Notificar famílias.",
+    "Comportamento Inadequado em Sala": "📋 Registro em ata. Orientação ao estudante. Acompanhamento pedagógico.",
+    "Desrespeito a Funcionário": "⚠️ Registro em ata. Comunicação URGENTE aos pais. Encaminhamento à Coordenação.",
+    "Desrespeito a Colega": "📋 Registro em ata. Mediação entre estudantes. Notificar famílias.",
+    "Recusa em Realizar Atividades": "📋 Registro em ata. Comunicação aos pais. Acompanhamento pedagógico.",
+    "Uso Indevido de Material Escolar": "📋 Registro em ata. Orientação ao estudante. Reparação do dano.",
+    "Danos ao Patrimônio": "⚠️ Registro em ata. Comunicação aos pais. Reparação do dano. Diretoria de Ensino.",
+    "Saída não Autorizada da Sala": "📋 Registro em ata. Orientação ao estudante. Comunicação aos pais.",
+    "Atraso Frequente": "📋 Registro em ata. Comunicação aos pais. Acompanhamento da frequência.",
+    "Ausência sem Justificativa": "📋 Registro em ata. Comunicação aos pais. Busca ativa se necessário.",
+    "Uso de Celular em Sala": "📋 Registro em ata. Retirada do aparelho. Devolução aos pais.",
+    "Alimentação em Sala de Aula": "📋 Registro em ata. Orientação ao estudante. Comunicação aos pais.",
+    "Perturbação do Ambiente Escolar": "⚠️ Registro em ata. Orientação ao estudante. Encaminhamento à Coordenação."
 }
 
+# ============================================================================
+# ENCAMINHAMENTOS POR GRAVIDADE
+# ============================================================================
 ENCAMINHAMENTOS_POR_GRAVIDADE = {
     "Leve": ["Orientação ao Estudante", "Comunicação aos Pais/Responsáveis", "Registro em Ata de Ocorrência"],
     "Média": ["Orientação ao Estudante", "Comunicação aos Pais/Responsáveis", "Registro em Ata de Ocorrência", "Encaminhamento à Coordenação"],
@@ -385,13 +432,10 @@ def carregar_turmas():
 
 
 # ============================================================================
-# FUNÇÃO NOVA: VERIFICAR ALUNOS EM MÚLTIPLAS TURMAS
+# FUNÇÃO: VERIFICAR ALUNOS EM MÚLTIPLAS TURMAS
 # ============================================================================
 
 def verificar_alunos_multi_turmas(df_alunos, status_filtro="Ativo"):
-    """
-    ✅ NOVO: Verifica alunos com status 'Ativo' em mais de uma turma
-    """
     if df_alunos.empty:
         return pd.DataFrame()
     
@@ -1020,6 +1064,10 @@ elif menu == "📥 Importar Alunos (Turmas)":
                         contagem_novos = 0
                         contagem_atualizados = 0
                         erros = 0
+                        col_ra = mapeamento_ra
+                        col_nome = mapeamento_nome
+                        col_nasc = mapeamento_nascimento
+                        col_sit = mapeamento_situacao
                         df_existentes = carregar_alunos()
 
                         for idx, row in df_import.iterrows():
@@ -1029,8 +1077,8 @@ elif menu == "📥 Importar Alunos (Turmas)":
                                     erros += 1
                                     continue
                                 nome_val = str(row[col_nome]).strip()
-                                nasc_val = str(row[col_nascimento]).strip()
-                                sit_val = str(row[col_situacao]).strip()
+                                nasc_val = str(row[col_nasc]).strip()
+                                sit_val = str(row[col_sit]).strip()
                                 aluno = {'ra': ra_str, 'nome': nome_val, 'data_nascimento': nasc_val, 'situacao': sit_val, 'turma': turma_alunos}
                                 if not df_existentes.empty:
                                     aluno_existente = df_existentes[df_existentes['ra'] == ra_str]
@@ -1075,6 +1123,21 @@ elif menu == "📥 Importar Alunos (Turmas)":
             st.info("💡 Tente salvar o CSV com encoding UTF-8 e separador ponto e vírgula (;)")
     else:
         st.info("📁 Selecione um arquivo CSV para importar.")
+    
+    with st.expander("🛠️ Ferramenta opcional: detectar e isolar registros com 'nome' parecendo data"):
+        if st.button("🔎 Ver alunos suspeitos", key="btn_ver_suspeitos"):
+            df_a = carregar_alunos()
+            if df_a.empty:
+                st.info("Sem alunos no banco.")
+            else:
+                mask = df_a['nome'].astype(str).str.match(r"^\s*\d{2}[/-]\d{2}[/-]\d{4}\s*$", na=False)
+                suspeitos = df_a[mask]
+                if suspeitos.empty:
+                    st.success("Nenhum registro suspeito encontrado 🎉")
+                else:
+                    st.warning(f"Encontrados {len(suspeitos)} registro(s) com 'nome' no formato de data.")
+                    st.dataframe(suspeitos[['ra', 'nome', 'turma', 'data_nascimento', 'situacao']].head(20))
+                    st.info("➡️ Recomendo reimportar a(s) turma(s) desses RAs com o mapeamento corrigido.")
 
 
 # ============================================================================
@@ -1162,7 +1225,7 @@ elif menu == "📋 Gerenciar Turmas":
 
 
 # ============================================================================
-# PÁGINA: ALUNOS EM MÚLTIPLAS TURMAS (NOVO)
+# PÁGINA: ALUNOS EM MÚLTIPLAS TURMAS
 # ============================================================================
 
 elif menu == "🔍 Alunos em Múltiplas Turmas":
@@ -1767,7 +1830,7 @@ elif menu == "⚙️ Configurações":
     st.subheader("📊 Informações do Sistema")
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("Versão", "11.0 FINAL")
+        st.metric("Versão", "11.1 FINAL")
     with col2:
         st.metric("Framework", "Streamlit")
     with col3:
@@ -1793,7 +1856,7 @@ elif menu == "💾 Backup":
             'ocorrencias': df_ocorrencias.to_dict('records') if not df_ocorrencias.empty else [],
             'responsaveis': df_responsaveis.to_dict('records') if not df_responsaveis.empty else [],
             'data_backup': datetime.now().strftime('%d/%m/%Y %H:%M'),
-            'versao_sistema': '11.0 FINAL'
+            'versao_sistema': '11.1 FINAL'
         }
         json_str = json.dumps(backup_data, ensure_ascii=False, indent=2)
         st.download_button(label="📥 Baixar Backup JSON", data=json_str, file_name=f"backup_conviva_{datetime.now().strftime('%Y%m%d_%H%M')}.json", mime="application/json")
@@ -1852,6 +1915,6 @@ st.markdown("""
     <p><b>Sistema Conviva 179</b> - Gestão de Ocorrências Escolares</p>
     <p>Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI</p>
     <p>Protocolo de Convivência e Proteção Escolar - SEDUC/SP</p>
-    <p>Versão 11.0 FINAL | Desenvolvido com Streamlit + Supabase (Requests)</p>
+    <p>Versão 11.1 FINAL | Desenvolvido com Streamlit + Supabase (Requests)</p>
 </div>
 """, unsafe_allow_html=True)
