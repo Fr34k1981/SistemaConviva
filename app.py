@@ -1474,7 +1474,7 @@ elif menu == "📊 Lista de Ocorrências":
 
 
 # ============================================================================
-# PÁGINA: GRÁFICOS (COM NOVOS GRÁFICOS SOLICITADOS)
+# PÁGINA: GRÁFICOS
 # ============================================================================
 
 elif menu == "📈 Gráficos":
@@ -1516,7 +1516,15 @@ elif menu == "📈 Gráficos":
             st.subheader("📊 Ocorrências por Gravidade")
             if 'gravidade' in df_filtrado.columns and not df_filtrado.empty:
                 grav_counts = df_filtrado['gravidade'].value_counts()
-                fig = px.pie(values=grav_counts.values, names=grav_counts.index, color=grav_counts.index, color_discrete_map=CORES_GRAVIDADE)
+                # ✅ CORREÇÃO: pie usa color_discrete_sequence, NÃO color_continuous_scale
+                fig = px.pie(values=grav_counts.values, names=grav_counts.index,
+                            color=grav_counts.index,
+                            color_discrete_map={
+                                "Gravíssima": "#D32F2F",
+                                "Grave": "#F57C00",
+                                "Média": "#FFB300",
+                                "Leve": "#4CAF50"
+                            })
                 fig.update_layout(height=400)
                 st.plotly_chart(fig, use_container_width=True)
         
@@ -1561,7 +1569,10 @@ elif menu == "📈 Gráficos":
             st.subheader("📋 Ocorrências Mais Registradas")
             if 'categoria' in df_filtrado.columns and not df_filtrado.empty:
                 cat_counts = df_filtrado['categoria'].value_counts().head(10)
-                fig = px.pie(values=cat_counts.values, names=cat_counts.index, color=cat_counts.values, color_continuous_scale='YlOrRd')
+                # ✅ CORREÇÃO: pie usa color_discrete_sequence
+                fig = px.pie(values=cat_counts.values, names=cat_counts.index,
+                            color=cat_counts.index,
+                            color_discrete_sequence=px.colors.qualitative.Pastel)
                 fig.update_layout(height=400)
                 st.plotly_chart(fig, use_container_width=True)
         
