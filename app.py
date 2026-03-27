@@ -1,7 +1,7 @@
 # ============================================================================
 # SISTEMA CONVIVA 179 - GESTÃO DE OCORRÊNCIAS ESCOLARES
 # Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI
-# Versão: 13.0 FINAL - SEU CÓDIGO + TODAS FUNCIONALIDADES
+# Versão: 14.1 FINAL - SUPABASE + ASSINATURAS + SELEÇÃO MÚLTIPLA
 # Desenvolvido para SEDUC/SP - Protocolo de Convivência e Proteção Escolar
 # ============================================================================
 
@@ -25,6 +25,8 @@ from reportlab.lib.units import cm
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
 import plotly.express as px
 import plotly.graph_objects as go
+import pytz
+from difflib import SequenceMatcher
 
 # ============================================================================
 # CONFIGURAÇÃO DA PÁGINA
@@ -188,12 +190,7 @@ FLUXO_ACOES = {
     "Posse de Arma de Fogo / Simulacro": "🚨 EMERGÊNCIA. Acionar PM (190).",
     "Ameaça de Ataque Ativo": "🚨 EMERGÊNCIA. Acionar PM (190) e Direção.",
     "Tentativa de Suicídio": "🚨 SAÚDE. Acionar SAMU (192) e Família.",
-    "Sinais de Automutilação": "💚 SAÚDE MENTAL. Acionar Psicólogo e Família.",
-    "Envolvimento com Tráfico de Drogas": "⚖️ CRIME. Registrar B.O. e Conselho Tutelar.",
-    "Violência Doméstica / Maus Tratos": "🛡️ PROTEÇÃO. Acionar Conselho Tutelar e CRAS/CREAS.",
-    "Vulnerabilidade Familiar / Negligência": "🤝 APOIO. Acionar Conselho Tutelar e CRAS.",
-    "Feminicídio": "⚖️ CRIME HEDIONDO. Registrar B.O. e DDM.",
-    "Homicídio / Homicídio Tentado": "⚖️ CRIME HEDIONDO. Registrar B.O."
+    "Sinais de Automutilação": "💚 SAÚDE MENTAL. Acionar Psicólogo e Família."
 }
 
 ENCAMINHAMENTOS_POR_GRAVIDADE = {
@@ -212,6 +209,9 @@ if 'dados_edicao' not in st.session_state:
     st.session_state.dados_edicao = None
 if 'editando_prof' not in st.session_state:
     st.session_state.editando_prof = None
+# === 🆕 NOVA FUNCIONALIDADE: Session state para edição de responsáveis ===
+if 'editando_resp' not in st.session_state:
+    st.session_state.editando_resp = None
 if 'pagina_atual' not in st.session_state:
     st.session_state.pagina_atual = "Home"
 if 'ocorrencia_salva_sucesso' not in st.session_state:
@@ -228,6 +228,14 @@ if 'gravidade_alterada' not in st.session_state:
     st.session_state.gravidade_alterada = False
 if 'turma_editar' not in st.session_state:
     st.session_state.turma_editar = None
+if 'salvando_ocorrencia' not in st.session_state:
+    st.session_state.salvando_ocorrencia = False
+if 'adicionar_outra_infracao' not in st.session_state:
+    st.session_state.adicionar_outra_infracao = False
+if 'infracoes_adicionais' not in st.session_state:
+    st.session_state.infracoes_adicionais = []
+if 'senha_exclusao_validada' not in st.session_state:
+    st.session_state.senha_exclusao_validada = False
 
 # ============================================================================
 # CSS PERSONALIZADO
@@ -296,6 +304,12 @@ st.markdown("""
     color: white;
     margin: 0.5rem 0;
 }
+.search-box {
+    background: #f0f0f0;
+    padding: 1rem;
+    border-radius: 8px;
+    margin: 1rem 0;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -307,11 +321,9 @@ def filtrar_por_periodo(df_ocorrencias, periodo="todos"):
     """Filtra ocorrências por período"""
     if df_ocorrencias.empty:
         return df_ocorrencias
-    
     df_filtrado = df_ocorrencias.copy()
     df_filtrado['data_dt'] = pd.to_datetime(df_filtrado['data'], format='%d/%m/%Y %H:%M', errors='coerce')
     hoje = datetime.now()
-    
     if periodo == "ultimo_mes":
         data_limite = hoje - timedelta(days=30)
         df_filtrado = df_filtrado[df_filtrado['data_dt'] >= data_limite]
@@ -325,18 +337,14 @@ def filtrar_por_periodo(df_ocorrencias, periodo="todos"):
             (df_filtrado['data_dt'] >= data_limite_inferior) & 
             (df_filtrado['data_dt'] < data_limite_superior)
         ]
-    
     if 'data_dt' in df_filtrado.columns:
         df_filtrado = df_filtrado.drop(columns=['data_dt'])
-    
     return df_filtrado
-
 
 def ordenar_turmas(turmas):
     """Ordena turmas do 6º ano ao 3º ano do médio"""
     if not turmas:
         return []
-    
     def chave_ordenacao(turma):
         turma_str = str(turma).upper().strip()
         numeros = re.findall(r'\d+', turma_str)
@@ -355,31 +363,23 @@ def ordenar_turmas(turmas):
         letras = re.findall(r'[A-Z]', turma_str)
         letra_ord = ord(letras[0]) if letras else 0
         return (tipo, ano_ord, letra_ord, turma_str)
-    
     return sorted(turmas, key=chave_ordenacao)
-
 
 def get_top_alunos_ocorrencias(df_ocorrencias, df_alunos, top_n=10):
     """Retorna top N alunos com mais ocorrências"""
     if df_ocorrencias.empty:
         return pd.DataFrame()
-    
     contagem = df_ocorrencias.groupby(['ra', 'aluno']).size().reset_index(name='total_ocorrencias')
     contagem = contagem.sort_values('total_ocorrencias', ascending=False).head(top_n)
-    
     if not df_alunos.empty:
         contagem = contagem.merge(df_alunos[['ra', 'turma', 'situacao']].drop_duplicates(), on='ra', how='left')
-    
     return contagem
-
 
 def get_ocorrencias_por_aluno(df_ocorrencias, ra_aluno):
     """Retorna todas as ocorrências de um aluno específico"""
     if df_ocorrencias.empty:
         return pd.DataFrame()
-    
     return df_ocorrencias[df_ocorrencias['ra'] == ra_aluno].sort_values('data', ascending=False)
-
 
 def formatar_texto(texto):
     """Formata texto para exibição"""
@@ -387,9 +387,64 @@ def formatar_texto(texto):
         return ""
     return str(texto).replace('<br/>', '\n').replace('<br>', '\n')
 
+def buscar_infracao_fuzzy(busca, protocolo):
+    """Busca fuzzy de infrações"""
+    if not busca or len(busca) < 2:
+        return {}
+    busca_normalizada = busca.lower().strip()
+    resultados = {}
+    palavras_chave = {
+        'celular': ['celular', 'telefone', 'smartphone', 'dispositivo', 'fone', 'headphone'],
+        'atraso': ['atraso', 'atrasado', 'chegar atrasado', 'pontualidade'],
+        'bullying': ['bullying', 'cyberbullying', 'intimidação', 'perseguição'],
+        'agressao': ['agressão', 'agressao', 'bater', 'agredir', 'violência', 'violencia'],
+        'furto': ['furto', 'roubo', 'roubar', 'furtar', 'levar', 'subtrair'],
+        'dano': ['dano', 'danificar', 'destruir', 'quebrar', 'vandalismo', 'pichar'],
+        'droga': ['droga', 'álcool', 'alcool', 'cigarro', 'fumo', 'maconha', 'substância'],
+        'arma': ['arma', 'faca', 'canivete', 'perigoso'],
+        'saida': ['saída', 'saida', 'sair', 'fugir', 'evadir', 'cabular', 'faltar'],
+        'falsificar': ['falsificar', 'falsificação', 'assinatura', 'documento', 'colar', 'copiar'],
+        'desrespeito': ['desrespeito', 'desobediência', 'insubordinação', 'desacato'],
+        'ameaca': ['ameaça', 'ameaca', 'intimidar', 'amedrontar'],
+        'discriminacao': ['racismo', 'homofobia', 'preconceito', 'discriminação', 'discriminacao']
+    }
+    for grupo, infracoes in protocolo.items():
+        infracoes_encontradas = {}
+        for nome_infracao, dados in infracoes.items():
+            similaridade = SequenceMatcher(None, busca_normalizada, nome_infracao.lower()).ratio()
+            palavras_busca = busca_normalizada.split()
+            match_parcial = any(palavra in nome_infracao.lower() for palavra in palavras_busca)
+            match_palavra_chave = False
+            for chave, termos in palavras_chave.items():
+                if chave in busca_normalizada or any(termo in busca_normalizada for termo in termos):
+                    if any(termo in nome_infracao.lower() for termo in termos):
+                        match_palavra_chave = True
+                        break
+            if similaridade > 0.4 or match_parcial or match_palavra_chave:
+                infracoes_encontradas[nome_infracao] = dados
+        if infracoes_encontradas:
+            resultados[grupo] = infracoes_encontradas
+    return resultados
+
+def obter_gravidade_mais_alta(gravidades):
+    """Retorna a gravidade mais alta de uma lista"""
+    ordem = {"Leve": 1, "Grave": 2, "Gravíssima": 3}
+    if not gravidades:
+        return "Leve"
+    return max(gravidades, key=lambda g: ordem.get(g, 0))
+
+def combinar_encaminhamentos(encaminhamentos_lista):
+    """Combina listas de encaminhamentos removendo duplicatas"""
+    todos = []
+    for encam in encaminhamentos_lista:
+        for linha in encam.split('\n'):
+            linha = linha.strip()
+            if linha and linha not in todos:
+                todos.append(linha)
+    return '\n'.join(todos)
 
 # ============================================================================
-# FUNÇÕES DE CARREGAMENTO
+# FUNÇÕES SUPABASE
 # ============================================================================
 
 @st.cache_data(ttl=60)
@@ -411,7 +466,6 @@ def carregar_alunos():
         st.error(f"Erro ao carregar alunos: {str(e)}")
         return pd.DataFrame(columns=['nome', 'ra', 'turma', 'data_nascimento', 'responsavel', 'telefone', 'foto_url', 'situacao'])
 
-
 @st.cache_data(ttl=60)
 def carregar_professores():
     if not SUPABASE_URL:
@@ -428,7 +482,6 @@ def carregar_professores():
     except Exception as e:
         st.error(f"Erro ao carregar professores: {str(e)}")
         return pd.DataFrame(columns=['id', 'nome', 'email', 'cargo', 'foto_url'])
-
 
 @st.cache_data(ttl=60)
 def carregar_ocorrencias():
@@ -461,9 +514,9 @@ def carregar_ocorrencias():
         st.error(f"Erro ao carregar ocorrências: {str(e)}")
         return pd.DataFrame(columns=['id', 'data', 'aluno', 'ra', 'turma', 'categoria', 'gravidade', 'relato', 'professor', 'encaminhamento', 'envolvidos'])
 
-
 @st.cache_data(ttl=60)
 def carregar_responsaveis():
+    """Carrega todos os responsáveis do Supabase"""
     if not SUPABASE_URL:
         return pd.DataFrame(columns=['id', 'nome', 'cargo'])
     try:
@@ -479,7 +532,6 @@ def carregar_responsaveis():
         st.error(f"Erro ao carregar responsáveis: {str(e)}")
         return pd.DataFrame(columns=['id', 'nome', 'cargo'])
 
-
 @st.cache_data(ttl=60)
 def carregar_turmas():
     df_alunos = carregar_alunos()
@@ -487,11 +539,6 @@ def carregar_turmas():
         turmas_info = df_alunos.groupby('turma').size().reset_index(name='total_alunos')
         return turmas_info
     return pd.DataFrame(columns=['turma', 'total_alunos'])
-
-
-# ============================================================================
-# FUNÇÕES DE SALVAMENTO
-# ============================================================================
 
 def salvar_ocorrencia(ocorrencia_dict):
     if not SUPABASE_URL:
@@ -525,7 +572,6 @@ def salvar_ocorrencia(ocorrencia_dict):
         st.error(f"Erro ao salvar ocorrência: {str(e)}")
         return False, f"Erro ao salvar: {str(e)}"
 
-
 def atualizar_ocorrencia(id_ocorrencia, ocorrencia_dict):
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
@@ -558,7 +604,6 @@ def atualizar_ocorrencia(id_ocorrencia, ocorrencia_dict):
         st.error(f"Erro ao atualizar ocorrência: {str(e)}")
         return False, f"Erro ao atualizar: {str(e)}"
 
-
 def excluir_ocorrencia(id_ocorrencia):
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
@@ -571,7 +616,6 @@ def excluir_ocorrencia(id_ocorrencia):
     except Exception as e:
         st.error(f"Erro ao excluir ocorrência: {str(e)}")
         return False, f"Erro ao excluir: {str(e)}"
-
 
 def salvar_aluno(aluno_dict):
     if not SUPABASE_URL:
@@ -586,7 +630,6 @@ def salvar_aluno(aluno_dict):
         st.error(f"Erro ao salvar aluno: {str(e)}")
         return False, f"Erro ao salvar: {str(e)}"
 
-
 def atualizar_aluno(ra_aluno, aluno_dict):
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
@@ -599,7 +642,6 @@ def atualizar_aluno(ra_aluno, aluno_dict):
     except Exception as e:
         st.error(f"Erro ao atualizar aluno: {str(e)}")
         return False, f"Erro ao atualizar: {str(e)}"
-
 
 def excluir_aluno(ra_aluno):
     if not SUPABASE_URL:
@@ -614,7 +656,6 @@ def excluir_aluno(ra_aluno):
         st.error(f"Erro ao excluir aluno: {str(e)}")
         return False, f"Erro ao excluir: {str(e)}"
 
-
 def excluir_alunos_por_turma(turma):
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
@@ -627,7 +668,6 @@ def excluir_alunos_por_turma(turma):
     except Exception as e:
         st.error(f"Erro ao excluir turma: {str(e)}")
         return False, f"Erro ao excluir: {str(e)}"
-
 
 def salvar_professor(professor_dict):
     if not SUPABASE_URL:
@@ -642,7 +682,6 @@ def salvar_professor(professor_dict):
         st.error(f"Erro ao salvar professor: {str(e)}")
         return False, f"Erro ao salvar: {str(e)}"
 
-
 def atualizar_professor(id_prof, professor_dict):
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
@@ -655,7 +694,6 @@ def atualizar_professor(id_prof, professor_dict):
     except Exception as e:
         st.error(f"Erro ao atualizar professor: {str(e)}")
         return False, f"Erro ao atualizar: {str(e)}"
-
 
 def excluir_professor(id_prof):
     if not SUPABASE_URL:
@@ -670,6 +708,73 @@ def excluir_professor(id_prof):
         st.error(f"Erro ao excluir professor: {str(e)}")
         return False, f"Erro ao excluir: {str(e)}"
 
+# === 🆕 NOVA FUNCIONALIDADE: Funções CRUD para Responsáveis (Assinaturas) ===
+def salvar_responsavel(responsavel_dict):
+    """Salva um responsável no Supabase"""
+    if not SUPABASE_URL:
+        return False, "Supabase não configurado"
+    try:
+        response = requests.post(f"{SUPABASE_URL}/rest/v1/responsaveis", json=responsavel_dict, headers=HEADERS)
+        if response.status_code in [200, 201]:
+            return True, "Responsável salvo com sucesso!"
+        else:
+            return False, f"Erro ao salvar: {response.text}"
+    except Exception as e:
+        st.error(f"Erro ao salvar responsável: {str(e)}")
+        return False, f"Erro ao salvar: {str(e)}"
+
+def atualizar_responsavel(id_resp, responsavel_dict):
+    """Atualiza um responsável no Supabase"""
+    if not SUPABASE_URL:
+        return False, "Supabase não configurado"
+    try:
+        response = requests.patch(f"{SUPABASE_URL}/rest/v1/responsaveis?id=eq.{id_resp}", json=responsavel_dict, headers=HEADERS)
+        if response.status_code in [200, 201]:
+            return True, "Responsável atualizado com sucesso!"
+        else:
+            return False, f"Erro ao atualizar: {response.text}"
+    except Exception as e:
+        st.error(f"Erro ao atualizar responsável: {str(e)}")
+        return False, f"Erro ao atualizar: {str(e)}"
+
+def excluir_responsavel(id_resp):
+    """Exclui um responsável do Supabase"""
+    if not SUPABASE_URL:
+        return False, "Supabase não configurado"
+    try:
+        response = requests.delete(f"{SUPABASE_URL}/rest/v1/responsaveis?id=eq.{id_resp}", headers=HEADERS)
+        if response.status_code in [200, 201]:
+            return True, "Responsável excluído com sucesso!"
+        else:
+            return False, f"Erro ao excluir: {response.text}"
+    except Exception as e:
+        st.error(f"Erro ao excluir responsável: {str(e)}")
+        return False, f"Erro ao excluir: {str(e)}"
+
+def verificar_ocorrencia_duplicada(ra, categoria, data_str, df_ocorrencias):
+    """Verifica se já existe ocorrência duplicada"""
+    if df_ocorrencias.empty:
+        return False
+    ocorrencias_existentes = df_ocorrencias[
+        (df_ocorrencias['ra'] == ra) &
+        (df_ocorrencias['categoria'] == categoria) &
+        (df_ocorrencias['data'] == data_str)
+    ]
+    return not ocorrencias_existentes.empty
+
+def verificar_professor_duplicado(nome, df_professores, id_atual=None):
+    """Verifica se professor já existe"""
+    if df_professores.empty:
+        return False
+    nome_normalizado = nome.strip().lower()
+    if id_atual:
+        duplicados = df_professores[
+            (df_professores['nome'].str.strip().str.lower() == nome_normalizado) &
+            (df_professores['id'] != id_atual)
+        ]
+    else:
+        duplicados = df_professores[df_professores['nome'].str.strip().str.lower() == nome_normalizado]
+    return not duplicados.empty
 
 # ============================================================================
 # UPLOAD DE FOTOS
@@ -693,7 +798,6 @@ def upload_foto_supabase(file, folder, filename):
         st.error(f"Erro ao enviar foto: {str(e)}")
         return None, f"Erro ao enviar foto: {str(e)}"
 
-
 def atualizar_foto_aluno(ra_aluno, foto_url):
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
@@ -706,7 +810,6 @@ def atualizar_foto_aluno(ra_aluno, foto_url):
     except Exception as e:
         st.error(f"Erro ao atualizar foto do aluno: {str(e)}")
         return False, f"Erro ao atualizar: {str(e)}"
-
 
 def atualizar_foto_professor(id_prof, foto_url):
     if not SUPABASE_URL:
@@ -721,12 +824,12 @@ def atualizar_foto_professor(id_prof, foto_url):
         st.error(f"Erro ao atualizar foto do professor: {str(e)}")
         return False, f"Erro ao atualizar: {str(e)}"
 
-
 # ============================================================================
 # GERAR PDF
 # ============================================================================
 
 def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
+    """Gera PDF de ocorrência"""
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1*cm, leftMargin=1*cm, topMargin=1.5*cm, bottomMargin=1.5*cm)
     elementos = []
@@ -757,12 +860,10 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
     cor_gravidade = CORES_GRAVIDADE.get(gravidade, '#9E9E9E')
     elementos.append(Paragraph(f"<b>Gravidade:</b> <font color='{cor_gravidade}'><b>{gravidade}</b></font>", estilos['Texto']))
     elementos.append(Spacer(1, 0.3*cm))
-    
     envolvidos = ocorrencia.get('envolvidos', '') or ''
     if envolvidos:
         elementos.append(Paragraph(f"<b>Envolvidos/Queixa:</b> {envolvidos}", estilos['Texto']))
         elementos.append(Spacer(1, 0.3*cm))
-    
     elementos.append(Paragraph("<b>Relato:</b>", estilos['Secao']))
     elementos.append(Paragraph(formatar_texto(ocorrencia.get('relato', 'N/A') or 'N/A'), estilos['Texto']))
     elementos.append(Spacer(1, 0.3*cm))
@@ -798,7 +899,6 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
     buffer.seek(0)
     return buffer
 
-
 # ============================================================================
 # INTERFACE PRINCIPAL
 # ============================================================================
@@ -815,6 +915,7 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
+# === ✏️ MODIFICADO: Adicionado novo item "👥 Responsáveis" no menu ===
 menu = st.sidebar.selectbox(
     "📋 Menu Principal",
     [
@@ -825,6 +926,7 @@ menu = st.sidebar.selectbox(
         "📊 Lista de Ocorrências",
         "👥 Alunos",
         "👨‍🏫 Professores",
+        "👥 Responsáveis",  # === 🆕 NOVO ITEM: Gestão de responsáveis pelas assinaturas ===
         "📈 Gráficos",
         "🖨️ Relatórios",
         "⚙️ Configurações",
@@ -841,7 +943,6 @@ st.session_state.pagina_atual = menu
 
 if menu == "🏠 Home":
     st.title("🏠 Dashboard")
-    
     df_ocorrencias = carregar_ocorrencias()
     df_alunos = carregar_alunos()
     df_professores = carregar_professores()
@@ -869,11 +970,11 @@ if menu == "🏠 Home":
     
     if not df_filtrado_periodo.empty:
         total_ocorrencias = len(df_filtrado_periodo)
-        total_gravissima = len(df_filtrado_periodo[df_filtrado_periodo['gravidade'] == 'Gravíssima'])
-        total_grave = len(df_filtrado_periodo[df_filtrado_periodo['gravidade'] == 'Grave'])
-        total_media = len(df_filtrado_periodo[df_filtrado_periodo['gravidade'] == 'Média'])
-        total_leve = len(df_filtrado_periodo[df_filtrado_periodo['gravidade'] == 'Leve'])
-        turmas_afetadas = df_filtrado_periodo['turma'].nunique()
+        total_gravissima = len(df_filtrado_periodo[df_filtrado_periodo['gravidade'] == 'Gravíssima']) if 'gravidade' in df_filtrado_periodo.columns else 0
+        total_grave = len(df_filtrado_periodo[df_filtrado_periodo['gravidade'] == 'Grave']) if 'gravidade' in df_filtrado_periodo.columns else 0
+        total_media = len(df_filtrado_periodo[df_filtrado_periodo['gravidade'] == 'Média']) if 'gravidade' in df_filtrado_periodo.columns else 0
+        total_leve = len(df_filtrado_periodo[df_filtrado_periodo['gravidade'] == 'Leve']) if 'gravidade' in df_filtrado_periodo.columns else 0
+        turmas_afetadas = df_filtrado_periodo['turma'].nunique() if 'turma' in df_filtrado_periodo.columns else 0
         
         st.info(f"📅 Período: **{periodo_selecionado}** - Total: **{total_ocorrencias} ocorrências**")
         
@@ -924,7 +1025,6 @@ if menu == "🏠 Home":
     if not df_professores.empty:
         st.subheader("👨‍🏫 Resumo de Professores")
         st.metric("Total de Professores", len(df_professores))
-
 
 # ============================================================================
 # PÁGINA: IMPORTAR ALUNOS
@@ -1062,7 +1162,6 @@ elif menu == "📥 Importar Alunos":
     else:
         st.info("📁 Selecione um arquivo CSV para importar.")
 
-
 # ============================================================================
 # PÁGINA: GERENCIAR TURMAS
 # ============================================================================
@@ -1152,9 +1251,9 @@ elif menu == "📋 Gerenciar Turmas":
     else:
         st.info("📭 Nenhuma turma cadastrada. Use a opção 'Importar Alunos'.")
 
-
 # ============================================================================
 # PÁGINA: REGISTRAR OCORRÊNCIA
+# === ✏️ MODIFICADO: Adicionada seleção múltipla de turmas, alunos e categorias ===
 # ============================================================================
 
 elif menu == "📝 Registrar Ocorrência":
@@ -1170,95 +1269,139 @@ elif menu == "📝 Registrar Ocorrência":
     if df_alunos.empty:
         st.warning("⚠️ Nenhum aluno cadastrado. Importe alunos primeiro.")
     else:
-        st.subheader("🏫 Selecionar Turma")
+        # === 🆕 NOVA FUNCIONALIDADE: Seleção múltipla de turmas ===
+        st.subheader("🏫 Selecionar Turma(s)")
         turmas = ordenar_turmas(df_alunos["turma"].unique().tolist())
-        turma_selecionada = st.selectbox("Selecione a Turma", turmas, key="sel_turma_unica_reg")
+        turmas_selecionadas = st.multiselect(
+            "Selecione uma ou mais turmas",
+            turmas,
+            key="multi_turma_reg"
+        )
         
-        if turma_selecionada:
-            alunos = df_alunos[df_alunos["turma"] == turma_selecionada].copy()
-            if len(alunos) > 0:
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.markdown("### 👥 Selecionar Estudante")
-                    lista_alunos = alunos['nome'].tolist()
-                    aluno_selecionado = st.selectbox("Selecione o Aluno", lista_alunos, key="sel_aluno_unico_reg")
-                with col2:
-                    st.markdown("### 📅 Data e Hora")
-                    data = st.date_input("Data", value=datetime.now().date(), key="data_input_occ_reg")
-                    hora = st.time_input("Hora", value=datetime.now().time(), key="hora_input_occ_reg")
+        # Filtrar alunos das turmas selecionadas
+        if turmas_selecionadas:
+            alunos_filtrados = df_alunos[df_alunos["turma"].isin(turmas_selecionadas)].copy()
+        else:
+            alunos_filtrados = df_alunos.copy()
+        
+        # === 🆕 NOVA FUNCIONALIDADE: Seleção múltipla de estudantes ===
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("### 👥 Selecionar Estudante(s)")
+            lista_alunos = alunos_filtrados['nome'].tolist()
+            alunos_selecionados = st.multiselect(
+                "Selecione um ou mais alunos",
+                lista_alunos,
+                key="multi_aluno_reg"
+            )
+        with col2:
+            st.markdown("### 📅 Data e Hora")
+            data = st.date_input("Data", value=datetime.now().date(), key="data_input_occ_reg")
+            hora = st.time_input("Hora", value=datetime.now().time(), key="hora_input_occ_reg")
+        
+        st.markdown("---")
+        
+        # === 🆕 NOVA FUNCIONALIDADE: Seleção múltipla de categorias ===
+        st.subheader("📋 Selecionar Infração(ões)")
+        categorias_selecionadas = []
+        categorias_gravidades = {}
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            for grupo, categorias in CATEGORIAS_OCORRENCIAS.items():
+                if st.checkbox(f"{grupo}", key=f"chk_grupo_{grupo}_reg"):
+                    for cat, grav in categorias.items():
+                        if st.checkbox(f"  └ {cat} ({grav})", key=f"chk_cat_{cat}_reg"):
+                            categorias_selecionadas.append(cat)
+                            categorias_gravidades[cat] = grav
+        
+        with col2:
+            if categorias_selecionadas:
+                st.markdown("### ⚡ Definir Gravidade")
+                for cat in categorias_selecionadas:
+                    grav_default = categorias_gravidades.get(cat, "Leve")
+                    grav_select = st.selectbox(
+                        f"{cat}",
+                        ["Gravíssima", "Grave", "Média", "Leve"],
+                        index=["Gravíssima", "Grave", "Média", "Leve"].index(grav_default),
+                        key=f"sel_grav_{cat}_reg"
+                    )
+                    categorias_gravidades[cat] = grav_select
+        
+        # Fluxo de Ações (para a primeira categoria selecionada)
+        if categorias_selecionadas:
+            primeira_cat = categorias_selecionadas[0]
+            if primeira_cat in FLUXO_ACOES:
+                st.markdown(f"""<div class="fluxo-alert"><b>📌 Fluxo de Ações - Protocolo 179:</b><br>{FLUXO_ACOES[primeira_cat]}</div>""", unsafe_allow_html=True)
+        
+        st.markdown("---")
+        st.subheader("👥 Envolvidos / Quem Fez a Queixa")
+        envolvidos = st.text_area(
+            "Descreva os envolvidos ou quem fez a queixa:",
+            placeholder="Ex: Professor João Silva (queixa), Aluno Pedro Santos (envolvido)...",
+            height=80,
+            key="txt_envolvidos_reg"
+        )
+        
+        st.subheader("🔄 Encaminhamentos")
+        # Usa a gravidade da primeira categoria para definir encaminhamentos
+        gravidade_ref = categorias_gravidades[categorias_selecionadas[0]] if categorias_selecionadas else "Leve"
+        encaminhamentos_disponiveis = ENCAMINHAMENTOS_POR_GRAVIDADE.get(gravidade_ref, [])
+        col1, col2 = st.columns(2)
+        metade = len(encaminhamentos_disponiveis) // 2
+        with col1:
+            st.markdown("**Coluna 1:**")
+            for i, enc in enumerate(encaminhamentos_disponiveis[:metade]):
+                st.checkbox(enc, value=True, key=f"chk_enc_{i}_reg")
+        with col2:
+            st.markdown("**Coluna 2:**")
+            for i, enc in enumerate(encaminhamentos_disponiveis[metade:], start=metade):
+                st.checkbox(enc, value=True, key=f"chk_enc_{i}_reg2")
+        
+        encaminhamentos_selecionados = [enc for enc in encaminhamentos_disponiveis if st.session_state.get(f"chk_enc_{encaminhamentos_disponiveis.index(enc)}_reg", True) or st.session_state.get(f"chk_enc_{encaminhamentos_disponiveis.index(enc)}_reg2", True)]
+        encaminhamento_str = '| '.join(encaminhamentos_selecionados) if encaminhamentos_selecionados else ''
+        
+        df_professores = carregar_professores()
+        if not df_professores.empty:
+            prof = st.selectbox("👨‍🏫 Professor Responsável", ["Selecione..."] + df_professores['nome'].tolist(), key="sel_professor_reg")
+        else:
+            prof = st.text_input("👨‍🏫 Professor Responsável", key="txt_professor_reg")
+        
+        relato = st.text_area("📝 Relato da Ocorrência", height=200, key="txt_relato_reg")
+        
+        st.markdown("---")
+        
+        # === 🆕 NOVA FUNCIONALIDADE: Botão salva múltiplas ocorrências (loop) ===
+        if st.button("💾 Salvar Ocorrência(s)", type="primary", key="btn_salvar_ocorrencia_reg"):
+            if not alunos_selecionados:
+                st.error("❌ Selecione pelo menos um estudante!")
+            elif not prof or prof == "Selecione...":
+                st.error("❌ Selecione o professor responsável!")
+            elif not relato:
+                st.error("❌ Preencha o relato da ocorrência!")
+            elif not categorias_selecionadas:
+                st.error("❌ Selecione pelo menos uma infração!")
+            else:
+                data_str = f"{data.strftime('%d/%m/%Y')} {hora.strftime('%H:%M')}"
+                contagem_sucesso = 0
+                contagem_erro = 0
                 
-                st.markdown("---")
-                
-                st.subheader("📋 Selecionar Infração")
-                col1, col2 = st.columns(2)
-                with col1:
-                    categoria_grupo = st.selectbox("📁 Grupo da Categoria", list(CATEGORIAS_OCORRENCIAS.keys()), key="sel_grupo_cat_reg")
-                    categorias_grupo = list(CATEGORIAS_OCORRENCIAS[categoria_grupo].keys())
-                    infracao_principal = st.selectbox("📋 Infração", categorias_grupo, key="sel_infracao_principal")
-                with col2:
-                    gravidade_protocolo = CATEGORIAS_OCORRENCIAS[categoria_grupo].get(infracao_principal, "Leve")
-                    gravidade_select = st.selectbox("⚡ Gravidade", ["Gravíssima", "Grave", "Média", "Leve"], index=["Gravíssima", "Grave", "Média", "Leve"].index(gravidade_protocolo), key="sel_gravidade_reg")
-                
-                if infracao_principal in FLUXO_ACOES:
-                    st.markdown(f"""<div class="fluxo-alert"><b>📌 Fluxo de Ações - Protocolo 179:</b><br>{FLUXO_ACOES[infracao_principal]}</div>""", unsafe_allow_html=True)
-                
-                st.markdown("---")
-                st.subheader("👥 Envolvidos / Quem Fez a Queixa")
-                envolvidos = st.text_area(
-                    "Descreva os envolvidos ou quem fez a queixa:",
-                    placeholder="Ex: Professor João Silva (queixa), Aluno Pedro Santos (envolvido)...",
-                    height=80,
-                    key="txt_envolvidos_reg"
-                )
-                
-                st.subheader("🔄 Encaminhamentos")
-                encaminhamentos_disponiveis = ENCAMINHAMENTOS_POR_GRAVIDADE.get(gravidade_select, [])
-                col1, col2 = st.columns(2)
-                metade = len(encaminhamentos_disponiveis) // 2
-                with col1:
-                    st.markdown("**Coluna 1:**")
-                    for i, enc in enumerate(encaminhamentos_disponiveis[:metade]):
-                        st.checkbox(enc, value=True, key=f"chk_enc_{i}_reg")
-                with col2:
-                    st.markdown("**Coluna 2:**")
-                    for i, enc in enumerate(encaminhamentos_disponiveis[metade:], start=metade):
-                        st.checkbox(enc, value=True, key=f"chk_enc_{i}_reg2")
-                
-                encaminhamentos_selecionados = [enc for enc in encaminhamentos_disponiveis if st.session_state.get(f"chk_enc_{encaminhamentos_disponiveis.index(enc)}_reg", True) or st.session_state.get(f"chk_enc_{encaminhamentos_disponiveis.index(enc)}_reg2", True)]
-                encaminhamento_str = '| '.join(encaminhamentos_selecionados) if encaminhamentos_selecionados else ''
-                
-                df_professores = carregar_professores()
-                if not df_professores.empty:
-                    prof = st.selectbox("👨‍🏫 Professor Responsável", ["Selecione..."] + df_professores['nome'].tolist(), key="sel_professor_reg")
-                else:
-                    prof = st.text_input("👨‍🏫 Professor Responsável", key="txt_professor_reg")
-                
-                relato = st.text_area("📝 Relato da Ocorrência", height=200, key="txt_relato_reg")
-                
-                st.markdown("---")
-                
-                if st.button("💾 Salvar Ocorrência", type="primary", key="btn_salvar_ocorrencia_reg"):
-                    if not aluno_selecionado:
-                        st.error("❌ Selecione um estudante!")
-                    elif not prof or prof == "Selecione...":
-                        st.error("❌ Selecione o professor responsável!")
-                    elif not relato:
-                        st.error("❌ Preencha o relato da ocorrência!")
-                    else:
-                        data_str = f"{data.strftime('%d/%m/%Y')} {hora.strftime('%H:%M')}"
-                        aluno_info = alunos[alunos["nome"] == aluno_selecionado]
+                # Loop para cada aluno selecionado
+                for aluno_nome in alunos_selecionados:
+                    aluno_info = alunos_filtrados[alunos_filtrados["nome"] == aluno_nome]
+                    if not aluno_info.empty:
+                        ra_aluno = str(aluno_info["ra"].values[0])
+                        turma_aluno = str(aluno_info["turma"].values[0])
                         
-                        if not aluno_info.empty:
-                            ra_aluno = str(aluno_info["ra"].values[0])
-                            turma_aluno = str(aluno_info["turma"].values[0])
-                            
+                        # Loop para cada categoria selecionada
+                        for categoria in categorias_selecionadas:
                             ocorrencia_dict = {
                                 'data': data_str,
-                                'aluno': aluno_selecionado,
+                                'aluno': aluno_nome,
                                 'ra': ra_aluno,
                                 'turma': turma_aluno,
-                                'categoria': infracao_principal,
-                                'gravidade': gravidade_select,
+                                'categoria': categoria,
+                                'gravidade': categorias_gravidades[categoria],
                                 'relato': relato,
                                 'professor': prof,
                                 'encaminhamento': encaminhamento_str,
@@ -1266,22 +1409,22 @@ elif menu == "📝 Registrar Ocorrência":
                             }
                             
                             sucesso, mensagem = salvar_ocorrencia(ocorrencia_dict)
-                            
                             if sucesso:
-                                st.success(f"✅ Ocorrência registrada com sucesso!")
-                                st.session_state.ocorrencia_salva_sucesso = True
-                                carregar_ocorrencias.clear()
-                                st.rerun()
+                                contagem_sucesso += 1
                             else:
-                                st.error(f"❌ Erro: {mensagem}")
-            else:
-                st.info("📭 Nenhum aluno encontrado nesta turma.")
-        else:
-            st.info("📭 Selecione uma turma.")
-
+                                contagem_erro += 1
+                                st.error(f"❌ Erro com {aluno_nome} - {categoria}: {mensagem}")
+                
+                if contagem_sucesso > 0:
+                    st.success(f"✅ {contagem_sucesso} ocorrência(s) registrada(s) com sucesso!")
+                    st.session_state.ocorrencia_salva_sucesso = True
+                    carregar_ocorrencias.clear()
+                    st.rerun()
+                if contagem_erro > 0:
+                    st.warning(f"⚠️ {contagem_erro} ocorrência(s) não puderam ser salvas")
 
 # ============================================================================
-# PÁGINA: LISTA DE OCORRÊNCIAS (COM EDITAR/EXCLUIR)
+# PÁGINA: LISTA DE OCORRÊNCIAS
 # ============================================================================
 
 elif menu == "📊 Lista de Ocorrências":
@@ -1418,7 +1561,6 @@ elif menu == "📊 Lista de Ocorrências":
     else:
         st.info("📭 Nenhuma ocorrência registrada ainda.")
 
-
 # ============================================================================
 # PÁGINA: ALUNOS
 # ============================================================================
@@ -1475,7 +1617,6 @@ elif menu == "👥 Alunos":
                     st.error(f"❌ {msg}")
     else:
         st.info("📭 Nenhum aluno cadastrado.")
-
 
 # ============================================================================
 # PÁGINA: PROFESSORES
@@ -1566,6 +1707,97 @@ elif menu == "👨‍🏫 Professores":
     else:
         st.info("📭 Nenhum professor cadastrado ainda.")
 
+# ============================================================================
+# === 🆕 NOVA PÁGINA: RESPONSÁVEIS (GESTÃO DE ASSINATURAS) ===
+# ============================================================================
+
+elif menu == "👥 Responsáveis":
+    st.title("👥 Gerenciar Responsáveis pelas Assinaturas")
+    st.info("💡 Cadastre Diretor(a), Vice-Diretor(a) e Coordenador(a) para aparecerem nos PDFs")
+    
+    df_responsaveis = carregar_responsaveis()
+    
+    # === NOVO RESPONSÁVEL ===
+    st.subheader("📝 Novo Responsável")
+    col1, col2 = st.columns(2)
+    with col1:
+        nome_resp = st.text_input("Nome Completo *", key="txt_nome_resp_page")
+    with col2:
+        cargo_resp = st.selectbox(
+            "Cargo *",
+            ["Diretor(a)", "Vice-Diretor(a)", "CGPG / Coordenador(a)", "Outro"],
+            key="sel_cargo_resp_page"
+        )
+        if cargo_resp == "Outro":
+            cargo_resp = st.text_input("Especificar Cargo", key="txt_outro_cargo_page")
+    
+    if st.session_state.get('editando_resp', None) is not None:
+        st.info(f"✏️ Editando responsável ID: {st.session_state.editando_resp}")
+        if st.button("💾 Atualizar Responsável", key="btn_atualizar_resp_page"):
+            if nome_resp and cargo_resp:
+                resp_dict = {'nome': nome_resp.strip(), 'cargo': cargo_resp.strip()}
+                sucesso, msg = atualizar_responsavel(st.session_state.editando_resp, resp_dict)
+                if sucesso:
+                    st.success(f"✅ {msg}")
+                    st.session_state.editando_resp = None
+                    carregar_responsaveis.clear()
+                    st.rerun()
+                else:
+                    st.error(f"❌ {msg}")
+            else:
+                st.error("❌ Nome e Cargo são obrigatórios!")
+        if st.button("❌ Cancelar Edição", key="btn_cancelar_resp_page"):
+            st.session_state.editando_resp = None
+            st.rerun()
+    else:
+        if st.button("💾 Salvar Responsável", key="btn_salvar_resp_page"):
+            if nome_resp and cargo_resp:
+                resp_dict = {'nome': nome_resp.strip(), 'cargo': cargo_resp.strip()}
+                sucesso, msg = salvar_responsavel(resp_dict)
+                if sucesso:
+                    st.success(f"✅ {msg}")
+                    carregar_responsaveis.clear()
+                    st.rerun()
+                else:
+                    st.error(f"❌ {msg}")
+            else:
+                st.error("❌ Nome e Cargo são obrigatórios!")
+    
+    st.markdown("---")
+    
+    # === LISTA DE RESPONSÁVEIS ===
+    st.subheader("📋 Responsáveis Cadastrados")
+    if not df_responsaveis.empty:
+        for idx, resp in df_responsaveis.iterrows():
+            with st.container():
+                col1, col2, col3, col4, col5 = st.columns([1, 4, 3, 1, 1])
+                with col1:
+                    st.write("👤")
+                with col2:
+                    st.write(f"**{resp.get('nome', 'N/A')}**")
+                with col3:
+                    st.write(f"📋 {resp.get('cargo', 'N/A')}")
+                with col4:
+                    if st.button("✏️", key=f"btn_edit_resp_{resp.get('id', idx)}"):
+                        st.session_state.editando_resp = resp.get('id')
+                        st.rerun()
+                with col5:
+                    if st.button("🗑️", key=f"btn_del_resp_{resp.get('id', idx)}"):
+                        senha = st.text_input("Senha (040600)", type="password", key=f"txt_senha_resp_{resp.get('id', idx)}")
+                        if senha == SENHA_EXCLUSAO:
+                            sucesso, msg = excluir_responsavel(resp.get('id'))
+                            if sucesso:
+                                st.success(f"✅ {msg}")
+                                carregar_responsaveis.clear()
+                                st.rerun()
+                            else:
+                                st.error(f"❌ {msg}")
+                        else:
+                            st.error("❌ Senha incorreta!")
+        st.divider()
+        st.info(f"📊 **Total:** {len(df_responsaveis)} responsável(eis) cadastrado(s)")
+    else:
+        st.info("📭 Nenhum responsável cadastrado ainda.")
 
 # ============================================================================
 # PÁGINA: GRÁFICOS
@@ -1661,9 +1893,8 @@ elif menu == "📈 Gráficos":
     else:
         st.info("📭 Nenhuma ocorrência registrada para gerar gráficos.")
 
-
 # ============================================================================
-# PÁGINA: RELATÓRIOS (TOP 10 ALUNOS + BUSCA)
+# PÁGINA: RELATÓRIOS
 # ============================================================================
 
 elif menu == "🖨️ Relatórios":
@@ -1674,7 +1905,6 @@ elif menu == "🖨️ Relatórios":
     df_responsaveis = carregar_responsaveis()
     
     if not df_ocorrencias.empty:
-        # TOP 10 ALUNOS
         st.subheader("🏆 Top 10 Estudantes com Mais Ocorrências")
         top_alunos = get_top_alunos_ocorrencias(df_ocorrencias, df_alunos, top_n=10)
         
@@ -1695,7 +1925,6 @@ elif menu == "🖨️ Relatórios":
                 </div>
                 """, unsafe_allow_html=True)
             
-            # BUSCA POR ALUNO
             st.markdown("---")
             st.subheader("🔍 Pesquisar Ocorrências por Estudante")
             
@@ -1757,7 +1986,6 @@ elif menu == "🖨️ Relatórios":
         else:
             st.info("📭 Nenhuma ocorrência registrada.")
         
-        # GERAR PDF
         st.markdown("---")
         st.subheader("📄 Gerar PDF de Ocorrência")
         col1, col2 = st.columns(2)
@@ -1779,7 +2007,6 @@ elif menu == "🖨️ Relatórios":
     else:
         st.info("📭 Nenhuma ocorrência registrada para imprimir.")
 
-
 # ============================================================================
 # PÁGINA: CONFIGURAÇÕES
 # ============================================================================
@@ -1797,12 +2024,11 @@ elif menu == "⚙️ Configurações":
     st.subheader("📊 Informações do Sistema")
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("Versão", "13.0 FINAL")
+        st.metric("Versão", "14.1 FINAL - Supabase")
     with col2:
         st.metric("Framework", "Streamlit")
     with col3:
-        st.metric("Python", "3.9+")
-
+        st.metric("Banco", "Supabase")
 
 # ============================================================================
 # PÁGINA: BACKUP
@@ -1821,7 +2047,7 @@ elif menu == "💾 Backup":
             'professores': df_professores.to_dict('records') if not df_professores.empty else [],
             'ocorrencias': df_ocorrencias.to_dict('records') if not df_ocorrencias.empty else [],
             'data_backup': datetime.now().strftime('%d/%m/%Y %H:%M'),
-            'versao_sistema': '13.0 FINAL'
+            'versao_sistema': '14.1 FINAL - Supabase'
         }
         json_str = json.dumps(backup_data, ensure_ascii=False, indent=2)
         st.download_button(label="📥 Baixar Backup JSON", data=json_str, file_name=f"backup_conviva_{datetime.now().strftime('%Y%m%d_%H%M')}.json", mime="application/json")
@@ -1863,7 +2089,6 @@ elif menu == "💾 Backup":
             else:
                 st.error("❌ Senha incorreta!")
 
-
 # ============================================================================
 # RODAPÉ
 # ============================================================================
@@ -1873,6 +2098,6 @@ st.markdown("""
 <div style="text-align: center; color: #666; font-size: 0.9rem;">
     <p><b>Sistema Conviva 179</b> - Gestão de Ocorrências Escolares</p>
     <p>Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI</p>
-    <p>Versão 13.0 FINAL | Desenvolvido com Streamlit + Supabase</p>
+    <p>Versão 14.1 FINAL | Desenvolvido com Streamlit + Supabase</p>
 </div>
 """, unsafe_allow_html=True)
