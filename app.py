@@ -9,6 +9,8 @@
 # IMPORTAÇÃO DE BIBLIOTECAS
 # ============================================================================
 import streamlit as st
+import src.pages.register_occurrence as reg_page
+from src.config import CATEGORIAS_INFRACOES, CORES_CATEGORIAS
 import pandas as pd
 import numpy as np
 import requests
