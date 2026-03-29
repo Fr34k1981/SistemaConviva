@@ -1686,7 +1686,7 @@ elif menu == "📊 Lista de Ocorrências":
 
 
 # ============================================================================
-# ✅ PÁGINA: BUSCAR DUPLICATAS COM CHECKBOX PARA EXCLUSÃO EM MASSA (NOVA)
+# ✅ PÁGINA: BUSCAR DUPLICATAS COM BOTÃO X INDIVIDUAL (AJUSTADA)
 # ============================================================================
 
 elif menu == "🔍 Buscar Duplicatas":
@@ -1695,8 +1695,8 @@ elif menu == "🔍 Buscar Duplicatas":
     st.info("""
     💡 **Como funciona:**
     1. Clique em "🔎 Buscar Duplicatas" para identificar ocorrências repetidas
-    2. Marque os checkboxes das que deseja excluir
-    3. Clique em "🗑️ Excluir Selecionadas" para remover em massa
+    2. Clique no ❌ ao lado de cada ocorrência para excluir individualmente
+    3. Confirme a exclusão com a senha
     
     **Critério de duplicata:** Mesmo aluno + mesma categoria + mesma data + mesmo relato
     """)
@@ -1719,16 +1719,12 @@ elif menu == "🔍 Buscar Duplicatas":
                     # Filtrar dataframe para mostrar apenas duplicatas
                     df_duplicatas = df_ocorrencias[df_ocorrencias['id'].isin(ids_duplicatas)].copy()
                     
-                    # ✅ CHECKBOXES PARA SELEÇÃO MÚLTIPLA
-                    st.subheader("📋 Selecione as duplicatas para excluir:")
+                    st.subheader("📋 Ocorrências duplicadas encontradas:")
                     
-                    ids_selecionados = []
-                    
+                    # ✅ LISTA COM BOTÃO X INDIVIDUAL PARA CADA DUPLICATA
                     for idx, row in df_duplicatas.iterrows():
-                        col_check, col_info = st.columns([1, 5])
-                        with col_check:
-                            if st.checkbox("", key=f"dup_{row['id']}"):
-                                ids_selecionados.append(row['id'])
+                        col_info, col_action = st.columns([5, 1])
+                        
                         with col_info:
                             st.markdown(f"""
                             <div style="background: #fff3cd; padding: 0.5rem; border-radius: 4px; border-left: 4px solid #ffc107; margin-bottom: 0.5rem;">
@@ -1737,33 +1733,33 @@ elif menu == "🔍 Buscar Duplicatas":
                                 📝 {str(row.get('relato', ''))[:100]}...
                             </div>
                             """, unsafe_allow_html=True)
+                        
+                        with col_action:
+                            # ✅ BOTÃO X PARA EXCLUIR INDIVIDUALMENTE
+                            if st.button("❌", key=f"del_dup_{row['id']}", help="Excluir esta duplicata"):
+                                # Confirmação com senha
+                                with st.form(key=f"form_del_{row['id']}"):
+                                    st.caption("Confirmar exclusão:")
+                                    senha = st.text_input("Senha (040600)", type="password", key=f"senha_dup_{row['id']}")
+                                    col_confirm1, col_confirm2 = st.columns(2)
+                                    with col_confirm1:
+                                        if st.form_submit_button("✅ Confirmar", type="primary"):
+                                            if senha == SENHA_EXCLUSAO:
+                                                sucesso, msg = excluir_ocorrencia(row['id'])
+                                                if sucesso:
+                                                    st.success(f"✅ Ocorrência ID {row['id']} excluída com sucesso!")
+                                                else:
+                                                    st.error(f"❌ Erro: {msg}")
+                                                carregar_ocorrencias.clear()
+                                                st.rerun()
+                                            else:
+                                                st.error("❌ Senha incorreta!")
+                                    with col_confirm2:
+                                        if st.form_submit_button("❌ Cancelar"):
+                                            st.info("⚠️ Exclusão cancelada")
                     
                     st.markdown("---")
-                    
-                    # Botão de exclusão em massa
-                    if ids_selecionados:
-                        st.warning(f"🗑️ Você selecionou **{len(ids_selecionados)}** ocorrência(s) para exclusão")
-                        
-                        if st.button(f"🗑️ Excluir {len(ids_selecionados)} Selecionada(s)", type="secondary"):
-                            senha = st.text_input("🔐 Digite a senha de exclusão (040600)", type="password")
-                            if senha == SENHA_EXCLUSAO:
-                                contagem_excluidas, erros = 0, 0
-                                for id_occ in ids_selecionados:
-                                    sucesso, msg = excluir_ocorrencia(id_occ)
-                                    if sucesso: contagem_excluidas += 1
-                                    else: erros += 1
-                                
-                                if contagem_excluidas > 0:
-                                    st.success(f"✅ {contagem_excluidas} ocorrência(s) excluída(s) com sucesso!")
-                                if erros > 0:
-                                    st.error(f"❌ {erros} erro(s) ao excluir")
-                                
-                                carregar_ocorrencias.clear()
-                                st.rerun()
-                            else:
-                                st.error("❌ Senha incorreta!")
-                    else:
-                        st.info("ℹ️ Selecione pelo menos uma ocorrência para excluir")
+                    st.caption(f"💡 Clique no ❌ ao lado de cada ocorrência para excluí-la individualmente")
         
         st.markdown("---")
         st.caption(f"📊 Total de ocorrências no sistema: {len(df_ocorrencias)}")
