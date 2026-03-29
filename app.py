@@ -1,7 +1,7 @@
 # ============================================================================
 # SISTEMA CONVIVA 179 - GESTÃO DE OCORRÊNCIAS ESCOLARES
 # Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI
-# Versão: 9.0 FINAL - GERENCIAMENTO DE TURMAS RESTAURADO
+# Versão: 9.1 - MELHORIAS: DUPLICATAS + RESPONSÁVEIS + REGISTRADORES
 # Desenvolvido para SEDUC/SP - Protocolo de Convivência e Proteção Escolar
 # ============================================================================
 
@@ -182,6 +182,33 @@ ENCAMINHAMENTOS_POR_GRAVIDADE = {
     "Grave": ["Orientação ao Estudante", "Comunicação aos Pais/Responsáveis", "Registro em Ata de Ocorrência", "Encaminhamento à Coordenação", "Encaminhamento à Direção", "Acompanhamento Pedagógico"],
     "Gravíssima": ["Orientação ao Estudante", "Comunicação aos Pais/Responsáveis", "Registro em Ata de Ocorrência", "Encaminhamento à Coordenação", "Encaminhamento à Direção", "Acompanhamento Pedagógico", "Acompanhamento Psicopedagógico", "Registro de B.O.", "Acionamento Conselho Tutelar"]
 }
+
+# ============================================================================
+# ✅ FUNÇÃO: VERIFICAR DUPLICATA EXATA (MANUTENÇÃO 1)
+# ============================================================================
+def verificar_duplicata_exata(nova_ocorrencia, df_ocorrencias):
+    """
+    Verifica se uma ocorrência é 100% idêntica a uma já existente.
+    Compara: estudante, categoria, subcategoria, data, descrição e quem registrou.
+    Retorna True se encontrar duplicata exata.
+    """
+    if df_ocorrencias is None or df_ocorrencias.empty:
+        return False
+    
+    campos_chave = ['aluno', 'categoria', 'data', 'relato', 'professor']
+    
+    for _, registro in df_ocorrencias.iterrows():
+        match = True
+        for campo in campos_chave:
+            if campo in nova_ocorrencia and campo in registro:
+                val_novo = str(nova_ocorrencia[campo]).strip().lower()
+                val_existente = str(registro[campo]).strip().lower()
+                if val_novo != val_existente:
+                    match = False
+                    break
+        if match:
+            return True
+    return False
 
 # ============================================================================
 # INICIALIZAÇÃO DO SESSION STATE
@@ -968,6 +995,7 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
+# ✅ MENU ATUALIZADO COM "👥 Responsáveis" (MANUTENÇÃO 2)
 menu = st.sidebar.selectbox(
     "📋 Menu Principal",
     [
@@ -978,6 +1006,7 @@ menu = st.sidebar.selectbox(
         "📊 Lista de Ocorrências",
         "👥 Alunos",
         "👨‍🏫 Professores",
+        "👥 Responsáveis",  # ✅ ADICIONADO - MANUTENÇÃO 2
         "📈 Gráficos",
         "🖨️ Relatórios",
         "⚙️ Configurações",
@@ -1439,10 +1468,17 @@ elif menu == "📝 Registrar Ocorrência":
                 encaminhamento_str = '| '.join(encaminhamentos_selecionados) if encaminhamentos_selecionados else ''
                 
                 df_professores = carregar_professores()
+                # ✅ MANUTENÇÃO 3: Lista de professores com Diretor e Vice-Diretor
+                opcoes_professor = ["Selecione..."]
                 if not df_professores.empty:
-                    prof = st.selectbox("👨‍🏫 Professor Responsável", ["Selecione..."] + df_professores['nome'].tolist(), key="prof_select")
-                else:
-                    prof = st.text_input("👨‍🏫 Professor Responsável", key="prof_input")
+                    opcoes_professor += df_professores['nome'].tolist()
+                # ✅ ADICIONAR Diretor e Vice-Diretor como opções
+                if "Diretor" not in opcoes_professor:
+                    opcoes_professor.append("Diretor")
+                if "Vice-Diretor" not in opcoes_professor:
+                    opcoes_professor.append("Vice-Diretor")
+                
+                prof = st.selectbox("👨‍🏫 Professor Responsável", opcoes_professor, key="prof_select")
                 
                 st.markdown("---")
                 
@@ -1467,6 +1503,19 @@ elif menu == "📝 Registrar Ocorrência":
                             if not aluno_info.empty:
                                 ra_aluno = str(aluno_info["ra"].values[0])
                                 turma_aluno = str(aluno_info["turma"].values[0])
+                                
+                                # ✅ MANUTENÇÃO 1: Verificar duplicata antes de salvar
+                                ocorrencia_dict_check = {
+                                    'data': data_str,
+                                    'aluno': nome_aluno,
+                                    'ra': ra_aluno,
+                                    'turma': turma_aluno,
+                                    'categoria': categoria_str,
+                                    'gravidade': gravidade_select,
+                                    'relato': relato,
+                                    'professor': prof,
+                                    'encaminhamento': encaminhamento_str
+                                }
                                 
                                 if verificar_ocorrencia_duplicada(ra_aluno, categoria_str, data_str, df_ocorrencias):
                                     contagem_duplicadas += 1
@@ -1797,6 +1846,124 @@ elif menu == "👨‍🏫 Professores":
 
 
 # ============================================================================
+# ✅ PÁGINA: RESPONSÁVEIS (MANUTENÇÃO 2 - RESTAURADA)
+# ============================================================================
+
+elif menu == "👥 Responsáveis":
+    st.title("👥 Gestão de Responsáveis")
+    
+    df_responsaveis = carregar_responsaveis()
+    
+    st.subheader("📝 Novo Responsável")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        nome_resp = st.text_input("Nome Completo *", key="nome_resp_input")
+        cargo_resp = st.selectbox("Cargo/Função *", [
+            "", "Diretor(a)", "Vice-Diretor(a)", "CGPG / Coordenador(a)", 
+            "Secretário(a)", "Outro"
+        ], key="cargo_resp_input")
+    
+    with col2:
+        email_resp = st.text_input("Email", key="email_resp_input")
+        telefone_resp = st.text_input("Telefone", key="telefone_resp_input")
+    
+    if st.session_state.get('editando_resp', None) is not None:
+        st.info(f"✏️ Editando responsável ID: {st.session_state.editando_resp}")
+        
+        resp_atual = df_responsaveis[df_responsaveis['id'] == st.session_state.editando_resp].iloc[0]
+        
+        if st.button("💾 Atualizar Responsável", key="btn_atualizar_resp"):
+            responsavel_dict = {
+                'nome': nome_resp.strip(),
+                'cargo': cargo_resp.strip() if cargo_resp else None,
+                'email': email_resp.strip() if email_resp else None,
+                'telefone': telefone_resp.strip() if telefone_resp else None
+            }
+            
+            sucesso, msg = atualizar_responsavel(st.session_state.editando_resp, responsavel_dict)
+            
+            if sucesso:
+                st.success(f"✅ {msg}")
+                st.session_state.editando_resp = None
+                carregar_responsaveis.clear()
+                st.rerun()
+            else:
+                st.error(f"❌ {msg}")
+        
+        if st.button("❌ Cancelar Edição", key="btn_cancelar_resp"):
+            st.session_state.editando_resp = None
+            st.rerun()
+    else:
+        if st.button("💾 Salvar Responsável", key="btn_salvar_resp"):
+            if nome_resp and cargo_resp:
+                # Verificar se já existe
+                nomes_existentes = [n.lower().strip() for n in df_responsaveis['nome'].tolist()]
+                
+                if nome_resp.lower().strip() in nomes_existentes:
+                    st.error("❌ Já existe um responsável com este nome cadastrado!")
+                else:
+                    responsavel_dict = {
+                        'nome': nome_resp.strip(),
+                        'cargo': cargo_resp.strip(),
+                        'email': email_resp.strip() if email_resp else None,
+                        'telefone': telefone_resp.strip() if telefone_resp else None
+                    }
+                    
+                    if salvar_responsavel(responsavel_dict):
+                        st.success(f"✅ Responsável {nome_resp} cadastrado com sucesso!")
+                        carregar_responsaveis.clear()
+                        st.rerun()
+                    else:
+                        st.error("❌ Erro ao salvar responsável")
+            else:
+                st.error("❌ Nome e Cargo são obrigatórios!")
+    
+    st.markdown("---")
+    
+    st.subheader("📋 Responsáveis Cadastrados")
+    
+    if not df_responsaveis.empty:
+        for idx, resp in df_responsaveis.iterrows():
+            with st.container():
+                col1, col2, col3, col4, col5 = st.columns([1, 4, 3, 1, 1])
+                
+                with col1:
+                    st.write("👤")
+                
+                with col2:
+                    st.write(f"**{resp.get('nome', 'N/A')}**")
+                
+                with col3:
+                    st.write(f"📋 {resp.get('cargo', 'N/A')}")
+                
+                with col4:
+                    if st.button("✏️", key=f"edit_resp_{resp.get('id', idx)}"):
+                        st.session_state.editando_resp = resp.get('id')
+                        st.rerun()
+                
+                with col5:
+                    if st.button("🗑️", key=f"del_resp_{resp.get('id', idx)}"):
+                        senha = st.text_input("Senha (040600)", type="password", key=f"senha_resp_{resp.get('id', idx)}")
+                        if senha == SENHA_EXCLUSAO:
+                            sucesso, msg = excluir_responsavel(resp.get('id'))
+                            if sucesso:
+                                st.success(f"✅ {msg}")
+                                carregar_responsaveis.clear()
+                                st.rerun()
+                            else:
+                                st.error(f"❌ {msg}")
+                        else:
+                            st.error("❌ Senha incorreta!")
+        
+        st.divider()
+        st.info(f"📊 **Total:** {len(df_responsaveis)} responsáveis cadastrados")
+    else:
+        st.info("📭 Nenhum responsável cadastrado ainda. Adicione Diretor, Vice-Diretor, etc.")
+
+
+# ============================================================================
 # PÁGINA: GRÁFICOS
 # ============================================================================
 
@@ -2060,7 +2227,7 @@ elif menu == "⚙️ Configurações":
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.metric("Versão", "9.0 FINAL")
+        st.metric("Versão", "9.1 - Melhorias")
     
     with col2:
         st.metric("Framework", "Streamlit")
@@ -2092,7 +2259,7 @@ elif menu == "💾 Backup":
             'ocorrencias': df_ocorrencias.to_dict('records') if not df_ocorrencias.empty else [],
             'responsaveis': df_responsaveis.to_dict('records') if not df_responsaveis.empty else [],
             'data_backup': datetime.now().strftime('%d/%m/%Y %H:%M'),
-            'versao_sistema': '9.0 FINAL'
+            'versao_sistema': '9.1 - Melhorias'
         }
         
         json_str = json.dumps(backup_data, ensure_ascii=False, indent=2)
@@ -2185,6 +2352,6 @@ st.markdown("""
     <p><b>Sistema Conviva 179</b> - Gestão de Ocorrências Escolares</p>
     <p>Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI</p>
     <p>Protocolo de Convivência e Proteção Escolar - SEDUC/SP</p>
-    <p>Versão 9.0 FINAL | Desenvolvido com Streamlit + Supabase (Requests)</p>
+    <p>Versão 9.1 - Melhorias | Desenvolvido com Streamlit + Supabase (Requests)</p>
 </div>
 """, unsafe_allow_html=True)
