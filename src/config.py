@@ -1,41 +1,9 @@
-﻿# Configurações do Sistema Conviva - Protocolo 179
-CATEGORIES = {
-    "GRAVÍSSIMA": {"color": "#d32f2f", "icon": "🚨", "actions": ["Encaminhamento ao Conselho Tutelar", "Suspensão Temporária", "Transferência"]},
-    "GRAVE": {"color": "#f57c00", "icon": "⚠️", "actions": ["Suspensão Temporária", "Retenção em Sala"]},
-    "MÉDIA": {"color": "#fbc02d", "icon": "⚖️", "actions": ["Retenção em Sala", "Prestação de Serviços"]},
-    "LEVE": {"color": "#388e3c", "icon": "ℹ️", "actions": ["Advertência Verbal", "Advertência Escrita"]}
+﻿# Configurações do Protocolo 179
+CATEGORIAS_INFRACOES = {
+    "Gravíssima": ["Ameaça", "Bullying", "Cyberbullying", "Dano intencional", "Desacato", "Discriminação", "Drogas", "Furto/Roubo", "Arma Branca", "Arma de Fogo", "Vandalismo", "Violência Física", "Violência Sexual"],
+    "Grave": ["Apropriação indébita", "Ataque físico", "Chantagem", "Desobediência", "Mensagens ofensivas", "Incitação à violência", "Linguagem imprópria"],
+    "Média": ["Alteração de documento", "Atitude desrespeitosa", "Boato", "Atraso reiterado", "Descumprimento de deveres", "Uso indevido de celular"],
+    "Leve": ["Conversa paralela", "Sem material", "Pequenas infrações", "Saída não autorizada"]
 }
-
-INFRINGEMENTS = {
-    "Agressão física": "GRAVÍSSIMA",
-    "Ameaça": "GRAVÍSSIMA",
-    "Porte de arma": "GRAVÍSSIMA",
-    "Uso de drogas": "GRAVÍSSIMA",
-    "Tráfico de drogas": "GRAVÍSSIMA",
-    "Atos libidinosos": "GRAVÍSSIMA",
-    "Furto qualificado": "GRAVÍSSIMA",
-    "Dano grave ao patrimônio": "GRAVÍSSIMA",
-    
-    "Desobediência reiterada": "GRAVE",
-    "Bullying": "GRAVE",
-    "Discriminação": "GRAVE",
-    "Falta grave à autoridade": "GRAVE",
-    "Incitação à violência": "GRAVE",
-    
-    "Conflito verbal": "MÉDIA",
-    "Perturbação de aula": "MÉDIA",
-    "Uso indevido de celular": "MÉDIA",
-    "Saída não autorizada": "MÉDIA",
-    "Dano leve ao patrimônio": "MÉDIA",
-    
-    "Atraso": "LEVE",
-    "Uniforme incompleto": "LEVE",
-    "Material esquecido": "LEVE",
-    "Conversa paralela": "LEVE"
-}
-
-def get_infringements_by_category():
-    result = {cat: [] for cat in CATEGORIES.keys()}
-    for inf, cat in INFRINGEMENTS.items():
-        result[cat].append(inf)
-    return result
+CORES_CATEGORIAS = {"Gravíssima": "#d32f2f", "Grave": "#f57c00", "Média": "#fbc02d", "Leve": "#388e3c"}
+NOME_ESCOLA = "PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI"
