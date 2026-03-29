@@ -225,6 +225,33 @@ def verificar_duplicata_exata(nova_ocorrencia, df_ocorrencias):
     return False
 
 # ============================================================================
+# ✅ FUNÇÃO: ENCONTRAR TODAS AS DUPLICATAS NO BANCO (NOVA)
+# ============================================================================
+def encontrar_duplicatas(df_ocorrencias):
+    """
+    Encontra ocorrências duplicadas baseadas em: aluno + categoria + data + relato
+    Retorna lista de IDs para exclusão (mantém a primeira ocorrência de cada grupo)
+    """
+    if df_ocorrencias is None or df_ocorrencias.empty or 'id' not in df_ocorrencias.columns:
+        return []
+    
+    # Criar chave única para comparação
+    df_ocorrencias['chave_duplicata'] = (
+        df_ocorrencias['aluno'].astype(str).str.lower().str.strip() + '|' +
+        df_ocorrencias['categoria'].astype(str).str.lower().str.strip() + '|' +
+        df_ocorrencias['data'].astype(str).str.split(' ').str[0] + '|' +
+        df_ocorrencias['relato'].astype(str).str.lower().str.strip()
+    )
+    
+    # Identificar duplicatas (manter a primeira)
+    duplicatas = df_ocorrencias[df_ocorrencias.duplicated(subset=['chave_duplicata'], keep='first')]
+    
+    # Remover coluna temporária
+    df_ocorrencias.drop(columns=['chave_duplicata'], inplace=True, errors='ignore')
+    
+    return duplicatas['id'].tolist() if not duplicatas.empty else []
+
+# ============================================================================
 # INICIALIZAÇÃO DO SESSION STATE
 # ============================================================================
 if 'editando_id' not in st.session_state:
@@ -1021,7 +1048,7 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ✅ MENU ATUALIZADO COM "👥 Responsáveis"
+# ✅ MENU ATUALIZADO COM "👥 Responsáveis" E "🔍 Buscar Duplicatas"
 menu = st.sidebar.selectbox(
     "📋 Menu Principal",
     [
@@ -1030,6 +1057,7 @@ menu = st.sidebar.selectbox(
         "📋 Gerenciar Turmas",
         "📝 Registrar Ocorrência",
         "📊 Lista de Ocorrências",
+        "🔍 Buscar Duplicatas",  # ✅ ADICIONADO
         "👥 Alunos",
         "👨‍🏫 Professores",
         "👥 Responsáveis",
@@ -1479,9 +1507,17 @@ elif menu == "📝 Registrar Ocorrência":
                 
                 encaminhamento_str = '| '.join(encaminhamentos_selecionados) if encaminhamentos_selecionados else ''
                 
-                # ✅ MANUTENÇÃO: Seleção de quem registra com nomes da EQUIPE_GESTORA
+                # ✅ MANUTENÇÃO: Seleção de quem registra - PROFESSORES + GESTÃO
                 st.subheader("👤 Quem Registrou a Ocorrência")
-                opcoes_registro = ["Selecione..."] + NOMES_EQUIPE
+                df_prof_local = carregar_professores()
+                opcoes_registro = ["Selecione..."]
+                # Adicionar professores do banco
+                if not df_prof_local.empty and 'nome' in df_prof_local.columns:
+                    opcoes_registro += df_prof_local['nome'].tolist()
+                # Adicionar equipe gestora (sem duplicar)
+                for nome in NOMES_EQUIPE:
+                    if nome not in opcoes_registro:
+                        opcoes_registro.append(nome)
                 prof = st.selectbox("Selecione o Responsável pelo Registro:", opcoes_registro, key="prof_select")
                 
                 st.markdown("---")
@@ -1647,6 +1683,90 @@ elif menu == "📊 Lista de Ocorrências":
     
     else:
         st.info("📭 Nenhuma ocorrência registrada ainda.")
+
+
+# ============================================================================
+# ✅ PÁGINA: BUSCAR DUPLICATAS COM CHECKBOX PARA EXCLUSÃO EM MASSA (NOVA)
+# ============================================================================
+
+elif menu == "🔍 Buscar Duplicatas":
+    st.title("🔍 Buscar e Excluir Ocorrências Duplicadas")
+    
+    st.info("""
+    💡 **Como funciona:**
+    1. Clique em "🔎 Buscar Duplicatas" para identificar ocorrências repetidas
+    2. Marque os checkboxes das que deseja excluir
+    3. Clique em "🗑️ Excluir Selecionadas" para remover em massa
+    
+    **Critério de duplicata:** Mesmo aluno + mesma categoria + mesma data + mesmo relato
+    """)
+    
+    df_ocorrencias = carregar_ocorrencias()
+    
+    if df_ocorrencias.empty:
+        st.info("📭 Nenhuma ocorrência registrada para verificar duplicatas.")
+    else:
+        # Botão para buscar duplicatas
+        if st.button("🔎 Buscar Duplicatas", type="primary"):
+            with st.spinner("🔍 Analisando ocorrências..."):
+                ids_duplicatas = encontrar_duplicatas(df_ocorrencias.copy())
+                
+                if not ids_duplicatas:
+                    st.success("✅ Nenhuma ocorrência duplicada encontrada!")
+                else:
+                    st.warning(f"⚠️ Encontradas **{len(ids_duplicatas)}** ocorrências duplicadas para exclusão")
+                    
+                    # Filtrar dataframe para mostrar apenas duplicatas
+                    df_duplicatas = df_ocorrencias[df_ocorrencias['id'].isin(ids_duplicatas)].copy()
+                    
+                    # ✅ CHECKBOXES PARA SELEÇÃO MÚLTIPLA
+                    st.subheader("📋 Selecione as duplicatas para excluir:")
+                    
+                    ids_selecionados = []
+                    
+                    for idx, row in df_duplicatas.iterrows():
+                        col_check, col_info = st.columns([1, 5])
+                        with col_check:
+                            if st.checkbox("", key=f"dup_{row['id']}"):
+                                ids_selecionados.append(row['id'])
+                        with col_info:
+                            st.markdown(f"""
+                            <div style="background: #fff3cd; padding: 0.5rem; border-radius: 4px; border-left: 4px solid #ffc107; margin-bottom: 0.5rem;">
+                                <strong>ID {row['id']}</strong> | {row.get('data', 'N/A')}<br>
+                                👤 {row.get('aluno', 'N/A')} | 📁 {row.get('categoria', 'N/A')}<br>
+                                📝 {str(row.get('relato', ''))[:100]}...
+                            </div>
+                            """, unsafe_allow_html=True)
+                    
+                    st.markdown("---")
+                    
+                    # Botão de exclusão em massa
+                    if ids_selecionados:
+                        st.warning(f"🗑️ Você selecionou **{len(ids_selecionados)}** ocorrência(s) para exclusão")
+                        
+                        if st.button(f"🗑️ Excluir {len(ids_selecionados)} Selecionada(s)", type="secondary"):
+                            senha = st.text_input("🔐 Digite a senha de exclusão (040600)", type="password")
+                            if senha == SENHA_EXCLUSAO:
+                                contagem_excluidas, erros = 0, 0
+                                for id_occ in ids_selecionados:
+                                    sucesso, msg = excluir_ocorrencia(id_occ)
+                                    if sucesso: contagem_excluidas += 1
+                                    else: erros += 1
+                                
+                                if contagem_excluidas > 0:
+                                    st.success(f"✅ {contagem_excluidas} ocorrência(s) excluída(s) com sucesso!")
+                                if erros > 0:
+                                    st.error(f"❌ {erros} erro(s) ao excluir")
+                                
+                                carregar_ocorrencias.clear()
+                                st.rerun()
+                            else:
+                                st.error("❌ Senha incorreta!")
+                    else:
+                        st.info("ℹ️ Selecione pelo menos uma ocorrência para excluir")
+        
+        st.markdown("---")
+        st.caption(f"📊 Total de ocorrências no sistema: {len(df_ocorrencias)}")
 
 
 # ============================================================================
