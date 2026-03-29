@@ -1,8 +1,9 @@
-﻿streamlit==1.32.0
-supabase==2.4.0
-pandas==2.2.0
-plotly==5.19.0
-reportlab==4.1.0
-openpyxl==3.1.2
-python-dotenv==1.0.1
-requests==2.31.0
+﻿streamlit
+supabase
+pandas
+plotly
+reportlab
+openpyxl
+python-dotenv
+requests
+numpy
