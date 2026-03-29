@@ -25,7 +25,7 @@ from reportlab.lib.units import cm
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
 import plotly.express as px
 import plotly.graph_objects as go
-from fuzzywuzzy import process
+from thefuzz import process
 import pytz
 
 # ============================================================================
