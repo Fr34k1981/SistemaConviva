@@ -6,4 +6,5 @@ reportlab
 openpyxl
 python-dotenv
 requests
-numpy
+numpyfuzzywuzzy==0.18.0
+python-Levenshtein==0.25.0
