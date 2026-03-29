@@ -1,7 +1,7 @@
 # ============================================================================
 # SISTEMA CONVIVA 179 - GESTÃO DE OCORRÊNCIAS ESCOLARES
 # Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI
-# Versão: 9.1 - MELHORIAS: DUPLICATAS + RESPONSÁVEIS + REGISTRADORES
+# Versão: 9.2 - EQUIPE GESTORA + DUPLICATAS + RESPONSÁVEIS
 # Desenvolvido para SEDUC/SP - Protocolo de Convivência e Proteção Escolar
 # ============================================================================
 
@@ -66,6 +66,20 @@ ESCOLA_TELEFONE = "(11) 4675-1855"
 ESCOLA_EMAIL = "e918623@educacao.sp.gov.br"
 ESCOLA_LOGO = "eliane_dantas.png"
 SENHA_EXCLUSAO = "040600"
+
+# ============================================================================
+# ✅ EQUIPE GESTORA - NOMES PARA SELEÇÃO (REGISTRADOR E ASSINATURAS)
+# ============================================================================
+EQUIPE_GESTORA = [
+    {"nome": "Rose Carmen Teixeira Gomes", "cargo": "Coordenador De Gestao Pedagogica (CGPG)"},
+    {"nome": "Aleandro Ferreira Dos Santos", "cargo": "Coordenador De Gestao Pedagogica (CGPG)"},
+    {"nome": "Luciana Francisca Da Conceicao", "cargo": "Coordenador De Organizacao Escolar (Vice-diretor)"},
+    {"nome": "Erika Paula Viana Watanabe", "cargo": "Coordenador De Organizacao Escolar (Vice-diretor)"},
+    {"nome": "Renan Lourenco Da Silva", "cargo": "Diretor Escolar"}
+]
+
+# Lista de nomes para dropdown
+NOMES_EQUIPE = [m["nome"] for m in EQUIPE_GESTORA]
 
 # ============================================================================
 # DICIONÁRIOS DO PROTOCOLO 179
@@ -397,7 +411,6 @@ def salvar_ocorrencia(ocorrencia_dict):
     if not SUPABASE_URL:
         return False, "Supabase não configurado"
     try:
-        # ✅ COLUNAS CORRETAS - Apenas o que existe no banco
         ocorrencia_dict_clean = {
             'data': ocorrencia_dict.get('data', ''),
             'aluno': ocorrencia_dict.get('aluno', ''),
@@ -410,7 +423,6 @@ def salvar_ocorrencia(ocorrencia_dict):
             'encaminhamento': ocorrencia_dict.get('encaminhamento', '')
         }
         
-        # Converter lista para string se necessário
         if isinstance(ocorrencia_dict_clean['encaminhamento'], list):
             ocorrencia_dict_clean['encaminhamento'] = '| '.join(ocorrencia_dict_clean['encaminhamento'])
         
@@ -714,10 +726,10 @@ def remover_duplicatas_encaminhamentos(encaminhamentos):
 
 
 # ============================================================================
-# FUNÇÕES DE GERAÇÃO DE PDF - OCORRÊNCIA
+# FUNÇÕES DE GERAÇÃO DE PDF - OCORRÊNCIA (COM ASSINATURAS SELECIONÁVEIS)
 # ============================================================================
 
-def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
+def gerar_pdf_ocorrencia(ocorrencia, assinaturas_selecionadas=None):
     buffer = io.BytesIO()
     
     doc = SimpleDocTemplate(
@@ -812,25 +824,33 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
     
     elementos.append(Spacer(1, 0.5*cm))
     
-    elementos.append(Paragraph("<b>Professor Responsável:</b>", estilos['Secao']))
+    elementos.append(Paragraph("<b>Registrado por:</b>", estilos['Secao']))
     elementos.append(Paragraph(f"{ocorrencia.get('professor', 'N/A')}", estilos['Texto']))
     elementos.append(Spacer(1, 0.5*cm))
     
+    # ✅ ASSINATURAS SELECIONÁVEIS
     elementos.append(Paragraph("<b>ASSINATURAS:</b>", estilos['Secao']))
     elementos.append(Spacer(1, 0.5*cm))
     
-    cargos_para_assinatura = ["Diretor(a)", "Vice-Diretor(a)", "CGPG / Coordenador(a)"]
-    
-    for cargo in cargos_para_assinatura:
-        if responsaveis is not None and not responsaveis.empty:
-            resp = responsaveis[responsaveis['cargo'] == cargo]
-            if not resp.empty and resp.iloc[0].get('nome'):
-                elementos.append(Paragraph(f"<b>{cargo}:</b> {resp.iloc[0].get('nome', '')}", estilos['Texto']))
-            else:
-                elementos.append(Paragraph(f"<b>{cargo}:</b> _________________________________", estilos['Texto']))
-        else:
-            elementos.append(Paragraph(f"<b>{cargo}:</b> _________________________________", estilos['Texto']))
-        elementos.append(Spacer(1, 0.5*cm))
+    if assinaturas_selecionadas and isinstance(assinaturas_selecionadas, list) and len(assinaturas_selecionadas) > 0:
+        for nome_assinante in assinaturas_selecionadas:
+            # Buscar cargo na EQUIPE_GESTORA
+            cargo = "Responsável"
+            for membro in EQUIPE_GESTORA:
+                if membro["nome"] == nome_assinante:
+                    cargo = membro["cargo"]
+                    break
+            elementos.append(Paragraph(f"<b>{cargo}:</b> {nome_assinante}", estilos['Texto']))
+            elementos.append(Spacer(1, 0.3*cm))
+            elementos.append(Paragraph("_________________________________", estilos['Assinatura']))
+            elementos.append(Spacer(1, 0.3*cm))
+    else:
+        # Fallback para assinaturas padrão
+        for membro in EQUIPE_GESTORA[:3]:  # Primeiros 3 como padrão
+            elementos.append(Paragraph(f"<b>{membro['cargo']}:</b> {membro['nome']}", estilos['Texto']))
+            elementos.append(Spacer(1, 0.3*cm))
+            elementos.append(Paragraph("_________________________________", estilos['Assinatura']))
+            elementos.append(Spacer(1, 0.3*cm))
     
     elementos.append(Spacer(1, 0.5*cm))
     estilo_rodape = ParagraphStyle(
@@ -848,7 +868,7 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis=None):
     return buffer
 
 
-def gerar_pdf_comunicado(ocorrencia, responsaveis=None):
+def gerar_pdf_comunicado(ocorrencia, assinaturas_selecionadas=None):
     buffer = io.BytesIO()
     
     doc = SimpleDocTemplate(
@@ -943,25 +963,31 @@ def gerar_pdf_comunicado(ocorrencia, responsaveis=None):
     
     elementos.append(Spacer(1, 0.5*cm))
     
-    elementos.append(Paragraph("<b>Professor Responsável:</b>", estilos['Secao']))
+    elementos.append(Paragraph("<b>Registrado por:</b>", estilos['Secao']))
     elementos.append(Paragraph(f"{ocorrencia.get('professor', 'N/A')}", estilos['TextoComunicado']))
     elementos.append(Spacer(1, 0.5*cm))
     
+    # ✅ ASSINATURAS SELECIONÁVEIS
     elementos.append(Paragraph("<b>ASSINATURAS:</b>", estilos['Secao']))
     elementos.append(Spacer(1, 0.5*cm))
     
-    cargos_para_assinatura = ["Diretor(a)", "Vice-Diretor(a)", "CGPG / Coordenador(a)"]
-    
-    for cargo in cargos_para_assinatura:
-        if responsaveis is not None and not responsaveis.empty:
-            resp = responsaveis[responsaveis['cargo'] == cargo]
-            if not resp.empty and resp.iloc[0].get('nome'):
-                elementos.append(Paragraph(f"<b>{cargo}:</b> {resp.iloc[0].get('nome', '')}", estilos['TextoComunicado']))
-            else:
-                elementos.append(Paragraph(f"<b>{cargo}:</b> _________________________________", estilos['TextoComunicado']))
-        else:
-            elementos.append(Paragraph(f"<b>{cargo}:</b> _________________________________", estilos['TextoComunicado']))
-        elementos.append(Spacer(1, 0.5*cm))
+    if assinaturas_selecionadas and isinstance(assinaturas_selecionadas, list) and len(assinaturas_selecionadas) > 0:
+        for nome_assinante in assinaturas_selecionadas:
+            cargo = "Responsável"
+            for membro in EQUIPE_GESTORA:
+                if membro["nome"] == nome_assinante:
+                    cargo = membro["cargo"]
+                    break
+            elementos.append(Paragraph(f"<b>{cargo}:</b> {nome_assinante}", estilos['TextoComunicado']))
+            elementos.append(Spacer(1, 0.3*cm))
+            elementos.append(Paragraph("_________________________________", estilos['Assinatura']))
+            elementos.append(Spacer(1, 0.3*cm))
+    else:
+        for membro in EQUIPE_GESTORA[:3]:
+            elementos.append(Paragraph(f"<b>{membro['cargo']}:</b> {membro['nome']}", estilos['TextoComunicado']))
+            elementos.append(Spacer(1, 0.3*cm))
+            elementos.append(Paragraph("_________________________________", estilos['Assinatura']))
+            elementos.append(Spacer(1, 0.3*cm))
     
     elementos.append(Spacer(1, 0.5*cm))
     estilo_rodape = ParagraphStyle(
@@ -995,7 +1021,7 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ✅ MENU ATUALIZADO COM "👥 Responsáveis" (MANUTENÇÃO 2)
+# ✅ MENU ATUALIZADO COM "👥 Responsáveis"
 menu = st.sidebar.selectbox(
     "📋 Menu Principal",
     [
@@ -1006,7 +1032,7 @@ menu = st.sidebar.selectbox(
         "📊 Lista de Ocorrências",
         "👥 Alunos",
         "👨‍🏫 Professores",
-        "👥 Responsáveis",  # ✅ ADICIONADO - MANUTENÇÃO 2
+        "👥 Responsáveis",
         "📈 Gráficos",
         "🖨️ Relatórios",
         "⚙️ Configurações",
@@ -1118,7 +1144,6 @@ if menu == "🏠 Home":
     else:
         st.info("📭 Nenhuma ocorrência registrada ainda.")
     
-    # Resumo de turmas
     if not df_turmas.empty:
         st.subheader("🏫 Resumo de Turmas")
         col1, col2 = st.columns(2)
@@ -1152,14 +1177,12 @@ elif menu == "📥 Importar Alunos (Turmas)":
     - Situação do Aluno
     """)
     
-    # ✅ CAMPO DE TURMA
     turma_alunos = st.text_input(
         "🏫 Qual a TURMA destes alunos?",
         placeholder="Ex: 6º Ano A, 7º Ano B, 8º Ano C",
         key="turma_import"
     )
     
-    # ✅ UPLOAD DE ARQUIVO
     arquivo_upload = st.file_uploader(
         "Selecione o arquivo CSV da SEDUC",
         type=["csv"],
@@ -1168,13 +1191,11 @@ elif menu == "📥 Importar Alunos (Turmas)":
     
     if arquivo_upload is not None:
         try:
-            # Ler CSV
             df_import = pd.read_csv(arquivo_upload, sep=';', encoding='utf-8-sig')
             st.success(f"✅ Arquivo lido com sucesso! {len(df_import)} alunos encontrados.")
             st.write("### Pré-visualização:")
             st.dataframe(df_import.head())
             
-            # Mapeamento de colunas
             colunas_csv = df_import.columns.tolist()
             st.write("### 🔍 Mapeamento de Colunas")
             
@@ -1186,14 +1207,12 @@ elif menu == "📥 Importar Alunos (Turmas)":
                 mapeamento_nascimento = st.selectbox("Coluna da Data de Nascimento", colunas_csv, index=colunas_csv.index("Data de Nascimento") if "Data de Nascimento" in colunas_csv else 0)
                 mapeamento_situacao = st.selectbox("Coluna da Situação", colunas_csv, index=colunas_csv.index("Situação do Aluno") if "Situação do Aluno" in colunas_csv else 0)
             
-            # Verificar colunas necessárias
             colunas_necessarias = [mapeamento_ra, mapeamento_nome, mapeamento_nascimento, mapeamento_situacao]
             faltantes = [c for c in colunas_necessarias if c not in colunas_csv]
             
             if faltantes:
                 st.error(f"❌ Colunas não encontradas: {', '.join(faltantes)}")
             else:
-                # Verificar se turma já existe
                 df_alunos = carregar_alunos()
                 turmas_existentes = df_alunos['turma'].unique().tolist() if not df_alunos.empty else []
                 
@@ -1201,7 +1220,6 @@ elif menu == "📥 Importar Alunos (Turmas)":
                     st.warning(f"⚠️ A turma **{turma_alunos}** já existe no sistema!")
                     st.info("💡 Se importar novamente, os alunos serão **atualizados** (não duplicados).")
                 
-                # ✅ BOTÃO DE IMPORTAR
                 if st.button("🚀 Importar Alunos", type="primary"):
                     if not turma_alunos:
                         st.error("❌ Preencha o nome da turma!")
@@ -1225,7 +1243,6 @@ elif menu == "📥 Importar Alunos (Turmas)":
                                     'turma': turma_alunos
                                 }
                                 
-                                # Verificar se aluno já existe
                                 aluno_existente = df_alunos[df_alunos['ra'] == ra_str]
                                 
                                 if not aluno_existente.empty:
@@ -1269,7 +1286,6 @@ elif menu == "📋 Gerenciar Turmas":
     df_alunos = carregar_alunos()
     
     if not df_alunos.empty:
-        # ✅ RESUMO DAS TURMAS
         st.subheader("📊 Resumo das Turmas")
         
         turmas_info = df_alunos.groupby('turma').agg({
@@ -1304,7 +1320,6 @@ elif menu == "📋 Gerenciar Turmas":
                 
                 st.markdown("---")
         
-        # ✅ CONFIRMAR EXCLUSÃO DE TURMA
         if 'turma_para_deletar' in st.session_state:
             st.warning(f"⚠️ Tem certeza que deseja deletar a turma **{st.session_state.turma_para_deletar}?**")
             st.info("Isso removerá TODOS os alunos desta turma!")
@@ -1325,7 +1340,6 @@ elif menu == "📋 Gerenciar Turmas":
                     del st.session_state.turma_para_deletar
                     st.rerun()
         
-        # ✅ EDITAR NOME DA TURMA
         if 'turma_editar' in st.session_state:
             st.info(f"✏️ Editando turma: **{st.session_state.turma_editar}**")
             
@@ -1338,7 +1352,6 @@ elif menu == "📋 Gerenciar Turmas":
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("💾 Salvar Alteração", type="primary"):
-                    # Atualizar todos os alunos da turma
                     df_alunos_turma = df_alunos[df_alunos['turma'] == st.session_state.turma_editar]
                     contagem = 0
                     for idx, aluno in df_alunos_turma.iterrows():
@@ -1361,7 +1374,6 @@ elif menu == "📋 Gerenciar Turmas":
                     del st.session_state.turma_editar
                     st.rerun()
         
-        # ✅ VER ALUNOS DA TURMA SELECIONADA
         if 'turma_selecionada' in st.session_state:
             st.markdown("---")
             st.subheader(f"👥 Alunos da Turma: {st.session_state.turma_selecionada}")
@@ -1467,18 +1479,10 @@ elif menu == "📝 Registrar Ocorrência":
                 
                 encaminhamento_str = '| '.join(encaminhamentos_selecionados) if encaminhamentos_selecionados else ''
                 
-                df_professores = carregar_professores()
-                # ✅ MANUTENÇÃO 3: Lista de professores com Diretor e Vice-Diretor
-                opcoes_professor = ["Selecione..."]
-                if not df_professores.empty:
-                    opcoes_professor += df_professores['nome'].tolist()
-                # ✅ ADICIONAR Diretor e Vice-Diretor como opções
-                if "Diretor" not in opcoes_professor:
-                    opcoes_professor.append("Diretor")
-                if "Vice-Diretor" not in opcoes_professor:
-                    opcoes_professor.append("Vice-Diretor")
-                
-                prof = st.selectbox("👨‍🏫 Professor Responsável", opcoes_professor, key="prof_select")
+                # ✅ MANUTENÇÃO: Seleção de quem registra com nomes da EQUIPE_GESTORA
+                st.subheader("👤 Quem Registrou a Ocorrência")
+                opcoes_registro = ["Selecione..."] + NOMES_EQUIPE
+                prof = st.selectbox("Selecione o Responsável pelo Registro:", opcoes_registro, key="prof_select")
                 
                 st.markdown("---")
                 
@@ -1486,7 +1490,7 @@ elif menu == "📝 Registrar Ocorrência":
                     if not alunos_selecionados:
                         st.error("❌ Selecione pelo menos um estudante!")
                     elif not prof or prof == "Selecione...":
-                        st.error("❌ Selecione o professor responsável!")
+                        st.error("❌ Selecione quem registrou a ocorrência!")
                     elif not relato:
                         st.error("❌ Preencha o relato da ocorrência!")
                     else:
@@ -1504,7 +1508,6 @@ elif menu == "📝 Registrar Ocorrência":
                                 ra_aluno = str(aluno_info["ra"].values[0])
                                 turma_aluno = str(aluno_info["turma"].values[0])
                                 
-                                # ✅ MANUTENÇÃO 1: Verificar duplicata antes de salvar
                                 ocorrencia_dict_check = {
                                     'data': data_str,
                                     'aluno': nome_aluno,
@@ -1599,9 +1602,13 @@ elif menu == "📊 Lista de Ocorrências":
         with col1:
             id_selecionado = st.number_input("ID da Ocorrência", min_value=1, step=1)
             
+            # ✅ SELEÇÃO DE ASSINATURAS PARA PDF
+            st.markdown("🖋️ **Selecionar quem assina:**")
+            assinaturas = st.multiselect("Escolha os responsáveis pelas assinaturas:", NOMES_EQUIPE, default=NOMES_EQUIPE[:3])
+            
             if st.button("📄 Gerar PDF"):
                 ocorrencia = df_filtrado[df_filtrado['id'] == id_selecionado].iloc[0].to_dict()
-                pdf_buffer = gerar_pdf_ocorrencia(ocorrencia)
+                pdf_buffer = gerar_pdf_ocorrencia(ocorrencia, assinaturas_selecionadas=assinaturas)
                 st.download_button(
                     label="📥 Baixar PDF",
                     data=pdf_buffer,
@@ -1612,7 +1619,9 @@ elif menu == "📊 Lista de Ocorrências":
         with col2:
             if st.button("📬 Gerar Comunicado"):
                 ocorrencia = df_filtrado[df_filtrado['id'] == id_selecionado].iloc[0].to_dict()
-                pdf_buffer = gerar_pdf_comunicado(ocorrencia)
+                # Usar mesmas assinaturas selecionadas
+                assinaturas = st.multiselect("Assinaturas:", NOMES_EQUIPE, default=NOMES_EQUIPE[:3], key="assin_comunicado")
+                pdf_buffer = gerar_pdf_comunicado(ocorrencia, assinaturas_selecionadas=assinaturas)
                 st.download_button(
                     label="📥 Baixar Comunicado",
                     data=pdf_buffer,
@@ -1846,88 +1855,72 @@ elif menu == "👨‍🏫 Professores":
 
 
 # ============================================================================
-# ✅ PÁGINA: RESPONSÁVEIS (MANUTENÇÃO 2 - RESTAURADA)
+# ✅ PÁGINA: RESPONSÁVEIS (COM NOMES DA EQUIPE GESTORA)
 # ============================================================================
 
 elif menu == "👥 Responsáveis":
-    st.title("👥 Gestão de Responsáveis")
+    st.title("👥 Gestão de Responsáveis / Equipe Gestora")
+    
+    st.info("💡 Estes são os membros da equipe gestora que podem registrar ocorrências e assinar documentos.")
+    
+    # ✅ EXIBIR EQUIPE GESTORA CADASTRADA
+    st.subheader("📋 Equipe Gestora Cadastrada")
+    
+    for membro in EQUIPE_GESTORA:
+        with st.container():
+            col1, col2, col3 = st.columns([1, 3, 1])
+            with col1:
+                st.write("👤")
+            with col2:
+                st.write(f"**{membro['nome']}**")
+                st.caption(f"📋 {membro['cargo']}")
+            with col3:
+                st.write("✅")
+    
+    st.markdown("---")
+    
+    # ✅ GERENCIAR RESPONSÁVEIS ADICIONAIS (se necessário)
+    st.subheader("➕ Adicionar Responsável Adicional")
     
     df_responsaveis = carregar_responsaveis()
-    
-    st.subheader("📝 Novo Responsável")
     
     col1, col2 = st.columns(2)
     
     with col1:
         nome_resp = st.text_input("Nome Completo *", key="nome_resp_input")
-        cargo_resp = st.selectbox("Cargo/Função *", [
-            "", "Diretor(a)", "Vice-Diretor(a)", "CGPG / Coordenador(a)", 
-            "Secretário(a)", "Outro"
-        ], key="cargo_resp_input")
+        cargo_resp = st.text_input("Cargo/Função *", key="cargo_resp_input")
     
     with col2:
         email_resp = st.text_input("Email", key="email_resp_input")
         telefone_resp = st.text_input("Telefone", key="telefone_resp_input")
     
-    if st.session_state.get('editando_resp', None) is not None:
-        st.info(f"✏️ Editando responsável ID: {st.session_state.editando_resp}")
-        
-        resp_atual = df_responsaveis[df_responsaveis['id'] == st.session_state.editando_resp].iloc[0]
-        
-        if st.button("💾 Atualizar Responsável", key="btn_atualizar_resp"):
+    if st.button("💾 Salvar Responsável Adicional", key="btn_salvar_resp"):
+        if nome_resp and cargo_resp:
             responsavel_dict = {
                 'nome': nome_resp.strip(),
-                'cargo': cargo_resp.strip() if cargo_resp else None,
+                'cargo': cargo_resp.strip(),
                 'email': email_resp.strip() if email_resp else None,
                 'telefone': telefone_resp.strip() if telefone_resp else None
             }
             
-            sucesso, msg = atualizar_responsavel(st.session_state.editando_resp, responsavel_dict)
-            
-            if sucesso:
-                st.success(f"✅ {msg}")
-                st.session_state.editando_resp = None
+            if salvar_responsavel(responsavel_dict):
+                st.success(f"✅ Responsável {nome_resp} cadastrado com sucesso!")
                 carregar_responsaveis.clear()
                 st.rerun()
             else:
-                st.error(f"❌ {msg}")
-        
-        if st.button("❌ Cancelar Edição", key="btn_cancelar_resp"):
-            st.session_state.editando_resp = None
-            st.rerun()
-    else:
-        if st.button("💾 Salvar Responsável", key="btn_salvar_resp"):
-            if nome_resp and cargo_resp:
-                # Verificar se já existe
-                nomes_existentes = [n.lower().strip() for n in df_responsaveis['nome'].tolist()]
-                
-                if nome_resp.lower().strip() in nomes_existentes:
-                    st.error("❌ Já existe um responsável com este nome cadastrado!")
-                else:
-                    responsavel_dict = {
-                        'nome': nome_resp.strip(),
-                        'cargo': cargo_resp.strip(),
-                        'email': email_resp.strip() if email_resp else None,
-                        'telefone': telefone_resp.strip() if telefone_resp else None
-                    }
-                    
-                    if salvar_responsavel(responsavel_dict):
-                        st.success(f"✅ Responsável {nome_resp} cadastrado com sucesso!")
-                        carregar_responsaveis.clear()
-                        st.rerun()
-                    else:
-                        st.error("❌ Erro ao salvar responsável")
-            else:
-                st.error("❌ Nome e Cargo são obrigatórios!")
+                st.error("❌ Erro ao salvar responsável")
+        else:
+            st.error("❌ Nome e Cargo são obrigatórios!")
     
     st.markdown("---")
     
-    st.subheader("📋 Responsáveis Cadastrados")
+    # ✅ LISTAR RESPONSÁVEIS ADICIONAIS DO BANCO
+    st.subheader("📋 Responsáveis Adicionais do Sistema")
     
     if not df_responsaveis.empty:
         for idx, resp in df_responsaveis.iterrows():
             with st.container():
-                col1, col2, col3, col4, col5 = st.columns([1, 4, 3, 1, 1])
+                col1, col2, col3, col4 = st.columns([1, 4, 3, 1])
                 
                 with col1:
                     st.write("👤")
@@ -1939,11 +1932,6 @@ elif menu == "👥 Responsáveis":
                     st.write(f"📋 {resp.get('cargo', 'N/A')}")
                 
                 with col4:
-                    if st.button("✏️", key=f"edit_resp_{resp.get('id', idx)}"):
-                        st.session_state.editando_resp = resp.get('id')
-                        st.rerun()
-                
-                with col5:
                     if st.button("🗑️", key=f"del_resp_{resp.get('id', idx)}"):
                         senha = st.text_input("Senha (040600)", type="password", key=f"senha_resp_{resp.get('id', idx)}")
                         if senha == SENHA_EXCLUSAO:
@@ -1958,9 +1946,9 @@ elif menu == "👥 Responsáveis":
                             st.error("❌ Senha incorreta!")
         
         st.divider()
-        st.info(f"📊 **Total:** {len(df_responsaveis)} responsáveis cadastrados")
+        st.info(f"📊 **Total:** {len(df_responsaveis)} responsáveis adicionais")
     else:
-        st.info("📭 Nenhum responsável cadastrado ainda. Adicione Diretor, Vice-Diretor, etc.")
+        st.info("ℹ️ Apenas a Equipe Gestora principal está cadastrada. Adicione outros se necessário.")
 
 
 # ============================================================================
@@ -2102,7 +2090,6 @@ elif menu == "🖨️ Relatórios":
     st.title("🖨️ Imprimir PDF de Ocorrência")
     
     df_ocorrencias = carregar_ocorrencias()
-    df_responsaveis = carregar_responsaveis()
     
     if not df_ocorrencias.empty:
         df_ocorrencias_sorted = df_ocorrencias.sort_values('id', ascending=False)
@@ -2139,12 +2126,20 @@ elif menu == "🖨️ Relatórios":
                 help="Escolha o tipo de documento a ser gerado"
             )
             
+            # ✅ SELEÇÃO DE ASSINATURAS
+            st.markdown("🖋️ **Selecionar quem assina o documento:**")
+            assinaturas_selecionadas = st.multiselect(
+                "Escolha os responsáveis pelas assinaturas:",
+                NOMES_EQUIPE,
+                default=[NOMES_EQUIPE[0], NOMES_EQUIPE[2], NOMES_EQUIPE[4]] if len(NOMES_EQUIPE) >= 5 else NOMES_EQUIPE[:3]
+            )
+            
             if st.button("🖨️ Gerar PDF", type="primary"):
                 if tipo_documento == "Ocorrência":
-                    pdf_buffer = gerar_pdf_ocorrencia(ocorrencia, df_responsaveis)
+                    pdf_buffer = gerar_pdf_ocorrencia(ocorrencia, assinaturas_selecionadas=assinaturas_selecionadas)
                     nome_arquivo = f"ocorrencia_{id_selecionado}_{ocorrencia.get('aluno', 'aluno')}.pdf"
                 else:
-                    pdf_buffer = gerar_pdf_comunicado(ocorrencia, df_responsaveis)
+                    pdf_buffer = gerar_pdf_comunicado(ocorrencia, assinaturas_selecionadas=assinaturas_selecionadas)
                     nome_arquivo = f"comunicado_{id_selecionado}_{ocorrencia.get('aluno', 'aluno')}.pdf"
                 
                 st.download_button(
@@ -2182,6 +2177,10 @@ elif menu == "⚙️ Configurações":
         **Email:** {ESCOLA_EMAIL}
         **Logo:** {ESCOLA_LOGO}
         """)
+    
+    st.subheader("👥 Equipe Gestora Cadastrada")
+    for membro in EQUIPE_GESTORA:
+        st.info(f"👤 **{membro['nome']}** - {membro['cargo']}")
     
     st.subheader("📋 Protocolo 179")
     
@@ -2227,7 +2226,7 @@ elif menu == "⚙️ Configurações":
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.metric("Versão", "9.1 - Melhorias")
+        st.metric("Versão", "9.2 - Equipe Gestora")
     
     with col2:
         st.metric("Framework", "Streamlit")
@@ -2259,7 +2258,8 @@ elif menu == "💾 Backup":
             'ocorrencias': df_ocorrencias.to_dict('records') if not df_ocorrencias.empty else [],
             'responsaveis': df_responsaveis.to_dict('records') if not df_responsaveis.empty else [],
             'data_backup': datetime.now().strftime('%d/%m/%Y %H:%M'),
-            'versao_sistema': '9.1 - Melhorias'
+            'versao_sistema': '9.2 - Equipe Gestora',
+            'equipe_gestora': EQUIPE_GESTORA
         }
         
         json_str = json.dumps(backup_data, ensure_ascii=False, indent=2)
@@ -2352,6 +2352,6 @@ st.markdown("""
     <p><b>Sistema Conviva 179</b> - Gestão de Ocorrências Escolares</p>
     <p>Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI</p>
     <p>Protocolo de Convivência e Proteção Escolar - SEDUC/SP</p>
-    <p>Versão 9.1 - Melhorias | Desenvolvido com Streamlit + Supabase (Requests)</p>
+    <p>Versão 9.2 - Equipe Gestora | Desenvolvido com Streamlit + Supabase (Requests)</p>
 </div>
 """, unsafe_allow_html=True)
