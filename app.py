@@ -211,6 +211,7 @@ CORES_INFRACOES = {
 # --- CORES POR GRAVIDADE ---
 CORES_GRAVIDADE = {
     "Leve": "#4CAF50",
+    "Média": "#FFC107",
     "Grave": "#FF9800",
     "Gravíssima": "#F44336"
 }
@@ -922,12 +923,13 @@ if menu == "🏠 Início":
         st.markdown("## ⚖️ Contagem por Gravidade")
         
         leve = len(df_ocorrencias[df_ocorrencias["gravidade"] == "Leve"])
+        media = len(df_ocorrencias[df_ocorrencias["gravidade"] == "Média"])
         grave = len(df_ocorrencias[df_ocorrencias["gravidade"] == "Grave"])
         gravissima = len(df_ocorrencias[df_ocorrencias["gravidade"] == "Gravíssima"])
         total_occ = len(df_ocorrencias)
-        average_gravity = round((leve * 1 + grave * 2 + gravissima * 3) / total_occ, 2) if total_occ > 0 else 0
+        average_gravity = round((leve * 1 + media * 2 + grave * 3 + gravissima * 4) / total_occ, 2) if total_occ > 0 else 0
         
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3, col4, col5 = st.columns(5)
         
         with col1:
             st.markdown(f"""
@@ -939,13 +941,21 @@ if menu == "🏠 Início":
         
         with col2:
             st.markdown(f"""
+            <div style="background: #FFC107; padding: 1.5rem; border-radius: 10px; text-align: center; color: black;">
+            <div style="font-size: 2.5rem; font-weight: bold;">{media}</div>
+            <div style="font-size: 1rem;">Ocorrências Médias</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            st.markdown(f"""
             <div style="background: #FF9800; padding: 1.5rem; border-radius: 10px; text-align: center; color: white;">
             <div style="font-size: 2.5rem; font-weight: bold;">{grave}</div>
             <div style="font-size: 1rem;">Ocorrências Graves</div>
             </div>
             """, unsafe_allow_html=True)
         
-        with col3:
+        with col4:
             st.markdown(f"""
             <div style="background: #F44336; padding: 1.5rem; border-radius: 10px; text-align: center; color: white;">
             <div style="font-size: 2.5rem; font-weight: bold;">{gravissima}</div>
@@ -953,7 +963,7 @@ if menu == "🏠 Início":
             </div>
             """, unsafe_allow_html=True)
         
-        with col4:
+        with col5:
             st.markdown(f"""
             <div style="background: #9C27B0; padding: 1.5rem; border-radius: 10px; text-align: center; color: white;">
             <div style="font-size: 2.5rem; font-weight: bold;">{average_gravity}</div>
@@ -975,7 +985,7 @@ if menu == "🏠 Início":
                 values=contagem_grav.values,
                 names=contagem_grav.index,
                 title='Distribuição por Gravidade',
-                color_discrete_map={'Leve': '#4CAF50', 'Grave': '#FF9800', 'Gravíssima': '#F44336'},
+                color_discrete_map={'Leve': '#4CAF50', 'Média': '#FFC107', 'Grave': '#FF9800', 'Gravíssima': '#F44336'},
                 hole=0.3
             )
             st.plotly_chart(fig_grav, use_container_width=True)
@@ -1286,8 +1296,8 @@ elif menu == "📝 Registrar Ocorrência":
                         st.write(linha)
                 # ✅ Gravidade EDITÁVEL
                 gravidade = st.selectbox("Gravidade (sugerida pelo Protocolo 179 - pode editar)",
-                    ["Leve", "Grave", "Gravíssima"],
-                    index=["Leve", "Grave", "Gravíssima"].index(gravidade_protocolo),
+                    ["Leve", "Média", "Grave", "Gravíssima"],
+                    index=["Leve", "Média", "Grave", "Gravíssima"].index(gravidade_protocolo) if gravidade_protocolo in ["Leve", "Média", "Grave", "Gravíssima"] else 0,
                     key="gravidade_select")
                 if gravidade != gravidade_protocolo:
                     st.warning(f"⚠️ Você alterou a gravidade de **{gravidade_protocolo}** para **{gravidade}**")
@@ -1727,8 +1737,8 @@ elif menu == "📋 Histórico de Ocorrências":
             )
             edit_grav = st.selectbox(
                 "Gravidade",
-                ["Leve", "Grave", "Gravíssima"],
-                index=["Leve", "Grave", "Gravíssima"].index(str(dados.get("gravidade", "Leve"))),
+                ["Leve", "Média", "Grave", "Gravíssima"],
+                index=["Leve", "Média", "Grave", "Gravíssima"].index(str(dados.get("gravidade", "Leve"))) if str(dados.get("gravidade", "Leve")) in ["Leve", "Média", "Grave", "Gravíssima"] else 0,
                 key="edit_grav"
             )
 
