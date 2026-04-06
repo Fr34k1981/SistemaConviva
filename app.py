@@ -992,7 +992,7 @@ elif menu == "👨‍🏫 Cadastrar Professores":
             with col3:
                 if st.button("🗑️ Excluir", key=f"del_prof_{prof['id']}"):
                     st.session_state['confirmar_exclusao_prof'] = prof['id']
-                    st.experimental_rerun()
+                    st.rerun()
         st.info(f"Total: {len(df_professores)} professores")
     else:
         st.write("📭 Nenhum professor cadastrado.")
@@ -1016,7 +1016,7 @@ elif menu == "👨‍🏫 Cadastrar Professores":
         with col_conf_prof2:
             if st.button("❌ Cancelar", type="secondary"):
                 del st.session_state['confirmar_exclusao_prof']
-                st.experimental_rerun()
+                st.rerun()
 
 # --- 3. CADASTRAR RESPONSÁVEIS ---
 elif menu == "👤 Cadastrar Responsáveis por Assinatura":
@@ -1069,7 +1069,7 @@ elif menu == "👤 Cadastrar Responsáveis por Assinatura":
                     with col3:
                         if st.button("🗑️", key=f"del_resp_{resp['id']}"):
                             st.session_state['confirmar_exclusao_resp'] = resp['id']
-                            st.experimental_rerun()
+                            st.rerun()
                 st.markdown("")
     else:
         st.write("📭 Nenhum responsável cadastrado.")
@@ -1093,7 +1093,7 @@ elif menu == "👤 Cadastrar Responsáveis por Assinatura":
         with col_conf_resp2:
             if st.button("❌ Cancelar", type="secondary"):
                 del st.session_state['confirmar_exclusao_resp']
-                st.experimental_rerun()
+                st.rerun()
 
 # --- 4. REGISTRAR OCORRÊNCIA ---
 elif menu == "📝 Registrar Ocorrência":
@@ -1217,7 +1217,7 @@ elif menu == "📝 Registrar Ocorrência":
                                 'turma_sel': turma_sel
                             }
                             st.session_state['confirmar_registro'] = True
-                            st.experimental_rerun()
+                            st.rerun()
                         else:
                             if not alunos_selecionados:
                                 st.error("❌ Selecione pelo menos um estudante!")
@@ -1276,12 +1276,12 @@ elif menu == "📝 Registrar Ocorrência":
                                 st.session_state.ocorrencia_salva_sucesso = True
                             del st.session_state['confirmar_registro']
                             del st.session_state['dados_registro']
-                            st.experimental_rerun()
+                            st.rerun()
                     with col_conf_reg2:
                         if st.button("❌ Cancelar Registro", type="secondary"):
                             del st.session_state['confirmar_registro']
                             del st.session_state['dados_registro']
-                            st.experimental_rerun()
+                            st.rerun()
 
 # --- 5. COMUNICADO AOS PAIS ---
 elif menu == "📄 Comunicado aos Pais":
@@ -1565,7 +1565,7 @@ elif menu == "📋 Histórico de Ocorrências":
                 else:
                     # Definir confirmação
                     st.session_state['confirmar_exclusao'] = id_excluir
-                    st.experimental_rerun()
+                    st.rerun()
 
             # Mostrar confirmação de exclusão se necessário
             if 'confirmar_exclusao' in st.session_state and st.session_state['confirmar_exclusao'] == id_excluir:
@@ -1586,14 +1586,14 @@ elif menu == "📋 Histórico de Ocorrências":
                             if 'senha_excluir' in st.session_state:
                                 del st.session_state.senha_excluir
                             del st.session_state['confirmar_exclusao']
-                            st.experimental_rerun()
+                            st.rerun()
                         else:
                             st.error("❌ Falha ao excluir ocorrência. Verifique as credenciais e tente novamente.")
                             del st.session_state['confirmar_exclusao']
                 with col_conf2:
                     if st.button("❌ Cancelar", type="secondary"):
                         del st.session_state['confirmar_exclusao']
-                        st.experimental_rerun()
+                        st.rerun()
 
         with col2:
             st.markdown("### ✏️ Editar")
