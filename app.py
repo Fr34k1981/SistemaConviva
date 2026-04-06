@@ -621,15 +621,8 @@ def atualizar_responsavel(id_resp, dados):
 def excluir_responsavel(id_resp):
     return _supabase_mutation("DELETE", f"responsaveis?id=eq.{id_resp}", None, "excluir responsável")
 
-@st.cache_data(ttl=5)
 def carregar_ocorrencias():
-    df = _supabase_get_dataframe("ocorrencias?select=*&order=id.desc", "carregar ocorrências")
-    # Debug: mostrar quantas linhas foram carregadas
-    if df.empty:
-        st.warning(f"⚠️ DEBUG: DataFrame vazio ao carregar ocorrências")
-    else:
-        st.success(f"✅ DEBUG: {len(df)} ocorrências carregadas")
-    return df
+    return _supabase_get_dataframe("ocorrencias?select=*&order=id.desc", "carregar ocorrências")
 
 def salvar_ocorrencia(ocorrencia):
     return _supabase_mutation("POST", "ocorrencias", ocorrencia, "salvar ocorrência")
