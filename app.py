@@ -921,10 +921,15 @@ if menu == "🏠 Início":
         st.markdown("---")
         st.markdown("## ⚖️ Contagem por Gravidade")
         
-        col1, col2, col3 = st.columns(3)
+        leve = len(df_ocorrencias[df_ocorrencias["gravidade"] == "Leve"])
+        grave = len(df_ocorrencias[df_ocorrencias["gravidade"] == "Grave"])
+        gravissima = len(df_ocorrencias[df_ocorrencias["gravidade"] == "Gravíssima"])
+        total_occ = len(df_ocorrencias)
+        average_gravity = round((leve * 1 + grave * 2 + gravissima * 3) / total_occ, 2) if total_occ > 0 else 0
+        
+        col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            leve = len(df_ocorrencias[df_ocorrencias["gravidade"] == "Leve"])
             st.markdown(f"""
             <div style="background: #4CAF50; padding: 1.5rem; border-radius: 10px; text-align: center; color: white;">
             <div style="font-size: 2.5rem; font-weight: bold;">{leve}</div>
@@ -933,7 +938,6 @@ if menu == "🏠 Início":
             """, unsafe_allow_html=True)
         
         with col2:
-            grave = len(df_ocorrencias[df_ocorrencias["gravidade"] == "Grave"])
             st.markdown(f"""
             <div style="background: #FF9800; padding: 1.5rem; border-radius: 10px; text-align: center; color: white;">
             <div style="font-size: 2.5rem; font-weight: bold;">{grave}</div>
@@ -942,11 +946,18 @@ if menu == "🏠 Início":
             """, unsafe_allow_html=True)
         
         with col3:
-            gravissima = len(df_ocorrencias[df_ocorrencias["gravidade"] == "Gravíssima"])
             st.markdown(f"""
             <div style="background: #F44336; padding: 1.5rem; border-radius: 10px; text-align: center; color: white;">
             <div style="font-size: 2.5rem; font-weight: bold;">{gravissima}</div>
             <div style="font-size: 1rem;">Ocorrências Gravíssimas</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col4:
+            st.markdown(f"""
+            <div style="background: #9C27B0; padding: 1.5rem; border-radius: 10px; text-align: center; color: white;">
+            <div style="font-size: 2.5rem; font-weight: bold;">{average_gravity}</div>
+            <div style="font-size: 1rem;">Média de Gravidade</div>
             </div>
             """, unsafe_allow_html=True)
     
