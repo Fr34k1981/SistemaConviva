@@ -912,6 +912,74 @@ if menu == "🏠 Início":
     with col4:
         profs = len(df_professores) if not df_professores.empty else 0
         st.metric("Professores Cadastrados", profs)
+    
+    # Contagem por Gravidade
+    if not df_ocorrencias.empty:
+        st.markdown("---")
+        st.markdown("## ⚖️ Contagem por Gravidade")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            leve = len(df_ocorrencias[df_ocorrencias["gravidade"] == "Leve"])
+            st.markdown(f"""
+            <div style="background: #4CAF50; padding: 1.5rem; border-radius: 10px; text-align: center; color: white;">
+            <div style="font-size: 2.5rem; font-weight: bold;">{leve}</div>
+            <div style="font-size: 1rem;">Ocorrências Leves</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            grave = len(df_ocorrencias[df_ocorrencias["gravidade"] == "Grave"])
+            st.markdown(f"""
+            <div style="background: #FF9800; padding: 1.5rem; border-radius: 10px; text-align: center; color: white;">
+            <div style="font-size: 2.5rem; font-weight: bold;">{grave}</div>
+            <div style="font-size: 1rem;">Ocorrências Graves</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            gravissima = len(df_ocorrencias[df_ocorrencias["gravidade"] == "Gravíssima"])
+            st.markdown(f"""
+            <div style="background: #F44336; padding: 1.5rem; border-radius: 10px; text-align: center; color: white;">
+            <div style="font-size: 2.5rem; font-weight: bold;">{gravissima}</div>
+            <div style="font-size: 1rem;">Ocorrências Gravíssimas</div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    # Gráficos na página inicial
+    if not df_ocorrencias.empty:
+        st.markdown("---")
+        st.markdown("## 📊 Resumo Visual")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Gráfico por Gravidade
+            contagem_grav = df_ocorrencias['gravidade'].value_counts()
+            fig_grav = px.pie(
+                values=contagem_grav.values,
+                names=contagem_grav.index,
+                title='Distribuição por Gravidade',
+                color_discrete_map={'Leve': '#4CAF50', 'Grave': '#FF9800', 'Gravíssima': '#F44336'},
+                hole=0.3
+            )
+            st.plotly_chart(fig_grav, use_container_width=True)
+        
+        with col2:
+            # Gráfico por Turma (top 10)
+            top_turmas = df_ocorrencias['turma'].value_counts().head(10)
+            fig_turmas = px.bar(
+                top_turmas,
+                x=top_turmas.index,
+                y=top_turmas.values,
+                title='Top 10 Turmas com Mais Ocorrências',
+                labels={'y': 'Quantidade', 'x': 'Turma'},
+                color=top_turmas.values,
+                color_continuous_scale='Viridis'
+            )
+            fig_turmas.update_layout(xaxis_tickangle=-45)
+            st.plotly_chart(fig_turmas, use_container_width=True)
 
 # --- 2. CADASTRAR PROFESSORES ---
 elif menu == "👨‍🏫 Cadastrar Professores":
