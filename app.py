@@ -610,29 +610,29 @@ def excluir_professor(id_prof):
 
 @st.cache_data(ttl=60)
 def carregar_responsaveis():
-    return _supabase_get_dataframe("responsaveis?select=*&ativo=eq.true", "carregar responsáveis")
+    return _supabase_get_dataframe("responsáveis?select=*&ativo=eq.true", "carregar responsáveis")
 
 def salvar_responsavel(responsavel):
-    return _supabase_mutation("POST", "responsaveis", responsavel, "salvar responsável")
+    return _supabase_mutation("POST", "responsáveis", responsavel, "salvar responsável")
 
 def atualizar_responsavel(id_resp, dados):
-    return _supabase_mutation("PATCH", f"responsaveis?id=eq.{id_resp}", dados, "atualizar responsável")
+    return _supabase_mutation("PATCH", f"responsáveis?id=eq.{id_resp}", dados, "atualizar responsável")
 
 def excluir_responsavel(id_resp):
-    return _supabase_mutation("DELETE", f"responsaveis?id=eq.{id_resp}", None, "excluir responsável")
+    return _supabase_mutation("DELETE", f"responsáveis?id=eq.{id_resp}", None, "excluir responsável")
 
 @st.cache_data(ttl=60)
 def carregar_ocorrencias():
-    return _supabase_get_dataframe("ocorrencias?select=*&order=id.desc", "carregar ocorrências")
+    return _supabase_get_dataframe("ocorrências?select=*&order=id.desc", "carregar ocorrências")
 
 def salvar_ocorrencia(ocorrencia):
-    return _supabase_mutation("POST", "ocorrencias", ocorrencia, "salvar ocorrência")
+    return _supabase_mutation("POST", "ocorrências", ocorrencia, "salvar ocorrência")
 
 def excluir_ocorrencia(id_ocorrencia):
-    return _supabase_mutation("DELETE", f"ocorrencias?id=eq.{id_ocorrencia}", None, "excluir ocorrência")
+    return _supabase_mutation("DELETE", f"ocorrências?id=eq.{id_ocorrencia}", None, "excluir ocorrência")
 
 def editar_ocorrencia(id_ocorrencia, dados):
-    return _supabase_mutation("PATCH", f"ocorrencias?id=eq.{id_ocorrencia}", dados, "editar ocorrência")
+    return _supabase_mutation("PATCH", f"ocorrências?id=eq.{id_ocorrencia}", dados, "editar ocorrência")
 
 def verificar_ocorrencia_duplicada(ra, categoria, data_str, df_ocorrencias):
     if df_ocorrencias.empty:
@@ -1578,6 +1578,8 @@ elif menu == "📋 Histórico de Ocorrências":
                                 deleted = excluir_ocorrencia(id_ex)
                                 if not deleted:
                                     falhas.append(str(id_ex))
+                                import time
+                                time.sleep(0.1)  # Pequeno delay para evitar rate limit
                             if not falhas:
                                 st.session_state.mensagem_exclusao = f"✅ {len(ids_excluir)} ocorrência(s) excluída(s) com sucesso!"
                             else:
