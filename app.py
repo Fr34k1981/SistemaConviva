@@ -933,7 +933,7 @@ if menu == "🏠 Início":
         
         with col1:
             st.markdown(f"""
-            <div style="background: #4CAF50; padding: 1.5rem; border-radius: 10px; text-align: center; color: white;">
+            <div style="background: #4CAF50; padding: 1.5rem; border-radius: 10px; text-align: center; color: white; height: 120px; display: flex; flex-direction: column; justify-content: center;">
             <div style="font-size: 2.5rem; font-weight: bold;">{leve}</div>
             <div style="font-size: 1rem;">Ocorrências Leves</div>
             </div>
@@ -941,7 +941,7 @@ if menu == "🏠 Início":
         
         with col2:
             st.markdown(f"""
-            <div style="background: #FFC107; padding: 1.5rem; border-radius: 10px; text-align: center; color: black;">
+            <div style="background: #FFC107; padding: 1.5rem; border-radius: 10px; text-align: center; color: black; height: 120px; display: flex; flex-direction: column; justify-content: center;">
             <div style="font-size: 2.5rem; font-weight: bold;">{media}</div>
             <div style="font-size: 1rem;">Ocorrências Médias</div>
             </div>
@@ -949,7 +949,7 @@ if menu == "🏠 Início":
         
         with col3:
             st.markdown(f"""
-            <div style="background: #FF9800; padding: 1.5rem; border-radius: 10px; text-align: center; color: white;">
+            <div style="background: #FF9800; padding: 1.5rem; border-radius: 10px; text-align: center; color: white; height: 120px; display: flex; flex-direction: column; justify-content: center;">
             <div style="font-size: 2.5rem; font-weight: bold;">{grave}</div>
             <div style="font-size: 1rem;">Ocorrências Graves</div>
             </div>
@@ -957,7 +957,7 @@ if menu == "🏠 Início":
         
         with col4:
             st.markdown(f"""
-            <div style="background: #F44336; padding: 1.5rem; border-radius: 10px; text-align: center; color: white;">
+            <div style="background: #F44336; padding: 1.5rem; border-radius: 10px; text-align: center; color: white; height: 120px; display: flex; flex-direction: column; justify-content: center;">
             <div style="font-size: 2.5rem; font-weight: bold;">{gravissima}</div>
             <div style="font-size: 1rem;">Ocorrências Gravíssimas</div>
             </div>
@@ -965,7 +965,7 @@ if menu == "🏠 Início":
         
         with col5:
             st.markdown(f"""
-            <div style="background: #9C27B0; padding: 1.5rem; border-radius: 10px; text-align: center; color: white;">
+            <div style="background: #9C27B0; padding: 1.5rem; border-radius: 10px; text-align: center; color: white; height: 120px; display: flex; flex-direction: column; justify-content: center;">
             <div style="font-size: 2.5rem; font-weight: bold;">{average_gravity}</div>
             <div style="font-size: 1rem;">Média de Gravidade</div>
             </div>
