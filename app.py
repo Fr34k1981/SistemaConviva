@@ -550,7 +550,7 @@ def _supabase_mutation(method, path, data, acao):
         st.error(f"Erro ao {acao}: {str(e)}")
         return False
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=300)
 def carregar_alunos():
     return _supabase_get_dataframe("alunos?select=*", "carregar alunos")
 
@@ -563,7 +563,7 @@ def atualizar_aluno(ra, dados):
 def excluir_alunos_por_turma(turma):
     return _supabase_mutation("DELETE", f"alunos?turma=eq.{turma}", None, "excluir turma")
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=300)
 def carregar_professores():
     if not SUPABASE_VALID:
         st.error("SUPABASE_URL ou SUPABASE_KEY não configuradas. Não foi possível carregar professores.")
@@ -608,7 +608,7 @@ def excluir_professor(id_prof):
         st.error(f"Erro ao excluir professor: {str(e)}")
         return False
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=300)
 def carregar_responsaveis():
     return _supabase_get_dataframe("responsaveis?select=*&ativo=eq.true", "carregar responsáveis")
 
@@ -621,6 +621,7 @@ def atualizar_responsavel(id_resp, dados):
 def excluir_responsavel(id_resp):
     return _supabase_mutation("DELETE", f"responsaveis?id=eq.{id_resp}", None, "excluir responsável")
 
+@st.cache_data(ttl=300)
 def carregar_ocorrencias():
     return _supabase_get_dataframe("ocorrencias?select=*&order=id.desc", "carregar ocorrências")
 
