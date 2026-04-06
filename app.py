@@ -903,7 +903,7 @@ if menu == "🏠 Início":
     </div>
     """, unsafe_allow_html=True)
     st.markdown("## 📋 Sistema de Gestão de Ocorrências - Protocolo 179")
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     with col1: st.metric("Total de Alunos", len(df_alunos))
     with col2: st.metric("Ocorrências Registradas", len(df_ocorrencias))
     with col3:
@@ -912,6 +912,9 @@ if menu == "🏠 Início":
     with col4:
         profs = len(df_professores) if not df_professores.empty else 0
         st.metric("Professores Cadastrados", profs)
+    with col5:
+        media = round(len(df_ocorrencias) / len(df_alunos), 2) if len(df_alunos) > 0 else 0
+        st.metric("Média de Ocorrências por Aluno", media)
     
     # Contagem por Gravidade
     if not df_ocorrencias.empty:
@@ -980,8 +983,25 @@ if menu == "🏠 Início":
             )
             fig_turmas.update_layout(xaxis_tickangle=-45)
             st.plotly_chart(fig_turmas, use_container_width=True)
-
-# --- 2. CADASTRAR PROFESSORES ---
+    
+    # Top 10 Alunos com Mais Ocorrências
+    if not df_ocorrencias.empty:
+        st.markdown("---")
+        st.markdown("## 🏆 Top 10 Alunos com Mais Ocorrências")
+        
+        top_students = df_ocorrencias['aluno'].value_counts().head(10)
+        if not top_students.empty:
+            fig_students = px.bar(
+                top_students,
+                x=top_students.index,
+                y=top_students.values,
+                title='Top 10 Alunos com Mais Ocorrências',
+                labels={'y': 'Quantidade', 'x': 'Aluno'},
+                color=top_students.values,
+                color_continuous_scale='Reds'
+            )
+            fig_students.update_layout(xaxis_tickangle=-45)
+            st.plotly_chart(fig_students, use_container_width=True)
 elif menu == "👨‍🏫 Cadastrar Professores":
     st.header("👨‍🏫 Cadastrar Professores")
     with st.expander("📥 Importar Professores em Massa", expanded=False):

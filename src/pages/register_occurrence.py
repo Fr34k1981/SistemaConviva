@@ -4,6 +4,9 @@ from src.database import save_occurrence, get_students, get_teachers
 from datetime import datetime
 
 def render_register_page():
+    if 'submitting' not in st.session_state:
+        st.session_state.submitting = False
+    
     st.title("📝 Registrar Ocorrência")
     
     # Colunas para dados básicos
@@ -83,11 +86,14 @@ def render_register_page():
     final_actions = st.multiselect("Ações Tomadas", options=suggested_actions, default=suggested_actions[:1] if suggested_actions else [])
 
     if st.button("💾 Salvar Ocorrência", type="primary", use_container_width=True):
-        if not selected_infringements:
+        if st.session_state.submitting:
+            st.warning("⏳ Aguarde, a ocorrência está sendo processada...")
+        elif not selected_infringements:
             st.error("⚠️ Selecione pelo menos uma infração!")
         elif description.strip() == "":
             st.error("⚠️ Preencha a descrição dos fatos!")
         else:
+            st.session_state.submitting = True
             # Extrair nome do aluno
             student_name = selected_student.split(" (")[0] if selected_student else ""
             
@@ -102,7 +108,9 @@ def render_register_page():
             if success:
                 st.success("✅ Ocorrência registrada com sucesso!")
                 st.balloons()
+                st.session_state.submitting = False
                 if st.button("Limpar e Nova Ocorrência"):
                     st.rerun()
             else:
                 st.error("❌ Erro ao salvar. Verifique a conexão com o banco.")
+                st.session_state.submitting = False
