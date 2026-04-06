@@ -610,29 +610,35 @@ def excluir_professor(id_prof):
 
 @st.cache_data(ttl=60)
 def carregar_responsaveis():
-    return _supabase_get_dataframe("responsáveis?select=*&ativo=eq.true", "carregar responsáveis")
+    return _supabase_get_dataframe("responsaveis?select=*&ativo=eq.true", "carregar responsáveis")
 
 def salvar_responsavel(responsavel):
-    return _supabase_mutation("POST", "responsáveis", responsavel, "salvar responsável")
+    return _supabase_mutation("POST", "responsaveis", responsavel, "salvar responsável")
 
 def atualizar_responsavel(id_resp, dados):
-    return _supabase_mutation("PATCH", f"responsáveis?id=eq.{id_resp}", dados, "atualizar responsável")
+    return _supabase_mutation("PATCH", f"responsaveis?id=eq.{id_resp}", dados, "atualizar responsável")
 
 def excluir_responsavel(id_resp):
-    return _supabase_mutation("DELETE", f"responsáveis?id=eq.{id_resp}", None, "excluir responsável")
+    return _supabase_mutation("DELETE", f"responsaveis?id=eq.{id_resp}", None, "excluir responsável")
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=5)
 def carregar_ocorrencias():
-    return _supabase_get_dataframe("ocorrências?select=*&order=id.desc", "carregar ocorrências")
+    df = _supabase_get_dataframe("ocorrencias?select=*&order=id.desc", "carregar ocorrências")
+    # Debug: mostrar quantas linhas foram carregadas
+    if df.empty:
+        st.warning(f"⚠️ DEBUG: DataFrame vazio ao carregar ocorrências")
+    else:
+        st.success(f"✅ DEBUG: {len(df)} ocorrências carregadas")
+    return df
 
 def salvar_ocorrencia(ocorrencia):
-    return _supabase_mutation("POST", "ocorrências", ocorrencia, "salvar ocorrência")
+    return _supabase_mutation("POST", "ocorrencias", ocorrencia, "salvar ocorrência")
 
 def excluir_ocorrencia(id_ocorrencia):
-    return _supabase_mutation("DELETE", f"ocorrências?id=eq.{id_ocorrencia}", None, "excluir ocorrência")
+    return _supabase_mutation("DELETE", f"ocorrencias?id=eq.{id_ocorrencia}", None, "excluir ocorrência")
 
 def editar_ocorrencia(id_ocorrencia, dados):
-    return _supabase_mutation("PATCH", f"ocorrências?id=eq.{id_ocorrencia}", dados, "editar ocorrência")
+    return _supabase_mutation("PATCH", f"ocorrencias?id=eq.{id_ocorrencia}", dados, "editar ocorrência")
 
 def verificar_ocorrencia_duplicada(ra, categoria, data_str, df_ocorrencias):
     if df_ocorrencias.empty:
@@ -1539,55 +1545,49 @@ elif menu == "📋 Histórico de Ocorrências":
             st.markdown("### 🗑️ Excluir")
             # Criar opções mais descritivas para facilitar a identificação
             opcoes_excluir = [f"{row['id']} - {row['aluno']} - {row['data']} - {row['categoria']}" for _, row in df_ocorrencias.iterrows()]
-            opcoes_selecionadas = st.multiselect("Selecione as ocorrências para excluir", opcoes_excluir, key="select_excluir")
-            # Extrair os IDs das opções selecionadas
-            ids_excluir = [int(op.split(' - ')[0]) for op in opcoes_selecionadas]
-            
-            if ids_excluir:
-                st.info("**Ocorrências selecionadas para exclusão:**")
-                for id_ex in ids_excluir:
-                    occ_selecionada = df_ocorrencias[df_ocorrencias["id"] == id_ex].iloc[0]
-                    st.write(f"- ID: {id_ex}, Aluno: {occ_selecionada['aluno']}, Data: {occ_selecionada['data']}, Categoria: {occ_selecionada['categoria']}")
+            opcao_selecionada = st.selectbox("Selecione a ocorrência para excluir", opcoes_excluir, key="select_excluir")
+            # Extrair o ID da opção selecionada
+            id_excluir = int(opcao_selecionada.split(' - ')[0])
+            occ_selecionada = df_ocorrencias[df_ocorrencias["id"] == id_excluir].iloc[0]
+            st.info(f"""
+            **Ocorrência selecionada:**
+            - ID: {id_excluir}
+            - Aluno: {occ_selecionada['aluno']}
+            - Data: {occ_selecionada['data']}
+            - Categoria: {occ_selecionada['categoria']}
+            """)
 
-                senha = st.text_input(
-                    "🔒 Digite a senha para excluir (040600):",
-                    type="password",
-                    key="senha_excluir",
-                    help="Digite a senha 040600 para confirmar"
-                )
+            senha = st.text_input(
+                "🔒 Digite a senha para excluir (040600):",
+                type="password",
+                key="senha_excluir",
+                help="Digite a senha 040600 para confirmar"
+            )
 
-                if st.button("🗑️ Excluir Ocorrências", key="btn_excluir", type="secondary"):
-                    if senha != SENHA_EXCLUSAO:
-                        st.error("❌ Senha incorreta! Use 040600")
-                    elif not SUPABASE_VALID:
-                        st.error("SUPABASE_URL ou SUPABASE_KEY não configuradas. Não foi possível excluir ocorrências.")
-                    else:
-                        # Definir confirmação
-                        st.session_state['confirmar_exclusao'] = ids_excluir
-                        st.rerun()
+            if st.button("🗑️ Excluir Ocorrência", key="btn_excluir", type="secondary"):
+                if senha != SENHA_EXCLUSAO:
+                    st.error("❌ Senha incorreta! Use 040600")
+                elif not SUPABASE_VALID:
+                    st.error("SUPABASE_URL ou SUPABASE_KEY não configuradas. Não foi possível excluir ocorrência.")
+                else:
+                    # Definir confirmação
+                    st.session_state['confirmar_exclusao'] = id_excluir
+                    st.rerun()
 
-                # Mostrar confirmação de exclusão se necessário
-                if 'confirmar_exclusao' in st.session_state and st.session_state['confirmar_exclusao'] == ids_excluir:
-                    st.warning("⚠️ **Confirmação de Exclusão**")
-                    st.info(f"Você está prestes a excluir permanentemente **{len(ids_excluir)} ocorrência(s)**. Esta ação não pode ser desfeita.")
-                    col_conf1, col_conf2 = st.columns(2)
-                    with col_conf1:
-                        if st.button("✅ Confirmar Exclusão", type="primary"):
-                            falhas = []
-                            for id_ex in ids_excluir:
-                                deleted = excluir_ocorrencia(id_ex)
-                                if not deleted:
-                                    falhas.append(str(id_ex))
-                                import time
-                                time.sleep(0.1)  # Pequeno delay para evitar rate limit
-                            if not falhas:
-                                st.session_state.mensagem_exclusao = f"✅ {len(ids_excluir)} ocorrência(s) excluída(s) com sucesso!"
-                            else:
-                                st.session_state.mensagem_exclusao = f"✅ {len(ids_excluir) - len(falhas)} ocorrência(s) excluída(s). Falha em: {', '.join(falhas)}"
+            # Mostrar confirmação de exclusão se necessário
+            if 'confirmar_exclusao' in st.session_state and st.session_state['confirmar_exclusao'] == id_excluir:
+                st.warning("⚠️ **Confirmação de Exclusão**")
+                st.info(f"Você está prestes a excluir permanentemente a ocorrência **ID {id_excluir}** do aluno **{occ_selecionada['aluno']}**. Esta ação não pode ser desfeita.")
+                col_conf1, col_conf2 = st.columns(2)
+                with col_conf1:
+                    if st.button("✅ Confirmar Exclusão", type="primary"):
+                        deleted = excluir_ocorrencia(id_excluir)
+                        if deleted:
+                            st.session_state.mensagem_exclusao = f"✅ Ocorrência {id_excluir} excluída com sucesso!"
                             # Limpar cache e recarregar dados
                             carregar_ocorrencias.clear()
                             st.cache_data.clear()
-                            # Resetar seleção para evitar mostrar IDs inexistentes
+                            # Resetar seleção para evitar mostrar ID inexistente
                             if 'select_excluir' in st.session_state:
                                 del st.session_state.select_excluir
                             if 'senha_excluir' in st.session_state:
@@ -1595,14 +1595,12 @@ elif menu == "📋 Histórico de Ocorrências":
                             del st.session_state['confirmar_exclusao']
                             st.rerun()
                         else:
-                            st.error("❌ Falha ao excluir algumas ocorrências. Verifique as credenciais e tente novamente.")
+                            st.error("❌ Falha ao excluir ocorrência. Verifique as credenciais e tente novamente.")
                             del st.session_state['confirmar_exclusao']
-                    with col_conf2:
-                        if st.button("❌ Cancelar", type="secondary"):
-                            del st.session_state['confirmar_exclusao']
-                            st.rerun()
-            else:
-                st.info("Selecione uma ou mais ocorrências para excluir.")
+                with col_conf2:
+                    if st.button("❌ Cancelar", type="secondary"):
+                        del st.session_state['confirmar_exclusao']
+                        st.rerun()
 
         with col2:
             st.markdown("### ✏️ Editar")
