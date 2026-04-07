@@ -124,6 +124,23 @@ section[data-testid="stSidebar"] {
     overflow: auto;
     z-index: 1000;
 }
+section[data-testid="stSidebar"] > div {
+    width: 21rem;
+}
+@media (min-width: 769px) {
+    section[data-testid="stSidebar"] {
+        width: 21rem !important;
+        min-width: 21rem !important;
+    }
+    div[data-testid="stAppViewContainer"] > .main {
+        margin-left: 21rem;
+    }
+}
+@media (max-width: 768px) {
+    div[data-testid="stAppViewContainer"] > .main {
+        margin-left: 0;
+    }
+}
 </style>
 """, unsafe_allow_html=True)
 
