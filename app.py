@@ -735,21 +735,14 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     elementos.append(Spacer(1, 0.5*cm))
     elementos.append(Paragraph("<b>ASSINATURAS:</b>", estilo_secao))
     elementos.append(Spacer(1, 0.2*cm))
-    cargos = ["Diretor", "Diretora", "Vice-Diretor", "Vice-Diretora", "Coordenador", "Coordenadora", "Professor Responsável"]
+    cargos = ["Diretor", "Vice-Diretor", "Coordenador"]
     for cargo in cargos:
-        if cargo == "Professor Responsável":
-            nome = ocorrencia.get("professor", "")
-            if nome:
-                elementos.append(Paragraph(f"<b>{cargo}:</b> {nome}", estilo_texto))
-            else:
-                elementos.append(Paragraph(f"<b>{cargo}:</b> ____________________________", estilo_texto))
+        resp_cargo = responsaveis[responsaveis['cargo'] == cargo] if not responsaveis.empty else pd.DataFrame()
+        if not resp_cargo.empty:
+            nomes = " / ".join(resp_cargo['nome'].astype(str).tolist())
+            elementos.append(Paragraph(f"<b>{cargo}:</b> {nomes}", estilo_texto))
         else:
-            resp_cargo = responsaveis[responsaveis['cargo'] == cargo] if not responsaveis.empty else pd.DataFrame()
-            if not resp_cargo.empty:
-                for idx, resp in resp_cargo.iterrows():
-                    elementos.append(Paragraph(f"<b>{cargo}:</b> {resp['nome']}", estilo_texto))
-            else:
-                elementos.append(Paragraph(f"<b>{cargo}:</b> ____________________________", estilo_texto))
+            elementos.append(Paragraph(f"<b>{cargo}:</b> ____________________________", estilo_texto))
     elementos.append(Spacer(1, 0.5*cm))
     estilo_rodape = ParagraphStyle('Rodape', parent=estilos['Normal'],
         fontSize=6, alignment=1, textColor=colors.grey)
