@@ -882,6 +882,12 @@ if 'infracoes_adicionais' not in st.session_state:
     st.session_state.infracoes_adicionais = []
 if 'senha_exclusao_validada' not in st.session_state:
     st.session_state.senha_exclusao_validada = False
+if 'professor_salvo_sucesso' not in st.session_state:
+    st.session_state.professor_salvo_sucesso = False
+if 'nome_professor_salvo' not in st.session_state:
+    st.session_state.nome_professor_salvo = ""
+if 'cargo_professor_salvo' not in st.session_state:
+    st.session_state.cargo_professor_salvo = ""
 
 # --- CARREGAR DADOS ---
 df_alunos = carregar_alunos()
@@ -1025,6 +1031,12 @@ if menu == "🏠 Início":
             st.plotly_chart(fig_students, use_container_width=True)
 elif menu == "👨‍🏫 Cadastrar Professores":
     st.header("👨‍🏫 Cadastrar Professores")
+    # Exibir mensagem de sucesso se houver
+    if st.session_state.professor_salvo_sucesso:
+        st.success(f"✅ {st.session_state.cargo_professor_salvo} {st.session_state.nome_professor_salvo} cadastrado com sucesso!")
+        st.session_state.professor_salvo_sucesso = False
+        st.session_state.nome_professor_salvo = ""
+        st.session_state.cargo_professor_salvo = ""
     with st.expander("📥 Importar Professores em Massa", expanded=False):
         st.info("💡 Cole uma lista de nomes de professores (um por linha)")
         texto_professores = st.text_area("Cole os nomes dos professores aqui:",
@@ -1092,7 +1104,9 @@ elif menu == "👨‍🏫 Cadastrar Professores":
                 else:
                     novo_prof = {"nome": nome_prof, "cargo": cargo_prof, "email": email_prof if email_prof else None}
                     if salvar_professor(novo_prof):
-                        st.success(f"✅ {cargo_prof} {nome_prof} cadastrado com sucesso!")
+                        st.session_state.professor_salvo_sucesso = True
+                        st.session_state.nome_professor_salvo = nome_prof
+                        st.session_state.cargo_professor_salvo = cargo_prof
                         st.rerun()
             else:
                 st.error("❌ Nome é obrigatório!")
