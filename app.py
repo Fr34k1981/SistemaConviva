@@ -126,7 +126,7 @@ ESCOLA_ENDERECO = "R. Valter Souza Costa, 147 - Jardim Primavera, Ferraz de Vasc
 ESCOLA_CEP = "CEP: 08535-310"
 ESCOLA_TELEFONE = "Telefone: (11) 4675-1855"
 ESCOLA_EMAIL = "Email: e918623@educacao.sp.gov.br"
-ESCOLA_LOGO = "eliane_dantas.png"
+ESCOLA_LOGO = os.path.join("assets", "images", "eliane_dantas.png")
 
 # --- SENHA PARA EXCLUSÃO ---
 SENHA_EXCLUSAO = "040600"
@@ -681,10 +681,10 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     estilos = getSampleStyleSheet()
     try:
         if os.path.exists(ESCOLA_LOGO):
-            logo = Image(ESCOLA_LOGO, width=16*cm, height=4*cm)
+            logo = Image(ESCOLA_LOGO, width=14*cm, height=3*cm)
             logo.hAlign = 'CENTER'
             elementos.append(logo)
-            elementos.append(Spacer(1, 0.1*cm))
+            elementos.append(Spacer(1, 0.2*cm))
     except:
         pass
     elementos.append(Paragraph("_" * 75, estilos['Normal']))
@@ -725,7 +725,7 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     estilo_secao = ParagraphStyle('Secao', parent=estilos['Normal'],
         fontSize=9, textColor=colors.darkblue, spaceAfter=0.1*cm)
     estilo_texto = ParagraphStyle('Texto', parent=estilos['Normal'],
-        fontSize=8, alignment=0, spaceAfter=0.15*cm, leading=10)
+        fontSize=11, alignment=4, spaceAfter=0.15*cm, leading=13)
     elementos.append(Paragraph("<b>📝 RELATO:</b>", estilo_secao))
     elementos.append(Paragraph(str(ocorrencia.get("relato", "")), estilo_texto))
     elementos.append(Spacer(1, 0.15*cm))
@@ -741,11 +741,15 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
             nome = ocorrencia.get("professor", "")
             if nome:
                 elementos.append(Paragraph(f"<b>{cargo}:</b> {nome}", estilo_texto))
+            else:
+                elementos.append(Paragraph(f"<b>{cargo}:</b> ____________________________", estilo_texto))
         else:
             resp_cargo = responsaveis[responsaveis['cargo'] == cargo] if not responsaveis.empty else pd.DataFrame()
             if not resp_cargo.empty:
                 for idx, resp in resp_cargo.iterrows():
                     elementos.append(Paragraph(f"<b>{cargo}:</b> {resp['nome']}", estilo_texto))
+            else:
+                elementos.append(Paragraph(f"<b>{cargo}:</b> ____________________________", estilo_texto))
     elementos.append(Spacer(1, 0.5*cm))
     estilo_rodape = ParagraphStyle('Rodape', parent=estilos['Normal'],
         fontSize=6, alignment=1, textColor=colors.grey)
@@ -762,10 +766,10 @@ def gerar_pdf_comunicado(aluno_data, ocorrencia_data, medidas_aplicadas, observa
     estilos = getSampleStyleSheet()
     try:
         if os.path.exists(ESCOLA_LOGO):
-            logo = Image(ESCOLA_LOGO, width=16*cm, height=4*cm)
+            logo = Image(ESCOLA_LOGO, width=14*cm, height=3*cm)
             logo.hAlign = 'CENTER'
             elementos.append(logo)
-            elementos.append(Spacer(1, 0.1*cm))
+            elementos.append(Spacer(1, 0.2*cm))
     except:
         pass
     elementos.append(Paragraph("_" * 75, estilos['Normal']))
@@ -782,7 +786,7 @@ def gerar_pdf_comunicado(aluno_data, ocorrencia_data, medidas_aplicadas, observa
     estilo_secao = ParagraphStyle('Secao', parent=estilos['Normal'],
         fontSize=9, textColor=colors.darkblue, spaceAfter=0.1*cm)
     estilo_texto = ParagraphStyle('Texto', parent=estilos['Normal'],
-        fontSize=8, alignment=0, spaceAfter=0.15*cm, leading=10)
+        fontSize=11, alignment=4, spaceAfter=0.15*cm, leading=13)
     elementos.append(Paragraph("<b>DADOS DO ALUNO:</b>", estilo_secao))
     dados_aluno = [
         ["Nome:", aluno_data.get("nome", "")],
