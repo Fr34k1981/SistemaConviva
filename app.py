@@ -735,7 +735,7 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     elementos.append(Spacer(1, 0.5*cm))
     elementos.append(Paragraph("<b>ASSINATURAS:</b>", estilo_secao))
     elementos.append(Spacer(1, 0.2*cm))
-    cargos = ["Diretor(a)", "Vice-Diretor(a)", "CGPG / Coordenador(a)", "Professor Responsável"]
+    cargos = ["Diretor", "Diretora", "Vice-Diretor", "Vice-Diretora", "Coordenador", "Coordenadora", "Professor Responsável"]
     for cargo in cargos:
         if cargo == "Professor Responsável":
             nome = ocorrencia.get("professor", "")
@@ -1056,8 +1056,8 @@ elif menu == "👨‍🏫 Cadastrar Professores":
         cargo_edit = prof_edit.get('cargo', 'Professor')
         nome_prof = st.text_input("Nome *", value=prof_edit['nome'], key="edit_nome_prof")
         cargo_prof = st.selectbox("Cargo/Função", 
-            ["Professor", "Diretor", "Vice-Diretor", "Coordenador", "Agente de Organização", "Outro"],
-            index=["Professor", "Diretor", "Vice-Diretor", "Coordenador", "Agente de Organização", "Outro"].index(cargo_edit) if cargo_edit in ["Professor", "Diretor", "Vice-Diretor", "Coordenador", "Agente de Organização", "Outro"] else 0,
+            ["Professor", "Diretor", "Diretora", "Vice-Diretor", "Vice-Diretora", "Coordenador", "Coordenadora", "Agente de Organização", "Outro"],
+            index=["Professor", "Diretor", "Diretora", "Vice-Diretor", "Vice-Diretora", "Coordenador", "Coordenadora", "Agente de Organização", "Outro"].index(cargo_edit) if cargo_edit in ["Professor", "Diretor", "Diretora", "Vice-Diretor", "Vice-Diretora", "Coordenador", "Coordenadora", "Agente de Organização", "Outro"] else 0,
             key="edit_cargo_prof")
         email_prof = st.text_input("E-mail (opcional)", value=prof_edit.get('email', ''), key="edit_email_prof")
         col1, col2 = st.columns(2)
@@ -1080,7 +1080,7 @@ elif menu == "👨‍🏫 Cadastrar Professores":
         with col1:
             nome_prof = st.text_input("Nome *", placeholder="Ex: João da Silva", key="novo_nome_prof")
             cargo_prof = st.selectbox("Cargo/Função *", 
-                ["Professor", "Diretor", "Vice-Diretor", "Coordenador", "Agente de Organização", "Outro"],
+                ["Professor", "Diretor", "Diretora", "Vice-Diretor", "Vice-Diretora", "Coordenador", "Coordenadora", "Agente de Organização", "Outro"],
                 key="novo_cargo_prof")
             email_prof = st.text_input("E-mail (opcional)", placeholder="Ex: joao@educacao.sp.gov.br", key="novo_email_prof")
         with col2:
@@ -1160,7 +1160,7 @@ elif menu == "👤 Cadastrar Responsáveis por Assinatura":
                 st.rerun()
     else:
         st.subheader("➕ Novo Responsável")
-        cargos = ["Diretor(a)", "Vice-Diretor(a)", "CGPG / Coordenador(a)"]
+        cargos = ["Diretor", "Diretora", "Vice-Diretor", "Vice-Diretora", "Coordenador", "Coordenadora"]
         cargo = st.selectbox("Cargo", cargos, key="novo_cargo")
         nome_resp = st.text_input("Nome do Responsável *", placeholder="Ex: Maria Silva", key="novo_nome_resp")
         if st.button("💾 Cadastrar", type="primary"):
@@ -1173,7 +1173,7 @@ elif menu == "👤 Cadastrar Responsáveis por Assinatura":
     st.markdown("---")
     st.subheader("📋 Responsáveis Cadastrados")
     if not df_responsaveis.empty:
-        for cargo in ["Diretor(a)", "Vice-Diretor(a)", "CGPG / Coordenador(a)"]:
+        for cargo in ["Diretor", "Diretora", "Vice-Diretor", "Vice-Diretora", "Coordenador", "Coordenadora"]:
             resp_cargo = df_responsaveis[df_responsaveis['cargo'] == cargo]
             if not resp_cargo.empty:
                 st.markdown(f"**📌 {cargo}:**")
