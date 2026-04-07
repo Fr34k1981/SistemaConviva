@@ -128,6 +128,8 @@ section[data-testid="stSidebar"] {
 """, unsafe_allow_html=True)
 
 ESCOLA_ENDERECO = "R. Valter Souza Costa, 147 - Jardim Primavera, Ferraz de Vasconcelos - SP"
+ESCOLA_NOME = "E.E. Profª Eliane"
+ESCOLA_SUBTITULO = "Sistema Conviva 179"
 ESCOLA_CEP = "CEP: 08535-310"
 ESCOLA_TELEFONE = "Telefone: (11) 4675-1855"
 ESCOLA_EMAIL = "Email: e918623@educacao.sp.gov.br"
