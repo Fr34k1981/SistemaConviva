@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
@@ -614,13 +614,22 @@ def carregar_responsaveis():
     return _supabase_get_dataframe("responsaveis?select=*&ativo=eq.true", "carregar responsáveis")
 
 def salvar_responsavel(responsavel):
-    return _supabase_mutation("POST", "responsaveis", responsavel, "salvar responsável")
+    result = _supabase_mutation("POST", "responsaveis", responsavel, "salvar responsável")
+    if result:
+        limpar_cache_responsaveis()
+    return result
 
 def atualizar_responsavel(id_resp, dados):
-    return _supabase_mutation("PATCH", f"responsaveis?id=eq.{id_resp}", dados, "atualizar responsável")
+    result = _supabase_mutation("PATCH", f"responsaveis?id=eq.{id_resp}", dados, "atualizar responsável")
+    if result:
+        limpar_cache_responsaveis()
+    return result
 
 def excluir_responsavel(id_resp):
-    return _supabase_mutation("DELETE", f"responsaveis?id=eq.{id_resp}", None, "excluir responsável")
+    result = _supabase_mutation("DELETE", f"responsaveis?id=eq.{id_resp}", None, "excluir responsável")
+    if result:
+        limpar_cache_responsaveis()
+    return result
 
 @st.cache_data(ttl=300)
 def carregar_ocorrencias():
@@ -657,6 +666,53 @@ def verificar_professor_duplicado(nome, df_professores, id_atual=None):
     else:
         duplicados = df_professores[df_professores['nome'].str.strip().str.lower() == nome_normalizado]
     return not duplicados.empty
+
+def limpar_cache_responsaveis():
+    try:
+        carregar_responsaveis.clear()
+    except Exception:
+        pass
+
+def get_responsavel_por_cargo(responsaveis, cargos):
+    if responsaveis.empty:
+        return None
+    for cargo in cargos:
+        resp = responsaveis[responsaveis['cargo'] == cargo]
+        if not resp.empty:
+            return resp.iloc[0]['nome']
+    return None
+
+def selecionar_equipe_por_horario(data_str, responsaveis):
+    diretor = get_responsavel_por_cargo(responsaveis, ["Diretor", "Diretora"]) or "Renan Lourenco Da Silva"
+    vice_manha = get_responsavel_por_cargo(responsaveis, ["Vice-Diretor", "Vice-Diretora"]) or "Erika Paula Viana Watanabe"
+    vice_tarde = get_responsavel_por_cargo(responsaveis, ["Vice-Diretor", "Vice-Diretora"]) or "Luciana Francisca Da Conceicao"
+    coord_manha = get_responsavel_por_cargo(responsaveis, ["Coordenador", "Coordenadora", "CGPG", "CGPG / Coordenador(a)", "CGPG / Coordenador"]) or "Aleandro Ferreira Dos Santos"
+    coord_tarde = get_responsavel_por_cargo(responsaveis, ["Coordenador", "Coordenadora", "CGPG", "CGPG / Coordenador(a)", "CGPG / Coordenador"]) or "Rose Carmem"
+    turno = "Turno 1"
+    vice = vice_manha
+    coordenador = coord_manha
+    try:
+        hora = datetime.strptime(data_str.split()[-1], "%H:%M").time()
+        if time(7, 0) <= hora < time(14, 30):
+            turno = "Turno 1"
+            vice = vice_manha
+            coordenador = coord_manha
+        elif time(14, 30) <= hora <= time(21, 30):
+            turno = "Turno 2"
+            vice = vice_tarde
+            coordenador = coord_tarde
+        else:
+            turno = "Turno 1"
+            vice = vice_manha
+            coordenador = coord_manha
+    except Exception:
+        pass
+    return {
+        "turno": turno,
+        "diretor": diretor,
+        "vice": vice,
+        "coordenador": coordenador
+    }
 
 def obter_gravidade_mais_alta(gravidades):
     ordem = {"Leve": 1, "Grave": 2, "Gravíssima": 3}
@@ -735,14 +791,10 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     elementos.append(Spacer(1, 0.5*cm))
     elementos.append(Paragraph("<b>ASSINATURAS:</b>", estilo_secao))
     elementos.append(Spacer(1, 0.2*cm))
-    cargos = ["Diretor", "Vice-Diretor", "Coordenador"]
-    for cargo in cargos:
-        resp_cargo = responsaveis[responsaveis['cargo'] == cargo] if not responsaveis.empty else pd.DataFrame()
-        if not resp_cargo.empty:
-            nomes = " / ".join(resp_cargo['nome'].astype(str).tolist())
-            elementos.append(Paragraph(f"<b>{cargo}:</b> {nomes}", estilo_texto))
-        else:
-            elementos.append(Paragraph(f"<b>{cargo}:</b> ____________________________", estilo_texto))
+    equipe = selecionar_equipe_por_horario(ocorrencia.get("data", ""), responsaveis)
+    elementos.append(Paragraph(f"<b>Diretor:</b> {equipe['diretor']}", estilo_texto))
+    elementos.append(Paragraph(f"<b>Vice-Diretor:</b> {equipe['vice']}", estilo_texto))
+    elementos.append(Paragraph(f"<b>Coordenador:</b> {equipe['coordenador']}", estilo_texto))
     elementos.append(Spacer(1, 0.5*cm))
     estilo_rodape = ParagraphStyle('Rodape', parent=estilos['Normal'],
         fontSize=6, alignment=1, textColor=colors.grey)
@@ -885,6 +937,12 @@ if 'nome_professor_salvo' not in st.session_state:
     st.session_state.nome_professor_salvo = ""
 if 'cargo_professor_salvo' not in st.session_state:
     st.session_state.cargo_professor_salvo = ""
+if 'responsavel_salvo_sucesso' not in st.session_state:
+    st.session_state.responsavel_salvo_sucesso = False
+if 'nome_responsavel_salvo' not in st.session_state:
+    st.session_state.nome_responsavel_salvo = ""
+if 'cargo_responsavel_salvo' not in st.session_state:
+    st.session_state.cargo_responsavel_salvo = ""
 
 # --- CARREGAR DADOS ---
 df_alunos = carregar_alunos()
@@ -1151,6 +1209,11 @@ elif menu == "👨‍🏫 Cadastrar Professores":
 # --- 3. CADASTRAR RESPONSÁVEIS ---
 elif menu == "👤 Cadastrar Responsáveis por Assinatura":
     st.header("👤 Cadastrar Responsáveis por Assinatura")
+    if st.session_state.responsavel_salvo_sucesso:
+        st.success(f"✅ {st.session_state.cargo_responsavel_salvo} {st.session_state.nome_responsavel_salvo} cadastrado com sucesso!")
+        st.session_state.responsavel_salvo_sucesso = False
+        st.session_state.nome_responsavel_salvo = ""
+        st.session_state.cargo_responsavel_salvo = ""
     st.info("💡 Pode haver múltiplos responsáveis por cargo (ex: 2 Vice-Diretoras)")
     if st.session_state.editando_resp:
         st.subheader("✏️ Editar Responsável")
@@ -1177,8 +1240,12 @@ elif menu == "👤 Cadastrar Responsáveis por Assinatura":
         if st.button("💾 Cadastrar", type="primary"):
             if nome_resp:
                 if salvar_responsavel({"cargo": cargo, "nome": nome_resp, "ativo": True}):
-                    st.success(f"✅ {cargo} cadastrado com sucesso!")
+                    st.session_state.responsavel_salvo_sucesso = True
+                    st.session_state.nome_responsavel_salvo = nome_resp
+                    st.session_state.cargo_responsavel_salvo = cargo
                     st.rerun()
+                else:
+                    st.error("❌ Falha ao salvar responsável.")
             else:
                 st.error("❌ Nome é obrigatório!")
     st.markdown("---")
@@ -1268,6 +1335,11 @@ elif menu == "📝 Registrar Ocorrência":
                 # ✅ DATA E HORA EDITÁVEIS
                 data = st.date_input("📅 Data do Fato", value=data_hora_sp.date(), key="data_fato")
                 hora = st.time_input("⏰ Hora do Fato", value=data_hora_sp.time(), key="hora_fato")
+                turno_info = selecionar_equipe_por_horario(f"{data.strftime('%d/%m/%Y')} {hora.strftime('%H:%M')}", df_responsaveis)
+                st.info(f"⏱️ Turno: {turno_info['turno']}\n" \
+                        f"Diretor: {turno_info['diretor']}\n" \
+                        f"Vice-Diretor: {turno_info['vice']}\n" \
+                        f"Coordenador: {turno_info['coordenador']}")
             with col2:
                 st.subheader("📋 Infração Principal (Protocolo 179)")
                 st.markdown('<div class="search-box">', unsafe_allow_html=True)
