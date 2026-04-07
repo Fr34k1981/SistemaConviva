@@ -116,12 +116,17 @@ st.markdown("""
     border-radius: 8px;
     margin: 1rem 0;
 }
+section[data-testid="stSidebar"] {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    overflow: auto;
+    z-index: 1000;
+}
 </style>
 """, unsafe_allow_html=True)
 
-# --- DADOS COMPLETOS DA ESCOLA ---
-ESCOLA_NOME = "Escola Estadual PROFESSORA ELIANE APARECIDA DANTAS DA SILVA - PEI"
-ESCOLA_SUBTITULO = "🌟 Escola dos Sonhos"
 ESCOLA_ENDERECO = "R. Valter Souza Costa, 147 - Jardim Primavera, Ferraz de Vasconcelos - SP"
 ESCOLA_CEP = "CEP: 08535-310"
 ESCOLA_TELEFONE = "Telefone: (11) 4675-1855"
@@ -673,6 +678,19 @@ def limpar_cache_responsaveis():
     except Exception:
         pass
 
+def get_responsavel_por_nome(responsaveis, cargos, nomes_prioritarios):
+    if responsaveis.empty:
+        return None
+    responsaveis = responsaveis[responsaveis['cargo'].isin(cargos)]
+    if responsaveis.empty:
+        return None
+    for nome in nomes_prioritarios:
+        match = responsaveis[responsaveis['nome'].str.contains(nome, case=False, na=False)]
+        if not match.empty:
+            return match.iloc[0]['nome']
+    return responsaveis.iloc[0]['nome']
+
+
 def get_responsavel_por_cargo(responsaveis, cargos):
     if responsaveis.empty:
         return None
@@ -682,12 +700,13 @@ def get_responsavel_por_cargo(responsaveis, cargos):
             return resp.iloc[0]['nome']
     return None
 
+
 def selecionar_equipe_por_horario(data_str, responsaveis):
     diretor = get_responsavel_por_cargo(responsaveis, ["Diretor", "Diretora"]) or "Renan Lourenco Da Silva"
-    vice_manha = get_responsavel_por_cargo(responsaveis, ["Vice-Diretor", "Vice-Diretora"]) or "Erika Paula Viana Watanabe"
-    vice_tarde = get_responsavel_por_cargo(responsaveis, ["Vice-Diretor", "Vice-Diretora"]) or "Luciana Francisca Da Conceicao"
-    coord_manha = get_responsavel_por_cargo(responsaveis, ["Coordenador", "Coordenadora", "CGPG", "CGPG / Coordenador(a)", "CGPG / Coordenador"]) or "Aleandro Ferreira Dos Santos"
-    coord_tarde = get_responsavel_por_cargo(responsaveis, ["Coordenador", "Coordenadora", "CGPG", "CGPG / Coordenador(a)", "CGPG / Coordenador"]) or "Rose Carmem"
+    vice_manha = get_responsavel_por_nome(responsaveis, ["Vice-Diretor", "Vice-Diretora"], ["Erika Paula", "Erika"]) or "Erika Paula Viana Watanabe"
+    vice_tarde = get_responsavel_por_nome(responsaveis, ["Vice-Diretor", "Vice-Diretora"], ["Luciana Francisca", "Luciana"]) or "Luciana Francisca Da Conceicao"
+    coord_manha = get_responsavel_por_nome(responsaveis, ["Coordenador", "Coordenadora", "CGPG", "CGPG / Coordenador(a)", "CGPG / Coordenador"], ["Aleandro", "Aleandro Ferreira"]) or "Aleandro Ferreira Dos Santos"
+    coord_tarde = get_responsavel_por_nome(responsaveis, ["Coordenador", "Coordenadora", "CGPG", "CGPG / Coordenador(a)", "CGPG / Coordenador"], ["Rose Carmem", "Rose"]) or "Rose Carmem"
     turno = "Turno 1"
     vice = vice_manha
     coordenador = coord_manha
@@ -737,7 +756,7 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     estilos = getSampleStyleSheet()
     try:
         if os.path.exists(ESCOLA_LOGO):
-            logo = Image(ESCOLA_LOGO, width=14*cm, height=3*cm)
+            logo = Image(ESCOLA_LOGO, width=16*cm, height=4*cm)
             logo.hAlign = 'CENTER'
             elementos.append(logo)
             elementos.append(Spacer(1, 0.2*cm))
@@ -811,7 +830,7 @@ def gerar_pdf_comunicado(aluno_data, ocorrencia_data, medidas_aplicadas, observa
     estilos = getSampleStyleSheet()
     try:
         if os.path.exists(ESCOLA_LOGO):
-            logo = Image(ESCOLA_LOGO, width=14*cm, height=3*cm)
+            logo = Image(ESCOLA_LOGO, width=16*cm, height=4*cm)
             logo.hAlign = 'CENTER'
             elementos.append(logo)
             elementos.append(Spacer(1, 0.2*cm))
