@@ -156,7 +156,8 @@ ESCOLA_LOGO = os.path.join("assets", "images", "eliane_dantas.png")
 SENHA_EXCLUSAO = "040600"
 
 # --- MENU LATERAL ---
-menu = st.sidebar.selectbox("Menu", [
+st.sidebar.markdown("## Menu")
+menu = st.sidebar.radio("", [
     "🏠 Início",
     "📝 Registrar Ocorrência",
     "📋 Histórico de Ocorrências",
@@ -168,7 +169,7 @@ menu = st.sidebar.selectbox("Menu", [
     "📥 Importar Alunos",
     "📋 Gerenciar Turmas Importadas",
     "👥 Lista de Alunos"
-])
+], label_visibility="collapsed")
 
 # --- CORES PARA TIPOS DE INFRAÇÃO ---
 CORES_INFRACOES = {
