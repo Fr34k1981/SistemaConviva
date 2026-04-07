@@ -1051,9 +1051,14 @@ elif menu == "👨‍🏫 Cadastrar Professores":
                 st.error("❌ Cole os nomes dos professores!")
     st.markdown("---")
     if st.session_state.editando_prof:
-        st.subheader("✏️ Editar Professor")
+        st.subheader("✏️ Editar Cadastro")
         prof_edit = df_professores[df_professores['id'] == st.session_state.editando_prof].iloc[0]
-        nome_prof = st.text_input("Nome do Professor *", value=prof_edit['nome'], key="edit_nome_prof")
+        cargo_edit = prof_edit.get('cargo', 'Professor')
+        nome_prof = st.text_input("Nome *", value=prof_edit['nome'], key="edit_nome_prof")
+        cargo_prof = st.selectbox("Cargo/Função", 
+            ["Professor", "Diretor", "Vice-Diretor", "Coordenador", "Agente de Organização", "Outro"],
+            index=["Professor", "Diretor", "Vice-Diretor", "Coordenador", "Agente de Organização", "Outro"].index(cargo_edit) if cargo_edit in ["Professor", "Diretor", "Vice-Diretor", "Coordenador", "Agente de Organização", "Outro"] else 0,
+            key="edit_cargo_prof")
         email_prof = st.text_input("E-mail (opcional)", value=prof_edit.get('email', ''), key="edit_email_prof")
         col1, col2 = st.columns(2)
         with col1:
@@ -1062,8 +1067,8 @@ elif menu == "👨‍🏫 Cadastrar Professores":
                     if verificar_professor_duplicado(nome_prof, df_professores, st.session_state.editando_prof):
                         st.error("❌ Já existe um professor com este nome cadastrado!")
                     else:
-                        if atualizar_professor(st.session_state.editando_prof, {"nome": nome_prof, "email": email_prof if email_prof else None}):
-                            st.success("✅ Professor atualizado com sucesso!")
+                        if atualizar_professor(st.session_state.editando_prof, {"nome": nome_prof, "cargo": cargo_prof, "email": email_prof if email_prof else None}):
+                            st.success("✅ Cadastro atualizado com sucesso!")
                             st.session_state.editando_prof = None
                             st.rerun()
         with col2:
@@ -1073,28 +1078,32 @@ elif menu == "👨‍🏫 Cadastrar Professores":
     else:
         col1, col2 = st.columns(2)
         with col1:
-            nome_prof = st.text_input("Nome do Professor *", placeholder="Ex: João da Silva", key="novo_nome_prof")
+            nome_prof = st.text_input("Nome *", placeholder="Ex: João da Silva", key="novo_nome_prof")
+            cargo_prof = st.selectbox("Cargo/Função *", 
+                ["Professor", "Diretor", "Vice-Diretor", "Coordenador", "Agente de Organização", "Outro"],
+                key="novo_cargo_prof")
             email_prof = st.text_input("E-mail (opcional)", placeholder="Ex: joao@educacao.sp.gov.br", key="novo_email_prof")
         with col2:
-            st.info("💡 Cadastre todos os professores da escola.")
-        if st.button("💾 Salvar Professor", type="primary"):
+            st.info("💡 Cadastre professores, diretores,\ncoordernadores e outros cargos da escola.")
+        if st.button("💾 Salvar Cadastro", type="primary"):
             if nome_prof:
                 if verificar_professor_duplicado(nome_prof, df_professores):
-                    st.error("❌ Já existe um professor com este nome cadastrado!")
+                    st.error("❌ Já existe alguém com este nome cadastrado!")
                 else:
-                    novo_prof = {"nome": nome_prof, "email": email_prof if email_prof else None}
+                    novo_prof = {"nome": nome_prof, "cargo": cargo_prof, "email": email_prof if email_prof else None}
                     if salvar_professor(novo_prof):
-                        st.success(f"✅ Professor {nome_prof} cadastrado com sucesso!")
+                        st.success(f"✅ {cargo_prof} {nome_prof} cadastrado com sucesso!")
                         st.rerun()
             else:
                 st.error("❌ Nome é obrigatório!")
     st.markdown("---")
-    st.subheader("📋 Professores Cadastrados")
+    st.subheader("📋 Cadastros (Professores, Diretores, Coordenadores, etc)")
     if not df_professores.empty:
         for idx, prof in df_professores.iterrows():
+            cargo_display = prof.get('cargo', 'Professor')
             col1, col2, col3 = st.columns([4, 1, 1])
             with col1:
-                st.markdown(f"**{prof['nome']}**" + (f" - {prof['email']}" if prof.get('email') else ""))
+                st.markdown(f"**{prof['nome']}** - {cargo_display}" + (f" ({prof['email']})" if prof.get('email') else ""))
             with col2:
                 if st.button("✏️ Editar", key=f"edit_prof_{prof['id']}"):
                     st.session_state.editando_prof = prof['id']
@@ -1103,7 +1112,7 @@ elif menu == "👨‍🏫 Cadastrar Professores":
                 if st.button("🗑️ Excluir", key=f"del_prof_{prof['id']}"):
                     st.session_state['confirmar_exclusao_prof'] = prof['id']
                     st.rerun()
-        st.info(f"Total: {len(df_professores)} professores")
+        st.info(f"Total: {len(df_professores)} cadastro(s)")
     else:
         st.write("📭 Nenhum professor cadastrado.")
 
