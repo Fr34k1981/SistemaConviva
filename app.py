@@ -123,23 +123,67 @@ section[data-testid="stSidebar"] {
     height: 100vh;
     overflow: auto;
     z-index: 1000;
+    background: linear-gradient(180deg, #f8fbff 0%, #eef4fb 100%);
+    border-right: 1px solid #d9e4f2;
 }
 section[data-testid="stSidebar"] > div {
-    width: 21rem;
+    width: 16rem;
+    padding-top: 1rem;
 }
 @media (min-width: 769px) {
     section[data-testid="stSidebar"] {
-        width: 21rem !important;
-        min-width: 21rem !important;
+        width: 16rem !important;
+        min-width: 16rem !important;
     }
     div[data-testid="stAppViewContainer"] > .main {
-        margin-left: 21rem;
+        margin-left: 16rem;
     }
 }
 @media (max-width: 768px) {
     div[data-testid="stAppViewContainer"] > .main {
         margin-left: 0;
     }
+}
+section[data-testid="stSidebar"] .stMarkdown h2 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #1f3b5b;
+    margin-bottom: 0.75rem;
+    letter-spacing: 0.02em;
+}
+section[data-testid="stSidebar"] div[role="radiogroup"] {
+    gap: 0.35rem;
+}
+section[data-testid="stSidebar"] div[role="radiogroup"] > label {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    padding: 0.2rem 0.35rem;
+    margin: 0;
+    transition: all 0.2s ease;
+}
+section[data-testid="stSidebar"] div[role="radiogroup"] > label:hover {
+    background: rgba(102, 126, 234, 0.08);
+    border-color: rgba(102, 126, 234, 0.18);
+}
+section[data-testid="stSidebar"] div[role="radiogroup"] label > div:first-child {
+    display: none;
+}
+section[data-testid="stSidebar"] div[role="radiogroup"] label p {
+    margin: 0;
+    font-size: 0.96rem;
+    font-weight: 500;
+    color: #24415f;
+    line-height: 1.25;
+}
+section[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] {
+    background: linear-gradient(135deg, #667eea 0%, #5a67d8 100%);
+    border-color: #5a67d8;
+    box-shadow: 0 8px 18px rgba(90, 103, 216, 0.18);
+}
+section[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] p {
+    color: #ffffff;
+    font-weight: 700;
 }
 </style>
 """, unsafe_allow_html=True)
