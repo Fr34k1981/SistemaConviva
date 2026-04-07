@@ -134,7 +134,7 @@ SENHA_EXCLUSAO = "040600"
 # --- MENU LATERAL ---
 menu = st.sidebar.selectbox("Menu", [
     "🏠 Início",
-    "� Registrar Ocorrência",
+    "📝 Registrar Ocorrência",
     "📋 Histórico de Ocorrências",
     "📄 Comunicado aos Pais",
     "📊 Gráficos e Indicadores",
