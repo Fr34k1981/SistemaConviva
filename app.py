@@ -134,16 +134,16 @@ SENHA_EXCLUSAO = "040600"
 # --- MENU LATERAL ---
 menu = st.sidebar.selectbox("Menu", [
     "🏠 Início",
+    "� Registrar Ocorrência",
+    "📋 Histórico de Ocorrências",
+    "📄 Comunicado aos Pais",
+    "📊 Gráficos e Indicadores",
+    "🖨️ Imprimir PDF",
     "👨‍🏫 Cadastrar Professores",
     "👤 Cadastrar Responsáveis por Assinatura",
-    "📝 Registrar Ocorrência",
-    "📄 Comunicado aos Pais",
     "📥 Importar Alunos",
     "📋 Gerenciar Turmas Importadas",
-    "👥 Lista de Alunos",
-    "📋 Histórico de Ocorrências",
-    "📊 Gráficos e Indicadores",
-    "🖨️ Imprimir PDF"
+    "👥 Lista de Alunos"
 ])
 
 # --- CORES PARA TIPOS DE INFRAÇÃO ---
