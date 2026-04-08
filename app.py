@@ -1,16 +1,3 @@
-Sim, aqui está o **código completo e atualizado**.
-
-### 🚀 O que foi melhorado para resolver os erros "Não encontrado":
-
-1.  **Algoritmo de Busca Inteligente (Fuzzy Match):** Substituí a busca por igualdade exata (`==`) por um algoritmo que calcula a **similaridade** entre os nomes.
-    *   Ele agora encontra alunos mesmo se houver pequenas diferenças (ex: falta um nome do meio, espaço extra ou erro de digitação).
-    *   Prioriza correspondência exata, depois busca por contenção (ex: "Maria Silva" em "Maria da Silva") e por fim similaridade de caracteres.
-    *   **Threshold:** Configurei para **85%** de similaridade. Isso garante que ele encontre o aluno certo sem confundir com outro aluno de nome parecido.
-2.  **Sincronização Robusta:** O botão `🔄 Substituir Eletivas no Supabase` agora força a leitura da planilha `IMportação.xlsx` e garante que **todos** os dados sejam enviados, substituindo o que houver no banco.
-
-Basta copiar este código inteiro e substituir no seu arquivo.
-
-```python
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -654,13 +641,31 @@ def carregar_alunos():
     return _supabase_get_dataframe("alunos?select=*", "carregar alunos")
 
 def salvar_aluno(aluno):
-    return _supabase_mutation("POST", "alunos", aluno, "salvar aluno")
+    result = _supabase_mutation("POST", "alunos", aluno, "salvar aluno")
+    if result:
+        try:
+            carregar_alunos.clear()
+        except Exception:
+            pass
+    return result
 
 def atualizar_aluno(ra, dados):
-    return _supabase_mutation("PATCH", f"alunos?ra=eq.{ra}", dados, "atualizar aluno")
+    result = _supabase_mutation("PATCH", f"alunos?ra=eq.{ra}", dados, "atualizar aluno")
+    if result:
+        try:
+            carregar_alunos.clear()
+        except Exception:
+            pass
+    return result
 
 def excluir_alunos_por_turma(turma):
-    return _supabase_mutation("DELETE", f"alunos?turma=eq.{turma}", None, "excluir turma")
+    result = _supabase_mutation("DELETE", f"alunos?turma=eq.{turma}", None, "excluir turma")
+    if result:
+        try:
+            carregar_alunos.clear()
+        except Exception:
+            pass
+    return result
 
 @st.cache_data(ttl=300)
 def carregar_professores():
@@ -680,7 +685,13 @@ def salvar_professor(professor):
         return False
     try:
         response = _supabase_request("POST", "professores", json=professor)
-        return response.status_code in [200, 201]
+        sucesso = response.status_code in [200, 201]
+        if sucesso:
+            try:
+                carregar_professores.clear()
+            except Exception:
+                pass
+        return sucesso
     except Exception as e:
         st.error(f"Erro ao salvar professor: {str(e)}")
         return False
@@ -691,7 +702,13 @@ def atualizar_professor(id_prof, dados):
         return False
     try:
         response = _supabase_request("PATCH", f"professores?id=eq.{id_prof}", json=dados)
-        return response.status_code in [200, 204]
+        sucesso = response.status_code in [200, 204]
+        if sucesso:
+            try:
+                carregar_professores.clear()
+            except Exception:
+                pass
+        return sucesso
     except Exception as e:
         st.error(f"Erro ao atualizar professor: {str(e)}")
         return False
@@ -702,7 +719,13 @@ def excluir_professor(id_prof):
         return False
     try:
         response = _supabase_request("DELETE", f"professores?id=eq.{id_prof}")
-        return response.status_code in [200, 204]
+        sucesso = response.status_code in [200, 204]
+        if sucesso:
+            try:
+                carregar_professores.clear()
+            except Exception:
+                pass
+        return sucesso
     except Exception as e:
         st.error(f"Erro ao excluir professor: {str(e)}")
         return False
@@ -788,13 +811,31 @@ def carregar_ocorrencias():
     return _supabase_get_dataframe("ocorrencias?select=*&order=id.desc", "carregar ocorrências")
 
 def salvar_ocorrencia(ocorrencia):
-    return _supabase_mutation("POST", "ocorrencias", ocorrencia, "salvar ocorrência")
+    result = _supabase_mutation("POST", "ocorrencias", ocorrencia, "salvar ocorrência")
+    if result:
+        try:
+            carregar_ocorrencias.clear()
+        except Exception:
+            pass
+    return result
 
 def excluir_ocorrencia(id_ocorrencia):
-    return _supabase_mutation("DELETE", f"ocorrencias?id=eq.{id_ocorrencia}", None, "excluir ocorrência")
+    result = _supabase_mutation("DELETE", f"ocorrencias?id=eq.{id_ocorrencia}", None, "excluir ocorrência")
+    if result:
+        try:
+            carregar_ocorrencias.clear()
+        except Exception:
+            pass
+    return result
 
 def editar_ocorrencia(id_ocorrencia, dados):
-    return _supabase_mutation("PATCH", f"ocorrencias?id=eq.{id_ocorrencia}", dados, "editar ocorrência")
+    result = _supabase_mutation("PATCH", f"ocorrencias?id=eq.{id_ocorrencia}", dados, "editar ocorrência")
+    if result:
+        try:
+            carregar_ocorrencias.clear()
+        except Exception:
+            pass
+    return result
 
 def verificar_ocorrencia_duplicada(ra, categoria, data_str, df_ocorrencias):
     if df_ocorrencias.empty:
