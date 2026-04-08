@@ -12,9 +12,11 @@ from io import BytesIO
 import requests
 import os
 import unicodedata
+import zipfile
 from dotenv import load_dotenv
 import pytz
 from difflib import SequenceMatcher
+from xml.etree import ElementTree as ET
 
 # --- CARREGAR VARIÁVEIS DE AMBIENTE ---
 load_dotenv()
@@ -216,6 +218,8 @@ menu = st.sidebar.radio("", [
     "📋 Importar Turmas",
     "👥 Lista de Alunos"
 ], label_visibility="collapsed")
+
+ELETIVAS_ARQUIVO = r"C:\Users\Freak Work\Desktop\IMportação.xlsx"
 
 ELETIVAS = {
     "Solange": [
@@ -918,6 +922,39 @@ def excluir_responsavel(id_resp):
     return result
 
 @st.cache_data(ttl=300)
+def carregar_eletivas_supabase():
+    return _supabase_get_dataframe("eletivas?select=*&order=professora.asc,nome_aluno.asc", "carregar eletivas")
+
+def limpar_cache_eletivas():
+    try:
+        carregar_eletivas_supabase.clear()
+    except Exception:
+        pass
+
+def substituir_eletivas_supabase(registros):
+    if _supabase_error("substituir eletivas"):
+        return False
+    try:
+        _supabase_request("DELETE", "eletivas?id=not.is.null")
+    except Exception as e:
+        st.error(f"Erro ao limpar eletivas no Supabase: {str(e)}")
+        return False
+
+    if not registros:
+        limpar_cache_eletivas()
+        return True
+
+    try:
+        response = _supabase_request("POST", "eletivas", json=registros)
+        sucesso = response.status_code in [200, 201]
+        if sucesso:
+            limpar_cache_eletivas()
+        return sucesso
+    except Exception as e:
+        st.error(f"Erro ao salvar eletivas no Supabase: {str(e)}")
+        return False
+
+@st.cache_data(ttl=300)
 def carregar_ocorrencias():
     return _supabase_get_dataframe("ocorrencias?select=*&order=id.desc", "carregar ocorrências")
 
@@ -1038,6 +1075,97 @@ def normalizar_texto(valor):
     texto = "".join(char for char in texto if not unicodedata.combining(char))
     return " ".join(texto.split())
 
+def carregar_eletivas_do_excel(caminho_arquivo, fallback=None):
+    if not os.path.exists(caminho_arquivo):
+        return fallback if fallback is not None else {}
+    try:
+        ns = {'a': 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}
+        with zipfile.ZipFile(caminho_arquivo) as arquivo_zip:
+            shared_strings = []
+            if 'xl/sharedStrings.xml' in arquivo_zip.namelist():
+                shared_root = ET.fromstring(arquivo_zip.read('xl/sharedStrings.xml'))
+                for si in shared_root.findall('a:si', ns):
+                    textos = []
+                    for texto in si.iterfind('.//a:t', ns):
+                        textos.append(texto.text or '')
+                    shared_strings.append(''.join(textos))
+
+            planilha = ET.fromstring(arquivo_zip.read('xl/worksheets/sheet1.xml'))
+            eletivas = {}
+            professora_atual = None
+
+            for row in planilha.findall('.//a:sheetData/a:row', ns):
+                valores = {}
+                for celula in row.findall('a:c', ns):
+                    referencia = celula.attrib.get('r', '')
+                    coluna = ''.join(ch for ch in referencia if ch.isalpha())
+                    tipo = celula.attrib.get('t')
+                    valor = ''
+                    valor_xml = celula.find('a:v', ns)
+                    if valor_xml is not None:
+                        valor = valor_xml.text or ''
+                    if tipo == 's' and valor != '':
+                        valor = shared_strings[int(valor)]
+                    valores[coluna] = str(valor).strip()
+
+                valor_a = valores.get('A', '')
+                valor_b = valores.get('B', '')
+                valor_c = valores.get('C', '')
+
+                # Título em uma linha isolada, ex: "Solange"
+                if valor_a and not valor_b and not valor_c and not valor_a.isdigit():
+                    professora_atual = valor_a
+                    eletivas[professora_atual] = []
+                    continue
+
+                # Título alternativo, ex: "Professora Rosemeire"
+                if valor_b.startswith('Professora '):
+                    professora_atual = valor_b.replace('Professora ', '').strip()
+                    eletivas[professora_atual] = []
+                    continue
+
+                if valor_a == 'Nº' or (valor_b == 'Nome' and valor_c == 'Turma') or valor_b == 'Nome do Estudante':
+                    continue
+
+                if professora_atual and valor_b and valor_c:
+                    eletivas[professora_atual].append({
+                        "nome": valor_b,
+                        "serie": valor_c
+                    })
+
+            eletivas = {prof: alunos for prof, alunos in eletivas.items() if alunos}
+            return eletivas if eletivas else (fallback if fallback is not None else {})
+    except Exception:
+        return fallback if fallback is not None else {}
+
+def converter_eletivas_para_registros(eletivas_dict, origem="excel"):
+    registros = []
+    for professora, alunos in eletivas_dict.items():
+        for item in alunos:
+            registros.append({
+                "professora": professora,
+                "nome_aluno": item.get("nome", ""),
+                "serie": item.get("serie", ""),
+                "origem": origem
+            })
+    return registros
+
+def converter_eletivas_supabase_para_dict(df_eletivas):
+    if df_eletivas.empty:
+        return {}
+    eletivas = {}
+    for _, row in df_eletivas.iterrows():
+        professora = str(row.get("professora", "")).strip()
+        nome_aluno = str(row.get("nome_aluno", "")).strip()
+        serie = str(row.get("serie", "")).strip()
+        if not professora or not nome_aluno:
+            continue
+        eletivas.setdefault(professora, []).append({
+            "nome": nome_aluno,
+            "serie": serie
+        })
+    return eletivas
+
 def montar_dataframe_eletiva(nome_professora, df_alunos):
     registros = []
     alunos_base = df_alunos.copy() if not df_alunos.empty else pd.DataFrame()
@@ -1073,6 +1201,66 @@ def montar_dataframe_eletiva(nome_professora, df_alunos):
                 "Status": "Não encontrado"
             })
     return pd.DataFrame(registros)
+
+ELETIVAS = carregar_eletivas_do_excel(ELETIVAS_ARQUIVO, fallback=ELETIVAS)
+
+def gerar_pdf_eletiva(nome_professora, df_eletiva):
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1*cm, leftMargin=1*cm, topMargin=1.5*cm, bottomMargin=1.5*cm)
+    elementos = []
+    estilos = getSampleStyleSheet()
+    try:
+        if os.path.exists(ESCOLA_LOGO):
+            logo = Image(ESCOLA_LOGO, width=16*cm, height=4*cm)
+            logo.hAlign = 'CENTER'
+            elementos.append(logo)
+            elementos.append(Spacer(1, 0.2*cm))
+    except Exception:
+        pass
+
+    elementos.append(Paragraph("_" * 75, estilos['Normal']))
+    elementos.append(Spacer(1, 0.15*cm))
+    estilo_titulo = ParagraphStyle('TituloEletiva', parent=estilos['Heading1'],
+        fontSize=12, alignment=1, spaceAfter=0.3*cm, textColor=colors.darkblue)
+    estilo_texto = ParagraphStyle('TextoEletiva', parent=estilos['Normal'],
+        fontSize=9, leading=11, spaceAfter=0.1*cm)
+    elementos.append(Paragraph("LISTA DE ELETIVA", estilo_titulo))
+    elementos.append(Paragraph(f"<b>Professora:</b> {nome_professora}", estilo_texto))
+    elementos.append(Paragraph(f"<b>Total de estudantes:</b> {len(df_eletiva)}", estilo_texto))
+    elementos.append(Spacer(1, 0.2*cm))
+
+    dados_tabela = [["Nome da Eletiva", "Série", "RA", "Turma", "Status"]]
+    for _, row in df_eletiva.iterrows():
+        dados_tabela.append([
+            str(row.get("Nome da Eletiva", "")),
+            str(row.get("Série da Eletiva", "")),
+            str(row.get("RA", "")),
+            str(row.get("Turma no Sistema", "")),
+            str(row.get("Status", ""))
+        ])
+
+    tabela = Table(dados_tabela, colWidths=[7.8*cm, 2.0*cm, 2.0*cm, 2.3*cm, 2.4*cm], repeatRows=1)
+    tabela.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4A90E2')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 7),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#F9FBFD')),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+    ]))
+    elementos.append(tabela)
+    elementos.append(Spacer(1, 0.3*cm))
+
+    estilo_rodape = ParagraphStyle('RodapeEletiva', parent=estilos['Normal'],
+        fontSize=6, alignment=1, textColor=colors.grey)
+    elementos.append(Paragraph("_" * 75, estilos['Normal']))
+    elementos.append(Paragraph(f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}", estilo_rodape))
+    doc.build(elementos)
+    buffer.seek(0)
+    return buffer
 
 def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     buffer = BytesIO()
@@ -1293,6 +1481,14 @@ df_alunos = carregar_alunos()
 df_ocorrencias = carregar_ocorrencias()
 df_professores = carregar_professores()
 df_responsaveis = carregar_responsaveis()
+df_eletivas_supabase = carregar_eletivas_supabase()
+ELETIVAS_EXCEL = carregar_eletivas_do_excel(ELETIVAS_ARQUIVO, fallback=ELETIVAS)
+if not df_eletivas_supabase.empty:
+    ELETIVAS = converter_eletivas_supabase_para_dict(df_eletivas_supabase)
+    FONTE_ELETIVAS = "supabase"
+else:
+    ELETIVAS = ELETIVAS_EXCEL
+    FONTE_ELETIVAS = "excel"
 
 # --- 1. HOME ---
 if menu == "🏠 Início":
@@ -2057,6 +2253,23 @@ elif menu == "📋 Importar Turmas":
 elif menu == "🎨 Eletiva":
     st.header("🎨 Eletiva")
     st.info("💡 Consulte os agrupamentos por professora e confira quais estudantes já foram localizados no cadastro do sistema.")
+    if os.path.exists(ELETIVAS_ARQUIVO):
+        st.caption(f"Fonte atual das listas: {ELETIVAS_ARQUIVO}")
+    if FONTE_ELETIVAS == "supabase":
+        st.success("✅ Exibindo eletivas salvas no Supabase.")
+    else:
+        st.warning("⚠️ Exibindo eletivas da planilha local. Você pode substituir o Supabase com o botão abaixo.")
+
+    if os.path.exists(ELETIVAS_ARQUIVO):
+        st.markdown("---")
+        st.subheader("☁️ Sincronizar com Supabase")
+        st.info("💡 Este botão apaga as eletivas atuais do Supabase e grava novamente os dados da planilha de importação.")
+        if st.button("🔄 Substituir Eletivas no Supabase", type="primary"):
+            registros_eletivas = converter_eletivas_para_registros(ELETIVAS_EXCEL, origem="planilha")
+            if substituir_eletivas_supabase(registros_eletivas):
+                st.success("✅ Eletivas substituídas no Supabase com sucesso!")
+                st.rerun()
+
     professoras_eletiva = list(ELETIVAS.keys())
     professora_sel = st.selectbox("Selecione a professora", professoras_eletiva)
     df_eletiva = montar_dataframe_eletiva(professora_sel, df_alunos)
@@ -2095,6 +2308,17 @@ elif menu == "🎨 Eletiva":
 
         st.subheader("📋 Agrupamento")
         st.dataframe(df_exibir, use_container_width=True)
+
+        st.markdown("---")
+        st.subheader("🖨️ Imprimir Lista da Eletiva")
+        if st.button("📄 Gerar PDF da Eletiva"):
+            pdf_buffer = gerar_pdf_eletiva(professora_sel, df_eletiva)
+            st.download_button(
+                label="📥 Baixar PDF",
+                data=pdf_buffer,
+                file_name=f"Eletiva_{professora_sel}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                mime="application/pdf"
+            )
 
         st.subheader("📊 Resumo por Série")
         resumo_series = df_eletiva.groupby('Série da Eletiva').size().reset_index(name='Total de Estudantes')
