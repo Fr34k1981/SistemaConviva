@@ -2168,42 +2168,69 @@ elif menu == "🎨 Eletiva":
 
     with st.expander("📥 Importar Estudantes para esta Professora"):
         uploaded_file = st.file_uploader("Selecione o arquivo (CSV, XLSX ou TXT)", type=["csv", "xlsx", "txt"], key=f"upload_{professora_sel}")
-        nomes_adicionais = st.text_area("Digite nomes adicionais (um por linha):", height=100, key=f"adicionais_{professora_sel}")
+        nomes_adicionais = st.text_area("Digite nomes adicionais (um por linha, opcional):", height=120, key=f"adicionais_{professora_sel}")
         
+        def extrair_turma(texto):
+            partes = texto.replace('\t', ' ').replace(';', ' ').split()
+            if not partes:
+                return '', ''
+            ultima = partes[-1].upper()
+            if any(char.isdigit() for char in ultima) and any(char.isalpha() for char in ultima):
+                return ' '.join(partes[:-1]).strip(), ultima
+            return texto.strip(), ''
+
         alunos_import = []
         if uploaded_file is not None:
             try:
                 if uploaded_file.name.endswith('.csv'):
-                    df_import = pd.read_csv(uploaded_file, sep=';', encoding='utf-8')
-                    for _, row in df_import.iterrows():
-                        nome = str(row.get('Nome do Aluno', '')).strip()
-                        if nome:
-                            serie = "7A"
-                            alunos_import.append({"nome": nome, "serie": serie})
+                    df_import = pd.read_csv(uploaded_file, sep=';', encoding='utf-8', dtype=str)
                 elif uploaded_file.name.endswith('.xlsx'):
-                    df_import = pd.read_excel(uploaded_file)
-                    for _, row in df_import.iterrows():
-                        nome = str(row.get('Nome do Aluno', row.iloc[0] if len(row) > 0 else '')).strip()
-                        if nome:
-                            serie = "7A"
-                            alunos_import.append({"nome": nome, "serie": serie})
-                elif uploaded_file.name.endswith('.txt'):
+                    df_import = pd.read_excel(uploaded_file, dtype=str)
+                else:
                     content = uploaded_file.read().decode('utf-8')
-                    nomes_txt = [linha.strip() for linha in content.split('\n') if linha.strip()]
-                    for nome in nomes_txt:
-                        alunos_import.append({"nome": nome, "serie": "7A"})
+                    linhas = [linha.strip() for linha in content.splitlines() if linha.strip()]
+                    for linha in linhas:
+                        nome, serie = extrair_turma(linha)
+                        if nome:
+                            alunos_import.append({"nome": nome, "serie": serie})
+                    df_import = None
+
+                if uploaded_file.name.endswith(('.csv', '.xlsx')) and df_import is not None:
+                    for _, row in df_import.iterrows():
+                        nome = ''
+                        serie = ''
+                        if 'Nome do Aluno' in df_import.columns:
+                            nome = str(row.get('Nome do Aluno', '')).strip()
+                        elif 'nome' in df_import.columns:
+                            nome = str(row.get('nome', '')).strip()
+                        elif len(row) >= 1:
+                            primeiro = str(row.iloc[0]).strip()
+                            nome, serie = extrair_turma(primeiro)
+                        if 'Turma' in df_import.columns:
+                            serie = serie or str(row.get('Turma', '')).strip()
+                        elif 'Série' in df_import.columns:
+                            serie = serie or str(row.get('Série', '')).strip()
+                        elif 'serie' in df_import.columns:
+                            serie = serie or str(row.get('serie', '')).strip()
+                        elif len(row) >= 2:
+                            segundo = str(row.iloc[1]).strip()
+                            serie = serie or segundo
+                        if nome:
+                            alunos_import.append({"nome": nome, "serie": serie})
             except Exception as e:
                 st.error(f"Erro ao ler o arquivo: {e}")
-        
-        # Adicionar nomes digitados
+
         if nomes_adicionais.strip():
-            nomes_digitados = [nome.strip() for nome in nomes_adicionais.split('\n') if nome.strip()]
-            for nome in nomes_digitados:
-                alunos_import.append({"nome": nome, "serie": "7A"})
-        
+            for linha in nomes_adicionais.splitlines():
+                linha = linha.strip()
+                if not linha:
+                    continue
+                nome, serie = extrair_turma(linha)
+                alunos_import.append({"nome": nome, "serie": serie})
+
         if alunos_import:
-            st.text_area("Estudantes a serem importados:", value="\n".join([a["nome"] for a in alunos_import]), height=200, disabled=True)
-            if st.button("Confirmar Importação", key=f"confirm_{professora_sel}"):
+            st.text_area("Estudantes a serem importados:", value="\n".join([f"{a['nome']} {a['serie']}".strip() for a in alunos_import]), height=240)
+            if st.button("Importar para a professora", key=f"confirm_{professora_sel}"):
                 ELETIVAS[professora_sel].extend(alunos_import)
                 if FONTE_ELETIVAS == "supabase":
                     registros = [{"professora": professora_sel, "nome_aluno": a["nome"], "serie": a["serie"], "origem": "importacao"} for a in alunos_import]
@@ -2221,7 +2248,7 @@ elif menu == "🎨 Eletiva":
                     st.success(f"✅ {len(alunos_import)} estudantes importados localmente para {professora_sel}!")
                     st.rerun()
         else:
-            st.info("Selecione um arquivo ou digite nomes para importar estudantes.")
+            st.info("Selecione um arquivo ou digite nomes com turma para importar estudantes.")
 
     df_eletiva = montar_dataframe_eletiva(professora_sel, df_alunos)
     if df_eletiva.empty:
