@@ -2148,8 +2148,54 @@ elif menu == "🎨 Eletiva":
                 st.success("✅ Eletivas substituídas no Supabase com sucesso!")
                 st.rerun()
 
+    st.markdown("---")
+    st.subheader("👩‍🏫 Cadastrar Professora da Eletiva")
+    professores_disponiveis = [p for p in df_professores['Nome'].tolist() if p not in ELETIVAS]
+    if professores_disponiveis:
+        prof_para_cadastrar = st.selectbox("Selecione uma professora para cadastrar na eletiva", professores_disponiveis, key="cadastrar_prof")
+        if st.button("Cadastrar Professora da Eletiva"):
+            ELETIVAS[prof_para_cadastrar] = []
+            if FONTE_ELETIVAS == "supabase":
+                # No need to post empty
+                pass
+            st.success(f"Professora {prof_para_cadastrar} cadastrada para eletiva!")
+            st.rerun()
+    else:
+        st.info("Todas as professoras já estão cadastradas para eletivas.")
+
     professoras_eletiva = list(ELETIVAS.keys())
     professora_sel = st.selectbox("Selecione a professora", professoras_eletiva)
+
+    with st.expander("📥 Importar Estudantes para esta Professora"):
+        uploaded_file = st.file_uploader("Selecione o arquivo CSV dos estudantes", type="csv", key=f"upload_{professora_sel}")
+        if st.button("Importar Estudantes", key=f"import_{professora_sel}"):
+            if uploaded_file is not None:
+                df_import = pd.read_csv(uploaded_file, sep=';', encoding='utf-8')
+                alunos_import = []
+                for _, row in df_import.iterrows():
+                    nome = str(row.get('Nome do Aluno', '')).strip()
+                    if nome:
+                        serie = "7A"  # or detect from filename
+                        alunos_import.append({"nome": nome, "serie": serie})
+                ELETIVAS[professora_sel].extend(alunos_import)
+                if FONTE_ELETIVAS == "supabase":
+                    registros = [{"professora": professora_sel, "nome_aluno": a["nome"], "serie": a["serie"], "origem": "importacao"} for a in alunos_import]
+                    try:
+                        response = _supabase_request("POST", "eletivas", json=registros)
+                        if response.status_code == 201:
+                            st.success(f"✅ {len(alunos_import)} estudantes importados para {professora_sel}!")
+                            limpar_cache_eletivas()
+                            st.rerun()
+                        else:
+                            st.error("Erro ao salvar no Supabase")
+                    except Exception as e:
+                        st.error(f"Erro: {e}")
+                else:
+                    st.success(f"✅ {len(alunos_import)} estudantes importados localmente para {professora_sel}!")
+                    st.rerun()
+            else:
+                st.warning("Selecione um arquivo CSV primeiro.")
+
     df_eletiva = montar_dataframe_eletiva(professora_sel, df_alunos)
     if df_eletiva.empty:
         st.warning("⚠️ Nenhum agrupamento cadastrado para esta professora.")
