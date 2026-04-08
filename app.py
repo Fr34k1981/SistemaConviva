@@ -17,15 +17,12 @@ from dotenv import load_dotenv
 import pytz
 from difflib import SequenceMatcher
 from xml.etree import ElementTree as ET
-
 # --- CARREGAR VARIÁVEIS DE AMBIENTE ---
 load_dotenv()
-
 # --- CONFIGURAÇÃO SUPABASE ---
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 SUPABASE_VALID = bool(SUPABASE_URL and SUPABASE_KEY)
-
 if SUPABASE_VALID:
     HEADERS = {
         "apikey": SUPABASE_KEY,
@@ -39,10 +36,8 @@ else:
         "⚠️ SUPABASE_URL ou SUPABASE_KEY não foram definidas. "
         "As funcionalidades de banco de dados ficaram indisponíveis."
     )
-
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Sistema Conviva 179 - E.E. Profª Eliane", layout="wide", page_icon="🏫")
-
 # --- CSS PERSONALIZADO ---
 st.markdown("""
 <style>
@@ -190,7 +185,6 @@ section[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true
 }
 </style>
 """, unsafe_allow_html=True)
-
 ESCOLA_ENDERECO = "R. Valter Souza Costa, 147 - Jardim Primavera, Ferraz de Vasconcelos - SP"
 ESCOLA_NOME = "E.E. Profª Eliane"
 ESCOLA_SUBTITULO = "Sistema Conviva 179"
@@ -198,10 +192,8 @@ ESCOLA_CEP = "CEP: 08535-310"
 ESCOLA_TELEFONE = "Telefone: (11) 4675-1855"
 ESCOLA_EMAIL = "Email: e918623@educacao.sp.gov.br"
 ESCOLA_LOGO = os.path.join("assets", "images", "eliane_dantas.png")
-
 # --- SENHA PARA EXCLUSÃO ---
 SENHA_EXCLUSAO = "040600"
-
 # --- MENU LATERAL ---
 st.sidebar.markdown("## Menu")
 menu = st.sidebar.radio("", [
@@ -218,29 +210,28 @@ menu = st.sidebar.radio("", [
     "📋 Importar Turmas",
     "👥 Lista de Alunos"
 ], label_visibility="collapsed")
-
 ELETIVAS_ARQUIVO = r"C:\Users\Freak Work\Desktop\IMportação.xlsx"
-
+# --- DADOS ATUALIZADOS DA PLANILHA IMportação.xlsx ---
 ELETIVAS = {
     "Solange": [
         {"nome": "NAYARA DA CRUZ ALENCAR", "serie": "8A"},
         {"nome": "ALLANA SOUZA FAUSTINO", "serie": "8B"},
         {"nome": "BRENDA NASCIMENTO BARBOSA", "serie": "8B"},
         {"nome": "GABRIELA MONTINO CORDEIRO", "serie": "8B"},
-        {"nome": "RAFAELLE HILARY DE OLIVEIRA SOUZA", "serie": "8B"},
+        {"nome": "RAFAELLE HILLARY DE OLIVEIRA SOUZA", "serie": "8B"},
         {"nome": "ANA PAULA FERREIRA DA SILVA DE JESUS", "serie": "8C"},
-        {"nome": "ANDREIVYS VALERIA ANGULO ACUNA", "serie": "8C"},
+        {"nome": "ANDREILYS VALERIA ANGULO ACUNA", "serie": "8C"},
         {"nome": "BEATRIZ VIEIRA DE OLIVEIRA", "serie": "8C"},
         {"nome": "BIANCA COELHO FERNANDES", "serie": "8C"},
         {"nome": "BRENDA NICOLE DA SILVA PAIVA", "serie": "8C"},
-        {"nome": "ALICE ANDRADE DE OLIVEIRA", "serie": "9A"},
+        {"nome": "ALICE ANDRADE OLIVEIRA", "serie": "9A"},
         {"nome": "ALICE ELISABETE RODRIGUES DE MORAIS", "serie": "9A"},
         {"nome": "BEATRIZ PEREIRA MAIA", "serie": "9A"},
-        {"nome": "GRAZIELE SANTANA FONSECA", "serie": "9A"},
+        {"nome": "GRAZIELE SANTANA FONCECA", "serie": "9A"},
         {"nome": "ISABELLY ALVINO ALEXANDRE", "serie": "9A"},
         {"nome": "ISABELLY DA SILVA MACEDO", "serie": "9A"},
         {"nome": "KAUANY REBECA VITOR DE SOUZA", "serie": "9A"},
-        {"nome": "KETHELLYN VITORIA DO NASCIMENTO LOURENÇON", "serie": "9A"},
+        {"nome": "KETHELLYN VITORIA DO NASCIMENTO LOURENÇONI", "serie": "9A"},
         {"nome": "SIDYELIS VALENTINA FRANCO ACUNA", "serie": "9A"},
         {"nome": "ISABELLY ALVES LEITE", "serie": "9B"},
         {"nome": "JULIA PEREIRA DOS SANTOS SOUZA", "serie": "9B"},
@@ -294,7 +285,7 @@ ELETIVAS = {
         {"nome": "JULIA RODRIGUES DE BRITO", "serie": "6A"},
         {"nome": "LAURA LIMA LAURENTINO", "serie": "6A"},
         {"nome": "MARIA CLARA SANTOS", "serie": "6A"},
-        {"nome": "GABRIELA SOPHIA PEREIRA ALBUQUERQUE", "serie": "6B"},
+        {"nome": "GABRYELLA SOPHIA PEREIRA ALBUQUERQUE", "serie": "6B"},
         {"nome": "MARIA JULIA FERREIRA DA ROCHA", "serie": "6B"},
         {"nome": "MIGUEL FABRICIO DE OLIVEIRA QUEIROZ", "serie": "6B"},
         {"nome": "SAMUEL MENDES DE OLIVEIRA SILVA", "serie": "6B"},
@@ -313,129 +304,242 @@ ELETIVAS = {
         {"nome": "RYAN HENRIQUE DA SILVA TELES", "serie": "7C"}
     ],
     "Fagna": [
-        {"nome": "ISADORA CASTRO SOUZA", "serie": "6º Ano A"},
-        {"nome": "KAMILLY VITORIA ZIRONDI DA ROCHA", "serie": "6º Ano A"},
-        {"nome": "KAYLA KHIMBERLY VILCA DA SILVA", "serie": "6º Ano A"},
-        {"nome": "NATAN ALMEIDA PRADO", "serie": "6º Ano A"},
-        {"nome": "RYAN LEONARDO DE CASTRO GARCIA", "serie": "6º Ano A"},
-        {"nome": "BRIAN SANTOS FERREIRA", "serie": "6º Ano B"},
-        {"nome": "KAWE GABRYEL DOS SANTOS ESTEVAO", "serie": "6º Ano B"},
-        {"nome": "PEDRO HENRIQUE DA SILVA SANTOS", "serie": "6º Ano B"},
-        {"nome": "SOPHIA NABOR DOS SANTOS", "serie": "6º Ano B"},
-        {"nome": "YASMIM CONCEICAO DE OLIVEIRA CRUZ", "serie": "6º Ano B"},
-        {"nome": "ALICE SANTOS RIBEIRO", "serie": "7º Ano A"},
-        {"nome": "BEATRIZ DA SILVA SOUZA", "serie": "7º Ano A"},
-        {"nome": "DIOGO HENRIQUE RAPOSO SANTOS", "serie": "7º Ano A"},
-        {"nome": "KAROLAYNE PAULA DE JESUS", "serie": "7º Ano A"},
-        {"nome": "MARIA HELENA ASSUNÇÃO DA SILVA", "serie": "7º Ano A"},
-        {"nome": "PAMELA CAROLINE GONÇALVES DE JESUS", "serie": "7º Ano A"},
-        {"nome": "PAULO CÉSAR MILITINO DE SOUZA", "serie": "7º Ano A"},
-        {"nome": "YURI HENRIQUE SOUZA DA SILVA", "serie": "7º Ano A"},
-        {"nome": "ELOAH DE FRANÇA DOS SANTOS", "serie": "7º Ano B"},
-        {"nome": "JHONATAN OLIVEIRA PONTES", "serie": "7º Ano B"},
-        {"nome": "LAIZA MOREIRA DE LIMA", "serie": "7º Ano B"},
-        {"nome": "TAILA VITORIA SANTOS LORENZI", "serie": "7º Ano C"}
+        {"nome": "ANA BEATRIZ VAZ DE SOUZA NEVES", "serie": "6A"},
+        {"nome": "ISADORA CASTRO SOUZA", "serie": "6A"},
+        {"nome": "KAMILLY VITORIA ZIRONDI DA ROCHA", "serie": "6A"},
+        {"nome": "KAYLA KHIMBERLY VILCA DA SILVA", "serie": "6A"},
+        {"nome": "LORENA VITORIA CORTE LIMA", "serie": "6A"},
+        {"nome": "NATAN ALMEIDA PRADO", "serie": "6A"},
+        {"nome": "RYAN LEONARDO DE CASTRO GARCIA", "serie": "6A"},
+        {"nome": "BRIAN SANTOS FERREIRA", "serie": "6B"},
+        {"nome": "KAWE GABRYEL DOS SANTOS ESTEVAO", "serie": "6B"},
+        {"nome": "PEDRO HENRIQUE DA SILVA SANTOS", "serie": "6B"},
+        {"nome": "SOPHIA NABOR DOS SANTOS", "serie": "6B"},
+        {"nome": "YASMIM CONCEICAO DE OLIVEIRA CRUZ", "serie": "6B"},
+        {"nome": "ALICE SANTOS RIBEIRO", "serie": "7A"},
+        {"nome": "BEATRIZ DA SILVA SOUSA", "serie": "7A"},
+        {"nome": "DIOGO HENRIQUE RAPOSO SANTOS", "serie": "7A"},
+        {"nome": "KAROLAYNE PAULA DE JESUS", "serie": "7A"},
+        {"nome": "MARIA HELENA ASSUNÇÃO DA SILVA", "serie": "7A"},
+        {"nome": "PAMELA CAROLINE GONÇALVES DE JESUS", "serie": "7A"},
+        {"nome": "PAULO CÉSAR MILITINO DE SOUZA", "serie": "7A"},
+        {"nome": "YURI HENRIQUE SOUZA DA SILVA", "serie": "7A"},
+        {"nome": "ELOAH DE FRANÇA DOS SANTOS", "serie": "7B"},
+        {"nome": "JHONATAN OLIVEIRA PONTES", "serie": "7B"}
     ],
     "Elaine": [
-        {"nome": "DAMIR QUISPE MAMANI", "serie": "6º Ano A"},
-        {"nome": "DEREK SOUSA DE AZEVEDO", "serie": "6º Ano A"},
-        {"nome": "DÔMINIC SOUSA DE AZEVEDO", "serie": "6º Ano A"},
-        {"nome": "ENZO MILITINA ALMEIDA", "serie": "6º Ano A"},
-        {"nome": "GUILHERME GABINO FERRO CAFFE", "serie": "6º Ano A"},
-        {"nome": "MANOEL DE SOUZA VILARIM", "serie": "6º Ano A"},
-        {"nome": "MATHEUS CANDIDO LIMA", "serie": "6º Ano A"},
-        {"nome": "NICOLLAS KEVYN DA SILVA MARTINS", "serie": "6º Ano A"},
-        {"nome": "RAYSSON FELIPE DA SILVA SANTOS", "serie": "6º Ano A"},
-        {"nome": "RICHARD SANTOS SILVA DE SALES", "serie": "6º Ano A"},
-        {"nome": "ALESSANDRO DOMINGUES LOPES", "serie": "6º Ano B"},
-        {"nome": "ANA JULIA DE ALENCAR BALISTA", "serie": "6º Ano B"},
-        {"nome": "BRAYAN MEDEIROS", "serie": "6º Ano B"},
-        {"nome": "GUSTAVO SANTANA NASCIMENTO", "serie": "6º Ano B"},
-        {"nome": "DIOGO CAVALCANTI ZANINI", "serie": "7º Ano A"},
-        {"nome": "HENRY GABRIEL DA SILVA", "serie": "7º Ano A"},
-        {"nome": "ITALLO MARQUES DOS SANTOS", "serie": "7º Ano A"},
-        {"nome": "RAQUEL VITORIA ALVES DE LIMA", "serie": "7º Ano A"},
-        {"nome": "SAFIRA DE JESUS RAMALHO", "serie": "7º Ano A"},
-        {"nome": "TIAGO MATHEUS MONTE", "serie": "7º Ano A"},
-        {"nome": "PEDRO HENRIQUE RAMOS COSTA BRASIL", "serie": "7º Ano B"},
-        {"nome": "BRAYAN NASCIMENTO DA SILVA", "serie": "7º Ano C"},
-        {"nome": "ENZO MIGUEL RIBEIRO DOS SANTOS LIMA", "serie": "7º Ano C"},
-        {"nome": "LEONARDO HENRIQUE DOS SANTOS LORENZI", "serie": "7º Ano C"},
-        {"nome": "LUCAS GABRIEL SILVA DOS SANTOS", "serie": "7º Ano C"}
+        {"nome": "DAMIR QUISPE MAMANI", "serie": "6A"},
+        {"nome": "DEREK SOUSA DE AZEVEDO", "serie": "6A"},
+        {"nome": "DÔMINIC SOUSA DE AZEVEDO", "serie": "6A"},
+        {"nome": "ENZO MILITINA ALMEIDA", "serie": "6A"},
+        {"nome": "GUILHERME GABINO FERRO CAFFE", "serie": "6A"},
+        {"nome": "MANOEL DE SOUZA VILARIM", "serie": "6A"},
+        {"nome": "MATHEUS CANDIDO LIMA", "serie": "6A"},
+        {"nome": "NICOLLAS KEVYN DA SILVA MARTINS", "serie": "6A"},
+        {"nome": "RAYSSON FELIPE DA SILVA SANTOS", "serie": "6A"},
+        {"nome": "RICHARD SANTOS SILVA DE SALES", "serie": "6A"},
+        {"nome": "ALESSANDRO DOMINGUES LOPES", "serie": "6B"},
+        {"nome": "ANA JULLIA DE ALENCAR BALISTA", "serie": "6B"},
+        {"nome": "BRAYAN MEDEIROS", "serie": "6B"},
+        {"nome": "GUSTAVO SANTANA NASCIMENTO", "serie": "6B"},
+        {"nome": "DIOGO CAVALCANTI ZANINI", "serie": "7A"},
+        {"nome": "HENRY GABRIEL DA SILVA", "serie": "7A"},
+        {"nome": "ITALLO MARQUES DOS SANTOS", "serie": "7A"},
+        {"nome": "RAQUEL VITORIA ALVES DE LIMA", "serie": "7A"},
+        {"nome": "SAFIRA DE JESUS RAMALHO", "serie": "7A"},
+        {"nome": "TIAGO MATHEUS MONTE", "serie": "7A"},
+        {"nome": "PEDRO HENRIQUE RAMOS COSTA BRASIL", "serie": "7B"},
+        {"nome": "BRAYAN NASCIMENTO DA SILVA", "serie": "7C"},
+        {"nome": "ENZO MIGUEL RIBEIRO DOS SANTOS LIMA", "serie": "7C"},
+        {"nome": "LEONARDO HENRIQUE DOS SANTOS LORENZI", "serie": "7C"},
+        {"nome": "LUCAS GABRIEL SILVA DOS SANTOS", "serie": "7C"}
     ],
     "Geovana": [
-        {"nome": "CAUA GONCALVES DA SILVA", "serie": "8º Ano A"},
-        {"nome": "DANIEL MARTINS GOMES", "serie": "8º Ano A"},
-        {"nome": "KAUAN FIDELES DA SILVA", "serie": "8º Ano A"},
-        {"nome": "PEDRO HENRIQUE FEITOSA DE MENEZES", "serie": "8º Ano A"},
-        {"nome": "RAFAEL MOREIRA DOS SANTOS", "serie": "8º Ano A"},
-        {"nome": "THEO HENRIQUE PORTILHO DE ALMEIDA", "serie": "8º Ano A"},
-        {"nome": "ADRINY MOREIRA DE MELO", "serie": "8º Ano B"},
-        {"nome": "GABRIEL DOS SANTOS SILVA", "serie": "8º Ano B"},
-        {"nome": "JOÃO PEDRO FAUSTINO DE SOUZA", "serie": "8º Ano B"},
-        {"nome": "PEDRO LUKAS DE SOUZA LIMA", "serie": "8º Ano B"},
-        {"nome": "DAVI LUCAS DOS SANTOS SILVA", "serie": "8º Ano C"},
-        {"nome": "NATALLY FERNANDA PONTES", "serie": "8º Ano C"},
-        {"nome": "AGNER DE JESUS VALENCA", "serie": "9º Ano A"},
-        {"nome": "GUSTAVO DE OLIVEIRA", "serie": "9º Ano A"},
-        {"nome": "JUAN VITOR MELO FERREIRA", "serie": "9º Ano A"},
-        {"nome": "JULIA BASTOS BERALDO", "serie": "9º Ano A"},
-        {"nome": "KAUAN RIQUELME LEAL ZANOVELLI RODRIGUES", "serie": "9º Ano A"},
-        {"nome": "NICOLLAS QUEIROZ DE CASTRO", "serie": "9º Ano A"},
-        {"nome": "SAMUEL VINICIUS RAMOS DE OLIVEIRA", "serie": "9º Ano A"},
-        {"nome": "GABRIEL DE LIMA PAZETTO", "serie": "9º Ano B"},
-        {"nome": "HENZO GABRIEL DE OLIVEIRA ANDRADE", "serie": "9º Ano B"},
-        {"nome": "MARIANA FERNANDA VIEIRA GUEDES", "serie": "9º Ano B"},
-        {"nome": "CAIO OLIVEIRA SANTOS", "serie": "9º Ano C"},
-        {"nome": "HENZO MIGUEL DIAS COELHO", "serie": "9º Ano C"},
-        {"nome": "JAMES VINICIUS FELIPE GOMES", "serie": "9º Ano C"},
-        {"nome": "JAMESON LUIGI DE SOUZA SANTIAGO", "serie": "9º Ano C"},
-        {"nome": "MARIA HELOISA SOUSA DOS SANTOS", "serie": "9º Ano C"},
-        {"nome": "MIGUEL ARONI DE SANTANA", "serie": "9º Ano C"},
-        {"nome": "PIETRO LOPES DA SILVA", "serie": "9º Ano C"}
+        {"nome": "CAUA GONCALVES DA SILVA", "serie": "8A"},
+        {"nome": "DANIEL MARTINS GOMES", "serie": "8A"},
+        {"nome": "KAUAN FIDELES DA SILVA", "serie": "8A"},
+        {"nome": "PEDRO HENRIQUE FEITOSA DE MENEZES", "serie": "8A"},
+        {"nome": "RAFAEL MOREIRA DOS SANTOS", "serie": "8A"},
+        {"nome": "THEO HENRIQUE PORTILHO DE ALMEIDA", "serie": "8A"},
+        {"nome": "ADRINY MOREIRA DE MELO", "serie": "8B"},
+        {"nome": "GABRIEL DOS SANTOS SILVA", "serie": "8B"},
+        {"nome": "JOÃO PEDRO FAUSTINO DE SOUZA", "serie": "8B"},
+        {"nome": "PEDRO LUKAS DE SOUZA LIMA", "serie": "8B"},
+        {"nome": "DAVI LUCAS DOS SANTOS SILVA", "serie": "8C"},
+        {"nome": "NATALLY FERNANDA PONTES", "serie": "8C"},
+        {"nome": "AGNER DE JESUS VALENCA", "serie": "9A"},
+        {"nome": "GUSTAVO DE OLIVEIRA", "serie": "9A"},
+        {"nome": "JUAN VITOR MELO FERREIRA", "serie": "9A"},
+        {"nome": "JULIA BASTOS BERALDO", "serie": "9A"},
+        {"nome": "KAUAN RIQUELME LEAL ZANOVELLI RODRIGUES", "serie": "9A"},
+        {"nome": "NICOLLAS QUEIROZ DE CASTRO", "serie": "9A"},
+        {"nome": "SAMUEL VINICIUS RAMOS DE OLIVEIRA", "serie": "9A"},
+        {"nome": "GABRIEL DE LIMA PAZETTO", "serie": "9B"},
+        {"nome": "HENZO GABRIEL DE OLIVEIRA ANDRADE", "serie": "9B"},
+        {"nome": "MARIANA FERNANDA VIEIRA GUEDES", "serie": "9B"},
+        {"nome": "CAIO OLIVEIRA SANTOS", "serie": "9C"},
+        {"nome": "HENZO MIGUEL DIAS COELHO", "serie": "9C"},
+        {"nome": "ISABELE CRISTINA LEITE HONORIO DA SILVA", "serie": "9C"},
+        {"nome": "JAMES VINICIUS FELIPE GOMES", "serie": "9C"},
+        {"nome": "JAMESON LUIGI DE SOUZA SANTIAGO", "serie": "9C"},
+        {"nome": "MARIA HELOISA SOUSA DOS SANTOS", "serie": "9C"},
+        {"nome": "MIGUEL ARONI DE SANTANA", "serie": "9C"},
+        {"nome": "PIETRO LOPES DA SILVA", "serie": "9C"}
     ],
     "Shirley": [
-        {"nome": "AGNER DE JESUS VALENCA", "serie": "9º Ano A"},
-        {"nome": "GUSTAVO DE OLIVEIRA", "serie": "9º Ano A"},
-        {"nome": "JUAN VITOR MELO FERREIRA", "serie": "9º Ano A"},
-        {"nome": "JULIA BASTOS BERALDO", "serie": "9º Ano A"},
-        {"nome": "KAUAN RIQUELME LEAL ZANOVELLI RODRIGUES", "serie": "9º Ano A"},
-        {"nome": "NICOLLAS QUEIROZ DE CASTRO", "serie": "9º Ano A"},
-        {"nome": "SAMUEL VINICIUS RAMOS DE OLIVEIRA", "serie": "9º Ano A"},
-        {"nome": "CAMILY VITORIA GOMES ALVES", "serie": "9º Ano A"},
-        {"nome": "DOUGLAS GABRIEL SOUZA FREIRE SILVA", "serie": "9º Ano A"},
-        {"nome": "GABRIEL FERNANDES SIQUEIRA DE OLIVEIRA", "serie": "9º Ano A"},
-        {"nome": "LUCAS RAIMUNDO BORGES DE MELO", "serie": "9º Ano A"},
-        {"nome": "WANDREL RODRIGO NASCIMENTO DA CRUZ", "serie": "9º Ano A"},
-        {"nome": "GABRIEL DE LIMA PAZETTO", "serie": "9º Ano B"},
-        {"nome": "HENZO GABRIEL DE OLIVEIRA ANDRADE", "serie": "9º Ano B"},
-        {"nome": "MARIANA FERNANDA VIEIRA GUEDES", "serie": "9º Ano B"},
-        {"nome": "CAIQUE WILSON DE AZEVEDO SIQUEIRA", "serie": "9º Ano B"},
-        {"nome": "GUILHERME GODOY PEREIRA VITOR", "serie": "9º Ano B"},
-        {"nome": "ICARO SANTOS LOPES", "serie": "9º Ano B"},
-        {"nome": "KAUA ALVES LEITE", "serie": "9º Ano B"},
-        {"nome": "LAIS FARIA CARVALHO", "serie": "9º Ano B"},
-        {"nome": "RICHARD HENRIQUE DE LIMA GONCALVES", "serie": "9º Ano B"},
-        {"nome": "RICHARD LUIZ SILVA CARVALHO", "serie": "9º Ano B"},
-        {"nome": "CAIO OLIVEIRA SANTOS", "serie": "9º Ano B"},
-        {"nome": "HENZO MIGUEL DIAS COELHO", "serie": "9º Ano C"},
-        {"nome": "JAMES VINICIUS FELIPE GOMES", "serie": "9º Ano C"},
-        {"nome": "JAMESON LUIGI DE SOUZA SANTIAGO", "serie": "9º Ano C"},
-        {"nome": "MARIA HELOISA SOUSA DOS SANTOS", "serie": "9º Ano C"},
-        {"nome": "MIGUEL ARONI DE SANTANA", "serie": "9º Ano C"},
-        {"nome": "PIETRO LOPES DA SILVA", "serie": "9º Ano C"},
-        {"nome": "ALICE LOPES PEREIRA", "serie": "9º Ano C"},
-        {"nome": "ANA KAROLINE SANTANA DA SILVA", "serie": "9º Ano C"},
-        {"nome": "BRENNDA ARAUJO SANTOS", "serie": "9º Ano C"},
-        {"nome": "GUILHERME LEITE SOUZA CRUZ", "serie": "9º Ano C"},
-        {"nome": "JAIR COSTA BRASIL NETO", "serie": "9º Ano C"},
-        {"nome": "JAMILY NICOLY CARDOSO DE AGUIAR", "serie": "9º Ano C"},
-        {"nome": "MAICON HENRIQUE XAVIER PEREIRA", "serie": "9º Ano C"},
-        {"nome": "PABLO SANTOS SOUSA", "serie": "9º Ano C"},
-        {"nome": "TALITA LUANA DOS SANTOS SILVA", "serie": "9º Ano C"}
+        {"nome": "MATHEUS LOURENCO VIEIRA DA SILVA", "serie": "8A"},
+        {"nome": "MURILO DOMINGUES COUTINHO", "serie": "8A"},
+        {"nome": "NATANAEL DA CONCEICAO DUARTE", "serie": "8A"},
+        {"nome": "HENRIQUE ALVES FELIX", "serie": "8B"},
+        {"nome": "JOAO VITOR FERREIRA SANTOS", "serie": "8B"},
+        {"nome": "SAMUEL DE ALMEIDA SOUZA", "serie": "8B"},
+        {"nome": "IGOR PABLO GRUER", "serie": "8C"},
+        {"nome": "MARIANE DE OLIVEIRA SOUZA", "serie": "8C"},
+        {"nome": "PIETRO SANTOS MARQUES", "serie": "8C"},
+        {"nome": "CAMILY VITORIA GOMES ALVES", "serie": "9A"},
+        {"nome": "DOUGLAS GABRIEL SOUZA FREIRE SILVA", "serie": "9A"},
+        {"nome": "GABRIEL FERNANDES SIQUEIRA DE OLIVEIRA", "serie": "9A"},
+        {"nome": "LUCAS RAIMUNDO BORGES DE MELO", "serie": "9A"},
+        {"nome": "WANDREL RODRIGO NASCIMENTO DA CRUZ", "serie": "9A"},
+        {"nome": "CAIQUE WILSON DE AZEVEDO SIQUEIRA", "serie": "9B"},
+        {"nome": "GUILHERME GODOY PEREIRA VITOR", "serie": "9B"},
+        {"nome": "ICARO SANTOS LOPES", "serie": "9B"},
+        {"nome": "KAUA ALVES LEITE", "serie": "9B"},
+        {"nome": "LAIS FARIA CARVALHO", "serie": "9B"},
+        {"nome": "RICHARD HENRIQUE DE LIMA GONCALVES", "serie": "9B"},
+        {"nome": "RICHARD LUIZ SILVA CARVALHO", "serie": "9B"},
+        {"nome": "ALICE LOPES PEREIRA", "serie": "9C"},
+        {"nome": "ANA KAROLINE SANTANA DA SILVA", "serie": "9C"},
+        {"nome": "BRENNDA ARAUJO SANTOS", "serie": "9C"},
+        {"nome": "GUILHERME LEITE SOUZA CRUZ", "serie": "9C"},
+        {"nome": "JAIR COSTA BRASIL NETO", "serie": "9C"},
+        {"nome": "JAMILY NICOLY CARDOSO DE AGUIAR", "serie": "9C"},
+        {"nome": "MAICON HENRIQUE XAVIER PEREIRA", "serie": "9C"},
+        {"nome": "PABLO SANTOS SOUSA", "serie": "9C"},
+        {"nome": "TALITA LUANA DOS SANTOS SILVA", "serie": "9C"}
+    ],
+    "Rosangela": [
+        {"nome": "ANA BEATRIZ DA SILVA ROCHA", "serie": "8A"},
+        {"nome": "GABRIEL VIEIRA NASCIMENTO", "serie": "8A"},
+        {"nome": "ISABELLA FERNANDA CABRAL DOS SANTOS", "serie": "8A"},
+        {"nome": "ISABELLY RIBEIRO PEREIRA DOS SANTOS", "serie": "8A"},
+        {"nome": "MANOELA DE OLIVEIRA", "serie": "8A"},
+        {"nome": "THAUANY VITORIA DE OLIVEIRA", "serie": "8A"},
+        {"nome": "YASMIN CRISTINA BRAGA DE LIMA", "serie": "8A"},
+        {"nome": "GABRIEL LOPES VICTOR", "serie": "8B"},
+        {"nome": "PAULO HENRIQUE GUIMARAES DOS SANTOS", "serie": "8B"},
+        {"nome": "PIETRO GABRIEL ANDRADE FREIRE DA SILVA", "serie": "8B"},
+        {"nome": "RIQUELME BULGURLU", "serie": "8B"},
+        {"nome": "ROBERT SANTOS SANTIAGO", "serie": "8B"},
+        {"nome": "THALLES LEONARDO MAGALHAES", "serie": "8B"},
+        {"nome": "VICTOR HUGO MATOS GUIMARAES", "serie": "8B"},
+        {"nome": "AGATHA BEATRYZ MEDEIROS DOS SANTOS", "serie": "8C"},
+        {"nome": "ANA KAROLINA FERREIRA PIRES CORDEIRO", "serie": "8C"},
+        {"nome": "DANIEL GONCALVES DE SOUZA", "serie": "8C"},
+        {"nome": "ICARO LEMOS SILVA", "serie": "8C"},
+        {"nome": "KAUAN GUSTAVO ANDRADE DOS SANTOS", "serie": "8C"},
+        {"nome": "LORRAYNE BATISTA CORDEIRO", "serie": "8C"},
+        {"nome": "MATHEUS DE LIMA RIBEIRO", "serie": "8C"},
+        {"nome": "YURI NASCIMENTO SILVA", "serie": "8C"},
+        {"nome": "MARIA LAYSLA DOS SANTOS AMERICO", "serie": "9B"},
+        {"nome": "CARLOS EDUARDO DOS SANTOS LORENZI", "serie": "9C"},
+        {"nome": "EDUARDO ERICK HENRIQUE AFONSO DA SILVA", "serie": "9C"},
+        {"nome": "RUAN SILVA DE JESUS", "serie": "9C"},
+        {"nome": "SILLAS CAROLINO DO CARMO BORGES", "serie": "9C"}
+    ],
+    "Veronica": [
+        {"nome": "ARTHUR CESAR COSTA DE FARIAS", "serie": "6A"},
+        {"nome": "MARIA JULIA GOMES CARDOSO", "serie": "6A"},
+        {"nome": "MIGUEL SANTIAGO RAMOS DE SOUZA", "serie": "6A"},
+        {"nome": "WILLIAN GABRIEL MORAES DE ALMEIDA", "serie": "6A"},
+        {"nome": "ANA LUIZA VITOR DA SILVA", "serie": "6B"},
+        {"nome": "DAVI ALVES SERAFIM", "serie": "6B"},
+        {"nome": "ERICK GRACIA DE SOUZA CERQUEIRA", "serie": "6B"},
+        {"nome": "GUILHERME OLIVEIRA DE FREITAS", "serie": "6B"},
+        {"nome": "ANA VITORIA OLIVEIRA DE SOUZA", "serie": "7A"},
+        {"nome": "ARIEL MARIANO DE JESUS", "serie": "7A"},
+        {"nome": "ARTHUR BALBINO DA SILVA", "serie": "7A"},
+        {"nome": "DAVI LUCCA CARDOZO DOS SANTOS", "serie": "7A"},
+        {"nome": "MAIARA FRANCINE VIEIRA GUEDES", "serie": "7A"},
+        {"nome": "MATHEUS DANTAS SANTOS", "serie": "7A"},
+        {"nome": "MURILLO DE MORAES SILVA", "serie": "7A"},
+        {"nome": "ANA GLORIA SANTOS MARCOS RODRIGUES", "serie": "7B"},
+        {"nome": "ARTHUR GUILHERME ZIRONDI DA ROCHA", "serie": "7B"},
+        {"nome": "GUSTAVO BATISTA DE JESUS", "serie": "7B"},
+        {"nome": "KAUAN WILLIAN DE MOURA SILVA", "serie": "7B"},
+        {"nome": "KIMBERLLY VICTORIA DA CRUZ BHERING", "serie": "7B"},
+        {"nome": "LETICIA CONCEIÇÃO DOS SANTOS", "serie": "7B"},
+        {"nome": "MELISSA YANKA LOURENÇO DOS SANTOS", "serie": "7B"},
+        {"nome": "RIQUELME SANCHES PAULO", "serie": "7B"},
+        {"nome": "SOPHIA FERREIRA SANTOS", "serie": "7B"},
+        {"nome": "THAINARA OLIVEIRA DA SILVA", "serie": "7B"},
+        {"nome": "KAMILLY SOFIA PORTO BARROS", "serie": "7C"},
+        {"nome": "NICOLAS DE SALLES PIRES", "serie": "7C"}
+    ],
+    "Silvana": [
+        {"nome": "DAVID OLIVEIRA DA SILVA", "serie": "8A"},
+        {"nome": "EMANUELLY DA SILVA COSTA", "serie": "8A"},
+        {"nome": "GEOVANNA OLIVEIRA DOS SANTOS MAIOLA", "serie": "8A"},
+        {"nome": "ISABELLY MARQUES DOS SANTOS", "serie": "8A"},
+        {"nome": "MELISSA RIBEIRO CARDOZO", "serie": "8A"},
+        {"nome": "RAFAELLA PINTO DA SILVA", "serie": "8A"},
+        {"nome": "EMILY EDUARDA FELINTRO DA SILVA DOS SANTOS", "serie": "8B"},
+        {"nome": "JULIO CESAR MOIZES DA COSTA", "serie": "8B"},
+        {"nome": "VITORIA EDUARDA MATOS GUIMARAES", "serie": "8B"},
+        {"nome": "ALANA SOPHIA FERREIRA BATISTA", "serie": "8C"},
+        {"nome": "ALICE MARQUES SANTOS", "serie": "8C"},
+        {"nome": "EDUARDA NICOLLY MOREIRA DE AZEVEDO", "serie": "8C"},
+        {"nome": "MIGUEL CHAGAS DOS SANTOS", "serie": "8C"},
+        {"nome": "RAISSA AVELINO VIEIRA HENRIQUE", "serie": "8C"},
+        {"nome": "RICARDO XAVIER DOS SANTOS", "serie": "8C"},
+        {"nome": "RICHARD YAGO DA SILVA TELES", "serie": "8C"},
+        {"nome": "BRAYAN THOMAS BUENO PEREIRA", "serie": "9A"},
+        {"nome": "CAUÂ HENRIQUE DA SILVA SANTOS", "serie": "9A"},
+        {"nome": "LEANDRO OLIVEIRA DOS SANTOS", "serie": "9A"},
+        {"nome": "LORENA MACIEL LOURENCO", "serie": "9A"},
+        {"nome": "VITOR ITALO RODRIGUES DE LIMA", "serie": "9A"},
+        {"nome": "ADRIELE DOMINGUES LOPES", "serie": "9B"},
+        {"nome": "CRYSTAL KETELYN PEDROSO FRANCISCO", "serie": "9B"},
+        {"nome": "HELOISA ALVES BARROS", "serie": "9B"},
+        {"nome": "LUCAS VIEIRA DOS SANTOS LIRA", "serie": "9B"},
+        {"nome": "GUILHERME OLIVEIRA DOS SANTOS MAIOLA", "serie": "9C"},
+        {"nome": "PEDRO LOURENCO DE MORAES", "serie": "9C"}
+    ],
+    "Patricia": [
+        {"nome": "ALICE FERREIRA DA SILVA", "serie": "6A"},
+        {"nome": "CAUA LUIZ TORRES CABRAL", "serie": "6A"},
+        {"nome": "KAUANY VITORIA PEREIRA DOS SANTOS", "serie": "6A"},
+        {"nome": "EMILLY EMANUELLY BANDEIRA ALVES DA SILVA", "serie": "6B"},
+        {"nome": "ENZO RODRIGUES SANTOS CARVALHO", "serie": "6B"},
+        {"nome": "ESTER DOS SANTOS DE JESUS", "serie": "6B"},
+        {"nome": "ESTHER RODRIGUES DE CAMPOS", "serie": "6B"},
+        {"nome": "HELENA DE SOUSA FERREIRA", "serie": "6B"},
+        {"nome": "HENRIQUE GODOY PEREIRA VITOR", "serie": "6B"},
+        {"nome": "JHONATAN VIEIRA BRITO", "serie": "6B"},
+        {"nome": "JOAO VITOR MILITINA BARBOSA", "serie": "6B"},
+        {"nome": "MAYSA DE LIMA BENEDITO", "serie": "6B"},
+        {"nome": "CLARA KEVELLYN BARBOSA DE SOUSA", "serie": "7A"},
+        {"nome": "IZAQUI BONFIM SILVA", "serie": "7A"},
+        {"nome": "DANIEL DAVY OLIVEIRA QUISPE", "serie": "7B"},
+        {"nome": "EMILLY VITÓRIA GOMES ALVES", "serie": "7B"},
+        {"nome": "FILIPPE THIAGO OLIVEIRA DE FREITAS", "serie": "7B"},
+        {"nome": "GIULIA SANTANA BARBOSA", "serie": "7B"},
+        {"nome": "GUILHERME SANTIAGO DE OLIVEIRA", "serie": "7B"},
+        {"nome": "HENRIQUE RAFAEL BELTRAO OLIVEIRA", "serie": "7B"},
+        {"nome": "LUAN LORENZO LOPES OLIVEIRA", "serie": "7B"},
+        {"nome": "PAULO HENRIQUE ASSUMPÇÃO DE OLIVEIRA COSTA", "serie": "7B"},
+        {"nome": "FELLIPE PEREIRA RAMOS", "serie": "7C"},
+        {"nome": "KAMILLY VICTORIA DOS SANTOS SILVA", "serie": "7C"},
+        {"nome": "KAUÃ SOUZA DOS SANTOS", "serie": "7C"},
+        {"nome": "KAUANY VITORIA EMIDIO", "serie": "7C"},
+        {"nome": "KAUANY VITORIA ROSA SANTOS", "serie": "7C"},
+        {"nome": "KIMBERLYN CHRISTINA MACIEL DA SILVA", "serie": "7C"},
+        {"nome": "MIKAELLY APARECIDA DIAS", "serie": "7C"},
+        {"nome": "PEDRO HENRIQUE GONCALVES SILVA", "serie": "7C"},
+        {"nome": "RYAN SILVA BRAZ", "serie": "7C"},
+        {"nome": "YURI BOSNICH BARBOSA", "serie": "7C"}
     ]
 }
-
 # --- CORES PARA TIPOS DE INFRAÇÃO ---
 CORES_INFRACOES = {
     "Agressão Física": "#FF6B6B",
@@ -497,7 +601,6 @@ CORES_INFRACOES = {
     "Copiar atividades / Colar em avaliações": "#FFA726",
     "Falsificar assinatura de responsáveis": "#EF5350"
 }
-
 # --- CORES POR GRAVIDADE ---
 CORES_GRAVIDADE = {
     "Leve": "#4CAF50",
@@ -505,7 +608,6 @@ CORES_GRAVIDADE = {
     "Grave": "#FF9800",
     "Gravíssima": "#F44336"
 }
-
 # --- PROTOCOLO 179 COMPLETO (CORRIGIDO: \n em vez de quebras reais) ---
 PROTOCOLO_179 = {
     "📌 Violência e Agressão": {
@@ -759,7 +861,6 @@ PROTOCOLO_179 = {
         }
     }
 }
-
 # --- FUNÇÃO DE BUSCA FUZZY ---
 def buscar_infracao_fuzzy(busca, protocolo):
     if not busca or len(busca) < 2:
@@ -798,9 +899,7 @@ def buscar_infracao_fuzzy(busca, protocolo):
         if infracoes_encontradas:
             resultados[grupo] = infracoes_encontradas
     return resultados
-
 # --- FUNÇÕES SUPABASE ---
-
 def _supabase_request(method, path, **kwargs):
     if not SUPABASE_VALID:
         raise RuntimeError("Supabase não configurado. Verifique SUPABASE_URL e SUPABASE_KEY.")
@@ -808,15 +907,11 @@ def _supabase_request(method, path, **kwargs):
     response = requests.request(method, url, headers=HEADERS, **kwargs)
     response.raise_for_status()
     return response
-
-
 def _supabase_error(acao):
     if not SUPABASE_VALID:
         st.error(f"SUPABASE_URL ou SUPABASE_KEY não configuradas. Não foi possível {acao}.")
         return True
     return False
-
-
 def _supabase_get_dataframe(path, acao):
     if _supabase_error(acao):
         return pd.DataFrame()
@@ -826,8 +921,6 @@ def _supabase_get_dataframe(path, acao):
     except Exception as e:
         st.error(f"Erro ao {acao}: {str(e)}")
         return pd.DataFrame()
-
-
 def _supabase_mutation(method, path, data, acao):
     if _supabase_error(acao):
         return False
@@ -840,20 +933,15 @@ def _supabase_mutation(method, path, data, acao):
     except Exception as e:
         st.error(f"Erro ao {acao}: {str(e)}")
         return False
-
 @st.cache_data(ttl=300)
 def carregar_alunos():
     return _supabase_get_dataframe("alunos?select=*", "carregar alunos")
-
 def salvar_aluno(aluno):
     return _supabase_mutation("POST", "alunos", aluno, "salvar aluno")
-
 def atualizar_aluno(ra, dados):
     return _supabase_mutation("PATCH", f"alunos?ra=eq.{ra}", dados, "atualizar aluno")
-
 def excluir_alunos_por_turma(turma):
     return _supabase_mutation("DELETE", f"alunos?turma=eq.{turma}", None, "excluir turma")
-
 @st.cache_data(ttl=300)
 def carregar_professores():
     if not SUPABASE_VALID:
@@ -865,7 +953,6 @@ def carregar_professores():
     except Exception as e:
         st.error(f"Erro ao carregar professores: {str(e)}")
         return pd.DataFrame()
-
 def salvar_professor(professor):
     if not SUPABASE_VALID:
         st.error("SUPABASE_URL ou SUPABASE_KEY não configuradas. Não foi possível salvar professor.")
@@ -876,7 +963,6 @@ def salvar_professor(professor):
     except Exception as e:
         st.error(f"Erro ao salvar professor: {str(e)}")
         return False
-
 def atualizar_professor(id_prof, dados):
     if not SUPABASE_VALID:
         st.error("SUPABASE_URL ou SUPABASE_KEY não configuradas. Não foi possível atualizar professor.")
@@ -887,7 +973,6 @@ def atualizar_professor(id_prof, dados):
     except Exception as e:
         st.error(f"Erro ao atualizar professor: {str(e)}")
         return False
-
 def excluir_professor(id_prof):
     if not SUPABASE_VALID:
         st.error("SUPABASE_URL ou SUPABASE_KEY não configuradas. Não foi possível excluir professor.")
@@ -898,29 +983,24 @@ def excluir_professor(id_prof):
     except Exception as e:
         st.error(f"Erro ao excluir professor: {str(e)}")
         return False
-
 @st.cache_data(ttl=300)
 def carregar_responsaveis():
     return _supabase_get_dataframe("responsaveis?select=*&ativo=eq.true", "carregar responsáveis")
-
 def salvar_responsavel(responsavel):
     result = _supabase_mutation("POST", "responsaveis", responsavel, "salvar responsável")
     if result:
         limpar_cache_responsaveis()
     return result
-
 def atualizar_responsavel(id_resp, dados):
     result = _supabase_mutation("PATCH", f"responsaveis?id=eq.{id_resp}", dados, "atualizar responsável")
     if result:
         limpar_cache_responsaveis()
     return result
-
 def excluir_responsavel(id_resp):
     result = _supabase_mutation("DELETE", f"responsaveis?id=eq.{id_resp}", None, "excluir responsável")
     if result:
         limpar_cache_responsaveis()
     return result
-
 @st.cache_data(ttl=300)
 def carregar_eletivas_supabase():
     if _supabase_error("carregar eletivas"):
@@ -938,13 +1018,11 @@ def carregar_eletivas_supabase():
     except Exception as e:
         st.error(f"Erro ao carregar eletivas: {str(e)}")
         return pd.DataFrame()
-
 def limpar_cache_eletivas():
     try:
         carregar_eletivas_supabase.clear()
     except Exception:
         pass
-
 def substituir_eletivas_supabase(registros):
     if _supabase_error("substituir eletivas"):
         return False
@@ -960,11 +1038,9 @@ def substituir_eletivas_supabase(registros):
     except Exception as e:
         st.error(f"Erro ao limpar eletivas no Supabase: {str(e)}")
         return False
-
     if not registros:
         limpar_cache_eletivas()
         return True
-
     try:
         response = _supabase_request("POST", "eletivas", json=registros)
         sucesso = response.status_code in [200, 201]
@@ -974,20 +1050,15 @@ def substituir_eletivas_supabase(registros):
     except Exception as e:
         st.error(f"Erro ao salvar eletivas no Supabase: {str(e)}")
         return False
-
 @st.cache_data(ttl=300)
 def carregar_ocorrencias():
     return _supabase_get_dataframe("ocorrencias?select=*&order=id.desc", "carregar ocorrências")
-
 def salvar_ocorrencia(ocorrencia):
     return _supabase_mutation("POST", "ocorrencias", ocorrencia, "salvar ocorrência")
-
 def excluir_ocorrencia(id_ocorrencia):
     return _supabase_mutation("DELETE", f"ocorrencias?id=eq.{id_ocorrencia}", None, "excluir ocorrência")
-
 def editar_ocorrencia(id_ocorrencia, dados):
     return _supabase_mutation("PATCH", f"ocorrencias?id=eq.{id_ocorrencia}", dados, "editar ocorrência")
-
 def verificar_ocorrencia_duplicada(ra, categoria, data_str, df_ocorrencias):
     if df_ocorrencias.empty:
         return False
@@ -997,7 +1068,6 @@ def verificar_ocorrencia_duplicada(ra, categoria, data_str, df_ocorrencias):
         (df_ocorrencias['data'] == data_str)
     ]
     return not ocorrencias_existentes.empty
-
 def verificar_professor_duplicado(nome, df_professores, id_atual=None):
     if df_professores.empty:
         return False
@@ -1010,13 +1080,11 @@ def verificar_professor_duplicado(nome, df_professores, id_atual=None):
     else:
         duplicados = df_professores[df_professores['nome'].str.strip().str.lower() == nome_normalizado]
     return not duplicados.empty
-
 def limpar_cache_responsaveis():
     try:
         carregar_responsaveis.clear()
     except Exception:
         pass
-
 def get_responsavel_por_nome(responsaveis, cargos, nomes_prioritarios):
     if responsaveis.empty:
         return None
@@ -1028,8 +1096,6 @@ def get_responsavel_por_nome(responsaveis, cargos, nomes_prioritarios):
         if not match.empty:
             return match.iloc[0]['nome']
     return responsaveis.iloc[0]['nome']
-
-
 def get_responsavel_por_cargo(responsaveis, cargos):
     if responsaveis.empty:
         return None
@@ -1038,8 +1104,6 @@ def get_responsavel_por_cargo(responsaveis, cargos):
         if not resp.empty:
             return resp.iloc[0]['nome']
     return None
-
-
 def selecionar_equipe_por_horario(data_str, responsaveis):
     diretor = get_responsavel_por_cargo(responsaveis, ["Diretor", "Diretora"]) or "Renan Lourenco Da Silva"
     vice_manha = get_responsavel_por_nome(responsaveis, ["Vice-Diretor", "Vice-Diretora"], ["Erika Paula", "Erika"]) or "Erika Paula Viana Watanabe"
@@ -1071,14 +1135,12 @@ def selecionar_equipe_por_horario(data_str, responsaveis):
         "vice": vice,
         "coordenador": coordenador
     }
-
 def obter_gravidade_mais_alta(gravidades):
     ordem = {"Leve": 1, "Grave": 2, "Gravíssima": 3}
     if not gravidades:
         return "Leve"
     max_gravidade = max(gravidades, key=lambda g: ordem.get(g, 0))
     return max_gravidade
-
 def combinar_encaminhamentos(encaminhamentos_lista):
     todos = []
     for encam in encaminhamentos_lista:
@@ -1087,7 +1149,6 @@ def combinar_encaminhamentos(encaminhamentos_lista):
             if linha and linha not in todos:
                 todos.append(linha)
     return '\n'.join(todos)
-
 def normalizar_texto(valor):
     if pd.isna(valor):
         return ""
@@ -1095,7 +1156,6 @@ def normalizar_texto(valor):
     texto = unicodedata.normalize("NFKD", texto)
     texto = "".join(char for char in texto if not unicodedata.combining(char))
     return " ".join(texto.split())
-
 def carregar_eletivas_do_excel(caminho_arquivo, fallback=None):
     if not os.path.exists(caminho_arquivo):
         return fallback if fallback is not None else {}
@@ -1110,11 +1170,9 @@ def carregar_eletivas_do_excel(caminho_arquivo, fallback=None):
                     for texto in si.iterfind('.//a:t', ns):
                         textos.append(texto.text or '')
                     shared_strings.append(''.join(textos))
-
             planilha = ET.fromstring(arquivo_zip.read('xl/worksheets/sheet1.xml'))
             eletivas = {}
             professora_atual = None
-
             for row in planilha.findall('.//a:sheetData/a:row', ns):
                 valores = {}
                 for celula in row.findall('a:c', ns):
@@ -1128,37 +1186,28 @@ def carregar_eletivas_do_excel(caminho_arquivo, fallback=None):
                     if tipo == 's' and valor != '':
                         valor = shared_strings[int(valor)]
                     valores[coluna] = str(valor).strip()
-
                 valor_a = valores.get('A', '')
                 valor_b = valores.get('B', '')
                 valor_c = valores.get('C', '')
-
-                # Título em uma linha isolada, ex: "Solange"
                 if valor_a and not valor_b and not valor_c and not valor_a.isdigit():
                     professora_atual = valor_a
                     eletivas[professora_atual] = []
                     continue
-
-                # Título alternativo, ex: "Professora Rosemeire"
                 if valor_b.startswith('Professora '):
                     professora_atual = valor_b.replace('Professora ', '').strip()
                     eletivas[professora_atual] = []
                     continue
-
                 if valor_a == 'Nº' or (valor_b == 'Nome' and valor_c == 'Turma') or valor_b == 'Nome do Estudante':
                     continue
-
                 if professora_atual and valor_b and valor_c:
                     eletivas[professora_atual].append({
                         "nome": valor_b,
                         "serie": valor_c
                     })
-
             eletivas = {prof: alunos for prof, alunos in eletivas.items() if alunos}
             return eletivas if eletivas else (fallback if fallback is not None else {})
     except Exception:
         return fallback if fallback is not None else {}
-
 def converter_eletivas_para_registros(eletivas_dict, origem="excel"):
     registros = []
     for professora, alunos in eletivas_dict.items():
@@ -1170,7 +1219,6 @@ def converter_eletivas_para_registros(eletivas_dict, origem="excel"):
                 "origem": origem
             })
     return registros
-
 def converter_eletivas_supabase_para_dict(df_eletivas):
     if df_eletivas.empty:
         return {}
@@ -1186,7 +1234,6 @@ def converter_eletivas_supabase_para_dict(df_eletivas):
             "serie": serie
         })
     return eletivas
-
 def montar_dataframe_eletiva(nome_professora, df_alunos):
     registros = []
     alunos_base = df_alunos.copy() if not df_alunos.empty else pd.DataFrame()
@@ -1222,9 +1269,7 @@ def montar_dataframe_eletiva(nome_professora, df_alunos):
                 "Status": "Não encontrado"
             })
     return pd.DataFrame(registros)
-
 ELETIVAS = carregar_eletivas_do_excel(ELETIVAS_ARQUIVO, fallback=ELETIVAS)
-
 def gerar_pdf_eletiva(nome_professora, df_eletiva):
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1*cm, leftMargin=1*cm, topMargin=1.5*cm, bottomMargin=1.5*cm)
@@ -1238,18 +1283,16 @@ def gerar_pdf_eletiva(nome_professora, df_eletiva):
             elementos.append(Spacer(1, 0.2*cm))
     except Exception:
         pass
-
     elementos.append(Paragraph("_" * 75, estilos['Normal']))
     elementos.append(Spacer(1, 0.15*cm))
     estilo_titulo = ParagraphStyle('TituloEletiva', parent=estilos['Heading1'],
-        fontSize=12, alignment=1, spaceAfter=0.3*cm, textColor=colors.darkblue)
+                                   fontSize=12, alignment=1, spaceAfter=0.3*cm, textColor=colors.darkblue)
     estilo_texto = ParagraphStyle('TextoEletiva', parent=estilos['Normal'],
-        fontSize=9, leading=11, spaceAfter=0.1*cm)
+                                  fontSize=9, leading=11, spaceAfter=0.1*cm)
     elementos.append(Paragraph("LISTA DE ELETIVA", estilo_titulo))
     elementos.append(Paragraph(f"<b>Professora:</b> {nome_professora}", estilo_texto))
     elementos.append(Paragraph(f"<b>Total de estudantes:</b> {len(df_eletiva)}", estilo_texto))
     elementos.append(Spacer(1, 0.2*cm))
-
     dados_tabela = [["Nome da Eletiva", "Série", "RA", "Turma", "Status"]]
     for _, row in df_eletiva.iterrows():
         dados_tabela.append([
@@ -1259,7 +1302,6 @@ def gerar_pdf_eletiva(nome_professora, df_eletiva):
             str(row.get("Turma no Sistema", "")),
             str(row.get("Status", ""))
         ])
-
     tabela = Table(dados_tabela, colWidths=[7.8*cm, 2.0*cm, 2.0*cm, 2.3*cm, 2.4*cm], repeatRows=1)
     tabela.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4A90E2')),
@@ -1274,15 +1316,13 @@ def gerar_pdf_eletiva(nome_professora, df_eletiva):
     ]))
     elementos.append(tabela)
     elementos.append(Spacer(1, 0.3*cm))
-
     estilo_rodape = ParagraphStyle('RodapeEletiva', parent=estilos['Normal'],
-        fontSize=6, alignment=1, textColor=colors.grey)
+                                   fontSize=6, alignment=1, textColor=colors.grey)
     elementos.append(Paragraph("_" * 75, estilos['Normal']))
     elementos.append(Paragraph(f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}", estilo_rodape))
     doc.build(elementos)
     buffer.seek(0)
     return buffer
-
 def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1*cm, leftMargin=1*cm, topMargin=1.5*cm, bottomMargin=1.5*cm)
@@ -1300,11 +1340,11 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     elementos.append(Spacer(1, 0.15*cm))
     protocolo = f"PROTOCOLO: {ocorrencia.get('id', 'N/A')}/{datetime.now().strftime('%Y')}"
     estilo_protocolo = ParagraphStyle('Protocolo', parent=estilos['Normal'],
-        fontSize=9, alignment=2, spaceAfter=0.15*cm, textColor=colors.darkblue)
+                                      fontSize=9, alignment=2, spaceAfter=0.15*cm, textColor=colors.darkblue)
     elementos.append(Paragraph(f"<b>{protocolo}</b>", estilo_protocolo))
     elementos.append(Spacer(1, 0.15*cm))
     estilo_titulo = ParagraphStyle('TituloDoc', parent=estilos['Heading1'],
-        fontSize=12, alignment=1, spaceAfter=0.3*cm, textColor=colors.darkblue)
+                                   fontSize=12, alignment=1, spaceAfter=0.3*cm, textColor=colors.darkblue)
     elementos.append(Paragraph("REGISTRO DE OCORRÊNCIA", estilo_titulo))
     elementos.append(Spacer(1, 0.2*cm))
     dados = [
@@ -1332,9 +1372,9 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     elementos.append(tabela_dados)
     elementos.append(Spacer(1, 0.2*cm))
     estilo_secao = ParagraphStyle('Secao', parent=estilos['Normal'],
-        fontSize=9, textColor=colors.darkblue, spaceAfter=0.1*cm)
+                                  fontSize=9, textColor=colors.darkblue, spaceAfter=0.1*cm)
     estilo_texto = ParagraphStyle('Texto', parent=estilos['Normal'],
-        fontSize=11, alignment=4, spaceAfter=0.15*cm, leading=13)
+                                  fontSize=11, alignment=4, spaceAfter=0.15*cm, leading=13)
     elementos.append(Paragraph("<b>📝 RELATO:</b>", estilo_secao))
     elementos.append(Paragraph(str(ocorrencia.get("relato", "")), estilo_texto))
     elementos.append(Spacer(1, 0.15*cm))
@@ -1350,13 +1390,12 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     elementos.append(Paragraph(f"<b>Coordenador:</b> {equipe['coordenador']}", estilo_texto))
     elementos.append(Spacer(1, 0.5*cm))
     estilo_rodape = ParagraphStyle('Rodape', parent=estilos['Normal'],
-        fontSize=6, alignment=1, textColor=colors.grey)
+                                   fontSize=6, alignment=1, textColor=colors.grey)
     elementos.append(Paragraph("_" * 75, estilos['Normal']))
     elementos.append(Paragraph(f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}", estilo_rodape))
     doc.build(elementos)
     buffer.seek(0)
     return buffer
-
 def gerar_pdf_comunicado(aluno_data, ocorrencia_data, medidas_aplicadas, observacoes, responsaveis):
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1*cm, leftMargin=1*cm, topMargin=1.5*cm, bottomMargin=1.5*cm)
@@ -1374,17 +1413,17 @@ def gerar_pdf_comunicado(aluno_data, ocorrencia_data, medidas_aplicadas, observa
     elementos.append(Spacer(1, 0.15*cm))
     protocolo = f"PROTOCOLO: {ocorrencia_data.get('id', 'N/A')}/{datetime.now().strftime('%Y')}"
     estilo_protocolo = ParagraphStyle('Protocolo', parent=estilos['Normal'],
-        fontSize=9, alignment=2, spaceAfter=0.15*cm, textColor=colors.darkblue)
+                                      fontSize=9, alignment=2, spaceAfter=0.15*cm, textColor=colors.darkblue)
     elementos.append(Paragraph(f"<b>{protocolo}</b>", estilo_protocolo))
     elementos.append(Spacer(1, 0.15*cm))
     estilo_titulo = ParagraphStyle('TituloDoc', parent=estilos['Heading1'],
-        fontSize=12, alignment=1, spaceAfter=0.3*cm, textColor=colors.darkblue)
+                                   fontSize=12, alignment=1, spaceAfter=0.3*cm, textColor=colors.darkblue)
     elementos.append(Paragraph("COMUNICADO AOS PAIS/RESPONSÁVEIS", estilo_titulo))
     elementos.append(Spacer(1, 0.2*cm))
     estilo_secao = ParagraphStyle('Secao', parent=estilos['Normal'],
-        fontSize=9, textColor=colors.darkblue, spaceAfter=0.1*cm)
+                                  fontSize=9, textColor=colors.darkblue, spaceAfter=0.1*cm)
     estilo_texto = ParagraphStyle('Texto', parent=estilos['Normal'],
-        fontSize=11, alignment=4, spaceAfter=0.15*cm, leading=13)
+                                  fontSize=11, alignment=4, spaceAfter=0.15*cm, leading=13)
     elementos.append(Paragraph("<b>DADOS DO ALUNO:</b>", estilo_secao))
     dados_aluno = [
         ["Nome:", aluno_data.get("nome", "")],
@@ -1451,14 +1490,13 @@ def gerar_pdf_comunicado(aluno_data, ocorrencia_data, medidas_aplicadas, observa
     elementos.append(Paragraph("_" * 40, estilos['Normal']))
     elementos.append(Paragraph("Assinatura do Responsável", ParagraphStyle('Assinatura', parent=estilos['Normal'], fontSize=7, alignment=1)))
     estilo_rodape = ParagraphStyle('Rodape', parent=estilos['Normal'],
-        fontSize=6, alignment=1, textColor=colors.grey)
+                                   fontSize=6, alignment=1, textColor=colors.grey)
     elementos.append(Spacer(1, 0.5*cm))
     elementos.append(Paragraph("_" * 75, estilos['Normal']))
     elementos.append(Paragraph(f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}", estilo_rodape))
     doc.build(elementos)
     buffer.seek(0)
     return buffer
-
 # --- SESSION STATE ---
 if 'editando_id' not in st.session_state:
     st.session_state.editando_id = None
@@ -1496,7 +1534,6 @@ if 'nome_responsavel_salvo' not in st.session_state:
     st.session_state.nome_responsavel_salvo = ""
 if 'cargo_responsavel_salvo' not in st.session_state:
     st.session_state.cargo_responsavel_salvo = ""
-
 # --- CARREGAR DADOS ---
 df_alunos = carregar_alunos()
 df_ocorrencias = carregar_ocorrencias()
@@ -1510,21 +1547,20 @@ if not df_eletivas_supabase.empty:
 else:
     ELETIVAS = ELETIVAS_EXCEL
     FONTE_ELETIVAS = "excel"
-
 # --- 1. HOME ---
 if menu == "🏠 Início":
     st.markdown(f"""
-    <div class="main-header">
+<div class="main-header">
     <img src="https://raw.githubusercontent.com/Fr34k1981/SistemaConviva/main/logo.jpg"
          style="max-width: 150px; margin-bottom: 1rem;" alt="Logo da Escola">
     <div class="school-name">🏫 {ESCOLA_NOME}</div>
     <div class="school-subtitle">{ESCOLA_SUBTITULO}</div>
     <div class="school-address">📍 {ESCOLA_ENDERECO}</div>
     <div class="school-contact">
-    {ESCOLA_CEP} • {ESCOLA_TELEFONE} • {ESCOLA_EMAIL}
+        {ESCOLA_CEP} • {ESCOLA_TELEFONE} • {ESCOLA_EMAIL}
     </div>
-    </div>
-    """, unsafe_allow_html=True)
+</div>
+""", unsafe_allow_html=True)
     st.markdown("## 📋 Sistema de Gestão de Ocorrências - Protocolo 179")
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1: st.metric("Total de Alunos", len(df_alunos))
@@ -1538,68 +1574,57 @@ if menu == "🏠 Início":
     with col5:
         media = round(len(df_ocorrencias) / len(df_alunos), 2) if len(df_alunos) > 0 else 0
         st.metric("Média de Ocorrências por Aluno", media)
-    
     # Contagem por Gravidade
     if not df_ocorrencias.empty:
         st.markdown("---")
         st.markdown("## ⚖️ Contagem por Gravidade")
-        
         leve = len(df_ocorrencias[df_ocorrencias["gravidade"] == "Leve"])
         media = len(df_ocorrencias[df_ocorrencias["gravidade"] == "Média"])
         grave = len(df_ocorrencias[df_ocorrencias["gravidade"] == "Grave"])
         gravissima = len(df_ocorrencias[df_ocorrencias["gravidade"] == "Gravíssima"])
         total_occ = len(df_ocorrencias)
         average_gravity = round((leve * 1 + media * 2 + grave * 3 + gravissima * 4) / total_occ, 2) if total_occ > 0 else 0
-        
         col1, col2, col3, col4, col5 = st.columns(5)
-        
         with col1:
             st.markdown(f"""
             <div style="background: #4CAF50; padding: 1.5rem; border-radius: 10px; text-align: center; color: white; height: 120px; display: flex; flex-direction: column; justify-content: center;">
-            <div style="font-size: 2.5rem; font-weight: bold;">{leve}</div>
-            <div style="font-size: 1rem;">Ocorrências Leves</div>
+                <div style="font-size: 2.5rem; font-weight: bold;">{leve}</div>
+                <div style="font-size: 1rem;">Ocorrências Leves</div>
             </div>
             """, unsafe_allow_html=True)
-        
         with col2:
             st.markdown(f"""
             <div style="background: #FFC107; padding: 1.5rem; border-radius: 10px; text-align: center; color: black; height: 120px; display: flex; flex-direction: column; justify-content: center;">
-            <div style="font-size: 2.5rem; font-weight: bold;">{media}</div>
-            <div style="font-size: 1rem;">Ocorrências Médias</div>
+                <div style="font-size: 2.5rem; font-weight: bold;">{media}</div>
+                <div style="font-size: 1rem;">Ocorrências Médias</div>
             </div>
             """, unsafe_allow_html=True)
-        
         with col3:
             st.markdown(f"""
             <div style="background: #FF9800; padding: 1.5rem; border-radius: 10px; text-align: center; color: white; height: 120px; display: flex; flex-direction: column; justify-content: center;">
-            <div style="font-size: 2.5rem; font-weight: bold;">{grave}</div>
-            <div style="font-size: 1rem;">Ocorrências Graves</div>
+                <div style="font-size: 2.5rem; font-weight: bold;">{grave}</div>
+                <div style="font-size: 1rem;">Ocorrências Graves</div>
             </div>
             """, unsafe_allow_html=True)
-        
         with col4:
             st.markdown(f"""
             <div style="background: #F44336; padding: 1.5rem; border-radius: 10px; text-align: center; color: white; height: 120px; display: flex; flex-direction: column; justify-content: center;">
-            <div style="font-size: 2.5rem; font-weight: bold;">{gravissima}</div>
-            <div style="font-size: 1rem;">Ocorrências Gravíssimas</div>
+                <div style="font-size: 2.5rem; font-weight: bold;">{gravissima}</div>
+                <div style="font-size: 1rem;">Ocorrências Gravíssimas</div>
             </div>
             """, unsafe_allow_html=True)
-        
         with col5:
             st.markdown(f"""
             <div style="background: #9C27B0; padding: 1.5rem; border-radius: 10px; text-align: center; color: white; height: 120px; display: flex; flex-direction: column; justify-content: center;">
-            <div style="font-size: 2.5rem; font-weight: bold;">{average_gravity}</div>
-            <div style="font-size: 1rem;">Média de Gravidade</div>
+                <div style="font-size: 2.5rem; font-weight: bold;">{average_gravity}</div>
+                <div style="font-size: 1rem;">Média de Gravidade</div>
             </div>
             """, unsafe_allow_html=True)
-    
     # Gráficos na página inicial
     if not df_ocorrencias.empty:
         st.markdown("---")
         st.markdown("## 📊 Resumo Visual")
-        
         col1, col2 = st.columns(2)
-        
         with col1:
             # Gráfico por Gravidade
             contagem_grav = df_ocorrencias['gravidade'].value_counts()
@@ -1611,7 +1636,6 @@ if menu == "🏠 Início":
                 hole=0.3
             )
             st.plotly_chart(fig_grav, use_container_width=True)
-        
         with col2:
             # Gráfico por Turma (top 10)
             top_turmas = df_ocorrencias['turma'].value_counts().head(10)
@@ -1626,25 +1650,23 @@ if menu == "🏠 Início":
             )
             fig_turmas.update_layout(xaxis_tickangle=-45)
             st.plotly_chart(fig_turmas, use_container_width=True)
-    
-    # Top 10 Alunos com Mais Ocorrências
-    if not df_ocorrencias.empty:
-        st.markdown("---")
-        st.markdown("## 🏆 Top 10 Alunos com Mais Ocorrências")
-        
-        top_students = df_ocorrencias['aluno'].value_counts().head(10)
-        if not top_students.empty:
-            fig_students = px.bar(
-                top_students,
-                x=top_students.index,
-                y=top_students.values,
-                title='Top 10 Alunos com Mais Ocorrências',
-                labels={'y': 'Quantidade', 'x': 'Aluno'},
-                color=top_students.values,
-                color_continuous_scale='Reds'
-            )
-            fig_students.update_layout(xaxis_tickangle=-45)
-            st.plotly_chart(fig_students, use_container_width=True)
+        # Top 10 Alunos com Mais Ocorrências
+        if not df_ocorrencias.empty:
+            st.markdown("---")
+            st.markdown("## 🏆 Top 10 Alunos com Mais Ocorrências")
+            top_students = df_ocorrencias['aluno'].value_counts().head(10)
+            if not top_students.empty:
+                fig_students = px.bar(
+                    top_students,
+                    x=top_students.index,
+                    y=top_students.values,
+                    title='Top 10 Alunos com Mais Ocorrências',
+                    labels={'y': 'Quantidade', 'x': 'Aluno'},
+                    color=top_students.values,
+                    color_continuous_scale='Reds'
+                )
+                fig_students.update_layout(xaxis_tickangle=-45)
+                st.plotly_chart(fig_students, use_container_width=True)
 elif menu == "👨‍🏫 Cadastrar Professores":
     st.header("👨‍🏫 Cadastrar Professores")
     # Exibir mensagem de sucesso se houver
@@ -1656,7 +1678,7 @@ elif menu == "👨‍🏫 Cadastrar Professores":
     with st.expander("📥 Importar Professores em Massa", expanded=False):
         st.info("💡 Cole uma lista de nomes de professores (um por linha)")
         texto_professores = st.text_area("Cole os nomes dos professores aqui:",
-            height=150, placeholder="Alnei Maria De Moura Nogueira\nAna Paula De Oliveira Farias...")
+                                         height=150, placeholder="Alnei Maria De Moura Nogueira\nAna Paula De Oliveira Farias...")
         if st.button("📥 Importar Professores"):
             if texto_professores:
                 nomes = [nome.strip() for nome in texto_professores.split('\n') if nome.strip()]
@@ -1683,10 +1705,10 @@ elif menu == "👨‍🏫 Cadastrar Professores":
         prof_edit = df_professores[df_professores['id'] == st.session_state.editando_prof].iloc[0]
         cargo_edit = prof_edit.get('cargo', 'Professor')
         nome_prof = st.text_input("Nome *", value=prof_edit['nome'], key="edit_nome_prof")
-        cargo_prof = st.selectbox("Cargo/Função", 
-            ["Professor", "Diretor", "Diretora", "Vice-Diretor", "Vice-Diretora", "Coordenador", "Coordenadora", "Agente de Organização", "Outro"],
-            index=["Professor", "Diretor", "Diretora", "Vice-Diretor", "Vice-Diretora", "Coordenador", "Coordenadora", "Agente de Organização", "Outro"].index(cargo_edit) if cargo_edit in ["Professor", "Diretor", "Diretora", "Vice-Diretor", "Vice-Diretora", "Coordenador", "Coordenadora", "Agente de Organização", "Outro"] else 0,
-            key="edit_cargo_prof")
+        cargo_prof = st.selectbox("Cargo/Função",
+                                  ["Professor", "Diretor", "Diretora", "Vice-Diretor", "Vice-Diretora", "Coordenador", "Coordenadora", "Agente de Organização", "Outro"],
+                                  index=["Professor", "Diretor", "Diretora", "Vice-Diretor", "Vice-Diretora", "Coordenador", "Coordenadora", "Agente de Organização", "Outro"].index(cargo_edit) if cargo_edit in ["Professor", "Diretor", "Diretora", "Vice-Diretor", "Vice-Diretora", "Coordenador", "Coordenadora", "Agente de Organização", "Outro"] else 0,
+                                  key="edit_cargo_prof")
         email_prof = st.text_input("E-mail (opcional)", value=prof_edit.get('email', ''), key="edit_email_prof")
         col1, col2 = st.columns(2)
         with col1:
@@ -1707,9 +1729,9 @@ elif menu == "👨‍🏫 Cadastrar Professores":
         col1, col2 = st.columns(2)
         with col1:
             nome_prof = st.text_input("Nome *", placeholder="Ex: João da Silva", key="novo_nome_prof")
-            cargo_prof = st.selectbox("Cargo/Função *", 
-                ["Professor", "Diretor", "Diretora", "Vice-Diretor", "Vice-Diretora", "Coordenador", "Coordenadora", "Agente de Organização", "Outro"],
-                key="novo_cargo_prof")
+            cargo_prof = st.selectbox("Cargo/Função *",
+                                      ["Professor", "Diretor", "Diretora", "Vice-Diretor", "Vice-Diretora", "Coordenador", "Coordenadora", "Agente de Organização", "Outro"],
+                                      key="novo_cargo_prof")
             email_prof = st.text_input("E-mail (opcional)", placeholder="Ex: joao@educacao.sp.gov.br", key="novo_email_prof")
         with col2:
             st.info("💡 Cadastre professores, diretores,\ncoordernadores e outros cargos da escola.")
@@ -1745,7 +1767,6 @@ elif menu == "👨‍🏫 Cadastrar Professores":
         st.info(f"Total: {len(df_professores)} cadastro(s)")
     else:
         st.write("📭 Nenhum professor cadastrado.")
-
     # Mostrar confirmação de exclusão de professor se necessário
     if 'confirmar_exclusao_prof' in st.session_state:
         prof_id = st.session_state['confirmar_exclusao_prof']
@@ -1766,7 +1787,6 @@ elif menu == "👨‍🏫 Cadastrar Professores":
             if st.button("❌ Cancelar", type="secondary"):
                 del st.session_state['confirmar_exclusao_prof']
                 st.rerun()
-
 # --- 3. CADASTRAR RESPONSÁVEIS ---
 elif menu == "👤 Cadastrar Assinaturas":
     st.header("👤 Cadastrar Assinaturas")
@@ -1831,7 +1851,6 @@ elif menu == "👤 Cadastrar Assinaturas":
                 st.markdown("")
     else:
         st.write("📭 Nenhum responsável cadastrado.")
-
     # Mostrar confirmação de exclusão de responsável se necessário
     if 'confirmar_exclusao_resp' in st.session_state:
         resp_id = st.session_state['confirmar_exclusao_resp']
@@ -1852,7 +1871,6 @@ elif menu == "👤 Cadastrar Assinaturas":
             if st.button("❌ Cancelar", type="secondary"):
                 del st.session_state['confirmar_exclusao_resp']
                 st.rerun()
-
 # --- 4. REGISTRAR OCORRÊNCIA ---
 elif menu == "📝 Registrar Ocorrência":
     st.header("📝 Nova Ocorrência")
@@ -1905,8 +1923,8 @@ elif menu == "📝 Registrar Ocorrência":
                 st.subheader("📋 Infração Principal (Protocolo 179)")
                 st.markdown('<div class="search-box">', unsafe_allow_html=True)
                 busca_infracao = st.text_input("🔍 Buscar infração (busca inteligente):",
-                    placeholder="Ex: celular, bullying, atraso, colar...",
-                    key="busca_infracao")
+                                               placeholder="Ex: celular, bullying, atraso, colar...",
+                                               key="busca_infracao")
                 # Determinar grupo e categorias
                 if busca_infracao:
                     grupos_filtrados = buscar_infracao_fuzzy(busca_infracao, PROTOCOLO_179)
@@ -1938,10 +1956,10 @@ elif menu == "📝 Registrar Ocorrência":
                 cor_gravidade = CORES_GRAVIDADE.get(gravidade_protocolo, "#9E9E9E")
                 st.markdown(f"""
                 <div style="background:#fff3cd;border:2px solid #ffc107;border-radius:8px;padding:1rem;margin:1rem 0;">
-                <b>📋 Protocolo 179 - Preenchimento Automático</b><br><br>
-                <b>Infração:</b> {infracao_principal}<br>
-                <b>Gravidade sugerida:</b> <span style="color:{cor_gravidade};font-weight:bold">{gravidade_protocolo}</span><br><br>
-                <b>Encaminhamentos sugeridos:</b>
+                    <b>📋 Protocolo 179 - Preenchimento Automático</b><br><br>
+                    <b>Infração:</b> {infracao_principal}<br>
+                    <b>Gravidade sugerida:</b> <span style="color:{cor_gravidade};font-weight:bold">{gravidade_protocolo}</span><br><br>
+                    <b>Encaminhamentos sugeridos:</b>
                 </div>
                 """, unsafe_allow_html=True)
                 for linha in encam_protocolo.split('\n'):
@@ -1949,17 +1967,17 @@ elif menu == "📝 Registrar Ocorrência":
                         st.write(linha)
                 # ✅ Gravidade EDITÁVEL
                 gravidade = st.selectbox("Gravidade (sugerida pelo Protocolo 179 - pode editar)",
-                    ["Leve", "Média", "Grave", "Gravíssima"],
-                    index=["Leve", "Média", "Grave", "Gravíssima"].index(gravidade_protocolo) if gravidade_protocolo in ["Leve", "Média", "Grave", "Gravíssima"] else 0,
-                    key="gravidade_select")
+                                         ["Leve", "Média", "Grave", "Gravíssima"],
+                                         index=["Leve", "Média", "Grave", "Gravíssima"].index(gravidade_protocolo) if gravidade_protocolo in ["Leve", "Média", "Grave", "Gravíssima"] else 0,
+                                         key="gravidade_select")
                 if gravidade != gravidade_protocolo:
                     st.warning(f"⚠️ Você alterou a gravidade de **{gravidade_protocolo}** para **{gravidade}**")
                 # ✅ Encaminhamento EDITÁVEL
                 encam = st.text_area("🔀 Encaminhamentos (sugerido pelo Protocolo 179 - pode editar)",
-                    value=encam_protocolo, height=150, key="encam_select")
+                                     value=encam_protocolo, height=150, key="encam_select")
                 st.markdown("---")
                 relato = st.text_area("📝 Relato dos Fatos", height=100, key="relato_novo",
-                    placeholder="Descreva os fatos de forma clara e objetiva...")
+                                      placeholder="Descreva os fatos de forma clara e objetiva...")
                 if st.session_state.salvando_ocorrencia:
                     st.button("💾 Salvando...", disabled=True, type="primary")
                     st.info("⏳ Aguarde, registrando ocorrência(s)...")
@@ -1986,66 +2004,64 @@ elif menu == "📝 Registrar Ocorrência":
                                 st.error("❌ Selecione pelo menos um estudante!")
                             else:
                                 st.error("❌ Preencha professor e relato obrigatoriamente!")
-
-                # Mostrar confirmação de registro se necessário
-                if 'confirmar_registro' in st.session_state and st.session_state.get('confirmar_registro'):
-                    dados = st.session_state['dados_registro']
-                    st.warning("⚠️ **Confirmação de Registro de Ocorrência(s)**")
-                    st.info(f"""
-                    **Resumo da(s) ocorrência(s) a ser(em) registrada(s):**
-                    - **Data:** {dados['data_str']}
-                    - **Turma:** {dados['turma_sel']}
-                    - **Categoria:** {dados['categoria_str']}
-                    - **Gravidade:** {dados['gravidade']}
-                    - **Professor:** {dados['prof']}
-                    - **Alunos envolvidos:** {', '.join(dados['alunos_selecionados'])}
-                    - **Total:** {len(dados['alunos_selecionados'])} ocorrência(s)
-                    """)
-                    col_conf_reg1, col_conf_reg2 = st.columns(2)
-                    with col_conf_reg1:
-                        if st.button("✅ Confirmar Registro", type="primary"):
-                            contagem_salvas = 0
-                            contagem_duplicadas = 0
-                            erros = 0
-                            for nome_aluno in dados['alunos_selecionados']:
-                                ra_aluno = alunos[alunos["nome"] == nome_aluno]["ra"].values[0]
-                                if verificar_ocorrencia_duplicada(ra_aluno, dados['categoria_str'], dados['data_str'], df_ocorrencias):
-                                    contagem_duplicadas += 1
+            # Mostrar confirmação de registro se necessário
+            if 'confirmar_registro' in st.session_state and st.session_state.get('confirmar_registro'):
+                dados = st.session_state['dados_registro']
+                st.warning("⚠️ **Confirmação de Registro de Ocorrência(s)**")
+                st.info(f"""
+                **Resumo da(s) ocorrência(s) a ser(em) registrada(s):**
+                - **Data:** {dados['data_str']}
+                - **Turma:** {dados['turma_sel']}
+                - **Categoria:** {dados['categoria_str']}
+                - **Gravidade:** {dados['gravidade']}
+                - **Professor:** {dados['prof']}
+                - **Alunos envolvidos:** {', '.join(dados['alunos_selecionados'])}
+                - **Total:** {len(dados['alunos_selecionados'])} ocorrência(s)
+                """)
+                col_conf_reg1, col_conf_reg2 = st.columns(2)
+                with col_conf_reg1:
+                    if st.button("✅ Confirmar Registro", type="primary"):
+                        contagem_salvas = 0
+                        contagem_duplicadas = 0
+                        erros = 0
+                        for nome_aluno in dados['alunos_selecionados']:
+                            ra_aluno = alunos[alunos["nome"] == nome_aluno]["ra"].values[0]
+                            if verificar_ocorrencia_duplicada(ra_aluno, dados['categoria_str'], dados['data_str'], df_ocorrencias):
+                                contagem_duplicadas += 1
+                            else:
+                                nova = {
+                                    "data": dados['data_str'],
+                                    "aluno": nome_aluno,
+                                    "ra": ra_aluno,
+                                    "turma": dados['turma_sel'],
+                                    "categoria": dados['categoria_str'],
+                                    "gravidade": dados['gravidade'],
+                                    "relato": dados['relato'],
+                                    "encaminhamento": dados['encam'],
+                                    "professor": dados['prof'],
+                                    "medidas_aplicadas": "",
+                                    "medidas_obs": ""
+                                }
+                                if salvar_ocorrencia(nova):
+                                    contagem_salvas += 1
                                 else:
-                                    nova = {
-                                        "data": dados['data_str'],
-                                        "aluno": nome_aluno,
-                                        "ra": ra_aluno,
-                                        "turma": dados['turma_sel'],
-                                        "categoria": dados['categoria_str'],
-                                        "gravidade": dados['gravidade'],
-                                        "relato": dados['relato'],
-                                        "encaminhamento": dados['encam'],
-                                        "professor": dados['prof'],
-                                        "medidas_aplicadas": "",
-                                        "medidas_obs": ""
-                                    }
-                                    if salvar_ocorrencia(nova):
-                                        contagem_salvas += 1
-                                    else:
-                                        erros += 1
-                            if contagem_salvas > 0:
-                                st.success(f"✅ {contagem_salvas} ocorrência(s) registrada(s) com sucesso!")
-                            if contagem_duplicadas > 0:
-                                st.warning(f"⚠️ {contagem_duplicadas} ocorrência(s) já existiam (ignorado)")
-                            if erros > 0:
-                                st.error(f"❌ {erros} erro(s) ao salvar")
-                            if contagem_salvas > 0:
-                                st.session_state.ocorrencia_salva_sucesso = True
-                            del st.session_state['confirmar_registro']
-                            del st.session_state['dados_registro']
-                            st.rerun()
-                    with col_conf_reg2:
-                        if st.button("❌ Cancelar Registro", type="secondary"):
-                            del st.session_state['confirmar_registro']
-                            del st.session_state['dados_registro']
-                            st.rerun()
-
+                                    erros += 1
+                        if contagem_salvas > 0:
+                            st.success(f"✅ {contagem_salvas} ocorrência(s) registrada(s) com sucesso!")
+                        if contagem_duplicadas > 0:
+                            st.warning(f"⚠️ {contagem_duplicadas} ocorrência(s) já existiam (ignorado)")
+                        if erros > 0:
+                            st.error(f"❌ {erros} erro(s) ao salvar")
+                        if contagem_salvas > 0:
+                            st.session_state.ocorrencia_salva_sucesso = True
+                        del st.session_state['confirmar_registro']
+                        del st.session_state['dados_registro']
+                        st.rerun()
+                with col_conf_reg2:
+                    if st.button("❌ Cancelar Registro", type="secondary"):
+                        del st.session_state['confirmar_registro']
+                        del st.session_state['dados_registro']
+                        st.rerun()
 # --- 5. COMUNICADO AOS PAIS ---
 elif menu == "📄 Comunicado aos Pais":
     st.header("📄 Comunicado aos Pais/Responsáveis")
@@ -2071,28 +2087,28 @@ elif menu == "📄 Comunicado aos Pais":
             total_ocorrencias = len(ocorrencias_aluno)
             st.markdown(f"""
             <div class="card">
-            <b>📊 Resumo do Aluno:</b><br>
-            • Nome: {aluno_info['nome']}<br>
-            • RA: {ra_aluno}<br>
-            • Turma: {turma_aluno}<br>
-            • 📈 Total de Ocorrências: <b>{total_ocorrencias}</b>
+                <b>📊 Resumo do Aluno:</b><br>
+                • Nome: {aluno_info['nome']}<br>
+                • RA: {ra_aluno}<br>
+                • Turma: {turma_aluno}<br>
+                • 📈 Total de Ocorrências: <b>{total_ocorrencias}</b>
             </div>
             """, unsafe_allow_html=True)
             if not ocorrencias_aluno.empty:
                 st.subheader("📋 Selecionar Ocorrência para Comunicado")
                 ocorrencias_lista = (ocorrencias_aluno['id'].astype(str) + " - " +
-                    ocorrencias_aluno['data'] + " - " +
-                    ocorrencias_aluno['categoria']).tolist()
+                                     ocorrencias_aluno['data'] + " - " +
+                                     ocorrencias_aluno['categoria']).tolist()
                 occ_sel = st.selectbox("Selecione a ocorrência", ocorrencias_lista)
                 idx = ocorrencias_lista.index(occ_sel)
                 occ_info = ocorrencias_aluno.iloc[idx]
                 st.markdown(f"""
                 <div class="protocolo-info">
-                <b>📋 Dados da Ocorrência:</b><br>
-                • Data: {occ_info['data']}<br>
-                • Categoria: {occ_info['categoria']}<br>
-                • Gravidade: {occ_info['gravidade']}<br>
-                • Professor: {occ_info['professor']}
+                    <b>📋 Dados da Ocorrência:</b><br>
+                    • Data: {occ_info['data']}<br>
+                    • Categoria: {occ_info['categoria']}<br>
+                    • Gravidade: {occ_info['gravidade']}<br>
+                    • Professor: {occ_info['professor']}
                 </div>
                 """, unsafe_allow_html=True)
                 st.subheader("⚖️ Medidas Aplicadas")
@@ -2111,8 +2127,8 @@ elif menu == "📄 Comunicado aos Pais":
                         if st.checkbox(medida, key=f"medida_comm_{medida}"):
                             medidas_aplicadas.append(medida)
                 observacoes = st.text_area("📝 Observações adicionais",
-                    placeholder="Descreva detalhes das medidas, prazos, acompanhamentos...",
-                    height=80, key="obs_comunicado")
+                                           placeholder="Descreva detalhes das medidas, prazos, acompanhamentos...",
+                                           height=80, key="obs_comunicado")
                 if st.button("🖨️ Gerar Comunicado para os Pais", type="primary"):
                     aluno_data_dict = {
                         "nome": aluno_info['nome'],
@@ -2141,7 +2157,6 @@ elif menu == "📄 Comunicado aos Pais":
                 st.info("ℹ️ Este aluno ainda não tem ocorrências registradas.")
         else:
             st.warning("⚠️ Nenhum aluno encontrado com esta busca.")
-
 # --- 6. IMPORTAR ALUNOS ---
 elif menu == "📥 Importar Alunos":
     st.header("📥 Importar Alunos (CSV da SED)")
@@ -2220,7 +2235,6 @@ elif menu == "📥 Importar Alunos":
                         st.rerun()
         except Exception as e:
             st.error(f"❌ Erro ao ler arquivo: {str(e)}")
-
 # --- 7. GERENCIAR TURMAS ---
 elif menu == "📋 Importar Turmas":
     st.header("📋 Importar Turmas")
@@ -2233,8 +2247,8 @@ elif menu == "📋 Importar Turmas":
             with col1:
                 st.markdown(f"""
                 <div class="card">
-                <div class="card-title">🏫 {row['turma']}</div>
-                <div class="card-value">{row['total_alunos']} alunos</div>
+                    <div class="card-title">🏫 {row['turma']}</div>
+                    <div class="card-value">{row['total_alunos']} alunos</div>
                 </div>
                 """, unsafe_allow_html=True)
             with col2:
@@ -2269,7 +2283,6 @@ elif menu == "📋 Importar Turmas":
         st.info(f"💡 **Total de turmas:** {len(turmas_info)} | **Total de alunos:** {len(df_alunos)}")
     else:
         st.write("📭 Nenhuma turma importada.")
-
 # --- 8. ELETIVA ---
 elif menu == "🎨 Eletiva":
     st.header("🎨 Eletiva")
@@ -2280,7 +2293,6 @@ elif menu == "🎨 Eletiva":
         st.success("✅ Exibindo eletivas salvas no Supabase.")
     else:
         st.warning("⚠️ Exibindo eletivas da planilha local. Você pode substituir o Supabase com o botão abaixo.")
-
     if os.path.exists(ELETIVAS_ARQUIVO):
         st.markdown("---")
         st.subheader("☁️ Sincronizar com Supabase")
@@ -2290,7 +2302,6 @@ elif menu == "🎨 Eletiva":
             if substituir_eletivas_supabase(registros_eletivas):
                 st.success("✅ Eletivas substituídas no Supabase com sucesso!")
                 st.rerun()
-
     professoras_eletiva = list(ELETIVAS.keys())
     professora_sel = st.selectbox("Selecione a professora", professoras_eletiva)
     df_eletiva = montar_dataframe_eletiva(professora_sel, df_alunos)
@@ -2301,7 +2312,6 @@ elif menu == "🎨 Eletiva":
         encontrados = len(df_eletiva[df_eletiva['Status'] == 'Encontrado'])
         nao_encontrados = len(df_eletiva[df_eletiva['Status'] == 'Não encontrado'])
         series = ", ".join(sorted(df_eletiva['Série da Eletiva'].dropna().unique().tolist()))
-
         col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("Total de estudantes", total_alunos)
@@ -2309,27 +2319,22 @@ elif menu == "🎨 Eletiva":
             st.metric("Encontrados no sistema", encontrados)
         with col3:
             st.metric("Não encontrados", nao_encontrados)
-
         st.markdown(f"""
         <div class="card">
-        <div class="card-title">👩‍🏫 Professora</div>
-        <div class="card-value" style="font-size:1.25rem;">{professora_sel}</div>
-        <div style="margin-top:0.5rem;"><b>Séries:</b> {series}</div>
+            <div class="card-title">👩‍🏫 Professora</div>
+            <div class="card-value" style="font-size:1.25rem;">{professora_sel}</div>
+            <div style="margin-top:0.5rem;"><b>Séries:</b> {series}</div>
         </div>
         """, unsafe_allow_html=True)
-
         busca_eletiva = st.text_input("🔍 Buscar estudante da eletiva", placeholder="Digite parte do nome...")
         status_filtro = st.selectbox("Filtrar por status", ["Todos", "Encontrado", "Não encontrado"])
-
         df_exibir = df_eletiva.copy()
         if busca_eletiva:
             df_exibir = df_exibir[df_exibir['Nome da Eletiva'].str.contains(busca_eletiva, case=False, na=False)]
         if status_filtro != "Todos":
             df_exibir = df_exibir[df_exibir['Status'] == status_filtro]
-
         st.subheader("📋 Agrupamento")
         st.dataframe(df_exibir, use_container_width=True)
-
         st.markdown("---")
         st.subheader("🖨️ Imprimir Lista da Eletiva")
         if st.button("📄 Gerar PDF da Eletiva"):
@@ -2340,14 +2345,11 @@ elif menu == "🎨 Eletiva":
                 file_name=f"Eletiva_{professora_sel}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
                 mime="application/pdf"
             )
-
         st.subheader("📊 Resumo por Série")
         resumo_series = df_eletiva.groupby('Série da Eletiva').size().reset_index(name='Total de Estudantes')
         st.dataframe(resumo_series, use_container_width=True)
-
         if nao_encontrados > 0:
             st.warning("⚠️ Alguns nomes ainda não foram encontrados no cadastro de alunos. Isso pode acontecer por diferença de grafia, acento ou se o aluno ainda não foi importado.")
-
 # --- 9. LISTA DE ALUNOS ---
 elif menu == "👥 Lista de Alunos":
     st.header("👥 Alunos Cadastrados")
@@ -2359,22 +2361,18 @@ elif menu == "👥 Lista de Alunos":
         st.info(f"Total: {len(df_exibir)} alunos")
     else:
         st.write("📭 Nenhum aluno cadastrado.")
-
 # --- 10. HISTÓRICO DE OCORRÊNCIAS ---
 elif menu == "📋 Histórico de Ocorrências":
     st.header("📋 Histórico de Ocorrências")
-    
     # Exibir mensagem de exclusão se existir
     if 'mensagem_exclusao' in st.session_state:
         st.success(st.session_state.mensagem_exclusao)
         del st.session_state.mensagem_exclusao
-    
     if not df_ocorrencias.empty:
         st.dataframe(df_ocorrencias, use_container_width=True)
         st.markdown("---")
         st.subheader("🛠️ Ações")
         col1, col2 = st.columns(2)
-
         with col1:
             st.markdown("### 🗑️ Excluir")
             # Criar opções mais descritivas para facilitar a identificação
@@ -2390,14 +2388,12 @@ elif menu == "📋 Histórico de Ocorrências":
             - Data: {occ_selecionada['data']}
             - Categoria: {occ_selecionada['categoria']}
             """)
-
             senha = st.text_input(
                 "🔒 Digite a senha para excluir (040600):",
                 type="password",
                 key="senha_excluir",
                 help="Digite a senha 040600 para confirmar"
             )
-
             if st.button("🗑️ Excluir Ocorrência", key="btn_excluir", type="secondary"):
                 if senha != SENHA_EXCLUSAO:
                     st.error("❌ Senha incorreta! Use 040600")
@@ -2407,35 +2403,33 @@ elif menu == "📋 Histórico de Ocorrências":
                     # Definir confirmação
                     st.session_state['confirmar_exclusao'] = id_excluir
                     st.rerun()
-
-            # Mostrar confirmação de exclusão se necessário
-            if 'confirmar_exclusao' in st.session_state and st.session_state['confirmar_exclusao'] == id_excluir:
-                st.warning("⚠️ **Confirmação de Exclusão**")
-                st.info(f"Você está prestes a excluir permanentemente a ocorrência **ID {id_excluir}** do aluno **{occ_selecionada['aluno']}**. Esta ação não pode ser desfeita.")
-                col_conf1, col_conf2 = st.columns(2)
-                with col_conf1:
-                    if st.button("✅ Confirmar Exclusão", type="primary"):
-                        deleted = excluir_ocorrencia(id_excluir)
-                        if deleted:
-                            st.session_state.mensagem_exclusao = f"✅ Ocorrência {id_excluir} excluída com sucesso!"
-                            # Limpar cache e recarregar dados
-                            carregar_ocorrencias.clear()
-                            st.cache_data.clear()
-                            # Resetar seleção para evitar mostrar ID inexistente
-                            if 'select_excluir' in st.session_state:
-                                del st.session_state.select_excluir
-                            if 'senha_excluir' in st.session_state:
-                                del st.session_state.senha_excluir
-                            del st.session_state['confirmar_exclusao']
-                            st.rerun()
-                        else:
-                            st.error("❌ Falha ao excluir ocorrência. Verifique as credenciais e tente novamente.")
-                            del st.session_state['confirmar_exclusao']
-                with col_conf2:
-                    if st.button("❌ Cancelar", type="secondary"):
+        # Mostrar confirmação de exclusão se necessário
+        if 'confirmar_exclusao' in st.session_state and st.session_state.get('confirmar_exclusao') == id_excluir:
+            st.warning("⚠️ **Confirmação de Exclusão**")
+            st.info(f"Você está prestes a excluir permanentemente a ocorrência **ID {id_excluir}** do aluno **{occ_selecionada['aluno']}**. Esta ação não pode ser desfeita.")
+            col_conf1, col_conf2 = st.columns(2)
+            with col_conf1:
+                if st.button("✅ Confirmar Exclusão", type="primary"):
+                    deleted = excluir_ocorrencia(id_excluir)
+                    if deleted:
+                        st.session_state.mensagem_exclusao = f"✅ Ocorrência {id_excluir} excluída com sucesso!"
+                        # Limpar cache e recarregar dados
+                        carregar_ocorrencias.clear()
+                        st.cache_data.clear()
+                        # Resetar seleção para evitar mostrar ID inexistente
+                        if 'select_excluir' in st.session_state:
+                            del st.session_state.select_excluir
+                        if 'senha_excluir' in st.session_state:
+                            del st.session_state.senha_excluir
                         del st.session_state['confirmar_exclusao']
                         st.rerun()
-
+                    else:
+                        st.error("❌ Falha ao excluir ocorrência. Verifique as credenciais e tente novamente.")
+                        del st.session_state['confirmar_exclusao']
+            with col_conf2:
+                if st.button("❌ Cancelar", type="secondary"):
+                    del st.session_state['confirmar_exclusao']
+                    st.rerun()
         with col2:
             st.markdown("### ✏️ Editar")
             # Criar opções mais descritivas para facilitar a identificação
@@ -2448,12 +2442,10 @@ elif menu == "📋 Histórico de Ocorrências":
                 st.session_state.editando_id = id_editar
                 st.session_state.dados_edicao = occ
                 st.success(f"✅ Ocorrência {id_editar} carregada para edição!")
-
         if st.session_state.editando_id is not None and st.session_state.dados_edicao:
             st.markdown("---")
             st.subheader(f"✏️ Editando ID: {st.session_state.editando_id}")
             dados = st.session_state.dados_edicao
-
             edit_relato = st.text_area(
                 "📝 Relato",
                 value=str(dados.get("relato", "")),
@@ -2472,7 +2464,6 @@ elif menu == "📋 Histórico de Ocorrências":
                 index=["Leve", "Média", "Grave", "Gravíssima"].index(str(dados.get("gravidade", "Leve"))) if str(dados.get("gravidade", "Leve")) in ["Leve", "Média", "Grave", "Gravíssima"] else 0,
                 key="edit_grav"
             )
-
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("💾 Salvar Alterações", type="primary"):
@@ -2500,7 +2491,6 @@ elif menu == "📋 Histórico de Ocorrências":
                     st.rerun()
     else:
         st.write("📭 Nenhuma ocorrência registrada.")
-
 # --- 11. GRÁFICOS ---
 elif menu == "📊 Gráficos e Indicadores":
     st.header("📊 Dashboard de Ocorrências - Protocolo 179")
@@ -2554,7 +2544,7 @@ elif menu == "📊 Gráficos e Indicadores":
         elif filtro_periodo == "Personalizado":
             df_filtrado['data_dt'] = pd.to_datetime(df_filtrado['data'], format='%d/%m/%Y %H:%M', errors='coerce')
             df_filtrado = df_filtrado[(df_filtrado['data_dt'] >= pd.Timestamp(data_inicio)) &
-                (df_filtrado['data_dt'] <= pd.Timestamp(data_fim) + pd.Timedelta(days=1))]
+                                      (df_filtrado['data_dt'] <= pd.Timestamp(data_fim) + pd.Timedelta(days=1))]
         if filtro_turma != "Todas":
             df_filtrado = df_filtrado[df_filtrado['turma'] == filtro_turma]
         if filtro_gravidade != "Todas":
@@ -2571,36 +2561,36 @@ elif menu == "📊 Gráficos e Indicadores":
         with col1:
             st.markdown(f"""
             <div class="metric-card">
-            <div class="metric-value">{total_ocorrencias}</div>
-            <div class="metric-label">Total de Ocorrências</div>
+                <div class="metric-value">{total_ocorrencias}</div>
+                <div class="metric-label">Total de Ocorrências</div>
             </div>
             """, unsafe_allow_html=True)
         with col2:
             st.markdown(f"""
             <div class="metric-card" style="background: linear-gradient(135deg, #F44336 0%, #D32F2F 100%);">
-            <div class="metric-value">{total_graves}</div>
-            <div class="metric-label">Gravíssimas</div>
+                <div class="metric-value">{total_graves}</div>
+                <div class="metric-label">Gravíssimas</div>
             </div>
             """, unsafe_allow_html=True)
         with col3:
             st.markdown(f"""
             <div class="metric-card" style="background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);">
-            <div class="metric-value">{total_grave}</div>
-            <div class="metric-label">Graves</div>
+                <div class="metric-value">{total_grave}</div>
+                <div class="metric-label">Graves</div>
             </div>
             """, unsafe_allow_html=True)
         with col4:
             st.markdown(f"""
             <div class="metric-card" style="background: linear-gradient(135deg, #4CAF50 0%, #388E3C 100%);">
-            <div class="metric-value">{total_leve}</div>
-            <div class="metric-label">Leves</div>
+                <div class="metric-value">{total_leve}</div>
+                <div class="metric-label">Leves</div>
             </div>
             """, unsafe_allow_html=True)
         with col5:
             st.markdown(f"""
             <div class="metric-card" style="background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);">
-            <div class="metric-value">{turmas_afetadas}</div>
-            <div class="metric-label">Turmas Afetadas</div>
+                <div class="metric-value">{turmas_afetadas}</div>
+                <div class="metric-label">Turmas Afetadas</div>
             </div>
             """, unsafe_allow_html=True)
         st.markdown("---")
@@ -2701,8 +2691,7 @@ elif menu == "📊 Gráficos e Indicadores":
             st.dataframe(df_filtrado[['data', 'aluno', 'turma', 'categoria', 'gravidade', 'professor']], use_container_width=True)
             csv = df_filtrado.to_csv(index=False, sep=';', encoding='utf-8-sig')
             st.download_button(label="📥 Baixar Dados Filtrados (CSV)", data=csv,
-                file_name=f"ocorrencias_filtradas_{datetime.now().strftime('%Y%m%d_%H%M')}.csv", mime="text/csv")
-
+                               file_name=f"ocorrencias_filtradas_{datetime.now().strftime('%Y%m%d_%H%M')}.csv", mime="text/csv")
 # --- 12. IMPRIMIR PDF ---
 elif menu == "🖨️ Imprimir PDF":
     st.header("🖨️ Gerar PDF de Ocorrência")
@@ -2715,6 +2704,6 @@ elif menu == "🖨️ Imprimir PDF":
         if st.button("📄 Gerar PDF"):
             pdf_buffer = gerar_pdf_ocorrencia(occ, df_responsaveis)
             st.download_button(label="📥 Baixar PDF", data=pdf_buffer,
-                file_name=f"Ocorrencia_{occ['id']}_{occ['aluno']}.pdf", mime="application/pdf")
+                               file_name=f"Ocorrencia_{occ['id']}_{occ['aluno']}.pdf", mime="application/pdf")
     else:
         st.write("📭 Nenhuma ocorrência.")
