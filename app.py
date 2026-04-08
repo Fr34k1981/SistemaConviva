@@ -2163,8 +2163,118 @@ elif menu == "🎨 Eletiva":
     else:
         st.info("Todas as professoras já estão cadastradas para eletivas.")
 
+    # Nova seção: Gerenciar Professoras de Eletiva
+    st.markdown("---")
+    st.subheader("📊 Gerenciar Professoras de Eletiva")
+    if ELETIVAS:
+        # Preparar dados para tabela
+        dados_professoras = []
+        for prof, alunos in ELETIVAS.items():
+            num_alunos = len(alunos)
+            series = ", ".join(sorted(set([a.get('serie', '') for a in alunos if a.get('serie')]))) if alunos else ""
+            dados_professoras.append({
+                "Professora": prof,
+                "Número de Alunos": num_alunos,
+                "Séries": series
+            })
+        df_professoras = pd.DataFrame(dados_professoras)
+        st.dataframe(df_professoras, use_container_width=True)
+
+        # Ações por professora
+        st.markdown("### Ações por Professora")
+        prof_acao = st.selectbox("Selecione uma professora para ações:", list(ELETIVAS.keys()), key="acao_prof")
+
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            if st.button("✏️ Editar Professora", key=f"edit_{prof_acao}"):
+                st.session_state[f"editando_prof_{prof_acao}"] = True
+        with col2:
+            if st.button("🗑️ Excluir Professora", key=f"del_{prof_acao}"):
+                st.session_state[f"excluindo_prof_{prof_acao}"] = True
+        with col3:
+            if st.button("📄 Imprimir Lista", key=f"print_{prof_acao}"):
+                df_eletiva_acao = montar_dataframe_eletiva(prof_acao, df_alunos)
+                pdf_buffer = gerar_pdf_eletiva(prof_acao, df_eletiva_acao)
+                st.download_button(
+                    label="📥 Baixar PDF",
+                    data=pdf_buffer,
+                    file_name=f"Eletiva_{prof_acao}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                    mime="application/pdf",
+                    key=f"download_{prof_acao}"
+                )
+        with col4:
+            st.metric("Total de Alunos", len(ELETIVAS.get(prof_acao, [])))
+
+        # Modal de edição
+        if st.session_state.get(f"editando_prof_{prof_acao}", False):
+            st.markdown("---")
+            st.subheader(f"✏️ Editando Professora: {prof_acao}")
+            novo_nome = st.text_input("Novo nome da professora:", value=prof_acao, key=f"novo_nome_{prof_acao}")
+            if st.button("Salvar Alterações", key=f"save_edit_{prof_acao}"):
+                if novo_nome and novo_nome != prof_acao:
+                    ELETIVAS[novo_nome] = ELETIVAS.pop(prof_acao)
+                    # Atualizar no Supabase se necessário
+                    if FONTE_ELETIVAS == "supabase":
+                        # Atualizar registros no Supabase
+                        registros = converter_eletivas_para_registros({novo_nome: ELETIVAS[novo_nome]}, origem="edicao")
+                        try:
+                            # Primeiro deletar antigos
+                            _supabase_request("DELETE", f"eletivas?professora=eq.{prof_acao}")
+                            # Depois inserir novos
+                            _supabase_request("POST", "eletivas", json=registros)
+                            limpar_cache_eletivas()
+                        except Exception as e:
+                            st.error(f"Erro ao atualizar no Supabase: {e}")
+                    st.success(f"Professora renomeada para {novo_nome}!")
+                    st.session_state[f"editando_prof_{prof_acao}"] = False
+                    st.rerun()
+                elif novo_nome == prof_acao:
+                    st.info("Nome não alterado.")
+                    st.session_state[f"editando_prof_{prof_acao}"] = False
+                else:
+                    st.error("Nome inválido.")
+            if st.button("Cancelar", key=f"cancel_edit_{prof_acao}"):
+                st.session_state[f"editando_prof_{prof_acao}"] = False
+
+        # Modal de exclusão
+        if st.session_state.get(f"excluindo_prof_{prof_acao}", False):
+            st.markdown("---")
+            st.subheader(f"🗑️ Excluir Professora: {prof_acao}")
+            st.warning(f"Tem certeza que deseja excluir a professora {prof_acao} e todos os seus alunos ({len(ELETIVAS.get(prof_acao, []))} alunos)?")
+            col_conf, col_canc = st.columns(2)
+            with col_conf:
+                if st.button("Sim, Excluir", key=f"confirm_del_{prof_acao}"):
+                    del ELETIVAS[prof_acao]
+                    if FONTE_ELETIVAS == "supabase":
+                        try:
+                            _supabase_request("DELETE", f"eletivas?professora=eq.{prof_acao}")
+                            limpar_cache_eletivas()
+                        except Exception as e:
+                            st.error(f"Erro ao excluir no Supabase: {e}")
+                    st.success(f"Professora {prof_acao} excluída!")
+                    st.session_state[f"excluindo_prof_{prof_acao}"] = False
+                    st.rerun()
+            with col_canc:
+                if st.button("Cancelar", key=f"cancel_del_{prof_acao}"):
+                    st.session_state[f"excluindo_prof_{prof_acao}"] = False
+    else:
+        st.info("Nenhuma professora cadastrada para eletivas ainda.")
+
     professoras_eletiva = list(ELETIVAS.keys())
     professora_sel = st.selectbox("Selecione a professora", professoras_eletiva)
+
+    alunos_raw = ELETIVAS.get(professora_sel, [])
+    if alunos_raw:
+        st.subheader("👥 Lista de estudantes importados desta professora")
+        df_raw = pd.DataFrame(alunos_raw)
+        if 'serie' in df_raw.columns:
+            df_raw = df_raw.rename(columns={"nome": "Nome do Aluno", "serie": "Turma"})
+        else:
+            df_raw = df_raw.rename(columns={"nome": "Nome do Aluno"})
+        st.dataframe(df_raw, use_container_width=True)
+        st.info("Use o botão '📄 Gerar PDF da Eletiva' abaixo para imprimir a lista com turma.")
+    else:
+        st.info("Esta professora ainda não tem estudantes importados. Use o formulário abaixo para cadastrar.")
 
     with st.expander("📥 Importar Estudantes para esta Professora"):
         form_key = f"form_import_{professora_sel}"
