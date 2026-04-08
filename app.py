@@ -923,7 +923,21 @@ def excluir_responsavel(id_resp):
 
 @st.cache_data(ttl=300)
 def carregar_eletivas_supabase():
-    return _supabase_get_dataframe("eletivas?select=*&order=professora.asc,nome_aluno.asc", "carregar eletivas")
+    if _supabase_error("carregar eletivas"):
+        return pd.DataFrame()
+    try:
+        response = _supabase_request("GET", "eletivas?select=*&order=professora.asc,nome_aluno.asc")
+        return pd.DataFrame(response.json())
+    except requests.HTTPError as e:
+        status_code = getattr(getattr(e, "response", None), "status_code", None)
+        if status_code == 404:
+            st.info("ℹ️ A tabela `eletivas` ainda não existe no Supabase. A tela usará a planilha local até essa tabela ser criada.")
+            return pd.DataFrame()
+        st.error(f"Erro ao carregar eletivas: {str(e)}")
+        return pd.DataFrame()
+    except Exception as e:
+        st.error(f"Erro ao carregar eletivas: {str(e)}")
+        return pd.DataFrame()
 
 def limpar_cache_eletivas():
     try:
@@ -936,6 +950,13 @@ def substituir_eletivas_supabase(registros):
         return False
     try:
         _supabase_request("DELETE", "eletivas?id=not.is.null")
+    except requests.HTTPError as e:
+        status_code = getattr(getattr(e, "response", None), "status_code", None)
+        if status_code == 404:
+            st.error("❌ A tabela `eletivas` não existe no Supabase. Crie a tabela antes de sincronizar.")
+            return False
+        st.error(f"Erro ao limpar eletivas no Supabase: {str(e)}")
+        return False
     except Exception as e:
         st.error(f"Erro ao limpar eletivas no Supabase: {str(e)}")
         return False
