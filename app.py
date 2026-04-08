@@ -2167,15 +2167,41 @@ elif menu == "🎨 Eletiva":
     professora_sel = st.selectbox("Selecione a professora", professoras_eletiva)
 
     with st.expander("📥 Importar Estudantes para esta Professora"):
-        uploaded_file = st.file_uploader("Selecione o arquivo CSV dos estudantes", type="csv", key=f"upload_{professora_sel}")
+        uploaded_file = st.file_uploader("Selecione o arquivo (CSV, XLSX ou TXT)", type=["csv", "xlsx", "txt"], key=f"upload_{professora_sel}")
+        nomes_adicionais = st.text_area("Digite nomes adicionais (um por linha):", height=100, key=f"adicionais_{professora_sel}")
+        
+        alunos_import = []
         if uploaded_file is not None:
-            df_import = pd.read_csv(uploaded_file, sep=';', encoding='utf-8')
-            alunos_import = []
-            for _, row in df_import.iterrows():
-                nome = str(row.get('Nome do Aluno', '')).strip()
-                if nome:
-                    serie = "7A"  # or detect from filename
-                    alunos_import.append({"nome": nome, "serie": serie})
+            try:
+                if uploaded_file.name.endswith('.csv'):
+                    df_import = pd.read_csv(uploaded_file, sep=';', encoding='utf-8')
+                    for _, row in df_import.iterrows():
+                        nome = str(row.get('Nome do Aluno', '')).strip()
+                        if nome:
+                            serie = "7A"
+                            alunos_import.append({"nome": nome, "serie": serie})
+                elif uploaded_file.name.endswith('.xlsx'):
+                    df_import = pd.read_excel(uploaded_file)
+                    for _, row in df_import.iterrows():
+                        nome = str(row.get('Nome do Aluno', row.iloc[0] if len(row) > 0 else '')).strip()
+                        if nome:
+                            serie = "7A"
+                            alunos_import.append({"nome": nome, "serie": serie})
+                elif uploaded_file.name.endswith('.txt'):
+                    content = uploaded_file.read().decode('utf-8')
+                    nomes_txt = [linha.strip() for linha in content.split('\n') if linha.strip()]
+                    for nome in nomes_txt:
+                        alunos_import.append({"nome": nome, "serie": "7A"})
+            except Exception as e:
+                st.error(f"Erro ao ler o arquivo: {e}")
+        
+        # Adicionar nomes digitados
+        if nomes_adicionais.strip():
+            nomes_digitados = [nome.strip() for nome in nomes_adicionais.split('\n') if nome.strip()]
+            for nome in nomes_digitados:
+                alunos_import.append({"nome": nome, "serie": "7A"})
+        
+        if alunos_import:
             st.text_area("Estudantes a serem importados:", value="\n".join([a["nome"] for a in alunos_import]), height=200, disabled=True)
             if st.button("Confirmar Importação", key=f"confirm_{professora_sel}"):
                 ELETIVAS[professora_sel].extend(alunos_import)
@@ -2195,7 +2221,7 @@ elif menu == "🎨 Eletiva":
                     st.success(f"✅ {len(alunos_import)} estudantes importados localmente para {professora_sel}!")
                     st.rerun()
         else:
-            st.info("Selecione um arquivo CSV para visualizar os estudantes a serem importados.")
+            st.info("Selecione um arquivo ou digite nomes para importar estudantes.")
 
     df_eletiva = montar_dataframe_eletiva(professora_sel, df_alunos)
     if df_eletiva.empty:
