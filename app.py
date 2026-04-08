@@ -2150,7 +2150,7 @@ elif menu == "🎨 Eletiva":
 
     st.markdown("---")
     st.subheader("👩‍🏫 Cadastrar Professora da Eletiva")
-    professores_disponiveis = [p for p in df_professores['Nome'].tolist() if p not in ELETIVAS]
+    professores_disponiveis = [p for p in df_professores['nome'].tolist() if p not in ELETIVAS]
     if professores_disponiveis:
         prof_para_cadastrar = st.selectbox("Selecione uma professora para cadastrar na eletiva", professores_disponiveis, key="cadastrar_prof")
         if st.button("Cadastrar Professora da Eletiva"):
