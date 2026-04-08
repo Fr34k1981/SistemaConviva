@@ -2168,15 +2168,16 @@ elif menu == "🎨 Eletiva":
 
     with st.expander("📥 Importar Estudantes para esta Professora"):
         uploaded_file = st.file_uploader("Selecione o arquivo CSV dos estudantes", type="csv", key=f"upload_{professora_sel}")
-        if st.button("Importar Estudantes", key=f"import_{professora_sel}"):
-            if uploaded_file is not None:
-                df_import = pd.read_csv(uploaded_file, sep=';', encoding='utf-8')
-                alunos_import = []
-                for _, row in df_import.iterrows():
-                    nome = str(row.get('Nome do Aluno', '')).strip()
-                    if nome:
-                        serie = "7A"  # or detect from filename
-                        alunos_import.append({"nome": nome, "serie": serie})
+        if uploaded_file is not None:
+            df_import = pd.read_csv(uploaded_file, sep=';', encoding='utf-8')
+            alunos_import = []
+            for _, row in df_import.iterrows():
+                nome = str(row.get('Nome do Aluno', '')).strip()
+                if nome:
+                    serie = "7A"  # or detect from filename
+                    alunos_import.append({"nome": nome, "serie": serie})
+            st.text_area("Estudantes a serem importados:", value="\n".join([a["nome"] for a in alunos_import]), height=200, disabled=True)
+            if st.button("Confirmar Importação", key=f"confirm_{professora_sel}"):
                 ELETIVAS[professora_sel].extend(alunos_import)
                 if FONTE_ELETIVAS == "supabase":
                     registros = [{"professora": professora_sel, "nome_aluno": a["nome"], "serie": a["serie"], "origem": "importacao"} for a in alunos_import]
@@ -2193,8 +2194,8 @@ elif menu == "🎨 Eletiva":
                 else:
                     st.success(f"✅ {len(alunos_import)} estudantes importados localmente para {professora_sel}!")
                     st.rerun()
-            else:
-                st.warning("Selecione um arquivo CSV primeiro.")
+        else:
+            st.info("Selecione um arquivo CSV para visualizar os estudantes a serem importados.")
 
     df_eletiva = montar_dataframe_eletiva(professora_sel, df_alunos)
     if df_eletiva.empty:
