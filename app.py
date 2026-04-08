@@ -2167,9 +2167,12 @@ elif menu == "🎨 Eletiva":
     professora_sel = st.selectbox("Selecione a professora", professoras_eletiva)
 
     with st.expander("📥 Importar Estudantes para esta Professora"):
-        uploaded_file = st.file_uploader("Selecione o arquivo (CSV, XLSX ou TXT)", type=["csv", "xlsx", "txt"], key=f"upload_{professora_sel}")
-        nomes_adicionais = st.text_area("Digite nomes adicionais (um por linha, opcional):", height=120, key=f"adicionais_{professora_sel}")
-        
+        form_key = f"form_import_{professora_sel}"
+        with st.form(form_key):
+            uploaded_file = st.file_uploader("Selecione o arquivo (CSV, XLSX ou TXT)", type=["csv", "xlsx", "txt"], key=f"upload_{professora_sel}")
+            nomes_adicionais = st.text_area("Digite nomes adicionais (um por linha, no formato Nome Turma):", height=120, key=f"adicionais_{professora_sel}")
+            botao_importar = st.form_submit_button("Importar para a professora")
+
         def extrair_turma(texto):
             partes = texto.replace('\t', ' ').replace(';', ' ').split()
             if not partes:
@@ -2229,8 +2232,8 @@ elif menu == "🎨 Eletiva":
                 alunos_import.append({"nome": nome, "serie": serie})
 
         if alunos_import:
-            st.text_area("Estudantes a serem importados:", value="\n".join([f"{a['nome']} {a['serie']}".strip() for a in alunos_import]), height=240)
-            if st.button("Importar para a professora", key=f"confirm_{professora_sel}"):
+            st.text_area("Estudantes a serem importados:", value="\n".join([f"{a['nome']} {a['serie']}".strip() for a in alunos_import]), height=240, disabled=True)
+            if botao_importar:
                 ELETIVAS[professora_sel].extend(alunos_import)
                 if FONTE_ELETIVAS == "supabase":
                     registros = [{"professora": professora_sel, "nome_aluno": a["nome"], "serie": a["serie"], "origem": "importacao"} for a in alunos_import]
