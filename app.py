@@ -11,6 +11,7 @@ from reportlab.lib.units import cm
 from io import BytesIO
 import requests
 import os
+import unicodedata
 from dotenv import load_dotenv
 import pytz
 from difflib import SequenceMatcher
@@ -209,11 +210,227 @@ menu = st.sidebar.radio("", [
     "📊 Gráficos e Indicadores",
     "🖨️ Imprimir PDF",
     "👨‍🏫 Cadastrar Professores",
-    "👤 Cadastrar Responsáveis por Assinatura",
+    "👤 Cadastrar Assinaturas",
+    "🎨 Eletiva",
     "📥 Importar Alunos",
-    "📋 Gerenciar Turmas Importadas",
+    "📋 Importar Turmas",
     "👥 Lista de Alunos"
 ], label_visibility="collapsed")
+
+ELETIVAS = {
+    "Solange": [
+        {"nome": "NAYARA DA CRUZ ALENCAR", "serie": "8A"},
+        {"nome": "ALLANA SOUZA FAUSTINO", "serie": "8B"},
+        {"nome": "BRENDA NASCIMENTO BARBOSA", "serie": "8B"},
+        {"nome": "GABRIELA MONTINO CORDEIRO", "serie": "8B"},
+        {"nome": "RAFAELLE HILARY DE OLIVEIRA SOUZA", "serie": "8B"},
+        {"nome": "ANA PAULA FERREIRA DA SILVA DE JESUS", "serie": "8C"},
+        {"nome": "ANDREIVYS VALERIA ANGULO ACUNA", "serie": "8C"},
+        {"nome": "BEATRIZ VIEIRA DE OLIVEIRA", "serie": "8C"},
+        {"nome": "BIANCA COELHO FERNANDES", "serie": "8C"},
+        {"nome": "BRENDA NICOLE DA SILVA PAIVA", "serie": "8C"},
+        {"nome": "ALICE ANDRADE DE OLIVEIRA", "serie": "9A"},
+        {"nome": "ALICE ELISABETE RODRIGUES DE MORAIS", "serie": "9A"},
+        {"nome": "BEATRIZ PEREIRA MAIA", "serie": "9A"},
+        {"nome": "GRAZIELE SANTANA FONSECA", "serie": "9A"},
+        {"nome": "ISABELLY ALVINO ALEXANDRE", "serie": "9A"},
+        {"nome": "ISABELLY DA SILVA MACEDO", "serie": "9A"},
+        {"nome": "KAUANY REBECA VITOR DE SOUZA", "serie": "9A"},
+        {"nome": "KETHELLYN VITORIA DO NASCIMENTO LOURENÇON", "serie": "9A"},
+        {"nome": "SIDYELIS VALENTINA FRANCO ACUNA", "serie": "9A"},
+        {"nome": "ISABELLY ALVES LEITE", "serie": "9B"},
+        {"nome": "JULIA PEREIRA DOS SANTOS SOUZA", "serie": "9B"},
+        {"nome": "RHIANNA DE SOUZA MARTINS", "serie": "9B"},
+        {"nome": "BRENDA DE JESUS CORREA SILVA", "serie": "9C"},
+        {"nome": "GIOVANNA DE OLIVEIRA", "serie": "9C"},
+        {"nome": "KETLYN EMILIA BRAGA DE LIMA", "serie": "9C"},
+        {"nome": "MANOELA MOREIRA DE ARAUJO MARTINS", "serie": "9C"},
+        {"nome": "ROSA MARIA DE ANDRADE", "serie": "9C"},
+        {"nome": "VITORIA DA SILVA COSTA DE ANDRADE", "serie": "9C"}
+    ],
+    "Rosemeire": [
+        {"nome": "DAVI DOS SANTOS CORREIA", "serie": "8A"},
+        {"nome": "GUILHERME CARVALHO DE SOUSA", "serie": "8A"},
+        {"nome": "DAVI FERREIRA TOMAS", "serie": "8B"},
+        {"nome": "GABRIEL GOMES NASCIMENTO", "serie": "8B"},
+        {"nome": "LUCAS PEREIRA DE ASSUNÇÃO", "serie": "8B"},
+        {"nome": "MIGUEL ALVES ALBANO", "serie": "8B"},
+        {"nome": "RAFAEL CECILIO SILVA DO NASCIMENTO", "serie": "8B"},
+        {"nome": "YASMIM FERREIRA DE ALMEIDA", "serie": "8B"},
+        {"nome": "CAIO GUILHERME CUSTODIO", "serie": "8C"},
+        {"nome": "KAIQUE EMANUEL BATISTA LAU", "serie": "8C"},
+        {"nome": "RAFAEL LUIZ APARECIDO DE OLIVEIRA", "serie": "8C"},
+        {"nome": "VINICIUS DE JESUS CORREA SILVA", "serie": "8C"},
+        {"nome": "YASMIN VITORIA CAETANO DOS SANTOS", "serie": "8C"},
+        {"nome": "ANA CAROLINE SANTOS ARAÇA", "serie": "9A"},
+        {"nome": "GABRIEL COSTA MIRANDA RODRIGUES", "serie": "9A"},
+        {"nome": "GUILHERME ISRAEL VINHOLA", "serie": "9A"},
+        {"nome": "KAIO BARBOSA DE SOUZA", "serie": "9A"},
+        {"nome": "KAUANY SILVA DE JESUS", "serie": "9A"},
+        {"nome": "EMANUELLY SOUZA DOS SANTOS", "serie": "9B"},
+        {"nome": "GABRIEL RODRIGUES LOUREIRO", "serie": "9B"},
+        {"nome": "IGOR LUCAS BARROS SANTOS", "serie": "9B"},
+        {"nome": "KAUAN MACIEL SANTOS", "serie": "9B"},
+        {"nome": "KEVEN ALMEIDA VIANA", "serie": "9B"},
+        {"nome": "LUCAS ROBERTO BARBOSA ALVES", "serie": "9B"},
+        {"nome": "MARCO ANTONIO MARTINS DE CAMARGO", "serie": "9B"},
+        {"nome": "MARIA CLARA DA SILVA", "serie": "9B"},
+        {"nome": "NATALIA PEREIRA GONZAGA", "serie": "9B"},
+        {"nome": "NICOLAS FABIANO MOREIRA DOS SANTOS", "serie": "9B"},
+        {"nome": "SIBELLY LUZIA RODRIGUES SANTOS NUNES", "serie": "9B"},
+        {"nome": "THALES MENDES PEREIRA", "serie": "9B"},
+        {"nome": "FELIPE OLIVEIRA AQUINO", "serie": "9C"},
+        {"nome": "LUCAS DE SOUZA VILARIM", "serie": "9C"},
+        {"nome": "MARIA EDUARDA DOS SANTOS MOREIRA", "serie": "9C"},
+        {"nome": "NICOLAS DA SILVA ROCHA", "serie": "9C"},
+        {"nome": "YURI BARBOSA DOS SANTOS FEITOSA", "serie": "9C"}
+    ],
+    "Fernanda": [
+        {"nome": "IAGO RYAN AVELINO VIEIRA HENRIQUE", "serie": "6A"},
+        {"nome": "JULIA RODRIGUES DE BRITO", "serie": "6A"},
+        {"nome": "LAURA LIMA LAURENTINO", "serie": "6A"},
+        {"nome": "MARIA CLARA SANTOS", "serie": "6A"},
+        {"nome": "GABRIELA SOPHIA PEREIRA ALBUQUERQUE", "serie": "6B"},
+        {"nome": "MARIA JULIA FERREIRA DA ROCHA", "serie": "6B"},
+        {"nome": "MIGUEL FABRICIO DE OLIVEIRA QUEIROZ", "serie": "6B"},
+        {"nome": "SAMUEL MENDES DE OLIVEIRA SILVA", "serie": "6B"},
+        {"nome": "VINICIUS DOS SANTOS VIEIRA LIMA", "serie": "6B"},
+        {"nome": "DAVI LUIZ ALEXANDRINO ALVES DOS SANTOS", "serie": "7A"},
+        {"nome": "JEAN HENRIQUE CONCEIÇÃO NASCIMENTO", "serie": "7A"},
+        {"nome": "MIGUEL CAMPIONI COSTA", "serie": "7A"},
+        {"nome": "PIETRO JORGE SANTANA DA COSTA", "serie": "7A"},
+        {"nome": "RICHARD HENRIQUE OLIVEIRA DA SILVA", "serie": "7A"},
+        {"nome": "ALICE FERREIRA GOMES", "serie": "7B"},
+        {"nome": "GUSTAVO RODRIGUES LEONARDO", "serie": "7B"},
+        {"nome": "DAVI LUCIANO SAVOIA ALVES", "serie": "7C"},
+        {"nome": "HEYTOR MURILO MOREIRA DO NASCIMENTO", "serie": "7C"},
+        {"nome": "JULIA BEATRIZ BASTOS DA SILVA", "serie": "7C"},
+        {"nome": "OSVALDO PEDRO DA CRUZ NETO", "serie": "7C"},
+        {"nome": "RYAN HENRIQUE DA SILVA TELES", "serie": "7C"}
+    ],
+    "Fagna": [
+        {"nome": "ISADORA CASTRO SOUZA", "serie": "6º Ano A"},
+        {"nome": "KAMILLY VITORIA ZIRONDI DA ROCHA", "serie": "6º Ano A"},
+        {"nome": "KAYLA KHIMBERLY VILCA DA SILVA", "serie": "6º Ano A"},
+        {"nome": "NATAN ALMEIDA PRADO", "serie": "6º Ano A"},
+        {"nome": "RYAN LEONARDO DE CASTRO GARCIA", "serie": "6º Ano A"},
+        {"nome": "BRIAN SANTOS FERREIRA", "serie": "6º Ano B"},
+        {"nome": "KAWE GABRYEL DOS SANTOS ESTEVAO", "serie": "6º Ano B"},
+        {"nome": "PEDRO HENRIQUE DA SILVA SANTOS", "serie": "6º Ano B"},
+        {"nome": "SOPHIA NABOR DOS SANTOS", "serie": "6º Ano B"},
+        {"nome": "YASMIM CONCEICAO DE OLIVEIRA CRUZ", "serie": "6º Ano B"},
+        {"nome": "ALICE SANTOS RIBEIRO", "serie": "7º Ano A"},
+        {"nome": "BEATRIZ DA SILVA SOUZA", "serie": "7º Ano A"},
+        {"nome": "DIOGO HENRIQUE RAPOSO SANTOS", "serie": "7º Ano A"},
+        {"nome": "KAROLAYNE PAULA DE JESUS", "serie": "7º Ano A"},
+        {"nome": "MARIA HELENA ASSUNÇÃO DA SILVA", "serie": "7º Ano A"},
+        {"nome": "PAMELA CAROLINE GONÇALVES DE JESUS", "serie": "7º Ano A"},
+        {"nome": "PAULO CÉSAR MILITINO DE SOUZA", "serie": "7º Ano A"},
+        {"nome": "YURI HENRIQUE SOUZA DA SILVA", "serie": "7º Ano A"},
+        {"nome": "ELOAH DE FRANÇA DOS SANTOS", "serie": "7º Ano B"},
+        {"nome": "JHONATAN OLIVEIRA PONTES", "serie": "7º Ano B"},
+        {"nome": "LAIZA MOREIRA DE LIMA", "serie": "7º Ano B"},
+        {"nome": "TAILA VITORIA SANTOS LORENZI", "serie": "7º Ano C"}
+    ],
+    "Elaine": [
+        {"nome": "DAMIR QUISPE MAMANI", "serie": "6º Ano A"},
+        {"nome": "DEREK SOUSA DE AZEVEDO", "serie": "6º Ano A"},
+        {"nome": "DÔMINIC SOUSA DE AZEVEDO", "serie": "6º Ano A"},
+        {"nome": "ENZO MILITINA ALMEIDA", "serie": "6º Ano A"},
+        {"nome": "GUILHERME GABINO FERRO CAFFE", "serie": "6º Ano A"},
+        {"nome": "MANOEL DE SOUZA VILARIM", "serie": "6º Ano A"},
+        {"nome": "MATHEUS CANDIDO LIMA", "serie": "6º Ano A"},
+        {"nome": "NICOLLAS KEVYN DA SILVA MARTINS", "serie": "6º Ano A"},
+        {"nome": "RAYSSON FELIPE DA SILVA SANTOS", "serie": "6º Ano A"},
+        {"nome": "RICHARD SANTOS SILVA DE SALES", "serie": "6º Ano A"},
+        {"nome": "ALESSANDRO DOMINGUES LOPES", "serie": "6º Ano B"},
+        {"nome": "ANA JULIA DE ALENCAR BALISTA", "serie": "6º Ano B"},
+        {"nome": "BRAYAN MEDEIROS", "serie": "6º Ano B"},
+        {"nome": "GUSTAVO SANTANA NASCIMENTO", "serie": "6º Ano B"},
+        {"nome": "DIOGO CAVALCANTI ZANINI", "serie": "7º Ano A"},
+        {"nome": "HENRY GABRIEL DA SILVA", "serie": "7º Ano A"},
+        {"nome": "ITALLO MARQUES DOS SANTOS", "serie": "7º Ano A"},
+        {"nome": "RAQUEL VITORIA ALVES DE LIMA", "serie": "7º Ano A"},
+        {"nome": "SAFIRA DE JESUS RAMALHO", "serie": "7º Ano A"},
+        {"nome": "TIAGO MATHEUS MONTE", "serie": "7º Ano A"},
+        {"nome": "PEDRO HENRIQUE RAMOS COSTA BRASIL", "serie": "7º Ano B"},
+        {"nome": "BRAYAN NASCIMENTO DA SILVA", "serie": "7º Ano C"},
+        {"nome": "ENZO MIGUEL RIBEIRO DOS SANTOS LIMA", "serie": "7º Ano C"},
+        {"nome": "LEONARDO HENRIQUE DOS SANTOS LORENZI", "serie": "7º Ano C"},
+        {"nome": "LUCAS GABRIEL SILVA DOS SANTOS", "serie": "7º Ano C"}
+    ],
+    "Geovana": [
+        {"nome": "CAUA GONCALVES DA SILVA", "serie": "8º Ano A"},
+        {"nome": "DANIEL MARTINS GOMES", "serie": "8º Ano A"},
+        {"nome": "KAUAN FIDELES DA SILVA", "serie": "8º Ano A"},
+        {"nome": "PEDRO HENRIQUE FEITOSA DE MENEZES", "serie": "8º Ano A"},
+        {"nome": "RAFAEL MOREIRA DOS SANTOS", "serie": "8º Ano A"},
+        {"nome": "THEO HENRIQUE PORTILHO DE ALMEIDA", "serie": "8º Ano A"},
+        {"nome": "ADRINY MOREIRA DE MELO", "serie": "8º Ano B"},
+        {"nome": "GABRIEL DOS SANTOS SILVA", "serie": "8º Ano B"},
+        {"nome": "JOÃO PEDRO FAUSTINO DE SOUZA", "serie": "8º Ano B"},
+        {"nome": "PEDRO LUKAS DE SOUZA LIMA", "serie": "8º Ano B"},
+        {"nome": "DAVI LUCAS DOS SANTOS SILVA", "serie": "8º Ano C"},
+        {"nome": "NATALLY FERNANDA PONTES", "serie": "8º Ano C"},
+        {"nome": "AGNER DE JESUS VALENCA", "serie": "9º Ano A"},
+        {"nome": "GUSTAVO DE OLIVEIRA", "serie": "9º Ano A"},
+        {"nome": "JUAN VITOR MELO FERREIRA", "serie": "9º Ano A"},
+        {"nome": "JULIA BASTOS BERALDO", "serie": "9º Ano A"},
+        {"nome": "KAUAN RIQUELME LEAL ZANOVELLI RODRIGUES", "serie": "9º Ano A"},
+        {"nome": "NICOLLAS QUEIROZ DE CASTRO", "serie": "9º Ano A"},
+        {"nome": "SAMUEL VINICIUS RAMOS DE OLIVEIRA", "serie": "9º Ano A"},
+        {"nome": "GABRIEL DE LIMA PAZETTO", "serie": "9º Ano B"},
+        {"nome": "HENZO GABRIEL DE OLIVEIRA ANDRADE", "serie": "9º Ano B"},
+        {"nome": "MARIANA FERNANDA VIEIRA GUEDES", "serie": "9º Ano B"},
+        {"nome": "CAIO OLIVEIRA SANTOS", "serie": "9º Ano C"},
+        {"nome": "HENZO MIGUEL DIAS COELHO", "serie": "9º Ano C"},
+        {"nome": "JAMES VINICIUS FELIPE GOMES", "serie": "9º Ano C"},
+        {"nome": "JAMESON LUIGI DE SOUZA SANTIAGO", "serie": "9º Ano C"},
+        {"nome": "MARIA HELOISA SOUSA DOS SANTOS", "serie": "9º Ano C"},
+        {"nome": "MIGUEL ARONI DE SANTANA", "serie": "9º Ano C"},
+        {"nome": "PIETRO LOPES DA SILVA", "serie": "9º Ano C"}
+    ],
+    "Shirley": [
+        {"nome": "AGNER DE JESUS VALENCA", "serie": "9º Ano A"},
+        {"nome": "GUSTAVO DE OLIVEIRA", "serie": "9º Ano A"},
+        {"nome": "JUAN VITOR MELO FERREIRA", "serie": "9º Ano A"},
+        {"nome": "JULIA BASTOS BERALDO", "serie": "9º Ano A"},
+        {"nome": "KAUAN RIQUELME LEAL ZANOVELLI RODRIGUES", "serie": "9º Ano A"},
+        {"nome": "NICOLLAS QUEIROZ DE CASTRO", "serie": "9º Ano A"},
+        {"nome": "SAMUEL VINICIUS RAMOS DE OLIVEIRA", "serie": "9º Ano A"},
+        {"nome": "CAMILY VITORIA GOMES ALVES", "serie": "9º Ano A"},
+        {"nome": "DOUGLAS GABRIEL SOUZA FREIRE SILVA", "serie": "9º Ano A"},
+        {"nome": "GABRIEL FERNANDES SIQUEIRA DE OLIVEIRA", "serie": "9º Ano A"},
+        {"nome": "LUCAS RAIMUNDO BORGES DE MELO", "serie": "9º Ano A"},
+        {"nome": "WANDREL RODRIGO NASCIMENTO DA CRUZ", "serie": "9º Ano A"},
+        {"nome": "GABRIEL DE LIMA PAZETTO", "serie": "9º Ano B"},
+        {"nome": "HENZO GABRIEL DE OLIVEIRA ANDRADE", "serie": "9º Ano B"},
+        {"nome": "MARIANA FERNANDA VIEIRA GUEDES", "serie": "9º Ano B"},
+        {"nome": "CAIQUE WILSON DE AZEVEDO SIQUEIRA", "serie": "9º Ano B"},
+        {"nome": "GUILHERME GODOY PEREIRA VITOR", "serie": "9º Ano B"},
+        {"nome": "ICARO SANTOS LOPES", "serie": "9º Ano B"},
+        {"nome": "KAUA ALVES LEITE", "serie": "9º Ano B"},
+        {"nome": "LAIS FARIA CARVALHO", "serie": "9º Ano B"},
+        {"nome": "RICHARD HENRIQUE DE LIMA GONCALVES", "serie": "9º Ano B"},
+        {"nome": "RICHARD LUIZ SILVA CARVALHO", "serie": "9º Ano B"},
+        {"nome": "CAIO OLIVEIRA SANTOS", "serie": "9º Ano B"},
+        {"nome": "HENZO MIGUEL DIAS COELHO", "serie": "9º Ano C"},
+        {"nome": "JAMES VINICIUS FELIPE GOMES", "serie": "9º Ano C"},
+        {"nome": "JAMESON LUIGI DE SOUZA SANTIAGO", "serie": "9º Ano C"},
+        {"nome": "MARIA HELOISA SOUSA DOS SANTOS", "serie": "9º Ano C"},
+        {"nome": "MIGUEL ARONI DE SANTANA", "serie": "9º Ano C"},
+        {"nome": "PIETRO LOPES DA SILVA", "serie": "9º Ano C"},
+        {"nome": "ALICE LOPES PEREIRA", "serie": "9º Ano C"},
+        {"nome": "ANA KAROLINE SANTANA DA SILVA", "serie": "9º Ano C"},
+        {"nome": "BRENNDA ARAUJO SANTOS", "serie": "9º Ano C"},
+        {"nome": "GUILHERME LEITE SOUZA CRUZ", "serie": "9º Ano C"},
+        {"nome": "JAIR COSTA BRASIL NETO", "serie": "9º Ano C"},
+        {"nome": "JAMILY NICOLY CARDOSO DE AGUIAR", "serie": "9º Ano C"},
+        {"nome": "MAICON HENRIQUE XAVIER PEREIRA", "serie": "9º Ano C"},
+        {"nome": "PABLO SANTOS SOUSA", "serie": "9º Ano C"},
+        {"nome": "TALITA LUANA DOS SANTOS SILVA", "serie": "9º Ano C"}
+    ]
+}
 
 # --- CORES PARA TIPOS DE INFRAÇÃO ---
 CORES_INFRACOES = {
@@ -813,6 +1030,50 @@ def combinar_encaminhamentos(encaminhamentos_lista):
                 todos.append(linha)
     return '\n'.join(todos)
 
+def normalizar_texto(valor):
+    if pd.isna(valor):
+        return ""
+    texto = str(valor).strip().upper()
+    texto = unicodedata.normalize("NFKD", texto)
+    texto = "".join(char for char in texto if not unicodedata.combining(char))
+    return " ".join(texto.split())
+
+def montar_dataframe_eletiva(nome_professora, df_alunos):
+    registros = []
+    alunos_base = df_alunos.copy() if not df_alunos.empty else pd.DataFrame()
+    if not alunos_base.empty:
+        alunos_base['nome_normalizado'] = alunos_base['nome'].apply(normalizar_texto)
+    for item in ELETIVAS.get(nome_professora, []):
+        nome_original = item['nome']
+        nome_normalizado = normalizar_texto(nome_original)
+        match = pd.DataFrame()
+        if not alunos_base.empty:
+            match = alunos_base[alunos_base['nome_normalizado'] == nome_normalizado]
+        if not match.empty:
+            aluno = match.iloc[0]
+            registros.append({
+                "Professora": nome_professora,
+                "Nome da Eletiva": nome_original,
+                "Série da Eletiva": item['serie'],
+                "Aluno Cadastrado": aluno.get('nome', nome_original),
+                "RA": aluno.get('ra', ''),
+                "Turma no Sistema": aluno.get('turma', ''),
+                "Situação": aluno.get('situacao', ''),
+                "Status": "Encontrado"
+            })
+        else:
+            registros.append({
+                "Professora": nome_professora,
+                "Nome da Eletiva": nome_original,
+                "Série da Eletiva": item['serie'],
+                "Aluno Cadastrado": "",
+                "RA": "",
+                "Turma no Sistema": "",
+                "Situação": "",
+                "Status": "Não encontrado"
+            })
+    return pd.DataFrame(registros)
+
 def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1*cm, leftMargin=1*cm, topMargin=1.5*cm, bottomMargin=1.5*cm)
@@ -1290,8 +1551,8 @@ elif menu == "👨‍🏫 Cadastrar Professores":
                 st.rerun()
 
 # --- 3. CADASTRAR RESPONSÁVEIS ---
-elif menu == "👤 Cadastrar Responsáveis por Assinatura":
-    st.header("👤 Cadastrar Responsáveis por Assinatura")
+elif menu == "👤 Cadastrar Assinaturas":
+    st.header("👤 Cadastrar Assinaturas")
     if st.session_state.responsavel_salvo_sucesso:
         st.success(f"✅ {st.session_state.cargo_responsavel_salvo} {st.session_state.nome_responsavel_salvo} cadastrado com sucesso!")
         st.session_state.responsavel_salvo_sucesso = False
@@ -1744,8 +2005,8 @@ elif menu == "📥 Importar Alunos":
             st.error(f"❌ Erro ao ler arquivo: {str(e)}")
 
 # --- 7. GERENCIAR TURMAS ---
-elif menu == "📋 Gerenciar Turmas Importadas":
-    st.header("📋 Gerenciar Turmas Importadas")
+elif menu == "📋 Importar Turmas":
+    st.header("📋 Importar Turmas")
     if not df_alunos.empty:
         turmas_info = df_alunos.groupby('turma').agg({'ra': 'count', 'nome': 'first'}).reset_index()
         turmas_info.columns = ['turma', 'total_alunos', 'exemplo_nome']
@@ -1792,7 +2053,57 @@ elif menu == "📋 Gerenciar Turmas Importadas":
     else:
         st.write("📭 Nenhuma turma importada.")
 
-# --- 8. LISTA DE ALUNOS ---
+# --- 8. ELETIVA ---
+elif menu == "🎨 Eletiva":
+    st.header("🎨 Eletiva")
+    st.info("💡 Consulte os agrupamentos por professora e confira quais estudantes já foram localizados no cadastro do sistema.")
+    professoras_eletiva = list(ELETIVAS.keys())
+    professora_sel = st.selectbox("Selecione a professora", professoras_eletiva)
+    df_eletiva = montar_dataframe_eletiva(professora_sel, df_alunos)
+    if df_eletiva.empty:
+        st.warning("⚠️ Nenhum agrupamento cadastrado para esta professora.")
+    else:
+        total_alunos = len(df_eletiva)
+        encontrados = len(df_eletiva[df_eletiva['Status'] == 'Encontrado'])
+        nao_encontrados = len(df_eletiva[df_eletiva['Status'] == 'Não encontrado'])
+        series = ", ".join(sorted(df_eletiva['Série da Eletiva'].dropna().unique().tolist()))
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Total de estudantes", total_alunos)
+        with col2:
+            st.metric("Encontrados no sistema", encontrados)
+        with col3:
+            st.metric("Não encontrados", nao_encontrados)
+
+        st.markdown(f"""
+        <div class="card">
+        <div class="card-title">👩‍🏫 Professora</div>
+        <div class="card-value" style="font-size:1.25rem;">{professora_sel}</div>
+        <div style="margin-top:0.5rem;"><b>Séries:</b> {series}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        busca_eletiva = st.text_input("🔍 Buscar estudante da eletiva", placeholder="Digite parte do nome...")
+        status_filtro = st.selectbox("Filtrar por status", ["Todos", "Encontrado", "Não encontrado"])
+
+        df_exibir = df_eletiva.copy()
+        if busca_eletiva:
+            df_exibir = df_exibir[df_exibir['Nome da Eletiva'].str.contains(busca_eletiva, case=False, na=False)]
+        if status_filtro != "Todos":
+            df_exibir = df_exibir[df_exibir['Status'] == status_filtro]
+
+        st.subheader("📋 Agrupamento")
+        st.dataframe(df_exibir, use_container_width=True)
+
+        st.subheader("📊 Resumo por Série")
+        resumo_series = df_eletiva.groupby('Série da Eletiva').size().reset_index(name='Total de Estudantes')
+        st.dataframe(resumo_series, use_container_width=True)
+
+        if nao_encontrados > 0:
+            st.warning("⚠️ Alguns nomes ainda não foram encontrados no cadastro de alunos. Isso pode acontecer por diferença de grafia, acento ou se o aluno ainda não foi importado.")
+
+# --- 9. LISTA DE ALUNOS ---
 elif menu == "👥 Lista de Alunos":
     st.header("👥 Alunos Cadastrados")
     if not df_alunos.empty:
@@ -1804,7 +2115,7 @@ elif menu == "👥 Lista de Alunos":
     else:
         st.write("📭 Nenhum aluno cadastrado.")
 
-# --- 9. HISTÓRICO DE OCORRÊNCIAS ---
+# --- 10. HISTÓRICO DE OCORRÊNCIAS ---
 elif menu == "📋 Histórico de Ocorrências":
     st.header("📋 Histórico de Ocorrências")
     
@@ -1945,7 +2256,7 @@ elif menu == "📋 Histórico de Ocorrências":
     else:
         st.write("📭 Nenhuma ocorrência registrada.")
 
-# --- 10. GRÁFICOS ---
+# --- 11. GRÁFICOS ---
 elif menu == "📊 Gráficos e Indicadores":
     st.header("📊 Dashboard de Ocorrências - Protocolo 179")
     if df_ocorrencias.empty:
@@ -2147,7 +2458,7 @@ elif menu == "📊 Gráficos e Indicadores":
             st.download_button(label="📥 Baixar Dados Filtrados (CSV)", data=csv,
                 file_name=f"ocorrencias_filtradas_{datetime.now().strftime('%Y%m%d_%H%M')}.csv", mime="text/csv")
 
-# --- 11. IMPRIMIR PDF ---
+# --- 12. IMPRIMIR PDF ---
 elif menu == "🖨️ Imprimir PDF":
     st.header("🖨️ Gerar PDF de Ocorrência")
     if not df_ocorrencias.empty:
