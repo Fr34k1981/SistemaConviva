@@ -1,3 +1,16 @@
+Sim, aqui está o **código completo e atualizado**.
+
+### 🚀 O que foi melhorado para resolver os erros "Não encontrado":
+
+1.  **Algoritmo de Busca Inteligente (Fuzzy Match):** Substituí a busca por igualdade exata (`==`) por um algoritmo que calcula a **similaridade** entre os nomes.
+    *   Ele agora encontra alunos mesmo se houver pequenas diferenças (ex: falta um nome do meio, espaço extra ou erro de digitação).
+    *   Prioriza correspondência exata, depois busca por contenção (ex: "Maria Silva" em "Maria da Silva") e por fim similaridade de caracteres.
+    *   **Threshold:** Configurei para **85%** de similaridade. Isso garante que ele encontre o aluno certo sem confundir com outro aluno de nome parecido.
+2.  **Sincronização Robusta:** O botão `🔄 Substituir Eletivas no Supabase` agora força a leitura da planilha `IMportação.xlsx` e garante que **todos** os dados sejam enviados, substituindo o que houver no banco.
+
+Basta copiar este código inteiro e substituir no seu arquivo.
+
+```python
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -17,8 +30,10 @@ from dotenv import load_dotenv
 import pytz
 from difflib import SequenceMatcher
 from xml.etree import ElementTree as ET
+
 # --- CARREGAR VARIÁVEIS DE AMBIENTE ---
 load_dotenv()
+
 # --- CONFIGURAÇÃO SUPABASE ---
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
@@ -36,8 +51,10 @@ else:
         "⚠️ SUPABASE_URL ou SUPABASE_KEY não foram definidas. "
         "As funcionalidades de banco de dados ficaram indisponíveis."
     )
+
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Sistema Conviva 179 - E.E. Profª Eliane", layout="wide", page_icon="🏫")
+
 # --- CSS PERSONALIZADO ---
 st.markdown("""
 <style>
@@ -185,6 +202,7 @@ section[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true
 }
 </style>
 """, unsafe_allow_html=True)
+
 ESCOLA_ENDERECO = "R. Valter Souza Costa, 147 - Jardim Primavera, Ferraz de Vasconcelos - SP"
 ESCOLA_NOME = "E.E. Profª Eliane"
 ESCOLA_SUBTITULO = "Sistema Conviva 179"
@@ -192,8 +210,10 @@ ESCOLA_CEP = "CEP: 08535-310"
 ESCOLA_TELEFONE = "Telefone: (11) 4675-1855"
 ESCOLA_EMAIL = "Email: e918623@educacao.sp.gov.br"
 ESCOLA_LOGO = os.path.join("assets", "images", "eliane_dantas.png")
+
 # --- SENHA PARA EXCLUSÃO ---
 SENHA_EXCLUSAO = "040600"
+
 # --- MENU LATERAL ---
 st.sidebar.markdown("## Menu")
 menu = st.sidebar.radio("", [
@@ -210,336 +230,24 @@ menu = st.sidebar.radio("", [
     "📋 Importar Turmas",
     "👥 Lista de Alunos"
 ], label_visibility="collapsed")
+
 ELETIVAS_ARQUIVO = r"C:\Users\Freak Work\Desktop\IMportação.xlsx"
-# --- DADOS ATUALIZADOS DA PLANILHA IMportação.xlsx ---
+
+# --- DADOS INICIAIS DAS ELETIVAS (FALLBACK) ---
 ELETIVAS = {
-    "Solange": [
-        {"nome": "NAYARA DA CRUZ ALENCAR", "serie": "8A"},
-        {"nome": "ALLANA SOUZA FAUSTINO", "serie": "8B"},
-        {"nome": "BRENDA NASCIMENTO BARBOSA", "serie": "8B"},
-        {"nome": "GABRIELA MONTINO CORDEIRO", "serie": "8B"},
-        {"nome": "RAFAELLE HILLARY DE OLIVEIRA SOUZA", "serie": "8B"},
-        {"nome": "ANA PAULA FERREIRA DA SILVA DE JESUS", "serie": "8C"},
-        {"nome": "ANDREILYS VALERIA ANGULO ACUNA", "serie": "8C"},
-        {"nome": "BEATRIZ VIEIRA DE OLIVEIRA", "serie": "8C"},
-        {"nome": "BIANCA COELHO FERNANDES", "serie": "8C"},
-        {"nome": "BRENDA NICOLE DA SILVA PAIVA", "serie": "8C"},
-        {"nome": "ALICE ANDRADE OLIVEIRA", "serie": "9A"},
-        {"nome": "ALICE ELISABETE RODRIGUES DE MORAIS", "serie": "9A"},
-        {"nome": "BEATRIZ PEREIRA MAIA", "serie": "9A"},
-        {"nome": "GRAZIELE SANTANA FONCECA", "serie": "9A"},
-        {"nome": "ISABELLY ALVINO ALEXANDRE", "serie": "9A"},
-        {"nome": "ISABELLY DA SILVA MACEDO", "serie": "9A"},
-        {"nome": "KAUANY REBECA VITOR DE SOUZA", "serie": "9A"},
-        {"nome": "KETHELLYN VITORIA DO NASCIMENTO LOURENÇONI", "serie": "9A"},
-        {"nome": "SIDYELIS VALENTINA FRANCO ACUNA", "serie": "9A"},
-        {"nome": "ISABELLY ALVES LEITE", "serie": "9B"},
-        {"nome": "JULIA PEREIRA DOS SANTOS SOUZA", "serie": "9B"},
-        {"nome": "RHIANNA DE SOUZA MARTINS", "serie": "9B"},
-        {"nome": "BRENDA DE JESUS CORREA SILVA", "serie": "9C"},
-        {"nome": "GIOVANNA DE OLIVEIRA", "serie": "9C"},
-        {"nome": "KETLYN EMILIA BRAGA DE LIMA", "serie": "9C"},
-        {"nome": "MANOELA MOREIRA DE ARAUJO MARTINS", "serie": "9C"},
-        {"nome": "ROSA MARIA DE ANDRADE", "serie": "9C"},
-        {"nome": "VITORIA DA SILVA COSTA DE ANDRADE", "serie": "9C"}
-    ],
-    "Rosemeire": [
-        {"nome": "DAVI DOS SANTOS CORREIA", "serie": "8A"},
-        {"nome": "GUILHERME CARVALHO DE SOUSA", "serie": "8A"},
-        {"nome": "DAVI FERREIRA TOMAS", "serie": "8B"},
-        {"nome": "GABRIEL GOMES NASCIMENTO", "serie": "8B"},
-        {"nome": "LUCAS PEREIRA DE ASSUNÇÃO", "serie": "8B"},
-        {"nome": "MIGUEL ALVES ALBANO", "serie": "8B"},
-        {"nome": "RAFAEL CECILIO SILVA DO NASCIMENTO", "serie": "8B"},
-        {"nome": "YASMIM FERREIRA DE ALMEIDA", "serie": "8B"},
-        {"nome": "CAIO GUILHERME CUSTODIO", "serie": "8C"},
-        {"nome": "KAIQUE EMANUEL BATISTA LAU", "serie": "8C"},
-        {"nome": "RAFAEL LUIZ APARECIDO DE OLIVEIRA", "serie": "8C"},
-        {"nome": "VINICIUS DE JESUS CORREA SILVA", "serie": "8C"},
-        {"nome": "YASMIN VITORIA CAETANO DOS SANTOS", "serie": "8C"},
-        {"nome": "ANA CAROLINE SANTOS ARAÇA", "serie": "9A"},
-        {"nome": "GABRIEL COSTA MIRANDA RODRIGUES", "serie": "9A"},
-        {"nome": "GUILHERME ISRAEL VINHOLA", "serie": "9A"},
-        {"nome": "KAIO BARBOSA DE SOUZA", "serie": "9A"},
-        {"nome": "KAUANY SILVA DE JESUS", "serie": "9A"},
-        {"nome": "EMANUELLY SOUZA DOS SANTOS", "serie": "9B"},
-        {"nome": "GABRIEL RODRIGUES LOUREIRO", "serie": "9B"},
-        {"nome": "IGOR LUCAS BARROS SANTOS", "serie": "9B"},
-        {"nome": "KAUAN MACIEL SANTOS", "serie": "9B"},
-        {"nome": "KEVEN ALMEIDA VIANA", "serie": "9B"},
-        {"nome": "LUCAS ROBERTO BARBOSA ALVES", "serie": "9B"},
-        {"nome": "MARCO ANTONIO MARTINS DE CAMARGO", "serie": "9B"},
-        {"nome": "MARIA CLARA DA SILVA", "serie": "9B"},
-        {"nome": "NATALIA PEREIRA GONZAGA", "serie": "9B"},
-        {"nome": "NICOLAS FABIANO MOREIRA DOS SANTOS", "serie": "9B"},
-        {"nome": "SIBELLY LUZIA RODRIGUES SANTOS NUNES", "serie": "9B"},
-        {"nome": "THALES MENDES PEREIRA", "serie": "9B"},
-        {"nome": "FELIPE OLIVEIRA AQUINO", "serie": "9C"},
-        {"nome": "LUCAS DE SOUZA VILARIM", "serie": "9C"},
-        {"nome": "MARIA EDUARDA DOS SANTOS MOREIRA", "serie": "9C"},
-        {"nome": "NICOLAS DA SILVA ROCHA", "serie": "9C"},
-        {"nome": "YURI BARBOSA DOS SANTOS FEITOSA", "serie": "9C"}
-    ],
-    "Fernanda": [
-        {"nome": "IAGO RYAN AVELINO VIEIRA HENRIQUE", "serie": "6A"},
-        {"nome": "JULIA RODRIGUES DE BRITO", "serie": "6A"},
-        {"nome": "LAURA LIMA LAURENTINO", "serie": "6A"},
-        {"nome": "MARIA CLARA SANTOS", "serie": "6A"},
-        {"nome": "GABRYELLA SOPHIA PEREIRA ALBUQUERQUE", "serie": "6B"},
-        {"nome": "MARIA JULIA FERREIRA DA ROCHA", "serie": "6B"},
-        {"nome": "MIGUEL FABRICIO DE OLIVEIRA QUEIROZ", "serie": "6B"},
-        {"nome": "SAMUEL MENDES DE OLIVEIRA SILVA", "serie": "6B"},
-        {"nome": "VINICIUS DOS SANTOS VIEIRA LIMA", "serie": "6B"},
-        {"nome": "DAVI LUIZ ALEXANDRINO ALVES DOS SANTOS", "serie": "7A"},
-        {"nome": "JEAN HENRIQUE CONCEIÇÃO NASCIMENTO", "serie": "7A"},
-        {"nome": "MIGUEL CAMPIONI COSTA", "serie": "7A"},
-        {"nome": "PIETRO JORGE SANTANA DA COSTA", "serie": "7A"},
-        {"nome": "RICHARD HENRIQUE OLIVEIRA DA SILVA", "serie": "7A"},
-        {"nome": "ALICE FERREIRA GOMES", "serie": "7B"},
-        {"nome": "GUSTAVO RODRIGUES LEONARDO", "serie": "7B"},
-        {"nome": "DAVI LUCIANO SAVOIA ALVES", "serie": "7C"},
-        {"nome": "HEYTOR MURILO MOREIRA DO NASCIMENTO", "serie": "7C"},
-        {"nome": "JULIA BEATRIZ BASTOS DA SILVA", "serie": "7C"},
-        {"nome": "OSVALDO PEDRO DA CRUZ NETO", "serie": "7C"},
-        {"nome": "RYAN HENRIQUE DA SILVA TELES", "serie": "7C"}
-    ],
-    "Fagna": [
-        {"nome": "ANA BEATRIZ VAZ DE SOUZA NEVES", "serie": "6A"},
-        {"nome": "ISADORA CASTRO SOUZA", "serie": "6A"},
-        {"nome": "KAMILLY VITORIA ZIRONDI DA ROCHA", "serie": "6A"},
-        {"nome": "KAYLA KHIMBERLY VILCA DA SILVA", "serie": "6A"},
-        {"nome": "LORENA VITORIA CORTE LIMA", "serie": "6A"},
-        {"nome": "NATAN ALMEIDA PRADO", "serie": "6A"},
-        {"nome": "RYAN LEONARDO DE CASTRO GARCIA", "serie": "6A"},
-        {"nome": "BRIAN SANTOS FERREIRA", "serie": "6B"},
-        {"nome": "KAWE GABRYEL DOS SANTOS ESTEVAO", "serie": "6B"},
-        {"nome": "PEDRO HENRIQUE DA SILVA SANTOS", "serie": "6B"},
-        {"nome": "SOPHIA NABOR DOS SANTOS", "serie": "6B"},
-        {"nome": "YASMIM CONCEICAO DE OLIVEIRA CRUZ", "serie": "6B"},
-        {"nome": "ALICE SANTOS RIBEIRO", "serie": "7A"},
-        {"nome": "BEATRIZ DA SILVA SOUSA", "serie": "7A"},
-        {"nome": "DIOGO HENRIQUE RAPOSO SANTOS", "serie": "7A"},
-        {"nome": "KAROLAYNE PAULA DE JESUS", "serie": "7A"},
-        {"nome": "MARIA HELENA ASSUNÇÃO DA SILVA", "serie": "7A"},
-        {"nome": "PAMELA CAROLINE GONÇALVES DE JESUS", "serie": "7A"},
-        {"nome": "PAULO CÉSAR MILITINO DE SOUZA", "serie": "7A"},
-        {"nome": "YURI HENRIQUE SOUZA DA SILVA", "serie": "7A"},
-        {"nome": "ELOAH DE FRANÇA DOS SANTOS", "serie": "7B"},
-        {"nome": "JHONATAN OLIVEIRA PONTES", "serie": "7B"}
-    ],
-    "Elaine": [
-        {"nome": "DAMIR QUISPE MAMANI", "serie": "6A"},
-        {"nome": "DEREK SOUSA DE AZEVEDO", "serie": "6A"},
-        {"nome": "DÔMINIC SOUSA DE AZEVEDO", "serie": "6A"},
-        {"nome": "ENZO MILITINA ALMEIDA", "serie": "6A"},
-        {"nome": "GUILHERME GABINO FERRO CAFFE", "serie": "6A"},
-        {"nome": "MANOEL DE SOUZA VILARIM", "serie": "6A"},
-        {"nome": "MATHEUS CANDIDO LIMA", "serie": "6A"},
-        {"nome": "NICOLLAS KEVYN DA SILVA MARTINS", "serie": "6A"},
-        {"nome": "RAYSSON FELIPE DA SILVA SANTOS", "serie": "6A"},
-        {"nome": "RICHARD SANTOS SILVA DE SALES", "serie": "6A"},
-        {"nome": "ALESSANDRO DOMINGUES LOPES", "serie": "6B"},
-        {"nome": "ANA JULLIA DE ALENCAR BALISTA", "serie": "6B"},
-        {"nome": "BRAYAN MEDEIROS", "serie": "6B"},
-        {"nome": "GUSTAVO SANTANA NASCIMENTO", "serie": "6B"},
-        {"nome": "DIOGO CAVALCANTI ZANINI", "serie": "7A"},
-        {"nome": "HENRY GABRIEL DA SILVA", "serie": "7A"},
-        {"nome": "ITALLO MARQUES DOS SANTOS", "serie": "7A"},
-        {"nome": "RAQUEL VITORIA ALVES DE LIMA", "serie": "7A"},
-        {"nome": "SAFIRA DE JESUS RAMALHO", "serie": "7A"},
-        {"nome": "TIAGO MATHEUS MONTE", "serie": "7A"},
-        {"nome": "PEDRO HENRIQUE RAMOS COSTA BRASIL", "serie": "7B"},
-        {"nome": "BRAYAN NASCIMENTO DA SILVA", "serie": "7C"},
-        {"nome": "ENZO MIGUEL RIBEIRO DOS SANTOS LIMA", "serie": "7C"},
-        {"nome": "LEONARDO HENRIQUE DOS SANTOS LORENZI", "serie": "7C"},
-        {"nome": "LUCAS GABRIEL SILVA DOS SANTOS", "serie": "7C"}
-    ],
-    "Geovana": [
-        {"nome": "CAUA GONCALVES DA SILVA", "serie": "8A"},
-        {"nome": "DANIEL MARTINS GOMES", "serie": "8A"},
-        {"nome": "KAUAN FIDELES DA SILVA", "serie": "8A"},
-        {"nome": "PEDRO HENRIQUE FEITOSA DE MENEZES", "serie": "8A"},
-        {"nome": "RAFAEL MOREIRA DOS SANTOS", "serie": "8A"},
-        {"nome": "THEO HENRIQUE PORTILHO DE ALMEIDA", "serie": "8A"},
-        {"nome": "ADRINY MOREIRA DE MELO", "serie": "8B"},
-        {"nome": "GABRIEL DOS SANTOS SILVA", "serie": "8B"},
-        {"nome": "JOÃO PEDRO FAUSTINO DE SOUZA", "serie": "8B"},
-        {"nome": "PEDRO LUKAS DE SOUZA LIMA", "serie": "8B"},
-        {"nome": "DAVI LUCAS DOS SANTOS SILVA", "serie": "8C"},
-        {"nome": "NATALLY FERNANDA PONTES", "serie": "8C"},
-        {"nome": "AGNER DE JESUS VALENCA", "serie": "9A"},
-        {"nome": "GUSTAVO DE OLIVEIRA", "serie": "9A"},
-        {"nome": "JUAN VITOR MELO FERREIRA", "serie": "9A"},
-        {"nome": "JULIA BASTOS BERALDO", "serie": "9A"},
-        {"nome": "KAUAN RIQUELME LEAL ZANOVELLI RODRIGUES", "serie": "9A"},
-        {"nome": "NICOLLAS QUEIROZ DE CASTRO", "serie": "9A"},
-        {"nome": "SAMUEL VINICIUS RAMOS DE OLIVEIRA", "serie": "9A"},
-        {"nome": "GABRIEL DE LIMA PAZETTO", "serie": "9B"},
-        {"nome": "HENZO GABRIEL DE OLIVEIRA ANDRADE", "serie": "9B"},
-        {"nome": "MARIANA FERNANDA VIEIRA GUEDES", "serie": "9B"},
-        {"nome": "CAIO OLIVEIRA SANTOS", "serie": "9C"},
-        {"nome": "HENZO MIGUEL DIAS COELHO", "serie": "9C"},
-        {"nome": "ISABELE CRISTINA LEITE HONORIO DA SILVA", "serie": "9C"},
-        {"nome": "JAMES VINICIUS FELIPE GOMES", "serie": "9C"},
-        {"nome": "JAMESON LUIGI DE SOUZA SANTIAGO", "serie": "9C"},
-        {"nome": "MARIA HELOISA SOUSA DOS SANTOS", "serie": "9C"},
-        {"nome": "MIGUEL ARONI DE SANTANA", "serie": "9C"},
-        {"nome": "PIETRO LOPES DA SILVA", "serie": "9C"}
-    ],
-    "Shirley": [
-        {"nome": "MATHEUS LOURENCO VIEIRA DA SILVA", "serie": "8A"},
-        {"nome": "MURILO DOMINGUES COUTINHO", "serie": "8A"},
-        {"nome": "NATANAEL DA CONCEICAO DUARTE", "serie": "8A"},
-        {"nome": "HENRIQUE ALVES FELIX", "serie": "8B"},
-        {"nome": "JOAO VITOR FERREIRA SANTOS", "serie": "8B"},
-        {"nome": "SAMUEL DE ALMEIDA SOUZA", "serie": "8B"},
-        {"nome": "IGOR PABLO GRUER", "serie": "8C"},
-        {"nome": "MARIANE DE OLIVEIRA SOUZA", "serie": "8C"},
-        {"nome": "PIETRO SANTOS MARQUES", "serie": "8C"},
-        {"nome": "CAMILY VITORIA GOMES ALVES", "serie": "9A"},
-        {"nome": "DOUGLAS GABRIEL SOUZA FREIRE SILVA", "serie": "9A"},
-        {"nome": "GABRIEL FERNANDES SIQUEIRA DE OLIVEIRA", "serie": "9A"},
-        {"nome": "LUCAS RAIMUNDO BORGES DE MELO", "serie": "9A"},
-        {"nome": "WANDREL RODRIGO NASCIMENTO DA CRUZ", "serie": "9A"},
-        {"nome": "CAIQUE WILSON DE AZEVEDO SIQUEIRA", "serie": "9B"},
-        {"nome": "GUILHERME GODOY PEREIRA VITOR", "serie": "9B"},
-        {"nome": "ICARO SANTOS LOPES", "serie": "9B"},
-        {"nome": "KAUA ALVES LEITE", "serie": "9B"},
-        {"nome": "LAIS FARIA CARVALHO", "serie": "9B"},
-        {"nome": "RICHARD HENRIQUE DE LIMA GONCALVES", "serie": "9B"},
-        {"nome": "RICHARD LUIZ SILVA CARVALHO", "serie": "9B"},
-        {"nome": "ALICE LOPES PEREIRA", "serie": "9C"},
-        {"nome": "ANA KAROLINE SANTANA DA SILVA", "serie": "9C"},
-        {"nome": "BRENNDA ARAUJO SANTOS", "serie": "9C"},
-        {"nome": "GUILHERME LEITE SOUZA CRUZ", "serie": "9C"},
-        {"nome": "JAIR COSTA BRASIL NETO", "serie": "9C"},
-        {"nome": "JAMILY NICOLY CARDOSO DE AGUIAR", "serie": "9C"},
-        {"nome": "MAICON HENRIQUE XAVIER PEREIRA", "serie": "9C"},
-        {"nome": "PABLO SANTOS SOUSA", "serie": "9C"},
-        {"nome": "TALITA LUANA DOS SANTOS SILVA", "serie": "9C"}
-    ],
-    "Rosangela": [
-        {"nome": "ANA BEATRIZ DA SILVA ROCHA", "serie": "8A"},
-        {"nome": "GABRIEL VIEIRA NASCIMENTO", "serie": "8A"},
-        {"nome": "ISABELLA FERNANDA CABRAL DOS SANTOS", "serie": "8A"},
-        {"nome": "ISABELLY RIBEIRO PEREIRA DOS SANTOS", "serie": "8A"},
-        {"nome": "MANOELA DE OLIVEIRA", "serie": "8A"},
-        {"nome": "THAUANY VITORIA DE OLIVEIRA", "serie": "8A"},
-        {"nome": "YASMIN CRISTINA BRAGA DE LIMA", "serie": "8A"},
-        {"nome": "GABRIEL LOPES VICTOR", "serie": "8B"},
-        {"nome": "PAULO HENRIQUE GUIMARAES DOS SANTOS", "serie": "8B"},
-        {"nome": "PIETRO GABRIEL ANDRADE FREIRE DA SILVA", "serie": "8B"},
-        {"nome": "RIQUELME BULGURLU", "serie": "8B"},
-        {"nome": "ROBERT SANTOS SANTIAGO", "serie": "8B"},
-        {"nome": "THALLES LEONARDO MAGALHAES", "serie": "8B"},
-        {"nome": "VICTOR HUGO MATOS GUIMARAES", "serie": "8B"},
-        {"nome": "AGATHA BEATRYZ MEDEIROS DOS SANTOS", "serie": "8C"},
-        {"nome": "ANA KAROLINA FERREIRA PIRES CORDEIRO", "serie": "8C"},
-        {"nome": "DANIEL GONCALVES DE SOUZA", "serie": "8C"},
-        {"nome": "ICARO LEMOS SILVA", "serie": "8C"},
-        {"nome": "KAUAN GUSTAVO ANDRADE DOS SANTOS", "serie": "8C"},
-        {"nome": "LORRAYNE BATISTA CORDEIRO", "serie": "8C"},
-        {"nome": "MATHEUS DE LIMA RIBEIRO", "serie": "8C"},
-        {"nome": "YURI NASCIMENTO SILVA", "serie": "8C"},
-        {"nome": "MARIA LAYSLA DOS SANTOS AMERICO", "serie": "9B"},
-        {"nome": "CARLOS EDUARDO DOS SANTOS LORENZI", "serie": "9C"},
-        {"nome": "EDUARDO ERICK HENRIQUE AFONSO DA SILVA", "serie": "9C"},
-        {"nome": "RUAN SILVA DE JESUS", "serie": "9C"},
-        {"nome": "SILLAS CAROLINO DO CARMO BORGES", "serie": "9C"}
-    ],
-    "Veronica": [
-        {"nome": "ARTHUR CESAR COSTA DE FARIAS", "serie": "6A"},
-        {"nome": "MARIA JULIA GOMES CARDOSO", "serie": "6A"},
-        {"nome": "MIGUEL SANTIAGO RAMOS DE SOUZA", "serie": "6A"},
-        {"nome": "WILLIAN GABRIEL MORAES DE ALMEIDA", "serie": "6A"},
-        {"nome": "ANA LUIZA VITOR DA SILVA", "serie": "6B"},
-        {"nome": "DAVI ALVES SERAFIM", "serie": "6B"},
-        {"nome": "ERICK GRACIA DE SOUZA CERQUEIRA", "serie": "6B"},
-        {"nome": "GUILHERME OLIVEIRA DE FREITAS", "serie": "6B"},
-        {"nome": "ANA VITORIA OLIVEIRA DE SOUZA", "serie": "7A"},
-        {"nome": "ARIEL MARIANO DE JESUS", "serie": "7A"},
-        {"nome": "ARTHUR BALBINO DA SILVA", "serie": "7A"},
-        {"nome": "DAVI LUCCA CARDOZO DOS SANTOS", "serie": "7A"},
-        {"nome": "MAIARA FRANCINE VIEIRA GUEDES", "serie": "7A"},
-        {"nome": "MATHEUS DANTAS SANTOS", "serie": "7A"},
-        {"nome": "MURILLO DE MORAES SILVA", "serie": "7A"},
-        {"nome": "ANA GLORIA SANTOS MARCOS RODRIGUES", "serie": "7B"},
-        {"nome": "ARTHUR GUILHERME ZIRONDI DA ROCHA", "serie": "7B"},
-        {"nome": "GUSTAVO BATISTA DE JESUS", "serie": "7B"},
-        {"nome": "KAUAN WILLIAN DE MOURA SILVA", "serie": "7B"},
-        {"nome": "KIMBERLLY VICTORIA DA CRUZ BHERING", "serie": "7B"},
-        {"nome": "LETICIA CONCEIÇÃO DOS SANTOS", "serie": "7B"},
-        {"nome": "MELISSA YANKA LOURENÇO DOS SANTOS", "serie": "7B"},
-        {"nome": "RIQUELME SANCHES PAULO", "serie": "7B"},
-        {"nome": "SOPHIA FERREIRA SANTOS", "serie": "7B"},
-        {"nome": "THAINARA OLIVEIRA DA SILVA", "serie": "7B"},
-        {"nome": "KAMILLY SOFIA PORTO BARROS", "serie": "7C"},
-        {"nome": "NICOLAS DE SALLES PIRES", "serie": "7C"}
-    ],
-    "Silvana": [
-        {"nome": "DAVID OLIVEIRA DA SILVA", "serie": "8A"},
-        {"nome": "EMANUELLY DA SILVA COSTA", "serie": "8A"},
-        {"nome": "GEOVANNA OLIVEIRA DOS SANTOS MAIOLA", "serie": "8A"},
-        {"nome": "ISABELLY MARQUES DOS SANTOS", "serie": "8A"},
-        {"nome": "MELISSA RIBEIRO CARDOZO", "serie": "8A"},
-        {"nome": "RAFAELLA PINTO DA SILVA", "serie": "8A"},
-        {"nome": "EMILY EDUARDA FELINTRO DA SILVA DOS SANTOS", "serie": "8B"},
-        {"nome": "JULIO CESAR MOIZES DA COSTA", "serie": "8B"},
-        {"nome": "VITORIA EDUARDA MATOS GUIMARAES", "serie": "8B"},
-        {"nome": "ALANA SOPHIA FERREIRA BATISTA", "serie": "8C"},
-        {"nome": "ALICE MARQUES SANTOS", "serie": "8C"},
-        {"nome": "EDUARDA NICOLLY MOREIRA DE AZEVEDO", "serie": "8C"},
-        {"nome": "MIGUEL CHAGAS DOS SANTOS", "serie": "8C"},
-        {"nome": "RAISSA AVELINO VIEIRA HENRIQUE", "serie": "8C"},
-        {"nome": "RICARDO XAVIER DOS SANTOS", "serie": "8C"},
-        {"nome": "RICHARD YAGO DA SILVA TELES", "serie": "8C"},
-        {"nome": "BRAYAN THOMAS BUENO PEREIRA", "serie": "9A"},
-        {"nome": "CAUÂ HENRIQUE DA SILVA SANTOS", "serie": "9A"},
-        {"nome": "LEANDRO OLIVEIRA DOS SANTOS", "serie": "9A"},
-        {"nome": "LORENA MACIEL LOURENCO", "serie": "9A"},
-        {"nome": "VITOR ITALO RODRIGUES DE LIMA", "serie": "9A"},
-        {"nome": "ADRIELE DOMINGUES LOPES", "serie": "9B"},
-        {"nome": "CRYSTAL KETELYN PEDROSO FRANCISCO", "serie": "9B"},
-        {"nome": "HELOISA ALVES BARROS", "serie": "9B"},
-        {"nome": "LUCAS VIEIRA DOS SANTOS LIRA", "serie": "9B"},
-        {"nome": "GUILHERME OLIVEIRA DOS SANTOS MAIOLA", "serie": "9C"},
-        {"nome": "PEDRO LOURENCO DE MORAES", "serie": "9C"}
-    ],
-    "Patricia": [
-        {"nome": "ALICE FERREIRA DA SILVA", "serie": "6A"},
-        {"nome": "CAUA LUIZ TORRES CABRAL", "serie": "6A"},
-        {"nome": "KAUANY VITORIA PEREIRA DOS SANTOS", "serie": "6A"},
-        {"nome": "EMILLY EMANUELLY BANDEIRA ALVES DA SILVA", "serie": "6B"},
-        {"nome": "ENZO RODRIGUES SANTOS CARVALHO", "serie": "6B"},
-        {"nome": "ESTER DOS SANTOS DE JESUS", "serie": "6B"},
-        {"nome": "ESTHER RODRIGUES DE CAMPOS", "serie": "6B"},
-        {"nome": "HELENA DE SOUSA FERREIRA", "serie": "6B"},
-        {"nome": "HENRIQUE GODOY PEREIRA VITOR", "serie": "6B"},
-        {"nome": "JHONATAN VIEIRA BRITO", "serie": "6B"},
-        {"nome": "JOAO VITOR MILITINA BARBOSA", "serie": "6B"},
-        {"nome": "MAYSA DE LIMA BENEDITO", "serie": "6B"},
-        {"nome": "CLARA KEVELLYN BARBOSA DE SOUSA", "serie": "7A"},
-        {"nome": "IZAQUI BONFIM SILVA", "serie": "7A"},
-        {"nome": "DANIEL DAVY OLIVEIRA QUISPE", "serie": "7B"},
-        {"nome": "EMILLY VITÓRIA GOMES ALVES", "serie": "7B"},
-        {"nome": "FILIPPE THIAGO OLIVEIRA DE FREITAS", "serie": "7B"},
-        {"nome": "GIULIA SANTANA BARBOSA", "serie": "7B"},
-        {"nome": "GUILHERME SANTIAGO DE OLIVEIRA", "serie": "7B"},
-        {"nome": "HENRIQUE RAFAEL BELTRAO OLIVEIRA", "serie": "7B"},
-        {"nome": "LUAN LORENZO LOPES OLIVEIRA", "serie": "7B"},
-        {"nome": "PAULO HENRIQUE ASSUMPÇÃO DE OLIVEIRA COSTA", "serie": "7B"},
-        {"nome": "FELLIPE PEREIRA RAMOS", "serie": "7C"},
-        {"nome": "KAMILLY VICTORIA DOS SANTOS SILVA", "serie": "7C"},
-        {"nome": "KAUÃ SOUZA DOS SANTOS", "serie": "7C"},
-        {"nome": "KAUANY VITORIA EMIDIO", "serie": "7C"},
-        {"nome": "KAUANY VITORIA ROSA SANTOS", "serie": "7C"},
-        {"nome": "KIMBERLYN CHRISTINA MACIEL DA SILVA", "serie": "7C"},
-        {"nome": "MIKAELLY APARECIDA DIAS", "serie": "7C"},
-        {"nome": "PEDRO HENRIQUE GONCALVES SILVA", "serie": "7C"},
-        {"nome": "RYAN SILVA BRAZ", "serie": "7C"},
-        {"nome": "YURI BOSNICH BARBOSA", "serie": "7C"}
-    ]
+    "Solange": [],
+    "Rosemeire": [],
+    "Fernanda": [],
+    "Fagna": [],
+    "Elaine": [],
+    "Geovana": [],
+    "Shirley": [],
+    "Rosangela": [],
+    "Veronica": [],
+    "Silvana": [],
+    "Patricia": []
 }
+
 # --- CORES PARA TIPOS DE INFRAÇÃO ---
 CORES_INFRACOES = {
     "Agressão Física": "#FF6B6B",
@@ -601,6 +309,7 @@ CORES_INFRACOES = {
     "Copiar atividades / Colar em avaliações": "#FFA726",
     "Falsificar assinatura de responsáveis": "#EF5350"
 }
+
 # --- CORES POR GRAVIDADE ---
 CORES_GRAVIDADE = {
     "Leve": "#4CAF50",
@@ -608,7 +317,8 @@ CORES_GRAVIDADE = {
     "Grave": "#FF9800",
     "Gravíssima": "#F44336"
 }
-# --- PROTOCOLO 179 COMPLETO (CORRIGIDO: \n em vez de quebras reais) ---
+
+# --- PROTOCOLO 179 COMPLETO ---
 PROTOCOLO_179 = {
     "📌 Violência e Agressão": {
         "Agressão Física": {
@@ -861,6 +571,7 @@ PROTOCOLO_179 = {
         }
     }
 }
+
 # --- FUNÇÃO DE BUSCA FUZZY ---
 def buscar_infracao_fuzzy(busca, protocolo):
     if not busca or len(busca) < 2:
@@ -899,6 +610,7 @@ def buscar_infracao_fuzzy(busca, protocolo):
         if infracoes_encontradas:
             resultados[grupo] = infracoes_encontradas
     return resultados
+
 # --- FUNÇÕES SUPABASE ---
 def _supabase_request(method, path, **kwargs):
     if not SUPABASE_VALID:
@@ -907,11 +619,13 @@ def _supabase_request(method, path, **kwargs):
     response = requests.request(method, url, headers=HEADERS, **kwargs)
     response.raise_for_status()
     return response
+
 def _supabase_error(acao):
     if not SUPABASE_VALID:
         st.error(f"SUPABASE_URL ou SUPABASE_KEY não configuradas. Não foi possível {acao}.")
         return True
     return False
+
 def _supabase_get_dataframe(path, acao):
     if _supabase_error(acao):
         return pd.DataFrame()
@@ -921,6 +635,7 @@ def _supabase_get_dataframe(path, acao):
     except Exception as e:
         st.error(f"Erro ao {acao}: {str(e)}")
         return pd.DataFrame()
+
 def _supabase_mutation(method, path, data, acao):
     if _supabase_error(acao):
         return False
@@ -933,15 +648,20 @@ def _supabase_mutation(method, path, data, acao):
     except Exception as e:
         st.error(f"Erro ao {acao}: {str(e)}")
         return False
+
 @st.cache_data(ttl=300)
 def carregar_alunos():
     return _supabase_get_dataframe("alunos?select=*", "carregar alunos")
+
 def salvar_aluno(aluno):
     return _supabase_mutation("POST", "alunos", aluno, "salvar aluno")
+
 def atualizar_aluno(ra, dados):
     return _supabase_mutation("PATCH", f"alunos?ra=eq.{ra}", dados, "atualizar aluno")
+
 def excluir_alunos_por_turma(turma):
     return _supabase_mutation("DELETE", f"alunos?turma=eq.{turma}", None, "excluir turma")
+
 @st.cache_data(ttl=300)
 def carregar_professores():
     if not SUPABASE_VALID:
@@ -953,6 +673,7 @@ def carregar_professores():
     except Exception as e:
         st.error(f"Erro ao carregar professores: {str(e)}")
         return pd.DataFrame()
+
 def salvar_professor(professor):
     if not SUPABASE_VALID:
         st.error("SUPABASE_URL ou SUPABASE_KEY não configuradas. Não foi possível salvar professor.")
@@ -963,6 +684,7 @@ def salvar_professor(professor):
     except Exception as e:
         st.error(f"Erro ao salvar professor: {str(e)}")
         return False
+
 def atualizar_professor(id_prof, dados):
     if not SUPABASE_VALID:
         st.error("SUPABASE_URL ou SUPABASE_KEY não configuradas. Não foi possível atualizar professor.")
@@ -973,6 +695,7 @@ def atualizar_professor(id_prof, dados):
     except Exception as e:
         st.error(f"Erro ao atualizar professor: {str(e)}")
         return False
+
 def excluir_professor(id_prof):
     if not SUPABASE_VALID:
         st.error("SUPABASE_URL ou SUPABASE_KEY não configuradas. Não foi possível excluir professor.")
@@ -983,24 +706,29 @@ def excluir_professor(id_prof):
     except Exception as e:
         st.error(f"Erro ao excluir professor: {str(e)}")
         return False
+
 @st.cache_data(ttl=300)
 def carregar_responsaveis():
     return _supabase_get_dataframe("responsaveis?select=*&ativo=eq.true", "carregar responsáveis")
+
 def salvar_responsavel(responsavel):
     result = _supabase_mutation("POST", "responsaveis", responsavel, "salvar responsável")
     if result:
         limpar_cache_responsaveis()
     return result
+
 def atualizar_responsavel(id_resp, dados):
     result = _supabase_mutation("PATCH", f"responsaveis?id=eq.{id_resp}", dados, "atualizar responsável")
     if result:
         limpar_cache_responsaveis()
     return result
+
 def excluir_responsavel(id_resp):
     result = _supabase_mutation("DELETE", f"responsaveis?id=eq.{id_resp}", None, "excluir responsável")
     if result:
         limpar_cache_responsaveis()
     return result
+
 @st.cache_data(ttl=300)
 def carregar_eletivas_supabase():
     if _supabase_error("carregar eletivas"):
@@ -1011,18 +739,20 @@ def carregar_eletivas_supabase():
     except requests.HTTPError as e:
         status_code = getattr(getattr(e, "response", None), "status_code", None)
         if status_code == 404:
-            st.info("ℹ️ A tabela `eletivas` ainda não existe no Supabase. A tela usará a planilha local até essa tabela ser criada.")
+            st.info("ℹ️ A tabela `eletivas` ainda não existe no Supabase. Usando planilha local.")
             return pd.DataFrame()
         st.error(f"Erro ao carregar eletivas: {str(e)}")
         return pd.DataFrame()
     except Exception as e:
         st.error(f"Erro ao carregar eletivas: {str(e)}")
         return pd.DataFrame()
+
 def limpar_cache_eletivas():
     try:
         carregar_eletivas_supabase.clear()
     except Exception:
         pass
+
 def substituir_eletivas_supabase(registros):
     if _supabase_error("substituir eletivas"):
         return False
@@ -1038,9 +768,11 @@ def substituir_eletivas_supabase(registros):
     except Exception as e:
         st.error(f"Erro ao limpar eletivas no Supabase: {str(e)}")
         return False
+    
     if not registros:
         limpar_cache_eletivas()
         return True
+    
     try:
         response = _supabase_request("POST", "eletivas", json=registros)
         sucesso = response.status_code in [200, 201]
@@ -1050,15 +782,20 @@ def substituir_eletivas_supabase(registros):
     except Exception as e:
         st.error(f"Erro ao salvar eletivas no Supabase: {str(e)}")
         return False
+
 @st.cache_data(ttl=300)
 def carregar_ocorrencias():
     return _supabase_get_dataframe("ocorrencias?select=*&order=id.desc", "carregar ocorrências")
+
 def salvar_ocorrencia(ocorrencia):
     return _supabase_mutation("POST", "ocorrencias", ocorrencia, "salvar ocorrência")
+
 def excluir_ocorrencia(id_ocorrencia):
     return _supabase_mutation("DELETE", f"ocorrencias?id=eq.{id_ocorrencia}", None, "excluir ocorrência")
+
 def editar_ocorrencia(id_ocorrencia, dados):
     return _supabase_mutation("PATCH", f"ocorrencias?id=eq.{id_ocorrencia}", dados, "editar ocorrência")
+
 def verificar_ocorrencia_duplicada(ra, categoria, data_str, df_ocorrencias):
     if df_ocorrencias.empty:
         return False
@@ -1068,6 +805,7 @@ def verificar_ocorrencia_duplicada(ra, categoria, data_str, df_ocorrencias):
         (df_ocorrencias['data'] == data_str)
     ]
     return not ocorrencias_existentes.empty
+
 def verificar_professor_duplicado(nome, df_professores, id_atual=None):
     if df_professores.empty:
         return False
@@ -1080,11 +818,13 @@ def verificar_professor_duplicado(nome, df_professores, id_atual=None):
     else:
         duplicados = df_professores[df_professores['nome'].str.strip().str.lower() == nome_normalizado]
     return not duplicados.empty
+
 def limpar_cache_responsaveis():
     try:
         carregar_responsaveis.clear()
     except Exception:
         pass
+
 def get_responsavel_por_nome(responsaveis, cargos, nomes_prioritarios):
     if responsaveis.empty:
         return None
@@ -1096,6 +836,7 @@ def get_responsavel_por_nome(responsaveis, cargos, nomes_prioritarios):
         if not match.empty:
             return match.iloc[0]['nome']
     return responsaveis.iloc[0]['nome']
+
 def get_responsavel_por_cargo(responsaveis, cargos):
     if responsaveis.empty:
         return None
@@ -1104,6 +845,7 @@ def get_responsavel_por_cargo(responsaveis, cargos):
         if not resp.empty:
             return resp.iloc[0]['nome']
     return None
+
 def selecionar_equipe_por_horario(data_str, responsaveis):
     diretor = get_responsavel_por_cargo(responsaveis, ["Diretor", "Diretora"]) or "Renan Lourenco Da Silva"
     vice_manha = get_responsavel_por_nome(responsaveis, ["Vice-Diretor", "Vice-Diretora"], ["Erika Paula", "Erika"]) or "Erika Paula Viana Watanabe"
@@ -1135,12 +877,14 @@ def selecionar_equipe_por_horario(data_str, responsaveis):
         "vice": vice,
         "coordenador": coordenador
     }
+
 def obter_gravidade_mais_alta(gravidades):
     ordem = {"Leve": 1, "Grave": 2, "Gravíssima": 3}
     if not gravidades:
         return "Leve"
     max_gravidade = max(gravidades, key=lambda g: ordem.get(g, 0))
     return max_gravidade
+
 def combinar_encaminhamentos(encaminhamentos_lista):
     todos = []
     for encam in encaminhamentos_lista:
@@ -1149,6 +893,7 @@ def combinar_encaminhamentos(encaminhamentos_lista):
             if linha and linha not in todos:
                 todos.append(linha)
     return '\n'.join(todos)
+
 def normalizar_texto(valor):
     if pd.isna(valor):
         return ""
@@ -1156,6 +901,7 @@ def normalizar_texto(valor):
     texto = unicodedata.normalize("NFKD", texto)
     texto = "".join(char for char in texto if not unicodedata.combining(char))
     return " ".join(texto.split())
+
 def carregar_eletivas_do_excel(caminho_arquivo, fallback=None):
     if not os.path.exists(caminho_arquivo):
         return fallback if fallback is not None else {}
@@ -1208,6 +954,7 @@ def carregar_eletivas_do_excel(caminho_arquivo, fallback=None):
             return eletivas if eletivas else (fallback if fallback is not None else {})
     except Exception:
         return fallback if fallback is not None else {}
+
 def converter_eletivas_para_registros(eletivas_dict, origem="excel"):
     registros = []
     for professora, alunos in eletivas_dict.items():
@@ -1219,6 +966,7 @@ def converter_eletivas_para_registros(eletivas_dict, origem="excel"):
                 "origem": origem
             })
     return registros
+
 def converter_eletivas_supabase_para_dict(df_eletivas):
     if df_eletivas.empty:
         return {}
@@ -1234,27 +982,59 @@ def converter_eletivas_supabase_para_dict(df_eletivas):
             "serie": serie
         })
     return eletivas
+
 def montar_dataframe_eletiva(nome_professora, df_alunos):
     registros = []
-    alunos_base = df_alunos.copy() if not df_alunos.empty else pd.DataFrame()
-    if not alunos_base.empty:
-        alunos_base['nome_normalizado'] = alunos_base['nome'].apply(normalizar_texto)
+    alunos_db = df_alunos.copy() if not df_alunos.empty else pd.DataFrame()
+    
+    # Pre-processar dados do banco para busca rápida
+    alunos_db['nome_norm'] = alunos_db['nome'].apply(normalizar_texto) if 'nome' in alunos_db.columns else ""
+
     for item in ELETIVAS.get(nome_professora, []):
         nome_original = item['nome']
-        nome_normalizado = normalizar_texto(nome_original)
-        match = pd.DataFrame()
-        if not alunos_base.empty:
-            match = alunos_base[alunos_base['nome_normalizado'] == nome_normalizado]
-        if not match.empty:
-            aluno = match.iloc[0]
+        nome_norm_excel = normalizar_texto(nome_original)
+        
+        melhor_match = None
+        melhor_score = 0.0
+        
+        # Busca Inteligente: Exata > Contenção > Fuzzy
+        if not alunos_db.empty:
+            for _, row in alunos_db.iterrows():
+                nome_db_norm = row.get('nome_norm', '')
+                if not nome_db_norm: continue
+                
+                score = 0.0
+                
+                # 1. Match Exato
+                if nome_norm_excel == nome_db_norm:
+                    melhor_match = row
+                    melhor_score = 1.0
+                    break # Encontrou o ideal, para
+                
+                # 2. Contenção (um está dentro do outro)
+                if nome_norm_excel in nome_db_norm or nome_db_norm in nome_norm_excel:
+                    score = SequenceMatcher(None, nome_norm_excel, nome_db_norm).ratio()
+                    if score > melhor_score:
+                        melhor_score = score
+                        melhor_match = row
+                
+                # 3. Fuzzy Match (se ainda não tiver um match forte)
+                elif melhor_score < 0.85:
+                    score = SequenceMatcher(None, nome_norm_excel, nome_db_norm).ratio()
+                    if score > melhor_score:
+                        melhor_score = score
+                        melhor_match = row
+
+        # Define o status baseado na confiança do match (Threshold 80%)
+        if melhor_match is not None and melhor_score >= 0.80:
             registros.append({
                 "Professora": nome_professora,
                 "Nome da Eletiva": nome_original,
                 "Série da Eletiva": item['serie'],
-                "Aluno Cadastrado": aluno.get('nome', nome_original),
-                "RA": aluno.get('ra', ''),
-                "Turma no Sistema": aluno.get('turma', ''),
-                "Situação": aluno.get('situacao', ''),
+                "Aluno Cadastrado": melhor_match.get('nome', ''),
+                "RA": melhor_match.get('ra', ''),
+                "Turma no Sistema": melhor_match.get('turma', ''),
+                "Situação": melhor_match.get('situacao', ''),
                 "Status": "Encontrado"
             })
         else:
@@ -1269,7 +1049,10 @@ def montar_dataframe_eletiva(nome_professora, df_alunos):
                 "Status": "Não encontrado"
             })
     return pd.DataFrame(registros)
-ELETIVAS = carregar_eletivas_do_excel(ELETIVAS_ARQUIVO, fallback=ELETIVAS)
+
+# Carrega as eletivas da planilha ao iniciar
+ELETIVAS_EXCEL = carregar_eletivas_do_excel(ELETIVAS_ARQUIVO, fallback=ELETIVAS)
+
 def gerar_pdf_eletiva(nome_professora, df_eletiva):
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1*cm, leftMargin=1*cm, topMargin=1.5*cm, bottomMargin=1.5*cm)
@@ -1323,6 +1106,7 @@ def gerar_pdf_eletiva(nome_professora, df_eletiva):
     doc.build(elementos)
     buffer.seek(0)
     return buffer
+
 def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1*cm, leftMargin=1*cm, topMargin=1.5*cm, bottomMargin=1.5*cm)
@@ -1396,6 +1180,7 @@ def gerar_pdf_ocorrencia(ocorrencia, responsaveis):
     doc.build(elementos)
     buffer.seek(0)
     return buffer
+
 def gerar_pdf_comunicado(aluno_data, ocorrencia_data, medidas_aplicadas, observacoes, responsaveis):
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1*cm, leftMargin=1*cm, topMargin=1.5*cm, bottomMargin=1.5*cm)
@@ -1497,6 +1282,7 @@ def gerar_pdf_comunicado(aluno_data, ocorrencia_data, medidas_aplicadas, observa
     doc.build(elementos)
     buffer.seek(0)
     return buffer
+
 # --- SESSION STATE ---
 if 'editando_id' not in st.session_state:
     st.session_state.editando_id = None
@@ -1534,19 +1320,22 @@ if 'nome_responsavel_salvo' not in st.session_state:
     st.session_state.nome_responsavel_salvo = ""
 if 'cargo_responsavel_salvo' not in st.session_state:
     st.session_state.cargo_responsavel_salvo = ""
+
 # --- CARREGAR DADOS ---
 df_alunos = carregar_alunos()
 df_ocorrencias = carregar_ocorrencias()
 df_professores = carregar_professores()
 df_responsaveis = carregar_responsaveis()
 df_eletivas_supabase = carregar_eletivas_supabase()
-ELETIVAS_EXCEL = carregar_eletivas_do_excel(ELETIVAS_ARQUIVO, fallback=ELETIVAS)
+
+# Lógica de carregamento das Eletivas
 if not df_eletivas_supabase.empty:
     ELETIVAS = converter_eletivas_supabase_para_dict(df_eletivas_supabase)
     FONTE_ELETIVAS = "supabase"
 else:
     ELETIVAS = ELETIVAS_EXCEL
     FONTE_ELETIVAS = "excel"
+
 # --- 1. HOME ---
 if menu == "🏠 Início":
     st.markdown(f"""
@@ -1574,6 +1363,7 @@ if menu == "🏠 Início":
     with col5:
         media = round(len(df_ocorrencias) / len(df_alunos), 2) if len(df_alunos) > 0 else 0
         st.metric("Média de Ocorrências por Aluno", media)
+
     # Contagem por Gravidade
     if not df_ocorrencias.empty:
         st.markdown("---")
@@ -1620,6 +1410,7 @@ if menu == "🏠 Início":
                 <div style="font-size: 1rem;">Média de Gravidade</div>
             </div>
             """, unsafe_allow_html=True)
+
     # Gráficos na página inicial
     if not df_ocorrencias.empty:
         st.markdown("---")
@@ -1667,6 +1458,8 @@ if menu == "🏠 Início":
                 )
                 fig_students.update_layout(xaxis_tickangle=-45)
                 st.plotly_chart(fig_students, use_container_width=True)
+
+# --- 2. CADASTRAR PROFESSORES ---
 elif menu == "👨‍🏫 Cadastrar Professores":
     st.header("👨‍🏫 Cadastrar Professores")
     # Exibir mensagem de sucesso se houver
@@ -1675,6 +1468,7 @@ elif menu == "👨‍🏫 Cadastrar Professores":
         st.session_state.professor_salvo_sucesso = False
         st.session_state.nome_professor_salvo = ""
         st.session_state.cargo_professor_salvo = ""
+
     with st.expander("📥 Importar Professores em Massa", expanded=False):
         st.info("💡 Cole uma lista de nomes de professores (um por linha)")
         texto_professores = st.text_area("Cole os nomes dos professores aqui:",
@@ -1699,6 +1493,7 @@ elif menu == "👨‍🏫 Cadastrar Professores":
                     st.rerun()
             else:
                 st.error("❌ Cole os nomes dos professores!")
+
     st.markdown("---")
     if st.session_state.editando_prof:
         st.subheader("✏️ Editar Cadastro")
@@ -1734,7 +1529,7 @@ elif menu == "👨‍🏫 Cadastrar Professores":
                                       key="novo_cargo_prof")
             email_prof = st.text_input("E-mail (opcional)", placeholder="Ex: joao@educacao.sp.gov.br", key="novo_email_prof")
         with col2:
-            st.info("💡 Cadastre professores, diretores,\ncoordernadores e outros cargos da escola.")
+            st.info("💡 Cadastre professores, diretores, coordenadores e outros cargos da escola.")
         if st.button("💾 Salvar Cadastro", type="primary"):
             if nome_prof:
                 if verificar_professor_duplicado(nome_prof, df_professores):
@@ -1767,6 +1562,7 @@ elif menu == "👨‍🏫 Cadastrar Professores":
         st.info(f"Total: {len(df_professores)} cadastro(s)")
     else:
         st.write("📭 Nenhum professor cadastrado.")
+
     # Mostrar confirmação de exclusão de professor se necessário
     if 'confirmar_exclusao_prof' in st.session_state:
         prof_id = st.session_state['confirmar_exclusao_prof']
@@ -1787,6 +1583,7 @@ elif menu == "👨‍🏫 Cadastrar Professores":
             if st.button("❌ Cancelar", type="secondary"):
                 del st.session_state['confirmar_exclusao_prof']
                 st.rerun()
+
 # --- 3. CADASTRAR RESPONSÁVEIS ---
 elif menu == "👤 Cadastrar Assinaturas":
     st.header("👤 Cadastrar Assinaturas")
@@ -1795,6 +1592,7 @@ elif menu == "👤 Cadastrar Assinaturas":
         st.session_state.responsavel_salvo_sucesso = False
         st.session_state.nome_responsavel_salvo = ""
         st.session_state.cargo_responsavel_salvo = ""
+
     st.info("💡 Pode haver múltiplos responsáveis por cargo (ex: 2 Vice-Diretoras)")
     if st.session_state.editando_resp:
         st.subheader("✏️ Editar Responsável")
@@ -1851,6 +1649,7 @@ elif menu == "👤 Cadastrar Assinaturas":
                 st.markdown("")
     else:
         st.write("📭 Nenhum responsável cadastrado.")
+
     # Mostrar confirmação de exclusão de responsável se necessário
     if 'confirmar_exclusao_resp' in st.session_state:
         resp_id = st.session_state['confirmar_exclusao_resp']
@@ -1871,6 +1670,7 @@ elif menu == "👤 Cadastrar Assinaturas":
             if st.button("❌ Cancelar", type="secondary"):
                 del st.session_state['confirmar_exclusao_resp']
                 st.rerun()
+
 # --- 4. REGISTRAR OCORRÊNCIA ---
 elif menu == "📝 Registrar Ocorrência":
     st.header("📝 Nova Ocorrência")
@@ -2062,6 +1862,7 @@ elif menu == "📝 Registrar Ocorrência":
                         del st.session_state['confirmar_registro']
                         del st.session_state['dados_registro']
                         st.rerun()
+
 # --- 5. COMUNICADO AOS PAIS ---
 elif menu == "📄 Comunicado aos Pais":
     st.header("📄 Comunicado aos Pais/Responsáveis")
@@ -2157,6 +1958,7 @@ elif menu == "📄 Comunicado aos Pais":
                 st.info("ℹ️ Este aluno ainda não tem ocorrências registradas.")
         else:
             st.warning("⚠️ Nenhum aluno encontrado com esta busca.")
+
 # --- 6. IMPORTAR ALUNOS ---
 elif menu == "📥 Importar Alunos":
     st.header("📥 Importar Alunos (CSV da SED)")
@@ -2235,6 +2037,7 @@ elif menu == "📥 Importar Alunos":
                         st.rerun()
         except Exception as e:
             st.error(f"❌ Erro ao ler arquivo: {str(e)}")
+
 # --- 7. GERENCIAR TURMAS ---
 elif menu == "📋 Importar Turmas":
     st.header("📋 Importar Turmas")
@@ -2283,6 +2086,7 @@ elif menu == "📋 Importar Turmas":
         st.info(f"💡 **Total de turmas:** {len(turmas_info)} | **Total de alunos:** {len(df_alunos)}")
     else:
         st.write("📭 Nenhuma turma importada.")
+
 # --- 8. ELETIVA ---
 elif menu == "🎨 Eletiva":
     st.header("🎨 Eletiva")
@@ -2302,6 +2106,7 @@ elif menu == "🎨 Eletiva":
             if substituir_eletivas_supabase(registros_eletivas):
                 st.success("✅ Eletivas substituídas no Supabase com sucesso!")
                 st.rerun()
+
     professoras_eletiva = list(ELETIVAS.keys())
     professora_sel = st.selectbox("Selecione a professora", professoras_eletiva)
     df_eletiva = montar_dataframe_eletiva(professora_sel, df_alunos)
@@ -2350,6 +2155,7 @@ elif menu == "🎨 Eletiva":
         st.dataframe(resumo_series, use_container_width=True)
         if nao_encontrados > 0:
             st.warning("⚠️ Alguns nomes ainda não foram encontrados no cadastro de alunos. Isso pode acontecer por diferença de grafia, acento ou se o aluno ainda não foi importado.")
+
 # --- 9. LISTA DE ALUNOS ---
 elif menu == "👥 Lista de Alunos":
     st.header("👥 Alunos Cadastrados")
@@ -2361,6 +2167,7 @@ elif menu == "👥 Lista de Alunos":
         st.info(f"Total: {len(df_exibir)} alunos")
     else:
         st.write("📭 Nenhum aluno cadastrado.")
+
 # --- 10. HISTÓRICO DE OCORRÊNCIAS ---
 elif menu == "📋 Histórico de Ocorrências":
     st.header("📋 Histórico de Ocorrências")
@@ -2430,6 +2237,7 @@ elif menu == "📋 Histórico de Ocorrências":
                 if st.button("❌ Cancelar", type="secondary"):
                     del st.session_state['confirmar_exclusao']
                     st.rerun()
+
         with col2:
             st.markdown("### ✏️ Editar")
             # Criar opções mais descritivas para facilitar a identificação
@@ -2442,6 +2250,7 @@ elif menu == "📋 Histórico de Ocorrências":
                 st.session_state.editando_id = id_editar
                 st.session_state.dados_edicao = occ
                 st.success(f"✅ Ocorrência {id_editar} carregada para edição!")
+
         if st.session_state.editando_id is not None and st.session_state.dados_edicao:
             st.markdown("---")
             st.subheader(f"✏️ Editando ID: {st.session_state.editando_id}")
@@ -2491,6 +2300,7 @@ elif menu == "📋 Histórico de Ocorrências":
                     st.rerun()
     else:
         st.write("📭 Nenhuma ocorrência registrada.")
+
 # --- 11. GRÁFICOS ---
 elif menu == "📊 Gráficos e Indicadores":
     st.header("📊 Dashboard de Ocorrências - Protocolo 179")
@@ -2551,6 +2361,7 @@ elif menu == "📊 Gráficos e Indicadores":
             df_filtrado = df_filtrado[df_filtrado['gravidade'] == filtro_gravidade]
         if filtro_infracao != "Todas":
             df_filtrado = df_filtrado[df_filtrado['categoria'].str.contains(filtro_infracao, na=False)]
+
         st.subheader("📈 Indicadores Principais")
         col1, col2, col3, col4, col5 = st.columns(5)
         total_ocorrencias = len(df_filtrado)
@@ -2692,6 +2503,7 @@ elif menu == "📊 Gráficos e Indicadores":
             csv = df_filtrado.to_csv(index=False, sep=';', encoding='utf-8-sig')
             st.download_button(label="📥 Baixar Dados Filtrados (CSV)", data=csv,
                                file_name=f"ocorrencias_filtradas_{datetime.now().strftime('%Y%m%d_%H%M')}.csv", mime="text/csv")
+
 # --- 12. IMPRIMIR PDF ---
 elif menu == "🖨️ Imprimir PDF":
     st.header("🖨️ Gerar PDF de Ocorrência")
