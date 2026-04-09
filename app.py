@@ -2284,6 +2284,28 @@ elif menu == "🎨 Eletiva":
         else:
             df_raw = df_raw.rename(columns={"nome": "Nome do Aluno"})
         st.dataframe(df_raw, use_container_width=True)
+        options_remover = [f"{item['nome']} | {item.get('serie', '').strip()}".strip() for item in alunos_raw]
+        selecionados = st.multiselect("Selecione estudantes para remover:", options_remover, key=f"remover_{professora_sel}")
+        if st.button("Remover estudantes selecionados", key=f"remover_btn_{professora_sel}"):
+            if selecionados:
+                novos_alunos = []
+                for item in alunos_raw:
+                    label = f"{item['nome']} | {item.get('serie', '').strip()}".strip()
+                    if label not in selecionados:
+                        novos_alunos.append(item)
+                    else:
+                        if FONTE_ELETIVAS == "supabase":
+                            try:
+                                nome_del = item['nome']
+                                _supabase_request("DELETE", f"eletivas?professora=eq.{professora_sel}&nome_aluno=eq.{nome_del}")
+                            except Exception as e:
+                                st.error(f"Erro ao excluir do Supabase: {e}")
+                ELETIVAS[professora_sel] = novos_alunos
+                st.session_state.ELETIVAS = ELETIVAS
+                st.success(f"{len(selecionados)} estudante(s) removido(s) da eletiva de {professora_sel}.")
+                st.rerun()
+            else:
+                st.warning("Selecione pelo menos um estudante para remover.")
         st.info("Use o botão '📄 Gerar PDF da Eletiva' abaixo para imprimir a lista com turma.")
     else:
         st.info("Esta professora ainda não tem estudantes importados. Use o formulário abaixo para cadastrar.")
