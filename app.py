@@ -23,6 +23,13 @@ from xml.etree import ElementTree as ET
 # --- CARREGAR VARIÁVEIS DE AMBIENTE ---
 load_dotenv()
 
+def rerun():
+    if hasattr(st, 'rerun'):
+        return st.rerun()
+    if hasattr(st, 'experimental_rerun'):
+        return st.experimental_rerun()
+    raise RuntimeError('Streamlit rerun is not available.')
+
 # --- CONFIGURAÇÃO SUPABASE ---
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
@@ -2987,7 +2994,7 @@ elif menu == "🏫 Mapa da Sala":
                     correcoes += 1
             if correcoes:
                 st.success(f"✅ {correcoes} nomes corrigidos automaticamente.")
-                st.experimental_rerun()
+                rerun()
             else:
                 st.info("Nenhuma correção automática encontrada para os nomes atuais.")
 
@@ -3029,7 +3036,7 @@ elif menu == "🏫 Mapa da Sala":
                                 pass
                         st.session_state[seat_state_key][str(idx_assento)] = nome
                 st.success("✅ Assentos atribuídos aleatoriamente!")
-                st.experimental_rerun()
+                rerun()
 
         with col2:
             if st.button("🧹 Limpar Todos os Assentos", type="secondary"):
@@ -3042,7 +3049,7 @@ elif menu == "🏫 Mapa da Sala":
                             pass
                     st.session_state[seat_state_key][str(assento_idx)] = ""
                 st.success("✅ Todos os assentos foram liberados!")
-                st.experimental_rerun()
+                rerun()
 
         with col3:
             if st.button("💾 Salvar Layout", type="primary"):
