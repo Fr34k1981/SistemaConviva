@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import openpyxl
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta, time
@@ -2318,7 +2319,7 @@ elif menu == "🎨 Eletiva":
                     df = pd.read_csv(uploaded_file, sep=';', dtype=str)
                 return df
             if nome_arquivo.endswith('.xlsx'):
-                return pd.read_excel(uploaded_file, dtype=str)
+                return pd.read_excel(uploaded_file, engine='openpyxl', dtype=str)
             if nome_arquivo.endswith('.txt'):
                 content = uploaded_file.read().decode('utf-8')
                 return [linha.strip() for linha in content.splitlines() if linha.strip()]
