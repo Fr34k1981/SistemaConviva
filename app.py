@@ -20,6 +20,16 @@ import pytz
 from difflib import SequenceMatcher
 from xml.etree import ElementTree as ET
 
+# --- IMPORTS LOCAIS ---
+from src.backup_manager import BackupManager, render_backup_page
+from src.error_handler import (
+    com_tratamento_erro, com_retry, com_validacao,
+    ErroConexaoDB, ErroValidacao, ErroCarregamentoDados,
+    ErroOperacaoDB, ErroArquivo, ErroAutenticacao,
+    ErroDuplicado, ErroNaoEncontrado, ErroPermissao,
+    Validadores, tratar_erro, exibir_erro, logger
+)
+
 # --- CARREGAR VARIÁVEIS DE AMBIENTE ---
 load_dotenv()
 
@@ -51,82 +61,317 @@ else:
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Sistema Conviva 179 - E.E. Profª Eliane", layout="wide", page_icon="🏫")
 
-# --- CSS PERSONALIZADO ---
+# --- CSS PERSONALIZADO PROFISSIONAL ---
 st.markdown("""
 <style>
+:root {
+    --primary: #2563eb;
+    --primary-light: #3b82f6;
+    --primary-dark: #1e40af;
+    --secondary: #7c3aed;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --light: #f9fafb;
+    --gray: #6b7280;
+    --border: #e5e7eb;
+}
+
+* {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
 .main-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    padding: 2rem;
-    border-radius: 10px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    padding: 2.5rem 2rem;
+    border-radius: 12px;
     color: white;
     text-align: center;
-    margin-bottom: 2rem;
+    margin-bottom: 2.5rem;
+    box-shadow: 0 10px 30px rgba(37, 99, 235, 0.15);
 }
-.school-name { font-size: 2rem; font-weight: bold; margin-bottom: 0.5rem; }
-.school-subtitle { font-size: 1.2rem; font-style: italic; opacity: 0.9; }
-.school-address { font-size: 0.9rem; margin-top: 1rem; opacity: 0.8; }
-.school-contact { font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.9; }
-.card { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 0.5rem 0; }
-.card-title { font-weight: bold; color: #333; }
-.card-value { font-size: 1.5rem; color: #667eea; }
-.success-box {
-    background: #d4edda;
-    border: 2px solid #28a745;
-    border-radius: 8px;
-    padding: 1rem;
-    margin: 1rem 0;
-    text-align: center;
-    font-weight: bold;
-    color: #155724;
+
+.school-name {
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 0.5rem;
 }
-.protocolo-info {
-    background: #fff3cd;
-    border: 2px solid #ffc107;
-    border-radius: 8px;
-    padding: 1rem;
-    margin: 1rem 0;
+
+.school-subtitle {
+    font-size: 1.1rem;
+    font-weight: 500;
+    opacity: 0.95;
+    margin-bottom: 1rem;
 }
-.gravidade-alert {
-    background: #f8d7da;
-    border: 2px solid #dc3545;
-    border-radius: 8px;
-    padding: 0.5rem;
-    margin: 0.5rem 0;
-    color: #721c24;
+
+.school-address {
+    font-size: 0.95rem;
+    margin-top: 1rem;
+    opacity: 0.85;
+    line-height: 1.6;
 }
-.infracao-tag {
-    background: #667eea;
-    color: white;
-    padding: 0.3rem 0.8rem;
-    border-radius: 15px;
-    display: inline-block;
-    margin: 0.2rem;
+
+.school-contact {
     font-size: 0.9rem;
+    margin-top: 0.5rem;
+    opacity: 0.85;
 }
-.infracao-principal-tag {
-    background: #28a745;
+
+.card {
+    background: white;
+    padding: 1.25rem;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    margin: 0.75rem 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: var(--primary-light);
+}
+
+.card-title {
+    font-weight: 600;
+    color: #1f2937;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.card-value {
+    font-size: 1.75rem;
+    color: var(--primary);
+    font-weight: 700;
+}
+
+.success-box {
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+    border: 1px solid var(--success);
+    border-radius: 10px;
+    padding: 1.25rem;
+    margin: 1.25rem 0;
+    text-align: center;
+    font-weight: 600;
+    color: #047857;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);
+}
+
+.protocolo-info {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border: 1px solid var(--warning);
+    border-radius: 10px;
+    padding: 1.25rem;
+    margin: 1.25rem 0;
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.1);
+}
+
+.gravidade-alert {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    border: 1px solid var(--danger);
+    border-radius: 10px;
+    padding: 1rem;
+    margin: 0.75rem 0;
+    color: #991b1b;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.1);
+}
+
+.infracao-tag {
+    background: var(--primary);
     color: white;
     padding: 0.5rem 1rem;
-    border-radius: 15px;
+    border-radius: 20px;
     display: inline-block;
-    margin: 0.5rem 0;
-    font-weight: bold;
+    margin: 0.35rem 0.25rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
 }
+
+.infracao-principal-tag {
+    background: var(--success);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 20px;
+    display: inline-block;
+    margin: 0.75rem 0;
+    font-weight: 600;
+    font-size: 0.95rem;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+}
+
 .metric-card {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    padding: 1.5rem;
-    border-radius: 10px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    padding: 1.75rem;
+    border-radius: 12px;
     color: white;
     text-align: center;
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.15);
+    transition: transform 0.3s ease;
 }
-.metric-value { font-size: 2.5rem; font-weight: bold; }
-.metric-label { font-size: 1rem; opacity: 0.9; }
+
+.metric-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 28px rgba(37, 99, 235, 0.25);
+}
+
+.metric-value {
+    font-size: 2.75rem;
+    font-weight: 700;
+    letter-spacing: -1px;
+}
+
+.metric-label {
+    font-size: 1rem;
+    opacity: 0.95;
+    margin-top: 0.5rem;
+    font-weight: 500;
+}
+
 .search-box {
-    background: #f0f0f0;
-    padding: 1rem;
-    border-radius: 8px;
-    margin: 1rem 0;
+    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+    padding: 1.5rem;
+    border-radius: 10px;
+    margin: 1.25rem 0;
+    border: 1px solid var(--border);
 }
+
+.section-divider {
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+    margin: 1.5rem 0;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-badge.success {
+    background: #dcfce7;
+    color: #047857;
+}
+
+.status-badge.warning {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.status-badge.danger {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.status-badge.info {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+/* Estilos para Títulos Profissionais */
+h1, h2, h3, h4, h5, h6 {
+    color: #1f2937;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+h1 { font-size: 2rem; margin: 1.5rem 0 1rem 0; }
+h2 { font-size: 1.5rem; margin: 1.25rem 0 0.75rem 0; }
+h3 { font-size: 1.25rem; margin: 1rem 0 0.5rem 0; }
+
+/* Estilos para Gravidades de Infração */
+.gravidade-leve {
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    border-left: 4px solid #10b981;
+    color: #065f46;
+}
+
+.gravidade-media {
+    background: linear-gradient(135deg, #fef08a 0%, #fde047 100%);
+    border-left: 4px solid #f59e0b;
+    color: #78350f;
+}
+
+.gravidade-grave {
+    background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%);
+    border-left: 4px solid #f97316;
+    color: #7c2d12;
+}
+
+.gravidade-gravissima {
+    background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%);
+    border-left: 4px solid #ef4444;
+    color: #7f1d1d;
+}
+
+/* Container Profissional */
+.info-container {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin: 1.25rem 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.info-container-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.info-container-header-icon {
+    font-size: 1.5rem;
+    color: var(--primary);
+}
+
+.info-container-header-title {
+    font-weight: 600;
+    color: #1f2937;
+    font-size: 1rem;
+}
+
+/* Separador Profissional */
+hr {
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+    border: none;
+    height: 1px;
+    margin: 1.5rem 0;
+}
+
+/* Botões Profissionais */
+.stButton > button {
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    border: none;
+    padding: 0.75rem 1.5rem;
+}
+
+/* Inputs e Selects */
+.stTextInput > div > div > input,
+.stTextArea > div > div > textarea,
+.stSelectbox > div > div > select,
+.stMultiSelect > div > div > div {
+    border-radius: 8px;
+    border: 1px solid var(--border) !important;
+    transition: all 0.3s ease;
+}
+
+.stTextInput > div > div > input:focus,
+.stTextArea > div > div > textarea:focus,
+.stSelectbox > div > div > select:focus {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
 section[data-testid="stSidebar"] {
     position: fixed;
     top: 0;
@@ -134,8 +379,8 @@ section[data-testid="stSidebar"] {
     height: 100vh;
     overflow: auto;
     z-index: 1000;
-    background: linear-gradient(180deg, #f8fbff 0%, #eef4fb 100%);
-    border-right: 1px solid #d9e4f2;
+    background: linear-gradient(180deg, #ffffff 0%, #f9fafb 100%);
+    border-right: 1px solid var(--border);
 }
 section[data-testid="stSidebar"] > div {
     width: 16rem;
@@ -156,42 +401,49 @@ section[data-testid="stSidebar"] > div {
     }
 }
 section[data-testid="stSidebar"] .stMarkdown h2 {
-    font-size: 1.05rem;
+    font-size: 1.1rem;
     font-weight: 700;
-    color: #1f3b5b;
+    color: #1f2937;
     margin-bottom: 0.75rem;
     letter-spacing: 0.02em;
 }
+
 section[data-testid="stSidebar"] div[role="radiogroup"] {
     gap: 0.35rem;
 }
+
 section[data-testid="stSidebar"] div[role="radiogroup"] > label {
     background: transparent;
     border: 1px solid transparent;
-    border-radius: 12px;
-    padding: 0.2rem 0.35rem;
+    border-radius: 10px;
+    padding: 0.6rem 0.75rem;
     margin: 0;
-    transition: all 0.2s ease;
+    transition: all 0.25s ease;
 }
+
 section[data-testid="stSidebar"] div[role="radiogroup"] > label:hover {
-    background: rgba(102, 126, 234, 0.08);
-    border-color: rgba(102, 126, 234, 0.18);
+    background: rgba(37, 99, 235, 0.08);
+    border-color: rgba(37, 99, 235, 0.15);
 }
+
 section[data-testid="stSidebar"] div[role="radiogroup"] label > div:first-child {
     display: none;
 }
+
 section[data-testid="stSidebar"] div[role="radiogroup"] label p {
     margin: 0;
-    font-size: 0.96rem;
+    font-size: 0.95rem;
     font-weight: 500;
-    color: #24415f;
+    color: #4b5563;
     line-height: 1.25;
 }
+
 section[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] {
-    background: linear-gradient(135deg, #667eea 0%, #5a67d8 100%);
-    border-color: #5a67d8;
-    box-shadow: 0 8px 18px rgba(90, 103, 216, 0.18);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+    border-color: var(--primary);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
 }
+
 section[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] p {
     color: #ffffff;
     font-weight: 700;
@@ -222,9 +474,10 @@ menu = st.sidebar.radio("", [
     "👨‍🏫 Cadastrar Professores",
     "👤 Cadastrar Assinaturas",
     "🎨 Eletiva",
-    "� Gerenciar Turmas",
+    "🏫 Gerenciar Turmas",
     "👥 Lista de Alunos",
-    "🏫 Mapa da Sala"
+    "🗺️ Mapa da Sala",
+    "💾 Backups"
 ], label_visibility="collapsed")
 
 ELETIVAS_ARQUIVO = r"C:\Users\Freak Work\Desktop\IMportação.xlsx"
@@ -618,8 +871,7 @@ def _supabase_request(method, path, **kwargs):
 
 def _supabase_error(acao):
     if not SUPABASE_VALID:
-        st.error(f"SUPABASE_URL ou SUPABASE_KEY não configuradas. Não foi possível {acao}.")
-        return True
+        raise ErroConexaoDB(f"Não foi possível {acao}")
     return False
 
 def _supabase_get_dataframe(path, acao):
@@ -627,10 +879,13 @@ def _supabase_get_dataframe(path, acao):
         return pd.DataFrame()
     try:
         response = _supabase_request("GET", path)
+        if response.status_code != 200:
+            raise ErroCarregamentoDados(acao)
         return pd.DataFrame(response.json())
+    except ErroConexaoDB:
+        raise
     except Exception as e:
-        st.error(f"Erro ao {acao}: {str(e)}")
-        return pd.DataFrame()
+        raise ErroCarregamentoDados(acao, str(e))
 
 def _supabase_mutation(method, path, data, acao):
     if _supabase_error(acao):
@@ -640,16 +895,27 @@ def _supabase_mutation(method, path, data, acao):
         if data is not None:
             kwargs['json'] = data
         response = _supabase_request(method, path, **kwargs)
-        return response.status_code in [200, 201, 204]
+        sucesso = response.status_code in [200, 201, 204]
+        if not sucesso:
+            raise ErroOperacaoDB(acao)
+        return sucesso
+    except (ErroConexaoDB, ErroOperacaoDB):
+        raise
     except Exception as e:
-        st.error(f"Erro ao {acao}: {str(e)}")
-        return False
+        raise ErroOperacaoDB(acao, str(e))
 
 @st.cache_data(ttl=300)
+@com_tratamento_erro
+@com_retry(tentativas=2)
 def carregar_alunos():
     return _supabase_get_dataframe("alunos?select=*", "carregar alunos")
 
+@com_tratamento_erro
 def salvar_aluno(aluno):
+    valido, msg = Validadores.validar_nao_vazio(aluno.get("nome", ""), "Nome do aluno")
+    if not valido:
+        raise ErroValidacao("nome", msg)
+    
     result = _supabase_mutation("POST", "alunos", aluno, "salvar aluno")
     if result:
         try:
@@ -658,6 +924,7 @@ def salvar_aluno(aluno):
             pass
     return result
 
+@com_tratamento_erro
 def atualizar_aluno(ra, dados):
     result = _supabase_mutation("PATCH", f"alunos?ra=eq.{ra}", dados, "atualizar aluno")
     if result:
@@ -667,7 +934,11 @@ def atualizar_aluno(ra, dados):
             pass
     return result
 
+@com_tratamento_erro
 def editar_nome_turma(turma_antiga, turma_nova):
+    if not turma_antiga or not turma_nova:
+        raise ErroValidacao("turma", "Nomes de turma não podem estar vazios")
+    
     result = _supabase_mutation("PATCH", f"alunos?turma=eq.{turma_antiga}", {"turma": turma_nova}, "editar nome da turma")
     if result:
         try:
@@ -676,7 +947,11 @@ def editar_nome_turma(turma_antiga, turma_nova):
             pass
     return result
 
+@com_tratamento_erro
 def excluir_alunos_por_turma(turma):
+    if not turma:
+        raise ErroValidacao("turma", "Turma não pode estar vazia")
+    
     result = _supabase_mutation("DELETE", f"alunos?turma=eq.{turma}", None, "excluir turma")
     if result:
         try:
@@ -686,21 +961,20 @@ def excluir_alunos_por_turma(turma):
     return result
 
 @st.cache_data(ttl=300)
+@com_tratamento_erro
+@com_retry(tentativas=2)
 def carregar_professores():
-    if not SUPABASE_VALID:
-        st.error("SUPABASE_URL ou SUPABASE_KEY não configuradas. Não foi possível carregar professores.")
-        return pd.DataFrame()
-    try:
-        response = _supabase_request("GET", "professores?select=*")
-        return pd.DataFrame(response.json())
-    except Exception as e:
-        st.error(f"Erro ao carregar professores: {str(e)}")
-        return pd.DataFrame()
+    response = _supabase_request("GET", "professores?select=*")
+    if response.status_code != 200:
+        raise ErroCarregamentoDados("professores")
+    return pd.DataFrame(response.json())
 
+@com_tratamento_erro
 def salvar_professor(professor):
-    if not SUPABASE_VALID:
-        st.error("SUPABASE_URL ou SUPABASE_KEY não configuradas. Não foi possível salvar professor.")
-        return False
+    valido, msg = Validadores.validar_nao_vazio(professor.get("nome", ""), "Nome do professor")
+    if not valido:
+        raise ErroValidacao("nome", msg)
+    
     try:
         response = _supabase_request("POST", "professores", json=professor)
         sucesso = response.status_code in [200, 201]
@@ -711,13 +985,10 @@ def salvar_professor(professor):
                 pass
         return sucesso
     except Exception as e:
-        st.error(f"Erro ao salvar professor: {str(e)}")
-        return False
+        raise ErroOperacaoDB("salvar professor", str(e))
 
+@com_tratamento_erro
 def atualizar_professor(id_prof, dados):
-    if not SUPABASE_VALID:
-        st.error("SUPABASE_URL ou SUPABASE_KEY não configuradas. Não foi possível atualizar professor.")
-        return False
     try:
         response = _supabase_request("PATCH", f"professores?id=eq.{id_prof}", json=dados)
         sucesso = response.status_code in [200, 204]
@@ -727,14 +998,16 @@ def atualizar_professor(id_prof, dados):
             except Exception:
                 pass
         return sucesso
+    except ErroConexaoDB:
+        raise
     except Exception as e:
-        st.error(f"Erro ao atualizar professor: {str(e)}")
-        return False
+        raise ErroOperacaoDB("atualizar professor", str(e))
 
+@com_tratamento_erro
 def excluir_professor(id_prof):
-    if not SUPABASE_VALID:
-        st.error("SUPABASE_URL ou SUPABASE_KEY não configuradas. Não foi possível excluir professor.")
-        return False
+    if not id_prof:
+        raise ErroValidacao("id", "ID do professor não pode estar vazio")
+    
     try:
         response = _supabase_request("DELETE", f"professores?id=eq.{id_prof}")
         sucesso = response.status_code in [200, 204]
@@ -744,49 +1017,63 @@ def excluir_professor(id_prof):
             except Exception:
                 pass
         return sucesso
+    except ErroConexaoDB:
+        raise
     except Exception as e:
-        st.error(f"Erro ao excluir professor: {str(e)}")
-        return False
+        raise ErroOperacaoDB("excluir professor", str(e))
 
 @st.cache_data(ttl=300)
+@com_tratamento_erro
+@com_retry(tentativas=2)
 def carregar_responsaveis():
     return _supabase_get_dataframe("responsaveis?select=*&ativo=eq.true", "carregar responsáveis")
 
+@com_tratamento_erro
 def salvar_responsavel(responsavel):
+    valido, msg = Validadores.validar_nao_vazio(responsavel.get("nome", ""), "Nome do responsável")
+    if not valido:
+        raise ErroValidacao("nome", msg)
+    
     result = _supabase_mutation("POST", "responsaveis", responsavel, "salvar responsável")
     if result:
         limpar_cache_responsaveis()
     return result
 
+@com_tratamento_erro
 def atualizar_responsavel(id_resp, dados):
     result = _supabase_mutation("PATCH", f"responsaveis?id=eq.{id_resp}", dados, "atualizar responsável")
     if result:
         limpar_cache_responsaveis()
     return result
 
+@com_tratamento_erro
 def excluir_responsavel(id_resp):
+    if not id_resp:
+        raise ErroValidacao("id", "ID do responsável não pode estar vazio")
+    
     result = _supabase_mutation("DELETE", f"responsaveis?id=eq.{id_resp}", None, "excluir responsável")
     if result:
         limpar_cache_responsaveis()
     return result
 
 @st.cache_data(ttl=300)
+@com_tratamento_erro
+@com_retry(tentativas=2)
 def carregar_eletivas_supabase():
-    if _supabase_error("carregar eletivas"):
-        return pd.DataFrame()
     try:
         response = _supabase_request("GET", "eletivas?select=*&order=professora.asc,nome_aluno.asc")
-        return pd.DataFrame(response.json())
-    except requests.HTTPError as e:
-        status_code = getattr(getattr(e, "response", None), "status_code", None)
-        if status_code == 404:
+        if response.status_code == 404:
             st.info("ℹ️ A tabela `eletivas` ainda não existe no Supabase. Usando planilha local.")
             return pd.DataFrame()
-        st.error(f"Erro ao carregar eletivas: {str(e)}")
-        return pd.DataFrame()
+        if response.status_code != 200:
+            raise ErroCarregamentoDados("eletivas")
+        return pd.DataFrame(response.json())
+    except ErroConexaoDB:
+        raise
+    except ErroCarregamentoDados:
+        raise
     except Exception as e:
-        st.error(f"Erro ao carregar eletivas: {str(e)}")
-        return pd.DataFrame()
+        raise ErroCarregamentoDados("eletivas", str(e))
 
 def limpar_cache_eletivas():
     try:
@@ -794,41 +1081,43 @@ def limpar_cache_eletivas():
     except Exception:
         pass
 
+@com_tratamento_erro
 def substituir_eletivas_supabase(registros):
-    if _supabase_error("substituir eletivas"):
-        return False
-    try:
-        _supabase_request("DELETE", "eletivas?id=not.is.null")
-    except requests.HTTPError as e:
-        status_code = getattr(getattr(e, "response", None), "status_code", None)
-        if status_code == 404:
-            st.error("❌ A tabela `eletivas` não existe no Supabase. Crie a tabela antes de sincronizar.")
-            return False
-        st.error(f"Erro ao limpar eletivas no Supabase: {str(e)}")
-        return False
-    except Exception as e:
-        st.error(f"Erro ao limpar eletivas no Supabase: {str(e)}")
-        return False
-    
     if not registros:
         limpar_cache_eletivas()
         return True
     
     try:
+        try:
+            _supabase_request("DELETE", "eletivas?id=not.is.null")
+        except requests.HTTPError as e:
+            if hasattr(e, 'response') and e.response.status_code == 404:
+                st.info("ℹ️ A tabela `eletivas` não existe no Supabase. Crie a tabela antes de sincronizar.")
+                return False
+            raise
+        
         response = _supabase_request("POST", "eletivas", json=registros)
         sucesso = response.status_code in [200, 201]
         if sucesso:
             limpar_cache_eletivas()
         return sucesso
+    except ErroConexaoDB:
+        raise
     except Exception as e:
-        st.error(f"Erro ao salvar eletivas no Supabase: {str(e)}")
-        return False
+        raise ErroOperacaoDB("salvar eletivas no Supabase", str(e))
 
 @st.cache_data(ttl=300)
+@com_tratamento_erro
+@com_retry(tentativas=2)
 def carregar_ocorrencias():
     return _supabase_get_dataframe("ocorrencias?select=*&order=id.desc", "carregar ocorrências")
 
+@com_tratamento_erro
 def salvar_ocorrencia(ocorrencia):
+    valido, msg = Validadores.validar_nao_vazio(ocorrencia.get("aluno_nome", ""), "Nome do aluno")
+    if not valido:
+        raise ErroValidacao("aluno", msg)
+    
     result = _supabase_mutation("POST", "ocorrencias", ocorrencia, "salvar ocorrência")
     if result:
         try:
@@ -1424,6 +1713,13 @@ if 'nome_responsavel_salvo' not in st.session_state:
 if 'cargo_responsavel_salvo' not in st.session_state:
     st.session_state.cargo_responsavel_salvo = ""
 
+# --- BACKUP AUTOMÁTICO ---
+if 'backup_manager' not in st.session_state:
+    st.session_state.backup_manager = BackupManager()
+    # Fazer backup automático na inicialização (uma vez por sessão)
+    st.session_state.backup_manager.criar_backup()
+    st.session_state.backup_manager.limpar_backups_antigos(dias_retencao=30)
+
 # --- CARREGAR DADOS ---
 df_alunos = carregar_alunos()
 df_ocorrencias = carregar_ocorrencias()
@@ -1452,80 +1748,81 @@ if menu == "🏠 Início":
     st.markdown(f"""
 <div class="main-header">
     <img src="https://raw.githubusercontent.com/Fr34k1981/SistemaConviva/main/logo.jpg"
-         style="max-width: 150px; margin-bottom: 1rem;" alt="Logo da Escola">
-    <div class="school-name">🏫 {ESCOLA_NOME}</div>
+         style="max-width: 150px; margin-bottom: 1rem; border-radius: 10px;" alt="Logo da Escola">
+    <div class="school-name">{ESCOLA_NOME}</div>
     <div class="school-subtitle">{ESCOLA_SUBTITULO}</div>
-    <div class="school-address">📍 {ESCOLA_ENDERECO}</div>
+    <div class="school-address">{ESCOLA_ENDERECO}</div>
     <div class="school-contact">
         {ESCOLA_CEP} • {ESCOLA_TELEFONE} • {ESCOLA_EMAIL}
     </div>
 </div>
 """, unsafe_allow_html=True)
-    st.markdown("## 📋 Sistema de Gestão de Ocorrências - Protocolo 179")
+
+    st.markdown("### Sistema de Gestão de Ocorrências Escolares")
+    st.markdown("---")
+    
+    # Métricas Principais
+    st.markdown("#### Indicadores Gerais")
     col1, col2, col3, col4, col5 = st.columns(5)
-    with col1: st.metric("Total de Alunos", len(df_alunos))
-    with col2: st.metric("Ocorrências Registradas", len(df_ocorrencias))
+    with col1: 
+        st.metric("Total de Alunos", len(df_alunos), delta=None)
+    with col2: 
+        st.metric("Ocorrências", len(df_ocorrencias), delta=None)
     with col3:
         graves = len(df_ocorrencias[df_ocorrencias["gravidade"] == "Gravíssima"]) if not df_ocorrencias.empty else 0
-        st.metric("Ocorrências Gravíssimas", graves)
+        st.metric("Gravíssimas", graves, delta=None)
     with col4:
         profs = len(df_professores) if not df_professores.empty else 0
-        st.metric("Professores Cadastrados", profs)
+        st.metric("Professores", profs, delta=None)
     with col5:
         media = round(len(df_ocorrencias) / len(df_alunos), 2) if len(df_alunos) > 0 else 0
-        st.metric("Média de Ocorrências por Aluno", media)
+        st.metric("Ocor. por Aluno", media, delta=None)
 
     # Contagem por Gravidade
     if not df_ocorrencias.empty:
         st.markdown("---")
-        st.markdown("## ⚖️ Contagem por Gravidade")
+        st.markdown("#### Distribuição por Gravidade")
         leve = len(df_ocorrencias[df_ocorrencias["gravidade"] == "Leve"])
         media = len(df_ocorrencias[df_ocorrencias["gravidade"] == "Média"])
         grave = len(df_ocorrencias[df_ocorrencias["gravidade"] == "Grave"])
         gravissima = len(df_ocorrencias[df_ocorrencias["gravidade"] == "Gravíssima"])
         total_occ = len(df_ocorrencias)
         average_gravity = round((leve * 1 + media * 2 + grave * 3 + gravissima * 4) / total_occ, 2) if total_occ > 0 else 0
-        col1, col2, col3, col4, col5 = st.columns(5)
+        
+        col1, col2, col3, col4 = st.columns(4)
         with col1:
             st.markdown(f"""
-            <div style="background: #4CAF50; padding: 1.5rem; border-radius: 10px; text-align: center; color: white; height: 120px; display: flex; flex-direction: column; justify-content: center;">
+            <div style="background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); padding: 1.5rem; border-radius: 10px; text-align: center; color: #065f46; border-left: 4px solid #10b981;">
                 <div style="font-size: 2.5rem; font-weight: bold;">{leve}</div>
-                <div style="font-size: 1rem;">Ocorrências Leves</div>
+                <div style="font-size: 0.95rem; font-weight: 500;">Leves</div>
             </div>
             """, unsafe_allow_html=True)
         with col2:
             st.markdown(f"""
-            <div style="background: #FFC107; padding: 1.5rem; border-radius: 10px; text-align: center; color: black; height: 120px; display: flex; flex-direction: column; justify-content: center;">
+            <div style="background: linear-gradient(135deg, #fef08a 0%, #fde047 100%); padding: 1.5rem; border-radius: 10px; text-align: center; color: #78350f; border-left: 4px solid #f59e0b;">
                 <div style="font-size: 2.5rem; font-weight: bold;">{media}</div>
-                <div style="font-size: 1rem;">Ocorrências Médias</div>
+                <div style="font-size: 0.95rem; font-weight: 500;">Médias</div>
             </div>
             """, unsafe_allow_html=True)
         with col3:
             st.markdown(f"""
-            <div style="background: #FF9800; padding: 1.5rem; border-radius: 10px; text-align: center; color: white; height: 120px; display: flex; flex-direction: column; justify-content: center;">
+            <div style="background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%); padding: 1.5rem; border-radius: 10px; text-align: center; color: #7c2d12; border-left: 4px solid #f97316;">
                 <div style="font-size: 2.5rem; font-weight: bold;">{grave}</div>
-                <div style="font-size: 1rem;">Ocorrências Graves</div>
+                <div style="font-size: 0.95rem; font-weight: 500;">Graves</div>
             </div>
             """, unsafe_allow_html=True)
         with col4:
             st.markdown(f"""
-            <div style="background: #F44336; padding: 1.5rem; border-radius: 10px; text-align: center; color: white; height: 120px; display: flex; flex-direction: column; justify-content: center;">
+            <div style="background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%); padding: 1.5rem; border-radius: 10px; text-align: center; color: #7f1d1d; border-left: 4px solid #ef4444;">
                 <div style="font-size: 2.5rem; font-weight: bold;">{gravissima}</div>
-                <div style="font-size: 1rem;">Ocorrências Gravíssimas</div>
-            </div>
-            """, unsafe_allow_html=True)
-        with col5:
-            st.markdown(f"""
-            <div style="background: #9C27B0; padding: 1.5rem; border-radius: 10px; text-align: center; color: white; height: 120px; display: flex; flex-direction: column; justify-content: center;">
-                <div style="font-size: 2.5rem; font-weight: bold;">{average_gravity}</div>
-                <div style="font-size: 1rem;">Média de Gravidade</div>
+                <div style="font-size: 0.95rem; font-weight: 500;">Gravíssimas</div>
             </div>
             """, unsafe_allow_html=True)
 
     # Gráficos na página inicial
     if not df_ocorrencias.empty:
         st.markdown("---")
-        st.markdown("## 📊 Resumo Visual")
+        st.markdown("#### Análise Visual de Dados")
         col1, col2 = st.columns(2)
         with col1:
             # Gráfico por Gravidade
@@ -1966,6 +2263,9 @@ elif menu == "📝 Registrar Ocorrência":
                                     }
                                     if salvar_ocorrencia(nova):
                                         contagem_salvas += 1
+                                        # Backup automático após salvar ocorrência crítica
+                                        if st.session_state.backup_manager:
+                                            st.session_state.backup_manager.criar_backup()
                                     else:
                                         erros += 1
                         if contagem_salvas > 0:
@@ -3489,3 +3789,7 @@ elif menu == "🖨️ Imprimir PDF":
                                file_name=f"Ocorrencia_{occ['id']}_{occ['aluno'].replace(' ', '_')}.pdf", mime="application/pdf")
     else:
         st.write("📭 Nenhuma ocorrência.")
+
+# --- 14. BACKUPS ---
+elif menu == "💾 Backups":
+    render_backup_page()
