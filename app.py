@@ -953,6 +953,22 @@ def normalizar_texto(valor):
     texto = "".join(char for char in texto if not unicodedata.combining(char))
     return " ".join(texto.split())
 
+
+def encontrar_melhor_match(nome_busca, nomes_existentes):
+    if not nome_busca or not nomes_existentes:
+        return None, 0.0
+    nome_norm = normalizar_texto(nome_busca)
+    melhor_match = None
+    melhor_score = 0.0
+    for nome in nomes_existentes:
+        nome_norm_cand = normalizar_texto(nome)
+        score = SequenceMatcher(None, nome_norm, nome_norm_cand).ratio()
+        if score > melhor_score:
+            melhor_score = score
+            melhor_match = nome
+    return melhor_match, melhor_score
+
+
 def carregar_eletivas_do_excel(caminho_arquivo, fallback=None):
     if not os.path.exists(caminho_arquivo):
         return fallback if fallback is not None else {}
@@ -2908,6 +2924,9 @@ elif menu == "🏫 Mapa da Sala":
 
         st.markdown("---")
         st.subheader("📝 Digite quem está em cada carteira")
+        nomes_turma = alunos_turma['nome'].tolist()
+        sugestoes = {}
+
         for fileira in range(num_fileiras):
             cols = st.columns(carteiras_por_fileira)
             for carteira, col in enumerate(cols):
@@ -2917,6 +2936,24 @@ elif menu == "🏫 Mapa da Sala":
                 with col:
                     novo_valor = st.text_input(f"Carteira {assento_idx + 1}", value=valor_atual, key=state_input_key)
                     st.session_state[seat_state_key][str(assento_idx)] = novo_valor
+                    if novo_valor.strip():
+                        melhor_match, score = encontrar_melhor_match(novo_valor, nomes_turma)
+                        if melhor_match and melhor_match != novo_valor and score >= 0.70:
+                            sugestoes[state_input_key] = (melhor_match, score)
+                            st.caption(f"Sugestão: {melhor_match} ({int(score * 100)}%)")
+
+        if st.button("🔍 Validar Nomes por Proximidade", type="secondary"):
+            correcoes = 0
+            for chave, (melhor_match, score) in sugestoes.items():
+                if score >= 0.90:
+                    st.session_state[chave] = melhor_match
+                    st.session_state[seat_state_key][chave.split("_")[-1]] = melhor_match
+                    correcoes += 1
+            if correcoes:
+                st.success(f"✅ {correcoes} nomes corrigidos automaticamente.")
+                st.experimental_rerun()
+            else:
+                st.info("Nenhuma correção automática encontrada para os nomes atuais.")
 
         assigned_names = {str(v).strip() for v in st.session_state[seat_state_key].values() if str(v).strip()}
         alunos_sem_assento = [aluno for _, aluno in alunos_turma.iterrows() if aluno['nome'] not in assigned_names]
