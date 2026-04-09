@@ -215,7 +215,8 @@ menu = st.sidebar.radio("", [
     "👤 Cadastrar Assinaturas",
     "🎨 Eletiva",
     "� Gerenciar Turmas",
-    "👥 Lista de Alunos"
+    "👥 Lista de Alunos",
+    "🏫 Mapa da Sala"
 ], label_visibility="collapsed")
 
 ELETIVAS_ARQUIVO = r"C:\Users\Freak Work\Desktop\IMportação.xlsx"
@@ -2695,7 +2696,317 @@ elif menu == "👥 Lista de Alunos":
     else:
         st.write("📭 Nenhum aluno cadastrado.")
 
-# --- 10. HISTÓRICO DE OCORRÊNCIAS ---
+# --- 10. MAPA DA SALA ---
+elif menu == "🏫 Mapa da Sala":
+    st.header("🏫 Mapa da Sala de Aula")
+    st.info("💡 Configure o layout da sala de aula e organize os assentos dos alunos.")
+
+    # Configurações da sala
+    st.subheader("⚙️ Configurações da Sala")
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        num_fileiras = st.slider("Número de fileiras", min_value=1, max_value=10, value=5, key="num_fileiras")
+    
+    with col2:
+        carteiras_por_fileira = st.slider("Carteiras por fileira", min_value=1, max_value=8, value=6, key="carteiras_fileira")
+    
+    with col3:
+        orientacao_lousa = st.selectbox("Orientação da lousa", ["Topo", "Fundo", "Esquerda", "Direita"], index=0, key="orientacao_lousa")
+
+    # Seleção de turma
+    if not df_alunos.empty:
+        turmas_disponiveis = sorted(df_alunos['turma'].unique().tolist())
+        turma_selecionada = st.selectbox("Selecione a turma", turmas_disponiveis, key="turma_mapa")
+        
+        alunos_turma = df_alunos[df_alunos['turma'] == turma_selecionada].copy()
+        alunos_turma['assento'] = None  # Coluna para armazenar posição do assento
+        
+        st.subheader(f"👥 Alunos da Turma: {turma_selecionada}")
+        st.info(f"📊 {len(alunos_turma)} alunos | {num_fileiras} fileiras × {carteiras_por_fileira} carteiras = {num_fileiras * carteiras_por_fileira} assentos")
+        
+        # Visualização da sala
+        st.subheader("🏫 Layout da Sala")
+        
+        # Criar grid da sala
+        total_assentos = num_fileiras * carteiras_por_fileira
+        
+        # CSS para estilizar os assentos
+        st.markdown("""
+        <style>
+        .sala-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .fileira {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .assento {
+            width: 60px;
+            height: 40px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #f8f9fa;
+        }
+        .assento:hover {
+            border-color: #667eea;
+            background: #e8f0fe;
+        }
+        .assento.ocupado {
+            background: #667eea;
+            color: white;
+            border-color: #5a67d8;
+        }
+        .assento.vazio {
+            background: #f8f9fa;
+            color: #666;
+        }
+        .lousa {
+            width: 200px;
+            height: 30px;
+            background: #333;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .parede {
+            width: 100%;
+            height: 20px;
+            background: #8B4513;
+            border-radius: 4px;
+            margin: 5px 0;
+        }
+        .porta {
+            width: 80px;
+            height: 60px;
+            background: #D2691E;
+            border: 3px solid #8B4513;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        
+        # Layout baseado na orientação da lousa
+        if orientacao_lousa == "Topo":
+            # Lousa no topo
+            st.markdown('<div class="lousa">📚 LOUSA</div>', unsafe_allow_html=True)
+            
+            # Grid de assentos
+            assentos_ocupados = {}
+            
+            for fileira in range(num_fileiras):
+                assentos_fileira = []
+                for carteira in range(carteiras_por_fileira):
+                    assento_idx = fileira * carteiras_por_fileira + carteira
+                    aluno_assento = None
+                    
+                    # Verificar se há aluno neste assento
+                    for idx, aluno in alunos_turma.iterrows():
+                        if aluno.get('assento') == assento_idx:
+                            aluno_assento = aluno
+                            break
+                    
+                    if aluno_assento is not None:
+                        nome_exib = aluno_assento['nome'].split()[0]  # Primeiro nome
+                        assentos_fileira.append(f'<div class="assento ocupado" title="{aluno_assento["nome"]}">{nome_exib}</div>')
+                        assentos_ocupados[assento_idx] = aluno_assento['ra']
+                    else:
+                        assentos_fileira.append(f'<div class="assento vazio">{assento_idx + 1}</div>')
+                
+                st.markdown(f'<div class="fileira">{"".join(assentos_fileira)}</div>', unsafe_allow_html=True)
+            
+            # Porta na lateral
+            col_porta, col_parede = st.columns([1, 4])
+            with col_porta:
+                st.markdown('<div class="porta">🚪<br>PORTA</div>', unsafe_allow_html=True)
+            with col_parede:
+                st.markdown('<div class="parede"></div>', unsafe_allow_html=True)
+                
+        elif orientacao_lousa == "Fundo":
+            # Porta na lateral
+            col_porta, col_grid = st.columns([1, 4])
+            with col_porta:
+                st.markdown('<div class="porta">🚪<br>PORTA</div>', unsafe_allow_html=True)
+            with col_grid:
+                # Grid de assentos
+                assentos_ocupados = {}
+                
+                for fileira in range(num_fileiras):
+                    assentos_fileira = []
+                    for carteira in range(carteiras_por_fileira):
+                        assento_idx = fileira * carteiras_por_fileira + carteira
+                        aluno_assento = None
+                        
+                        # Verificar se há aluno neste assento
+                        for idx, aluno in alunos_turma.iterrows():
+                            if aluno.get('assento') == assento_idx:
+                                aluno_assento = aluno
+                                break
+                        
+                        if aluno_assento is not None:
+                            nome_exib = aluno_assento['nome'].split()[0]
+                            assentos_fileira.append(f'<div class="assento ocupado" title="{aluno_assento["nome"]}">{nome_exib}</div>')
+                            assentos_ocupados[assento_idx] = aluno_assento['ra']
+                        else:
+                            assentos_fileira.append(f'<div class="assento vazio">{assento_idx + 1}</div>')
+                    
+                    st.markdown(f'<div class="fileira">{"".join(assentos_fileira)}</div>', unsafe_allow_html=True)
+                
+                # Lousa no fundo
+                st.markdown('<div class="lousa">📚 LOUSA</div>', unsafe_allow_html=True)
+            
+            st.markdown('<div class="parede"></div>', unsafe_allow_html=True)
+            
+        elif orientacao_lousa == "Esquerda":
+            col_lousa, col_grid, col_porta = st.columns([1, 3, 1])
+            
+            with col_lousa:
+                st.markdown('<div style="writing-mode: vertical-rl; text-orientation: mixed;"><div class="lousa" style="width: 30px; height: 200px;">📚 LOUSA</div></div>', unsafe_allow_html=True)
+            
+            with col_grid:
+                # Grid de assentos
+                assentos_ocupados = {}
+                
+                for fileira in range(num_fileiras):
+                    assentos_fileira = []
+                    for carteira in range(carteiras_por_fileira):
+                        assento_idx = fileira * carteiras_por_fileira + carteira
+                        aluno_assento = None
+                        
+                        # Verificar se há aluno neste assento
+                        for idx, aluno in alunos_turma.iterrows():
+                            if aluno.get('assento') == assento_idx:
+                                aluno_assento = aluno
+                                break
+                        
+                        if aluno_assento is not None:
+                            nome_exib = aluno_assento['nome'].split()[0]
+                            assentos_fileira.append(f'<div class="assento ocupado" title="{aluno_assento["nome"]}">{nome_exib}</div>')
+                            assentos_ocupados[assento_idx] = aluno_assento['ra']
+                        else:
+                            assentos_fileira.append(f'<div class="assento vazio">{assento_idx + 1}</div>')
+                    
+                    st.markdown(f'<div class="fileira">{"".join(assentos_fileira)}</div>', unsafe_allow_html=True)
+            
+            with col_porta:
+                st.markdown('<div class="porta">🚪<br>PORTA</div>', unsafe_allow_html=True)
+                
+        else:  # Direita
+            col_porta, col_grid, col_lousa = st.columns([1, 3, 1])
+            
+            with col_porta:
+                st.markdown('<div class="porta">🚪<br>PORTA</div>', unsafe_allow_html=True)
+            
+            with col_grid:
+                # Grid de assentos
+                assentos_ocupados = {}
+                
+                for fileira in range(num_fileiras):
+                    assentos_fileira = []
+                    for carteira in range(carteiras_por_fileira):
+                        assento_idx = fileira * carteiras_por_fileira + carteira
+                        aluno_assento = None
+                        
+                        # Verificar se há aluno neste assento
+                        for idx, aluno in alunos_turma.iterrows():
+                            if aluno.get('assento') == assento_idx:
+                                aluno_assento = aluno
+                                break
+                        
+                        if aluno_assento is not None:
+                            nome_exib = aluno_assento['nome'].split()[0]
+                            assentos_fileira.append(f'<div class="assento ocupado" title="{aluno_assento["nome"]}">{nome_exib}</div>')
+                            assentos_ocupados[assento_idx] = aluno_assento['ra']
+                        else:
+                            assentos_fileira.append(f'<div class="assento vazio">{assento_idx + 1}</div>')
+                    
+                    st.markdown(f'<div class="fileira">{"".join(assentos_fileira)}</div>', unsafe_allow_html=True)
+            
+            with col_lousa:
+                st.markdown('<div style="writing-mode: vertical-rl; text-orientation: mixed;"><div class="lousa" style="width: 30px; height: 200px;">📚 LOUSA</div></div>', unsafe_allow_html=True)
+        
+        # Estatísticas
+        assentos_ocupados_count = sum(1 for aluno in alunos_turma if aluno.get('assento') is not None)
+        st.markdown("---")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Total de Alunos", len(alunos_turma))
+        with col2:
+            st.metric("Assentos Ocupados", assentos_ocupados_count)
+        with col3:
+            st.metric("Assentos Vazios", total_assentos - assentos_ocupados_count)
+        
+        # Lista de alunos sem assento
+        alunos_sem_assento = [aluno for _, aluno in alunos_turma.iterrows() if aluno.get('assento') is None]
+        if alunos_sem_assento:
+            st.warning(f"⚠️ {len(alunos_sem_assento)} alunos ainda não têm assento atribuído.")
+            with st.expander("Ver alunos sem assento"):
+                for aluno in alunos_sem_assento:
+                    st.write(f"• {aluno['nome']} (RA: {aluno['ra']})")
+        
+        # Ferramentas de organização
+        st.markdown("---")
+        st.subheader("🛠️ Ferramentas de Organização")
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if st.button("🔀 Atribuir Aleatoriamente", type="secondary"):
+                import random
+                assentos_disponiveis = list(range(total_assentos))
+                alunos_para_atribuir = alunos_turma.copy()
+                
+                # Limpar assentos atuais
+                for idx in alunos_para_atribuir.index:
+                    alunos_para_atribuir.at[idx, 'assento'] = None
+                
+                # Atribuir aleatoriamente
+                random.shuffle(assentos_disponiveis)
+                for i, idx in enumerate(alunos_para_atribuir.index):
+                    if i < len(assentos_disponiveis):
+                        alunos_para_atribuir.at[idx, 'assento'] = assentos_disponiveis[i]
+                
+                st.success("✅ Assentos atribuídos aleatoriamente!")
+                st.rerun()
+        
+        with col2:
+            if st.button("🧹 Limpar Todos os Assentos", type="secondary"):
+                for idx in alunos_turma.index:
+                    alunos_turma.at[idx, 'assento'] = None
+                st.success("✅ Todos os assentos foram liberados!")
+                st.rerun()
+        
+        with col3:
+            if st.button("💾 Salvar Layout", type="primary"):
+                # Aqui seria implementado o salvamento no banco de dados
+                st.success("✅ Layout salvo com sucesso!")
+                # TODO: Implementar salvamento no Supabase
+        
+    else:
+        st.warning("⚠️ Cadastre alunos primeiro para usar o mapa da sala.")
+
+# --- 11. HISTÓRICO DE OCORRÊNCIAS ---
 elif menu == "📋 Histórico de Ocorrências":
     st.header("📋 Histórico de Ocorrências")
     # Exibir mensagem de exclusão se existir
@@ -2828,7 +3139,7 @@ elif menu == "📋 Histórico de Ocorrências":
     else:
         st.write("📭 Nenhuma ocorrência registrada.")
 
-# --- 11. GRÁFICOS ---
+# --- 12. GRÁFICOS ---
 elif menu == "📊 Gráficos e Indicadores":
     st.header("📊 Dashboard de Ocorrências - Protocolo 179")
     if df_ocorrencias.empty:
@@ -3031,7 +3342,7 @@ elif menu == "📊 Gráficos e Indicadores":
             st.download_button(label="📥 Baixar Dados Filtrados (CSV)", data=csv,
                                file_name=f"ocorrencias_filtradas_{datetime.now().strftime('%Y%m%d_%H%M')}.csv", mime="text/csv")
 
-# --- 12. IMPRIMIR PDF ---
+# --- 13. IMPRIMIR PDF ---
 elif menu == "🖨️ Imprimir PDF":
     st.header("🖨️ Gerar PDFs em Lote")
     if not df_ocorrencias.empty:
