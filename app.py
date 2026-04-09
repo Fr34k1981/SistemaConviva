@@ -2854,16 +2854,84 @@ elif menu == "📊 Gráficos e Indicadores":
 
 # --- 12. IMPRIMIR PDF ---
 elif menu == "🖨️ Imprimir PDF":
-    st.header("🖨️ Gerar PDF de Ocorrência")
+    st.header("🖨️ Gerar PDFs em Lote")
     if not df_ocorrencias.empty:
+        st.subheader("Filtros para Geração em Lote")
+        
+        # Filtros
+        col1, col2 = st.columns(2)
+        with col1:
+            # Período
+            st.markdown("### 📅 Período")
+            data_inicio = st.date_input("Data Inicial", value=datetime.now() - timedelta(days=30), key="data_inicio_pdf")
+            data_fim = st.date_input("Data Final", value=datetime.now(), key="data_fim_pdf")
+        
+        with col2:
+            # Alunos
+            st.markdown("### 👨‍🎓 Alunos")
+            alunos_unicos = sorted(df_ocorrencias["aluno"].unique().tolist())
+            alunos_selecionados = st.multiselect("Selecione Alunos (vazio = todos)", alunos_unicos, key="alunos_pdf")
+            
+            # Professores
+            st.markdown("### 👨‍🏫 Professores")
+            professores_unicos = sorted(df_ocorrencias["professor"].unique().tolist())
+            professores_selecionados = st.multiselect("Selecione Professores (vazio = todos)", professores_unicos, key="professores_pdf")
+        
+        # Aplicar filtros
+        df_filtrado = df_ocorrencias.copy()
+        
+        # Filtro de data
+        df_filtrado["data_dt"] = pd.to_datetime(df_filtrado["data"], format="%d/%m/%Y %H:%M", errors="coerce")
+        df_filtrado = df_filtrado[
+            (df_filtrado["data_dt"] >= pd.Timestamp(data_inicio)) &
+            (df_filtrado["data_dt"] <= pd.Timestamp(data_fim) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1))
+        ].drop(columns=["data_dt"])
+        
+        # Filtro de alunos
+        if alunos_selecionados:
+            df_filtrado = df_filtrado[df_filtrado["aluno"].isin(alunos_selecionados)]
+        
+        # Filtro de professores
+        if professores_selecionados:
+            df_filtrado = df_filtrado[df_filtrado["professor"].isin(professores_selecionados)]
+        
+        st.markdown("---")
+        st.subheader("📋 Ocorrências Filtradas")
+        if not df_filtrado.empty:
+            st.write(f"**Total de ocorrências encontradas:** {len(df_filtrado)}")
+            st.dataframe(df_filtrado[["id", "data", "aluno", "professor", "categoria", "gravidade"]], use_container_width=True)
+            
+            if st.button("📄 Gerar PDFs em Lote", type="primary"):
+                with st.spinner("Gerando PDFs..."):
+                    # Criar ZIP
+                    zip_buffer = BytesIO()
+                    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                        for _, occ in df_filtrado.iterrows():
+                            pdf_buffer = gerar_pdf_ocorrencia(occ, df_responsaveis)
+                            filename = f"Ocorrencia_{occ['id']}_{occ['aluno'].replace(' ', '_')}.pdf"
+                            zip_file.writestr(filename, pdf_buffer.getvalue())
+                    
+                    zip_buffer.seek(0)
+                    st.success(f"✅ {len(df_filtrado)} PDFs gerados com sucesso!")
+                    st.download_button(
+                        label="📥 Baixar ZIP com PDFs",
+                        data=zip_buffer,
+                        file_name=f"Ocorrencias_Lote_{data_inicio.strftime('%Y%m%d')}_{data_fim.strftime('%Y%m%d')}.zip",
+                        mime="application/zip"
+                    )
+        else:
+            st.warning("Nenhuma ocorrência encontrada com os filtros aplicados.")
+            
+        st.markdown("---")
+        st.subheader("📄 Gerar PDF Individual")
         lista = (df_ocorrencias["id"].astype(str) + " - " + df_ocorrencias["data"] + " - " + df_ocorrencias["aluno"]).tolist()
-        occ_sel = st.selectbox("Selecione", lista)
+        occ_sel = st.selectbox("Selecione ocorrência individual", lista, key="occ_sel_individual")
         idx = lista.index(occ_sel)
         occ = df_ocorrencias.iloc[idx]
         st.info(f"**ID:** {occ['id']} | **Aluno:** {occ['aluno']} | **Data:** {occ['data']}")
-        if st.button("📄 Gerar PDF"):
+        if st.button("📄 Gerar PDF Individual"):
             pdf_buffer = gerar_pdf_ocorrencia(occ, df_responsaveis)
             st.download_button(label="📥 Baixar PDF", data=pdf_buffer,
-                               file_name=f"Ocorrencia_{occ['id']}_{occ['aluno']}.pdf", mime="application/pdf")
+                               file_name=f"Ocorrencia_{occ['id']}_{occ['aluno'].replace(' ', '_')}.pdf", mime="application/pdf")
     else:
         st.write("📭 Nenhuma ocorrência.")
