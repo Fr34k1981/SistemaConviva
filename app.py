@@ -3012,13 +3012,21 @@ elif menu == "🏫 Mapa da Sala":
                 nomes_alunos = alunos_turma['nome'].tolist()
                 for assento_idx in range(total_assentos):
                     key = f"{seat_state_key}_{assento_idx}"
-                    st.session_state[key] = ""
+                    if key in st.session_state:
+                        try:
+                            st.session_state[key] = ""
+                        except Exception:
+                            pass
                     st.session_state[seat_state_key][str(assento_idx)] = ""
                 for i, nome in enumerate(nomes_alunos):
                     if i < total_assentos:
                         idx_assento = assentos_disponiveis[i]
                         key = f"{seat_state_key}_{idx_assento}"
-                        st.session_state[key] = nome
+                        if key in st.session_state:
+                            try:
+                                st.session_state[key] = nome
+                            except Exception:
+                                pass
                         st.session_state[seat_state_key][str(idx_assento)] = nome
                 st.success("✅ Assentos atribuídos aleatoriamente!")
                 st.experimental_rerun()
@@ -3027,7 +3035,11 @@ elif menu == "🏫 Mapa da Sala":
             if st.button("🧹 Limpar Todos os Assentos", type="secondary"):
                 for assento_idx in range(total_assentos):
                     key = f"{seat_state_key}_{assento_idx}"
-                    st.session_state[key] = ""
+                    if key in st.session_state:
+                        try:
+                            st.session_state[key] = ""
+                        except Exception:
+                            pass
                     st.session_state[seat_state_key][str(assento_idx)] = ""
                 st.success("✅ Todos os assentos foram liberados!")
                 st.experimental_rerun()
