@@ -2296,8 +2296,10 @@ elif menu == "🎨 Eletiva":
                     else:
                         if FONTE_ELETIVAS == "supabase":
                             try:
-                                nome_del = item['nome']
-                                _supabase_request("DELETE", f"eletivas?professora=eq.{professora_sel}&nome_aluno=eq.{nome_del}")
+                                _supabase_request("DELETE", "eletivas", params={
+                                    "professora": f"eq.{professora_sel}",
+                                    "nome_aluno": f"eq.{item['nome']}"
+                                })
                             except Exception as e:
                                 st.error(f"Erro ao excluir do Supabase: {e}")
                 ELETIVAS[professora_sel] = novos_alunos
@@ -2306,6 +2308,24 @@ elif menu == "🎨 Eletiva":
                 st.rerun()
             else:
                 st.warning("Selecione pelo menos um estudante para remover.")
+
+        ultima_lista = st.session_state.get(f"ultima_lista_importada_{professora_sel}", [])
+        if ultima_lista:
+            st.info(f"Última lista importada contém {len(ultima_lista)} estudantes. Você pode substituir a lista atual por ela.")
+            if st.button("🔁 Substituir lista atual pela última importação", key=f"substituir_btn_{professora_sel}"):
+                ELETIVAS[professora_sel] = ultima_lista.copy()
+                st.session_state.ELETIVAS = ELETIVAS
+                if FONTE_ELETIVAS == "supabase":
+                    try:
+                        _supabase_request("DELETE", "eletivas", params={"professora": f"eq.{professora_sel}"})
+                        registros = [{"professora": professora_sel, "nome_aluno": a["nome"], "serie": a["serie"], "origem": "substituicao"} for a in ultima_lista]
+                        _supabase_request("POST", "eletivas", json=registros)
+                        limpar_cache_eletivas()
+                    except Exception as e:
+                        st.error(f"Erro ao substituir no Supabase: {e}")
+                st.success(f"Lista de {professora_sel} substituída pela última importação.")
+                st.rerun()
+
         st.info("Use o botão '📄 Gerar PDF da Eletiva' abaixo para imprimir a lista com turma.")
     else:
         st.info("Esta professora ainda não tem estudantes importados. Use o formulário abaixo para cadastrar.")
@@ -2316,6 +2336,7 @@ elif menu == "🎨 Eletiva":
             uploaded_file = st.file_uploader("Selecione o arquivo (CSV, XLSX ou TXT)", type=["csv", "xlsx", "txt"], key=f"upload_{professora_sel}")
             nomes_adicionais = st.text_area("Digite nomes adicionais (um por linha, no formato Nome Turma):", height=120, key=f"adicionais_{professora_sel}")
             botao_importar = st.form_submit_button("Importar para a professora")
+            botao_substituir = st.form_submit_button("Substituir lista atual")
 
         def extrair_turma(texto):
             texto = str(texto).strip()
@@ -2392,6 +2413,7 @@ elif menu == "🎨 Eletiva":
 
         if alunos_import:
             st.text_area("Estudantes a serem importados:", value="\n".join([f"{a['nome']} {a['serie']}".strip() for a in alunos_import]), height=240, disabled=True)
+            st.session_state[f"ultima_lista_importada_{professora_sel}"] = alunos_import
             if botao_importar:
                 ELETIVAS[professora_sel].extend(alunos_import)
                 st.session_state.ELETIVAS = ELETIVAS
@@ -2410,6 +2432,20 @@ elif menu == "🎨 Eletiva":
                 else:
                     st.success(f"✅ {len(alunos_import)} estudantes importados localmente para {professora_sel}!")
                     st.rerun()
+            if botao_substituir:
+                ELETIVAS[professora_sel] = alunos_import.copy()
+                st.session_state.ELETIVAS = ELETIVAS
+                st.session_state[f"ultima_lista_importada_{professora_sel}"] = alunos_import
+                if FONTE_ELETIVAS == "supabase":
+                    try:
+                        _supabase_request("DELETE", "eletivas", params={"professora": f"eq.{professora_sel}"})
+                        registros = [{"professora": professora_sel, "nome_aluno": a["nome"], "serie": a["serie"], "origem": "substituicao"} for a in alunos_import]
+                        _supabase_request("POST", "eletivas", json=registros)
+                        limpar_cache_eletivas()
+                    except Exception as e:
+                        st.error(f"Erro ao substituir no Supabase: {e}")
+                st.success(f"Lista de {professora_sel} substituída pela importação enviada.")
+                st.rerun()
         else:
             st.info("Selecione um arquivo ou digite nomes com turma para importar estudantes.")
 
