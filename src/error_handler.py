@@ -7,16 +7,32 @@ from typing import Callable, Any, Optional, Type
 from functools import wraps
 import logging
 from datetime import datetime
+import os
+from pathlib import Path
+
+
+# --- CRIAR LOGS DIRECTORY (antes de usar) ---
+log_dir = Path("logs")
+try:
+    log_dir.mkdir(exist_ok=True)
+    log_file = log_dir / "app.log"
+except Exception:
+    # Se não conseguir criar, não vai usar file handler
+    log_file = None
 
 
 # --- SETUP LOGGING ---
+handlers = [logging.StreamHandler()]
+if log_file:
+    try:
+        handlers.insert(0, logging.FileHandler(str(log_file)))
+    except Exception:
+        pass  # Continue sem file handler se não conseguir
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('logs/app.log'),
-        logging.StreamHandler()
-    ]
+    handlers=handlers
 )
 logger = logging.getLogger(__name__)
 
@@ -364,11 +380,3 @@ def verificar_conexao_supabase(supabase_valid: bool) -> bool:
             "Verifique o arquivo .env"
         )
     return True
-
-
-# ===== CRIAR LOGS DIRECTORY =====
-import os
-from pathlib import Path
-
-log_dir = Path("logs")
-log_dir.mkdir(exist_ok=True)
