@@ -2276,13 +2276,49 @@ elif menu == "📝 Registrar Ocorrência":
                             st.error(f"❌ {erros} erro(s) ao salvar")
                         if contagem_salvas > 0:
                             st.session_state.ocorrencia_salva_sucesso = True
-                        del st.session_state['confirmar_registro']
-                        del st.session_state['dados_registro']
+                        
+                        # ✅ LIMPAR TODAS AS KEYS DO FORMULÁRIO PARA EVITAR VALORES ANTIGOS
+                        keys_to_clear = [
+                            'confirmar_registro',
+                            'dados_registro',
+                            'infracao_principal',
+                            'grupo_principal',
+                            'busca_infracao',
+                            'gravidade_select',
+                            'encam_select',
+                            'relato_novo',
+                            'data_fato',
+                            'hora_fato',
+                            'modo_multiplo',
+                            'alunos_multiplos',
+                            'aluno_unico'
+                        ]
+                        for key in keys_to_clear:
+                            if key in st.session_state:
+                                del st.session_state[key]
+                        
                         st.rerun()
                 with col_conf_reg2:
                     if st.button("❌ Cancelar Registro", type="secondary"):
-                        del st.session_state['confirmar_registro']
-                        del st.session_state['dados_registro']
+                        # ✅ LIMPAR TAMBÉM AO CANCELAR
+                        keys_to_clear = [
+                            'confirmar_registro',
+                            'dados_registro',
+                            'infracao_principal',
+                            'grupo_principal',
+                            'busca_infracao',
+                            'gravidade_select',
+                            'encam_select',
+                            'relato_novo',
+                            'data_fato',
+                            'hora_fato',
+                            'modo_multiplo',
+                            'alunos_multiplos',
+                            'aluno_unico'
+                        ]
+                        for key in keys_to_clear:
+                            if key in st.session_state:
+                                del st.session_state[key]
                         st.rerun()
 
 # --- 5. COMUNICADO AOS PAIS ---
