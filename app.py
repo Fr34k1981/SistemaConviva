@@ -2948,7 +2948,7 @@ elif menu == "🏫 Mapa da Sala":
                 st.markdown('<div style="writing-mode: vertical-rl; text-orientation: mixed;"><div class="lousa" style="width: 30px; height: 200px;">📚 LOUSA</div></div>', unsafe_allow_html=True)
         
         # Estatísticas
-        assentos_ocupados_count = sum(1 for aluno in alunos_turma if aluno.get('assento') is not None)
+        assentos_ocupados_count = alunos_turma['assento'].notna().sum()
         st.markdown("---")
         col1, col2, col3 = st.columns(3)
         with col1:
