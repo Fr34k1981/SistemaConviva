@@ -2295,7 +2295,11 @@ elif menu == "🎨 Eletiva":
             botao_importar = st.form_submit_button("Importar para a professora")
 
         def extrair_turma(texto):
-            partes = texto.replace('\t', ' ').replace(';', ' ').split()
+            texto = str(texto).strip()
+            if not texto:
+                return '', ''
+            texto = texto.replace('\t', ' ').replace(' - ', ' ').replace(' — ', ' ').replace(' – ', ' ').replace(';', ' ').strip()
+            partes = texto.split()
             if not partes:
                 return '', ''
             ultima = partes[-1].upper()
@@ -2303,42 +2307,52 @@ elif menu == "🎨 Eletiva":
                 return ' '.join(partes[:-1]).strip(), ultima
             return texto.strip(), ''
 
+        def ler_arquivo_importacao(uploaded_file):
+            uploaded_file.seek(0)
+            nome_arquivo = uploaded_file.name.lower()
+            if nome_arquivo.endswith('.csv'):
+                try:
+                    df = pd.read_csv(uploaded_file, sep=None, engine='python', dtype=str)
+                except Exception:
+                    uploaded_file.seek(0)
+                    df = pd.read_csv(uploaded_file, sep=';', dtype=str)
+                return df
+            if nome_arquivo.endswith('.xlsx'):
+                return pd.read_excel(uploaded_file, dtype=str)
+            if nome_arquivo.endswith('.txt'):
+                content = uploaded_file.read().decode('utf-8')
+                return [linha.strip() for linha in content.splitlines() if linha.strip()]
+            return None
+
         alunos_import = []
         if uploaded_file is not None:
             try:
-                if uploaded_file.name.endswith('.csv'):
-                    df_import = pd.read_csv(uploaded_file, sep=';', encoding='utf-8', dtype=str)
-                elif uploaded_file.name.endswith('.xlsx'):
-                    df_import = pd.read_excel(uploaded_file, dtype=str)
-                else:
-                    content = uploaded_file.read().decode('utf-8')
-                    linhas = [linha.strip() for linha in content.splitlines() if linha.strip()]
-                    for linha in linhas:
+                dados = ler_arquivo_importacao(uploaded_file)
+                if isinstance(dados, list):
+                    for linha in dados:
                         nome, serie = extrair_turma(linha)
                         if nome:
                             alunos_import.append({"nome": nome, "serie": serie})
-                    df_import = None
-
-                if uploaded_file.name.endswith(('.csv', '.xlsx')) and df_import is not None:
+                elif isinstance(dados, pd.DataFrame):
+                    df_import = dados
+                    cols_lower = {c.lower().strip(): c for c in df_import.columns}
+                    nome_col = cols_lower.get('nome do aluno') or cols_lower.get('nome') or cols_lower.get('aluno') or cols_lower.get('estudante')
+                    serie_col = cols_lower.get('turma') or cols_lower.get('série') or cols_lower.get('serie')
                     for _, row in df_import.iterrows():
                         nome = ''
                         serie = ''
-                        if 'Nome do Aluno' in df_import.columns:
-                            nome = str(row.get('Nome do Aluno', '')).strip()
-                        elif 'nome' in df_import.columns:
-                            nome = str(row.get('nome', '')).strip()
-                        elif len(row) >= 1:
-                            primeiro = str(row.iloc[0]).strip()
-                            nome, serie = extrair_turma(primeiro)
-                        if 'Turma' in df_import.columns:
-                            serie = serie or str(row.get('Turma', '')).strip()
-                        elif 'Série' in df_import.columns:
-                            serie = serie or str(row.get('Série', '')).strip()
-                        elif 'serie' in df_import.columns:
-                            serie = serie or str(row.get('serie', '')).strip()
-                        elif len(row) >= 2:
+                        if nome_col:
+                            nome = str(row.get(nome_col, '')).strip()
+                        if serie_col:
+                            serie = str(row.get(serie_col, '')).strip()
+                        if not nome and len(row) >= 1:
+                            primeira = str(row.iloc[0]).strip()
+                            nome, serie_linha = extrair_turma(primeira)
+                            serie = serie or serie_linha
+                        if not serie and len(row) >= 2:
                             segundo = str(row.iloc[1]).strip()
-                            serie = serie or segundo
+                            if not serie:
+                                serie = segundo
                         if nome:
                             alunos_import.append({"nome": nome, "serie": serie})
             except Exception as e:
@@ -2350,7 +2364,8 @@ elif menu == "🎨 Eletiva":
                 if not linha:
                     continue
                 nome, serie = extrair_turma(linha)
-                alunos_import.append({"nome": nome, "serie": serie})
+                if nome:
+                    alunos_import.append({"nome": nome, "serie": serie})
 
         if alunos_import:
             st.text_area("Estudantes a serem importados:", value="\n".join([f"{a['nome']} {a['serie']}".strip() for a in alunos_import]), height=240, disabled=True)
