@@ -1030,7 +1030,15 @@ def montar_dataframe_eletiva(nome_professora, df_alunos):
     alunos_db = df_alunos.copy() if not df_alunos.empty else pd.DataFrame()
     
     # Pre-processar dados do banco para busca rápida
-    alunos_db['nome_norm'] = alunos_db['nome'].apply(normalizar_texto) if 'nome' in alunos_db.columns else ""
+    nome_col = None
+    for c in alunos_db.columns:
+        if c.lower() in ['nome', 'nome do aluno', 'aluno', 'estudante']:
+            nome_col = c
+            break
+    if nome_col is not None:
+        alunos_db['nome_norm'] = alunos_db[nome_col].apply(normalizar_texto)
+    else:
+        alunos_db['nome_norm'] = ""
 
     for item in ELETIVAS.get(nome_professora, []):
         nome_original = item['nome']
@@ -1039,33 +1047,33 @@ def montar_dataframe_eletiva(nome_professora, df_alunos):
         melhor_match = None
         melhor_score = 0.0
         
-        # Busca Inteligente: Exata > Contenção > Fuzzy
+        # Busca Inteligente: Match Exato por nome + Contenção + Fuzzy
         if not alunos_db.empty:
-            for _, row in alunos_db.iterrows():
-                nome_db_norm = row.get('nome_norm', '')
-                if not nome_db_norm: continue
-                
-                score = 0.0
-                
-                # 1. Match Exato
-                if nome_norm_excel == nome_db_norm:
-                    melhor_match = row
-                    melhor_score = 1.0
-                    break # Encontrou o ideal, para
-                
-                # 2. Contenção (um está dentro do outro)
-                if nome_norm_excel in nome_db_norm or nome_db_norm in nome_norm_excel:
-                    score = SequenceMatcher(None, nome_norm_excel, nome_db_norm).ratio()
-                    if score > melhor_score:
-                        melhor_score = score
-                        melhor_match = row
-                
-                # 3. Fuzzy Match (se ainda não tiver um match forte)
-                elif melhor_score < 0.85:
-                    score = SequenceMatcher(None, nome_norm_excel, nome_db_norm).ratio()
-                    if score > melhor_score:
-                        melhor_score = score
-                        melhor_match = row
+            exatos = alunos_db[alunos_db['nome_norm'] == nome_norm_excel]
+            if not exatos.empty:
+                melhor_match = exatos.iloc[0]
+                melhor_score = 1.0
+            else:
+                for _, row in alunos_db.iterrows():
+                    nome_db_norm = row.get('nome_norm', '')
+                    if not nome_db_norm:
+                        continue
+                    
+                    score = 0.0
+                    
+                    # Contenção (um está dentro do outro)
+                    if nome_norm_excel in nome_db_norm or nome_db_norm in nome_norm_excel:
+                        score = SequenceMatcher(None, nome_norm_excel, nome_db_norm).ratio()
+                        if score > melhor_score:
+                            melhor_score = score
+                            melhor_match = row
+                    
+                    # Fuzzy Match
+                    elif melhor_score < 0.85:
+                        score = SequenceMatcher(None, nome_norm_excel, nome_db_norm).ratio()
+                        if score > melhor_score:
+                            melhor_score = score
+                            melhor_match = row
 
         # Define o status baseado na confiança do match (Threshold 80%)
         if melhor_match is not None and melhor_score >= 0.80:
