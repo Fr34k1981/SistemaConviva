@@ -2966,7 +2966,10 @@ elif menu == "🏫 Mapa da Sala":
             for chave, (melhor_match, score) in sugestoes.items():
                 if score >= 0.90:
                     if chave in st.session_state:
-                        st.session_state[chave] = melhor_match
+                        try:
+                            st.session_state[chave] = melhor_match
+                        except Exception as e:
+                            st.warning(f"Falha ao atualizar a carteira {chave}: {e}")
                     st.session_state[seat_state_key][chave.split("_")[-1]] = melhor_match
                     correcoes += 1
             if correcoes:
