@@ -1798,8 +1798,13 @@ elif menu == "📝 Registrar Ocorrência":
         tz_sp = pytz.timezone('America/Sao_Paulo')
         data_hora_sp = datetime.now(tz_sp)
         turmas = df_alunos["turma"].unique().tolist()
-        turma_sel = st.selectbox("🏫 Turma", turmas)
-        alunos = df_alunos[df_alunos["turma"] == turma_sel]
+        turmas_sel = st.multiselect("🏫 Turma(s)", turmas, default=[turmas[0]] if turmas else [])
+        
+        if not turmas_sel:
+            st.warning("⚠️ Selecione pelo menos uma turma")
+            st.stop()
+        
+        alunos = df_alunos[df_alunos["turma"].isin(turmas_sel)]
         if len(alunos) > 0:
             col1, col2 = st.columns(2)
             with col1:
@@ -1906,7 +1911,7 @@ elif menu == "📝 Registrar Ocorrência":
                                 'relato': relato,
                                 'encam': encam,
                                 'prof': prof,
-                                'turma_sel': turma_sel
+                                'turmas_sel': turmas_sel
                             }
                             st.session_state['confirmar_registro'] = True
                             st.rerun()
@@ -1922,12 +1927,12 @@ elif menu == "📝 Registrar Ocorrência":
                 st.info(f"""
                 **Resumo da(s) ocorrência(s) a ser(em) registrada(s):**
                 - **Data:** {dados['data_str']}
-                - **Turma:** {dados['turma_sel']}
+                - **Turma(s):** {', '.join(dados['turmas_sel'])}
                 - **Categoria:** {dados['categoria_str']}
                 - **Gravidade:** {dados['gravidade']}
                 - **Professor:** {dados['prof']}
                 - **Alunos envolvidos:** {', '.join(dados['alunos_selecionados'])}
-                - **Total:** {len(dados['alunos_selecionados'])} ocorrência(s)
+                - **Total:** {len(dados['alunos_selecionados']) * len(dados['turmas_sel'])} ocorrência(s)
                 """)
                 col_conf_reg1, col_conf_reg2 = st.columns(2)
                 with col_conf_reg1:
@@ -1935,28 +1940,34 @@ elif menu == "📝 Registrar Ocorrência":
                         contagem_salvas = 0
                         contagem_duplicadas = 0
                         erros = 0
-                        for nome_aluno in dados['alunos_selecionados']:
-                            ra_aluno = alunos[alunos["nome"] == nome_aluno]["ra"].values[0]
-                            if verificar_ocorrencia_duplicada(ra_aluno, dados['categoria_str'], dados['data_str'], df_ocorrencias):
-                                contagem_duplicadas += 1
-                            else:
-                                nova = {
-                                    "data": dados['data_str'],
-                                    "aluno": nome_aluno,
-                                    "ra": ra_aluno,
-                                    "turma": dados['turma_sel'],
-                                    "categoria": dados['categoria_str'],
-                                    "gravidade": dados['gravidade'],
-                                    "relato": dados['relato'],
-                                    "encaminhamento": dados['encam'],
-                                    "professor": dados['prof'],
-                                    "medidas_aplicadas": "",
-                                    "medidas_obs": ""
-                                }
-                                if salvar_ocorrencia(nova):
-                                    contagem_salvas += 1
+                        for turma in dados['turmas_sel']:
+                            for nome_aluno in dados['alunos_selecionados']:
+                                # Buscar o RA do aluno na turma específica
+                                alunos_turma = df_alunos[(df_alunos["nome"] == nome_aluno) & (df_alunos["turma"] == turma)]
+                                if alunos_turma.empty:
+                                    # Se o aluno não está nesta turma, pular
+                                    continue
+                                ra_aluno = alunos_turma["ra"].values[0]
+                                if verificar_ocorrencia_duplicada(ra_aluno, dados['categoria_str'], dados['data_str'], df_ocorrencias):
+                                    contagem_duplicadas += 1
                                 else:
-                                    erros += 1
+                                    nova = {
+                                        "data": dados['data_str'],
+                                        "aluno": nome_aluno,
+                                        "ra": ra_aluno,
+                                        "turma": turma,
+                                        "categoria": dados['categoria_str'],
+                                        "gravidade": dados['gravidade'],
+                                        "relato": dados['relato'],
+                                        "encaminhamento": dados['encam'],
+                                        "professor": dados['prof'],
+                                        "medidas_aplicadas": "",
+                                        "medidas_obs": ""
+                                    }
+                                    if salvar_ocorrencia(nova):
+                                        contagem_salvas += 1
+                                    else:
+                                        erros += 1
                         if contagem_salvas > 0:
                             st.success(f"✅ {contagem_salvas} ocorrência(s) registrada(s) com sucesso!")
                         if contagem_duplicadas > 0:
