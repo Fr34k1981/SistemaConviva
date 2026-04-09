@@ -2965,7 +2965,8 @@ elif menu == "🏫 Mapa da Sala":
             correcoes = 0
             for chave, (melhor_match, score) in sugestoes.items():
                 if score >= 0.90:
-                    st.session_state[chave] = melhor_match
+                    if chave in st.session_state:
+                        st.session_state[chave] = melhor_match
                     st.session_state[seat_state_key][chave.split("_")[-1]] = melhor_match
                     correcoes += 1
             if correcoes:
