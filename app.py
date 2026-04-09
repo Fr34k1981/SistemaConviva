@@ -2720,7 +2720,6 @@ elif menu == "🏫 Mapa da Sala":
         turma_selecionada = st.selectbox("Selecione a turma", turmas_disponiveis, key="turma_mapa")
         
         alunos_turma = df_alunos[df_alunos['turma'] == turma_selecionada].copy()
-        alunos_turma['assento'] = None  # Coluna para armazenar posição do assento
         
         st.subheader(f"👥 Alunos da Turma: {turma_selecionada}")
         st.info(f"📊 {len(alunos_turma)} alunos | {num_fileiras} fileiras × {carteiras_por_fileira} carteiras = {num_fileiras * carteiras_por_fileira} assentos")
@@ -2730,6 +2729,16 @@ elif menu == "🏫 Mapa da Sala":
         
         # Criar grid da sala
         total_assentos = num_fileiras * carteiras_por_fileira
+        
+        # Chave de estado para os assentos desta turma
+        seat_state_key = f"mapa_assento_{turma_selecionada}"
+        if seat_state_key not in st.session_state:
+            st.session_state[seat_state_key] = {str(i): "" for i in range(total_assentos)}
+        else:
+            # Ajustar tamanho se mudar o número de assentos
+            prev_state = st.session_state[seat_state_key]
+            updated_state = {str(i): prev_state.get(str(i), "") for i in range(total_assentos)}
+            st.session_state[seat_state_key] = updated_state
         
         # CSS para estilizar os assentos
         st.markdown("""
@@ -2756,7 +2765,7 @@ elif menu == "🏫 Mapa da Sala":
             justify-content: center;
             font-size: 10px;
             font-weight: bold;
-            cursor: pointer;
+            cursor: default;
             transition: all 0.2s;
             background: #f8f9fa;
         }
@@ -2810,34 +2819,19 @@ elif menu == "🏫 Mapa da Sala":
         
         # Layout baseado na orientação da lousa
         if orientacao_lousa == "Topo":
-            # Lousa no topo
             st.markdown('<div class="lousa">📚 LOUSA</div>', unsafe_allow_html=True)
-            
-            # Grid de assentos
-            assentos_ocupados = {}
             
             for fileira in range(num_fileiras):
                 assentos_fileira = []
                 for carteira in range(carteiras_por_fileira):
                     assento_idx = fileira * carteiras_por_fileira + carteira
-                    aluno_assento = None
-                    
-                    # Verificar se há aluno neste assento
-                    for idx, aluno in alunos_turma.iterrows():
-                        if aluno.get('assento') == assento_idx:
-                            aluno_assento = aluno
-                            break
-                    
-                    if aluno_assento is not None:
-                        nome_exib = aluno_assento['nome'].split()[0]  # Primeiro nome
-                        assentos_fileira.append(f'<div class="assento ocupado" title="{aluno_assento["nome"]}">{nome_exib}</div>')
-                        assentos_ocupados[assento_idx] = aluno_assento['ra']
+                    assento_texto = st.session_state[seat_state_key].get(str(assento_idx), "")
+                    if assento_texto:
+                        nome_exib = assento_texto.split()[0]
+                        assentos_fileira.append(f'<div class="assento ocupado" title="{assento_texto}">{nome_exib}</div>')
                     else:
                         assentos_fileira.append(f'<div class="assento vazio">{assento_idx + 1}</div>')
-                
                 st.markdown(f'<div class="fileira">{"".join(assentos_fileira)}</div>', unsafe_allow_html=True)
-            
-            # Porta na lateral
             col_porta, col_parede = st.columns([1, 4])
             with col_porta:
                 st.markdown('<div class="porta">🚪<br>PORTA</div>', unsafe_allow_html=True)
@@ -2845,110 +2839,64 @@ elif menu == "🏫 Mapa da Sala":
                 st.markdown('<div class="parede"></div>', unsafe_allow_html=True)
                 
         elif orientacao_lousa == "Fundo":
-            # Porta na lateral
             col_porta, col_grid = st.columns([1, 4])
             with col_porta:
                 st.markdown('<div class="porta">🚪<br>PORTA</div>', unsafe_allow_html=True)
             with col_grid:
-                # Grid de assentos
-                assentos_ocupados = {}
-                
                 for fileira in range(num_fileiras):
                     assentos_fileira = []
                     for carteira in range(carteiras_por_fileira):
                         assento_idx = fileira * carteiras_por_fileira + carteira
-                        aluno_assento = None
-                        
-                        # Verificar se há aluno neste assento
-                        for idx, aluno in alunos_turma.iterrows():
-                            if aluno.get('assento') == assento_idx:
-                                aluno_assento = aluno
-                                break
-                        
-                        if aluno_assento is not None:
-                            nome_exib = aluno_assento['nome'].split()[0]
-                            assentos_fileira.append(f'<div class="assento ocupado" title="{aluno_assento["nome"]}">{nome_exib}</div>')
-                            assentos_ocupados[assento_idx] = aluno_assento['ra']
+                        assento_texto = st.session_state[seat_state_key].get(str(assento_idx), "")
+                        if assento_texto:
+                            nome_exib = assento_texto.split()[0]
+                            assentos_fileira.append(f'<div class="assento ocupado" title="{assento_texto}">{nome_exib}</div>')
                         else:
                             assentos_fileira.append(f'<div class="assento vazio">{assento_idx + 1}</div>')
-                    
                     st.markdown(f'<div class="fileira">{"".join(assentos_fileira)}</div>', unsafe_allow_html=True)
-                
-                # Lousa no fundo
                 st.markdown('<div class="lousa">📚 LOUSA</div>', unsafe_allow_html=True)
-            
             st.markdown('<div class="parede"></div>', unsafe_allow_html=True)
             
         elif orientacao_lousa == "Esquerda":
             col_lousa, col_grid, col_porta = st.columns([1, 3, 1])
-            
             with col_lousa:
                 st.markdown('<div style="writing-mode: vertical-rl; text-orientation: mixed;"><div class="lousa" style="width: 30px; height: 200px;">📚 LOUSA</div></div>', unsafe_allow_html=True)
-            
             with col_grid:
-                # Grid de assentos
-                assentos_ocupados = {}
-                
                 for fileira in range(num_fileiras):
                     assentos_fileira = []
                     for carteira in range(carteiras_por_fileira):
                         assento_idx = fileira * carteiras_por_fileira + carteira
-                        aluno_assento = None
-                        
-                        # Verificar se há aluno neste assento
-                        for idx, aluno in alunos_turma.iterrows():
-                            if aluno.get('assento') == assento_idx:
-                                aluno_assento = aluno
-                                break
-                        
-                        if aluno_assento is not None:
-                            nome_exib = aluno_assento['nome'].split()[0]
-                            assentos_fileira.append(f'<div class="assento ocupado" title="{aluno_assento["nome"]}">{nome_exib}</div>')
-                            assentos_ocupados[assento_idx] = aluno_assento['ra']
+                        assento_texto = st.session_state[seat_state_key].get(str(assento_idx), "")
+                        if assento_texto:
+                            nome_exib = assento_texto.split()[0]
+                            assentos_fileira.append(f'<div class="assento ocupado" title="{assento_texto}">{nome_exib}</div>')
                         else:
                             assentos_fileira.append(f'<div class="assento vazio">{assento_idx + 1}</div>')
-                    
                     st.markdown(f'<div class="fileira">{"".join(assentos_fileira)}</div>', unsafe_allow_html=True)
-            
             with col_porta:
                 st.markdown('<div class="porta">🚪<br>PORTA</div>', unsafe_allow_html=True)
                 
-        else:  # Direita
+        else:
             col_porta, col_grid, col_lousa = st.columns([1, 3, 1])
-            
             with col_porta:
                 st.markdown('<div class="porta">🚪<br>PORTA</div>', unsafe_allow_html=True)
-            
             with col_grid:
-                # Grid de assentos
-                assentos_ocupados = {}
-                
                 for fileira in range(num_fileiras):
                     assentos_fileira = []
                     for carteira in range(carteiras_por_fileira):
                         assento_idx = fileira * carteiras_por_fileira + carteira
-                        aluno_assento = None
-                        
-                        # Verificar se há aluno neste assento
-                        for idx, aluno in alunos_turma.iterrows():
-                            if aluno.get('assento') == assento_idx:
-                                aluno_assento = aluno
-                                break
-                        
-                        if aluno_assento is not None:
-                            nome_exib = aluno_assento['nome'].split()[0]
-                            assentos_fileira.append(f'<div class="assento ocupado" title="{aluno_assento["nome"]}">{nome_exib}</div>')
-                            assentos_ocupados[assento_idx] = aluno_assento['ra']
+                        assento_texto = st.session_state[seat_state_key].get(str(assento_idx), "")
+                        if assento_texto:
+                            nome_exib = assento_texto.split()[0]
+                            assentos_fileira.append(f'<div class="assento ocupado" title="{assento_texto}">{nome_exib}</div>')
                         else:
                             assentos_fileira.append(f'<div class="assento vazio">{assento_idx + 1}</div>')
-                    
                     st.markdown(f'<div class="fileira">{"".join(assentos_fileira)}</div>', unsafe_allow_html=True)
-            
             with col_lousa:
                 st.markdown('<div style="writing-mode: vertical-rl; text-orientation: mixed;"><div class="lousa" style="width: 30px; height: 200px;">📚 LOUSA</div></div>', unsafe_allow_html=True)
-        
+
         # Estatísticas
-        assentos_ocupados_count = alunos_turma['assento'].notna().sum()
+        assentos_ocupados_count = sum(1 for i in st.session_state[seat_state_key].values() if str(i).strip())
         st.markdown("---")
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -2957,49 +2905,62 @@ elif menu == "🏫 Mapa da Sala":
             st.metric("Assentos Ocupados", assentos_ocupados_count)
         with col3:
             st.metric("Assentos Vazios", total_assentos - assentos_ocupados_count)
-        
-        # Lista de alunos sem assento
-        alunos_sem_assento = [aluno for _, aluno in alunos_turma.iterrows() if aluno.get('assento') is None]
+
+        st.markdown("---")
+        st.subheader("📝 Digite quem está em cada carteira")
+        for fileira in range(num_fileiras):
+            cols = st.columns(carteiras_por_fileira)
+            for carteira, col in enumerate(cols):
+                assento_idx = fileira * carteiras_por_fileira + carteira
+                state_input_key = f"{seat_state_key}_{assento_idx}"
+                valor_atual = st.session_state.get(state_input_key, st.session_state[seat_state_key].get(str(assento_idx), ""))
+                with col:
+                    novo_valor = st.text_input(f"Carteira {assento_idx + 1}", value=valor_atual, key=state_input_key)
+                    st.session_state[seat_state_key][str(assento_idx)] = novo_valor
+
+        assigned_names = {str(v).strip() for v in st.session_state[seat_state_key].values() if str(v).strip()}
+        alunos_sem_assento = [aluno for _, aluno in alunos_turma.iterrows() if aluno['nome'] not in assigned_names]
         if alunos_sem_assento:
             st.warning(f"⚠️ {len(alunos_sem_assento)} alunos ainda não têm assento atribuído.")
             with st.expander("Ver alunos sem assento"):
                 for aluno in alunos_sem_assento:
                     st.write(f"• {aluno['nome']} (RA: {aluno['ra']})")
-        
+
         # Ferramentas de organização
         st.markdown("---")
         st.subheader("🛠️ Ferramentas de Organização")
-        
+
         col1, col2, col3 = st.columns(3)
         with col1:
             if st.button("🔀 Atribuir Aleatoriamente", type="secondary"):
                 import random
                 assentos_disponiveis = list(range(total_assentos))
-                alunos_para_atribuir = alunos_turma.copy()
-                
-                # Limpar assentos atuais
-                for idx in alunos_para_atribuir.index:
-                    alunos_para_atribuir.at[idx, 'assento'] = None
-                
-                # Atribuir aleatoriamente
                 random.shuffle(assentos_disponiveis)
-                for i, idx in enumerate(alunos_para_atribuir.index):
-                    if i < len(assentos_disponiveis):
-                        alunos_para_atribuir.at[idx, 'assento'] = assentos_disponiveis[i]
-                
+                nomes_alunos = alunos_turma['nome'].tolist()
+                for assento_idx in range(total_assentos):
+                    key = f"{seat_state_key}_{assento_idx}"
+                    st.session_state[key] = ""
+                    st.session_state[seat_state_key][str(assento_idx)] = ""
+                for i, nome in enumerate(nomes_alunos):
+                    if i < total_assentos:
+                        idx_assento = assentos_disponiveis[i]
+                        key = f"{seat_state_key}_{idx_assento}"
+                        st.session_state[key] = nome
+                        st.session_state[seat_state_key][str(idx_assento)] = nome
                 st.success("✅ Assentos atribuídos aleatoriamente!")
                 st.rerun()
-        
+
         with col2:
             if st.button("🧹 Limpar Todos os Assentos", type="secondary"):
-                for idx in alunos_turma.index:
-                    alunos_turma.at[idx, 'assento'] = None
+                for assento_idx in range(total_assentos):
+                    key = f"{seat_state_key}_{assento_idx}"
+                    st.session_state[key] = ""
+                    st.session_state[seat_state_key][str(assento_idx)] = ""
                 st.success("✅ Todos os assentos foram liberados!")
                 st.rerun()
-        
+
         with col3:
             if st.button("💾 Salvar Layout", type="primary"):
-                # Aqui seria implementado o salvamento no banco de dados
                 st.success("✅ Layout salvo com sucesso!")
                 # TODO: Implementar salvamento no Supabase
         
