@@ -960,12 +960,25 @@ def encontrar_melhor_match(nome_busca, nomes_existentes):
     nome_norm = normalizar_texto(nome_busca)
     melhor_match = None
     melhor_score = 0.0
+
     for nome in nomes_existentes:
         nome_norm_cand = normalizar_texto(nome)
         score = SequenceMatcher(None, nome_norm, nome_norm_cand).ratio()
+
+        if nome_norm_cand.startswith(nome_norm):
+            score = max(score, 0.95)
+        elif any(palavra.startswith(nome_norm) for palavra in nome_norm_cand.split()):
+            score = max(score, 0.90)
+        elif nome_norm in nome_norm_cand:
+            score = max(score, 0.85)
+        else:
+            for palavra in nome_norm_cand.split():
+                score = max(score, SequenceMatcher(None, nome_norm, palavra).ratio())
+
         if score > melhor_score:
             melhor_score = score
             melhor_match = nome
+
     return melhor_match, melhor_score
 
 
@@ -2755,6 +2768,12 @@ elif menu == "🏫 Mapa da Sala":
             prev_state = st.session_state[seat_state_key]
             updated_state = {str(i): prev_state.get(str(i), "") for i in range(total_assentos)}
             st.session_state[seat_state_key] = updated_state
+
+        # Garantir que cada widget de assento tenha estado inicial no session_state
+        for i in range(total_assentos):
+            widget_key = f"{seat_state_key}_{i}"
+            if widget_key not in st.session_state:
+                st.session_state[widget_key] = st.session_state[seat_state_key].get(str(i), "")
         
         # CSS para estilizar os assentos
         st.markdown("""
@@ -2938,7 +2957,7 @@ elif menu == "🏫 Mapa da Sala":
                     st.session_state[seat_state_key][str(assento_idx)] = novo_valor
                     if novo_valor.strip():
                         melhor_match, score = encontrar_melhor_match(novo_valor, nomes_turma)
-                        if melhor_match and melhor_match != novo_valor and score >= 0.70:
+                        if melhor_match and melhor_match != novo_valor and score >= 0.50:
                             sugestoes[state_input_key] = (melhor_match, score)
                             st.caption(f"Sugestão: {melhor_match} ({int(score * 100)}%)")
 
@@ -2976,7 +2995,8 @@ elif menu == "🏫 Mapa da Sala":
                 nomes_alunos = alunos_turma['nome'].tolist()
                 for assento_idx in range(total_assentos):
                     key = f"{seat_state_key}_{assento_idx}"
-                    st.session_state[key] = ""
+                    if key in st.session_state:
+                        st.session_state[key] = ""
                     st.session_state[seat_state_key][str(assento_idx)] = ""
                 for i, nome in enumerate(nomes_alunos):
                     if i < total_assentos:
@@ -2991,7 +3011,8 @@ elif menu == "🏫 Mapa da Sala":
             if st.button("🧹 Limpar Todos os Assentos", type="secondary"):
                 for assento_idx in range(total_assentos):
                     key = f"{seat_state_key}_{assento_idx}"
-                    st.session_state[key] = ""
+                    if key in st.session_state:
+                        st.session_state[key] = ""
                     st.session_state[seat_state_key][str(assento_idx)] = ""
                 st.success("✅ Todos os assentos foram liberados!")
                 st.rerun()
