@@ -2951,25 +2951,26 @@ elif menu == "🏫 Mapa da Sala":
             for carteira, col in enumerate(cols):
                 assento_idx = fileira * carteiras_por_fileira + carteira
                 state_input_key = f"{seat_state_key}_{assento_idx}"
-                valor_atual = st.session_state.get(state_input_key, st.session_state[seat_state_key].get(str(assento_idx), ""))
                 with col:
-                    novo_valor = st.text_input(f"Carteira {assento_idx + 1}", value=valor_atual, key=state_input_key)
-                    st.session_state[seat_state_key][str(assento_idx)] = novo_valor
+                    novo_valor = st.text_input(f"Carteira {assento_idx + 1}", key=state_input_key)
+                    st.session_state[seat_state_key][str(assento_idx)] = st.session_state.get(state_input_key, "")
                     if novo_valor.strip():
                         melhor_match, score = encontrar_melhor_match(novo_valor, nomes_turma)
                         if melhor_match and melhor_match != novo_valor and score >= 0.50:
                             sugestoes[state_input_key] = (melhor_match, score)
                             st.caption(f"Sugestão: {melhor_match} ({int(score * 100)}%)")
 
+        if sugestoes:
+            st.markdown("#### Sugestões de Correspondência")
+            for chave, (melhor_match, score) in sugestoes.items():
+                assento_num = int(chave.split("_")[-1]) + 1
+                st.write(f"• Carteira {assento_num}: {melhor_match} ({int(score * 100)}%)")
+
         if st.button("🔍 Validar Nomes por Proximidade", type="secondary"):
             correcoes = 0
             for chave, (melhor_match, score) in sugestoes.items():
                 if score >= 0.90:
-                    if chave in st.session_state:
-                        try:
-                            st.session_state[chave] = melhor_match
-                        except Exception as e:
-                            st.warning(f"Falha ao atualizar a carteira {chave}: {e}")
+                    st.session_state[chave] = melhor_match
                     st.session_state[seat_state_key][chave.split("_")[-1]] = melhor_match
                     correcoes += 1
             if correcoes:
@@ -2999,36 +3000,25 @@ elif menu == "🏫 Mapa da Sala":
                 nomes_alunos = alunos_turma['nome'].tolist()
                 for assento_idx in range(total_assentos):
                     key = f"{seat_state_key}_{assento_idx}"
-                    if key in st.session_state:
-                        try:
-                            st.session_state[key] = ""
-                        except Exception as e:
-                            st.warning(f"Falha ao limpar carteira {key}: {e}")
+                    st.session_state[key] = ""
                     st.session_state[seat_state_key][str(assento_idx)] = ""
                 for i, nome in enumerate(nomes_alunos):
                     if i < total_assentos:
                         idx_assento = assentos_disponiveis[i]
                         key = f"{seat_state_key}_{idx_assento}"
-                        try:
-                            st.session_state[key] = nome
-                        except Exception as e:
-                            st.warning(f"Falha ao atribuir carteira {key}: {e}")
+                        st.session_state[key] = nome
                         st.session_state[seat_state_key][str(idx_assento)] = nome
                 st.success("✅ Assentos atribuídos aleatoriamente!")
-                st.rerun()
+                st.experimental_rerun()
 
         with col2:
             if st.button("🧹 Limpar Todos os Assentos", type="secondary"):
                 for assento_idx in range(total_assentos):
                     key = f"{seat_state_key}_{assento_idx}"
-                    if key in st.session_state:
-                        try:
-                            st.session_state[key] = ""
-                        except Exception as e:
-                            st.warning(f"Falha ao limpar carteira {key}: {e}")
+                    st.session_state[key] = ""
                     st.session_state[seat_state_key][str(assento_idx)] = ""
                 st.success("✅ Todos os assentos foram liberados!")
-                st.rerun()
+                st.experimental_rerun()
 
         with col3:
             if st.button("💾 Salvar Layout", type="primary"):
