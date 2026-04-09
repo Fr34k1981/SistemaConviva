@@ -1370,12 +1370,20 @@ df_responsaveis = carregar_responsaveis()
 df_eletivas_supabase = carregar_eletivas_supabase()
 
 # Lógica de carregamento das Eletivas
-if not df_eletivas_supabase.empty:
-    ELETIVAS = converter_eletivas_supabase_para_dict(df_eletivas_supabase)
-    FONTE_ELETIVAS = "supabase"
+if 'ELETIVAS' not in st.session_state:
+    if not df_eletivas_supabase.empty:
+        st.session_state.ELETIVAS = converter_eletivas_supabase_para_dict(df_eletivas_supabase)
+        FONTE_ELETIVAS = "supabase"
+    else:
+        st.session_state.ELETIVAS = ELETIVAS_EXCEL
+        FONTE_ELETIVAS = "excel"
 else:
-    ELETIVAS = ELETIVAS_EXCEL
-    FONTE_ELETIVAS = "excel"
+    if not df_eletivas_supabase.empty:
+        FONTE_ELETIVAS = "supabase"
+    else:
+        FONTE_ELETIVAS = "excel"
+
+ELETIVAS = st.session_state.ELETIVAS
 
 # --- 1. HOME ---
 if menu == "🏠 Início":
@@ -2155,6 +2163,7 @@ elif menu == "🎨 Eletiva":
         prof_para_cadastrar = st.selectbox("Selecione uma professora para cadastrar na eletiva", professores_disponiveis, key="cadastrar_prof")
         if st.button("Cadastrar Professora da Eletiva"):
             ELETIVAS[prof_para_cadastrar] = []
+            st.session_state.ELETIVAS = ELETIVAS
             if FONTE_ELETIVAS == "supabase":
                 # No need to post empty
                 pass
@@ -2225,6 +2234,7 @@ elif menu == "🎨 Eletiva":
                             limpar_cache_eletivas()
                         except Exception as e:
                             st.error(f"Erro ao atualizar no Supabase: {e}")
+                    st.session_state.ELETIVAS = ELETIVAS
                     st.success(f"Professora renomeada para {novo_nome}!")
                     st.session_state[f"editando_prof_{prof_acao}"] = False
                     st.rerun()
@@ -2245,6 +2255,7 @@ elif menu == "🎨 Eletiva":
             with col_conf:
                 if st.button("Sim, Excluir", key=f"confirm_del_{prof_acao}"):
                     del ELETIVAS[prof_acao]
+                    st.session_state.ELETIVAS = ELETIVAS
                     if FONTE_ELETIVAS == "supabase":
                         try:
                             _supabase_request("DELETE", f"eletivas?professora=eq.{prof_acao}")
@@ -2345,6 +2356,7 @@ elif menu == "🎨 Eletiva":
             st.text_area("Estudantes a serem importados:", value="\n".join([f"{a['nome']} {a['serie']}".strip() for a in alunos_import]), height=240, disabled=True)
             if botao_importar:
                 ELETIVAS[professora_sel].extend(alunos_import)
+                st.session_state.ELETIVAS = ELETIVAS
                 if FONTE_ELETIVAS == "supabase":
                     registros = [{"professora": professora_sel, "nome_aluno": a["nome"], "serie": a["serie"], "origem": "importacao"} for a in alunos_import]
                     try:
