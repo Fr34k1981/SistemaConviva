@@ -12,6 +12,7 @@ from reportlab.lib.units import cm
 from io import BytesIO
 import requests
 import os
+import re
 import unicodedata
 import zipfile
 from dotenv import load_dotenv
@@ -952,6 +953,13 @@ def normalizar_texto(valor):
     texto = unicodedata.normalize("NFKD", texto)
     texto = "".join(char for char in texto if not unicodedata.combining(char))
     return " ".join(texto.split())
+
+
+def gerar_chave_segura(valor):
+    texto = normalizar_texto(valor)
+    texto = re.sub(r'[^A-Z0-9_]+', '_', texto)
+    texto = texto.strip('_')
+    return texto or 'sem_turma'
 
 
 def encontrar_melhor_match(nome_busca, nomes_existentes):
@@ -2760,7 +2768,7 @@ elif menu == "🏫 Mapa da Sala":
         total_assentos = num_fileiras * carteiras_por_fileira
         
         # Chave de estado para os assentos desta turma
-        seat_state_key = f"mapa_assento_{turma_selecionada}"
+        seat_state_key = f"mapa_assento_{gerar_chave_segura(turma_selecionada)}"
         if seat_state_key not in st.session_state:
             st.session_state[seat_state_key] = {str(i): "" for i in range(total_assentos)}
         else:
@@ -2957,21 +2965,25 @@ elif menu == "🏫 Mapa da Sala":
                     if novo_valor.strip():
                         melhor_match, score = encontrar_melhor_match(novo_valor, nomes_turma)
                         if melhor_match and melhor_match != novo_valor and score >= 0.50:
-                            sugestoes[state_input_key] = (melhor_match, score)
+                            sugestoes[assento_idx] = (melhor_match, score)
                             st.caption(f"Sugestão: {melhor_match} ({int(score * 100)}%)")
 
         if sugestoes:
             st.markdown("#### Sugestões de Correspondência")
-            for chave, (melhor_match, score) in sugestoes.items():
-                assento_num = int(chave.split("_")[-1]) + 1
-                st.write(f"• Carteira {assento_num}: {melhor_match} ({int(score * 100)}%)")
+            for assento_idx, (melhor_match, score) in sugestoes.items():
+                st.write(f"• Carteira {assento_idx + 1}: {melhor_match} ({int(score * 100)}%)")
 
         if st.button("🔍 Validar Nomes por Proximidade", type="secondary"):
             correcoes = 0
-            for chave, (melhor_match, score) in sugestoes.items():
+            for assento_idx, (melhor_match, score) in sugestoes.items():
                 if score >= 0.90:
-                    st.session_state[chave] = melhor_match
-                    st.session_state[seat_state_key][chave.split("_")[-1]] = melhor_match
+                    widget_key = f"{seat_state_key}_{assento_idx}"
+                    if widget_key in st.session_state:
+                        try:
+                            st.session_state[widget_key] = melhor_match
+                        except Exception:
+                            pass
+                    st.session_state[seat_state_key][str(assento_idx)] = melhor_match
                     correcoes += 1
             if correcoes:
                 st.success(f"✅ {correcoes} nomes corrigidos automaticamente.")
