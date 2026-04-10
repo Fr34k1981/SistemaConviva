@@ -2537,7 +2537,7 @@ elif menu == "📄 Comunicado aos Pais":
 # --- 7. GERENCIAR TURMAS ---
 elif menu == "📋 Gerenciar Turmas":
     st.header("📋 Gerenciar Turmas")
-    if not df_alunos.empty:
+    if not df_alunos.empty and 'turma' in df_alunos.columns:
         turmas_info = df_alunos.groupby('turma').agg({'ra': 'count', 'nome': 'first'}).reset_index()
         turmas_info.columns = ['turma', 'total_alunos', 'exemplo_nome']
         st.subheader("📊 Resumo das Turmas")
@@ -2705,8 +2705,12 @@ elif menu == "📋 Gerenciar Turmas":
         
         st.markdown("---")
         st.info(f"💡 **Total de turmas:** {len(turmas_info)} | **Total de alunos:** {len(df_alunos)}")
+    elif df_alunos.empty:
+        st.warning("⚠️ Nenhum aluno cadastrado no sistema.")
+        st.info("💡 Para gerenciar turmas, primeiro cadastre alunos através da opção '👥 Lista de Alunos' ou importe um arquivo CSV/Excel.")
     else:
-        st.write("📭 Nenhuma turma cadastrada.")
+        st.error("❌ Estrutura de dados inválida: a coluna 'turma' não foi encontrada nos dados dos alunos.")
+        st.info("💡 Verifique se os dados dos alunos estão sendo carregados corretamente do banco de dados.")
 
 # --- 8. ELETIVA ---
 elif menu == "🎨 Eletiva":
