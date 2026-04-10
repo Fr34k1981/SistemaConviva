@@ -84,6 +84,87 @@ if SUPABASE_VALID:
 # CONFIGURAÇÃO STREAMLIT
 # ======================================================
 st.set_page_config(
+    st.markdown(
+    """
+    <style>
+    /* ===== RESET ===== */
+    footer {visibility: hidden;}
+    #MainMenu {visibility: hidden;}
+
+    * {
+        font-family: "Segoe UI", sans-serif;
+    }
+
+    .block-container {
+        padding-top: 1.2rem;
+    }
+
+    /* ===== SIDEBAR ===== */
+    [data-testid="stSidebar"] {
+        background-color: #f4f6f8;
+        border-right: 1px solid #e5e7eb;
+    }
+
+    /* ===== REMOVE RADIO BOLINHA ===== */
+    [data-testid="stSidebar"] input[type="radio"] {
+        display: none;
+    }
+
+    /* ===== MENU ITEM ===== */
+    [data-testid="stSidebar"] label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        margin-bottom: 2px;
+        cursor: pointer;
+        font-weight: 500;
+        color: #374151;
+    }
+
+    /* HOVER */
+    [data-testid="stSidebar"] label:hover {
+        background-color: #e5e7eb;
+    }
+
+    /* SELECIONADO */
+    [data-testid="stSidebar"] label[data-selected="true"] {
+        background-color: #2563eb;
+        color: white;
+        font-weight: 600;
+    }
+
+    /* ===== HEADER PRINCIPAL ===== */
+    .header-box {
+        background: linear-gradient(135deg, #2563eb, #4f46e5);
+        padding: 1.5rem;
+        border-radius: 12px;
+        color: white;
+        margin-bottom: 1.5rem;
+    }
+
+    .header-box h1 {
+        font-size: 1.8rem;
+        margin-bottom: 0.2rem;
+    }
+
+    .header-box h3 {
+        font-weight: 400;
+        opacity: 0.9;
+    }
+
+    /* ===== MÉTRICAS ===== */
+    [data-testid="metric-container"] {
+        border-radius: 12px;
+        border: 1px solid #e5e7eb;
+        padding: 14px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
     page_title="Sistema Conviva 179 - E.E. Profª Eliane",
     layout="wide",
     page_icon="🏫",
