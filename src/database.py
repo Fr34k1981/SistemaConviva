@@ -44,10 +44,14 @@ def save_occurrence(student_name, teacher_name, infringements, description, acti
             "acoes_tomadas": actions,
             "data_ocorrencia": datetime.now().isoformat()
         }
+        print(f"[DEBUG] Tentando salvar ocorrência: {data}")
         response = supabase.table("ocorrencias").insert(data).execute()
+        print(f"[DEBUG] Resposta do Supabase: {response}")
         return True
     except Exception as e:
         print(f"Erro ao salvar ocorrência: {e}")
+        import streamlit as st
+        st.error(f"❌ Erro detalhado: {str(e)}")
         return False
 
 def get_occurrences():
