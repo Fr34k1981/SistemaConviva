@@ -88,6 +88,72 @@ st.set_page_config(
     layout="wide",
     page_icon="🏫",
 )
+# ======================================================
+# CSS PERSONALIZADO (INTERFACE PROFISSIONAL)
+# ======================================================
+st.markdown(
+    """
+    <style>
+    :root {
+        --primary: #2563eb;
+        --secondary: #7c3aed;
+        --border: #e5e7eb;
+    }
+
+    * {
+        font-family: 'Segoe UI', sans-serif;
+    }
+
+    footer { visibility: hidden; }
+    #MainMenu { visibility: hidden; }
+
+    .block-container {
+        padding-top: 1.5rem;
+        padding-bottom: 2rem;
+    }
+
+    /* SIDEBAR */
+    [data-testid="stSidebar"] {
+        background-color: #f3f4f6;
+        border-right: 1px solid var(--border);
+    }
+
+    /* MENU */
+    div[role="radiogroup"] > label {
+        padding: 8px 12px;
+        border-radius: 8px;
+        margin-bottom: 4px;
+        cursor: pointer;
+        font-weight: 500;
+    }
+
+    div[role="radiogroup"] > label:hover {
+        background-color: #e5e7eb;
+    }
+
+    div[role="radiogroup"] > label[data-selected="true"] {
+        background-color: var(--primary);
+        color: white;
+        font-weight: 600;
+    }
+
+    /* MÉTRICAS */
+    [data-testid="metric-container"] {
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    h1, h2, h3 {
+        color: #1f2937;
+        font-weight: 700;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 if not SUPABASE_VALID:
     st.warning(
@@ -108,7 +174,7 @@ ESCOLA_LOGO = os.path.join("assets", "images", "eliane_dantas.png")
 # ======================================================
 # MENU LATERAL
 # ======================================================
-st.sidebar.markdown("## Menu")
+st.sidebar.markdown("### 📚 Menu Principal")
 
 menu = st.sidebar.radio(
     "",
@@ -3984,125 +4050,4 @@ elif menu == "🖨️ Imprimir PDF":
             file_name=f"Ocorrencia_{occ_ind['id']}.pdf",
             mime="application/pdf",
         )
-        # ======================================================
-# PÁGINA 💾 BACKUPS
-# ======================================================
-
-elif menu == "💾 Backups":
-
-    st.header("💾 Gerenciamento de Backups")
-
-    st.info(
-        "💡 Aqui você pode criar, restaurar ou excluir backups completos "
-        "do sistema (alunos, ocorrências, professores e eletivas)."
-    )
-
-    # --------------------------------------------------
-    # GARANTIR BACKUP MANAGER
-    # --------------------------------------------------
-    if st.session_state.backup_manager is None:
-        st.session_state.backup_manager = BackupManager()
-
-    backup_manager = st.session_state.backup_manager
-
-    # --------------------------------------------------
-    # CRIAR BACKUP MANUAL
-    # --------------------------------------------------
-    st.markdown("---")
-    st.subheader("📥 Criar Backup")
-
-    if st.button("💾 Criar Backup Agora", type="primary"):
-        try:
-            backup_manager.criar_backup()
-            st.success("✅ Backup criado com sucesso!")
-        except Exception as e:
-            st.error(f"❌ Erro ao criar backup: {e}")
-
-    # --------------------------------------------------
-    # LISTAGEM DOS BACKUPS
-    # --------------------------------------------------
-    st.markdown("---")
-    st.subheader("📂 Backups Disponíveis")
-
-    try:
-        backups = backup_manager.listar_backups()
-    except Exception as e:
-        st.error(f"❌ Erro ao listar backups: {e}")
-        backups = []
-
-    if not backups:
-        st.info("📭 Nenhum backup disponível no momento.")
-        st.stop()
-
-    backup_sel = st.selectbox(
-        "Selecione um backup",
-        backups,
-    )
-
-    st.markdown(f"**Backup selecionado:** `{backup_sel}`")
-
-    # --------------------------------------------------
-    # AÇÕES SOBRE O BACKUP SELECIONADO
-    # --------------------------------------------------
-    col1, col2 = st.columns(2)
-
-    # ==========================
-    # RESTAURAR BACKUP
-    # ==========================
-    with col1:
-        st.markdown("### 🔄 Restaurar Backup")
-
-        st.warning(
-            "⚠️ A restauração irá substituir os dados atuais do sistema "
-            "pelos dados do backup selecionado."
-        )
-
-        if st.button("🔄 Restaurar Backup", type="primary"):
-            try:
-                backup_manager.restaurar_backup(backup_sel)
-                st.success("✅ Backup restaurado com sucesso!")
-                st.info("🔄 Recarregando o sistema...")
-                st.cache_data.clear()
-                st.rerun()
-            except Exception as e:
-                st.error(f"❌ Erro ao restaurar backup: {e}")
-
-    # ==========================
-    # EXCLUIR BACKUP
-    # ==========================
-    with col2:
-        st.markdown("### 🗑️ Excluir Backup")
-
-        st.warning(
-            "⚠️ Esta ação é irreversível. "
-            "O backup selecionado será removido permanentemente."
-        )
-
-        if st.button("🗑️ Excluir Backup", type="secondary"):
-            try:
-                backup_manager.excluir_backup(backup_sel)
-                st.success("✅ Backup excluído com sucesso!")
-                st.rerun()
-            except Exception as e:
-                st.error(f"❌ Erro ao excluir backup: {e}")
-
-    # --------------------------------------------------
-    # MANUTENÇÃO AUTOMÁTICA
-    # --------------------------------------------------
-    st.markdown("---")
-    st.subheader("🧹 Manutenção")
-
-    dias = st.number_input(
-        "Excluir backups com mais de (dias):",
-        min_value=1,
-        max_value=365,
-        value=30,
-    )
-
-    if st.button("🧹 Limpar Backups Antigos"):
-        try:
-            backup_manager.limpar_backups_antigos(dias_retencao=dias)
-            st.success("✅ Backups antigos removidos com sucesso!")
-            st.rerun()
-        except Exception as e:
-            st.error(f"❌ Erro ao limpar backups: {e}")
+        
