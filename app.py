@@ -6,7 +6,6 @@ import pandas as pd
 import openpyxl
 import plotly.express as px
 import plotly.graph_objects as go
-import random  # <--- CORREÇÃO: Movido para o topo
 
 from datetime import datetime, timedelta, time
 from io import BytesIO
@@ -681,35 +680,36 @@ def excluir_alunos_por_turma(turma: str) -> bool:
         carregar_alunos.clear()
     return sucesso
 
-# ======================================================
-# CORREÇÃO 1: FUNÇÃO editar_nome_turma ADICIONADA
-# ======================================================
-@com_tratamento_erro
-def editar_nome_turma(turma_antiga: str, turma_nova: str) -> bool:
-    """
-    Atualiza o nome da turma para todos os alunos que pertencem a ela.
-    """
-    if not turma_antiga or not turma_nova:
-        raise ErroValidacao("turma", "Nome da turma não pode ser vazio")
-    
-    if turma_antiga == turma_nova:
-        return True  # Nada a fazer
 
-    # Busca todos os alunos da turma antiga
-    df_alunos = carregar_alunos()
-    alunos_turma = df_alunos[df_alunos["turma"] == turma_antiga]
-    
-    sucesso_geral = True
-    for _, aluno in alunos_turma.iterrows():
-        # Atualiza a turma de cada aluno individualmente
-        if not atualizar_aluno(aluno["ra"], {"turma": turma_nova}):
-            sucesso_geral = False
-            
-    if sucesso_geral:
-        carregar_alunos.clear() # Limpa o cache para recarregar os dados
+@com_tratamento_erro
+def editar_nome_turma(turma_antiga: str, novo_nome: str) -> bool:
+    """Renomeia uma turma atualizando todos os alunos e ocorrências vinculados a ela."""
+    if not SUPABASE_VALID:
+        raise ErroConexaoDB("Supabase não configurado.")
+    if not turma_antiga or not novo_nome:
+        raise ErroValidacao("turma", "Nomes da turma não podem ser vazios.")
+    if turma_antiga == novo_nome:
         return True
-    else:
-        return False
+    try:
+        response = _supabase_request("GET", f"alunos?select=ra&turma=eq.{turma_antiga}")
+        alunos = response.json()
+        if alunos:
+            for aluno in alunos:
+                ra = aluno.get("ra")
+                if ra:
+                    _supabase_request("PATCH", f"alunos?ra=eq.{ra}", json={"turma": novo_nome})
+        try:
+            _supabase_request("PATCH", f"ocorrencias?turma=eq.{turma_antiga}", json={"turma": novo_nome})
+            carregar_ocorrencias.clear()
+        except:
+            pass
+        carregar_alunos.clear()
+        return True
+    except ErroConexaoDB:
+        raise
+    except Exception as e:
+        raise ErroOperacaoDB(f"renomear turma '{turma_antiga}'", str(e))
+
 
 # ======================================================
 # PROFESSORES
@@ -723,7 +723,9 @@ def carregar_professores() -> pd.DataFrame:
         "professores?select=*",
         "carregar professores",
     )
-
+# ======================================================
+# PROFESSORES
+# ======================================================
 
 @com_tratamento_erro
 def salvar_professor(professor: dict) -> bool:
@@ -1392,8 +1394,8 @@ def gerar_pdf_ocorrencia(
 # ======================================================
 
 def gerar_pdf_comunicado(
-    aluno_data: dict,
-    ocorrencia_data: dict,
+    aluno_ dict,
+    ocorrencia_ dict,
     medidas_aplicadas: str,
     observacoes: str,
     df_responsaveis: pd.DataFrame,
@@ -1910,8 +1912,7 @@ elif menu == "👨‍🏫 Cadastrar Professores":
             placeholder="Ex: João da Silva",
             key="novo_nome_prof",
         )
-
-        cargo_prof = st.selectbox(
+                cargo_prof = st.selectbox(
             "Cargo",
             [
                 "Professor",
@@ -2284,217 +2285,216 @@ elif menu == "📝 Registrar Ocorrência":
             alunos_turma["nome"].tolist(),
             key="aluno_unico",
         )
-        alunos_selecionados = [aluno_unico] if aluno_unico else []
+        alunos_selecionados = [aluno_unico] if aluno_unico else [] 
+                   if not alunos_selecionados:
+               st.warning("⚠️ Selecione ao menos um estudante.")
+               st.stop()
 
-    if not alunos_selecionados:
-        st.warning("⚠️ Selecione ao menos um estudante.")
-        st.stop()
+           # ----------------------------------------------
+           # PROFESSOR
+           # ----------------------------------------------
+           prof = st.selectbox(
+               "Professor 👨‍🏫",
+               df_professores["nome"].tolist(),
+               key="professor_sel",
+           )
 
-    # ----------------------------------------------
-    # PROFESSOR
-    # ----------------------------------------------
-    prof = st.selectbox(
-        "Professor 👨‍🏫",
-        df_professores["nome"].tolist(),
-        key="professor_sel",
-    )
+           # ----------------------------------------------
+           # BUSCA DE INFRAÇÃO — PROTOCOLO 179
+           # ----------------------------------------------
+           st.markdown("---")
+           st.subheader("📋 Infração (Protocolo 179)")
 
-    # ----------------------------------------------
-    # BUSCA DE INFRAÇÃO — PROTOCOLO 179
-    # ----------------------------------------------
-    st.markdown("---")
-    st.subheader("📋 Infração (Protocolo 179)")
+           busca = st.text_input(
+               "🔍 Buscar infração",
+               placeholder="Ex: celular, bullying, atraso...",
+               key="busca_infracao",
+           )
 
-    busca = st.text_input(
-        "🔍 Buscar infração",
-        placeholder="Ex: celular, bullying, atraso...",
-        key="busca_infracao",
-    )
+           if busca:
+               grupos_filtrados = buscar_infracao_fuzzy(busca, PROTOCOLO_179)
 
-    if busca:
-        grupos_filtrados = buscar_infracao_fuzzy(busca, PROTOCOLO_179)
+               if grupos_filtrados:
+                   grupo = st.selectbox(
+                       "Grupo",
+                       list(grupos_filtrados.keys()),
+                       key="grupo_infracao",
+                   )
+                   infracoes = grupos_filtrados[grupo]
+               else:
+                   st.warning("⚠️ Nenhuma infração encontrada. Mostrando todas.")
+                   grupo = st.selectbox(
+                       "Grupo",
+                       list(PROTOCOLO_179.keys()),
+                       key="grupo_infracao",
+                   )
+                   infracoes = PROTOCOLO_179[grupo]
+           else:
+               grupo = st.selectbox(
+                   "Grupo",
+                   list(PROTOCOLO_179.keys()),
+                   key="grupo_infracao",
+               )
+               infracoes = PROTOCOLO_179[grupo]
 
-        if grupos_filtrados:
-            grupo = st.selectbox(
-                "Grupo",
-                list(grupos_filtrados.keys()),
-                key="grupo_infracao",
-            )
-            infracoes = grupos_filtrados[grupo]
-        else:
-            st.warning("⚠️ Nenhuma infração encontrada. Mostrando todas.")
-            grupo = st.selectbox(
-                "Grupo",
-                list(PROTOCOLO_179.keys()),
-                key="grupo_infracao",
-            )
-            infracoes = PROTOCOLO_179[grupo]
-    else:
-        grupo = st.selectbox(
-            "Grupo",
-            list(PROTOCOLO_179.keys()),
-            key="grupo_infracao",
-        )
-        infracoes = PROTOCOLO_179[grupo]
+           infracao_principal = st.selectbox(
+               "Infração",
+               list(infracoes.keys()),
+               key="infracao_principal",
+           )
 
-    infracao_principal = st.selectbox(
-        "Infração",
-        list(infracoes.keys()),
-        key="infracao_principal",
-    )
+           dados_infracao = infracoes[infracao_principal]
+           gravidade_sugerida = dados_infracao["gravidade"]
+           encaminhamento_sugerido = dados_infracao["encaminhamento"]
 
-    dados_infracao = infracoes[infracao_principal]
-    gravidade_sugerida = dados_infracao["gravidade"]
-    encaminhamento_sugerido = dados_infracao["encaminhamento"]
+           # ----------------------------------------------
+           # GRAVIDADE E ENCAMINHAMENTO
+           # ----------------------------------------------
+           st.markdown("### ⚖️ Gravidade")
 
-    # ----------------------------------------------
-    # GRAVIDADE E ENCAMINHAMENTO
-    # ----------------------------------------------
-    st.markdown("### ⚖️ Gravidade")
+           gravidade = st.selectbox(
+               "Gravidade (sugerida pelo protocolo)",
+               ["Leve", "Média", "Grave", "Gravíssima"],
+               index=["Leve", "Média", "Grave", "Gravíssima"].index(gravidade_sugerida),
+               key="gravidade_sel",
+           )
 
-    gravidade = st.selectbox(
-        "Gravidade (sugerida pelo protocolo)",
-        ["Leve", "Média", "Grave", "Gravíssima"],
-        index=["Leve", "Média", "Grave", "Gravíssima"].index(gravidade_sugerida),
-        key="gravidade_sel",
-    )
+           if gravidade != gravidade_sugerida:
+               st.session_state.gravidade_alterada = True
+               st.warning(
+                   f"⚠️ Gravidade alterada de {gravidade_sugerida} para {gravidade}."
+               )
 
-    if gravidade != gravidade_sugerida:
-        st.session_state.gravidade_alterada = True
-        st.warning(
-            f"⚠️ Gravidade alterada de {gravidade_sugerida} para {gravidade}."
-        )
+           encam = st.text_area(
+               "🔀 Encaminhamentos",
+               value=encaminhamento_sugerido,
+               height=140,
+               key="encaminhamento",
+           )
 
-    encam = st.text_area(
-        "🔀 Encaminhamentos",
-        value=encaminhamento_sugerido,
-        height=140,
-        key="encaminhamento",
-    )
+           # ----------------------------------------------
+           # RELATO
+           # ----------------------------------------------
+           relato = st.text_area(
+               "📝 Relato dos fatos",
+               height=160,
+               placeholder="Descreva os fatos de forma clara e objetiva...",
+               key="relato",
+           )
 
-    # ----------------------------------------------
-    # RELATO
-    # ----------------------------------------------
-    relato = st.text_area(
-        "📝 Relato dos fatos",
-        height=160,
-        placeholder="Descreva os fatos de forma clara e objetiva...",
-        key="relato",
-    )
+           # ----------------------------------------------
+           # CONFIRMAÇÃO DE SALVAMENTO
+           # ----------------------------------------------
+           st.markdown("---")
 
-    # ----------------------------------------------
-    # CONFIRMAÇÃO DE SALVAMENTO
-    # ----------------------------------------------
-    st.markdown("---")
+           if st.button("💾 Salvar Ocorrência(s)", type="primary"):
+               if not prof or not relato.strip():
+                   st.error("❌ Preencha professor e relato.")
+               else:
+                   st.session_state.dados_registro = {
+                       "alunos": alunos_selecionados,
+                       "turmas": turmas_sel,
+                       "data": data_str,
+                       "categoria": infracao_principal,
+                       "gravidade": gravidade,
+                       "relato": relato,
+                       "encaminhamento": encam,
+                       "professor": prof,
+                   }
+                   st.session_state.confirmar_registro = True
+                   st.rerun()
 
-    if st.button("💾 Salvar Ocorrência(s)", type="primary"):
-        if not prof or not relato.strip():
-            st.error("❌ Preencha professor e relato.")
-        else:
-            st.session_state.dados_registro = {
-                "alunos": alunos_selecionados,
-                "turmas": turmas_sel,
-                "data": data_str,
-                "categoria": infracao_principal,
-                "gravidade": gravidade,
-                "relato": relato,
-                "encaminhamento": encam,
-                "professor": prof,
-            }
-            st.session_state.confirmar_registro = True
-            st.rerun()
+           # ----------------------------------------------
+           # CONFIRMAÇÃO FINAL
+           # ----------------------------------------------
+           if st.session_state.get("confirmar_registro"):
+               dados = st.session_state.dados_registro
 
-    # ----------------------------------------------
-    # CONFIRMAÇÃO FINAL
-    # ----------------------------------------------
-    if st.session_state.get("confirmar_registro"):
-        dados = st.session_state.dados_registro
+               st.warning("⚠️ Confirma o registro das seguintes ocorrências?")
+               st.markdown(
+                   f"""
+                   **Data:** {dados["data"]}  
+                   **Infração:** {dados["categoria"]}  
+                   **Gravidade:** {dados["gravidade"]}  
+                   **Professor:** {dados["professor"]}  
+                   **Alunos:** {", ".join(dados["alunos"])}  
+                   **Turmas:** {", ".join(dados["turmas"])}
+                   """
+               )
 
-        st.warning("⚠️ Confirma o registro das seguintes ocorrências?")
-        st.markdown(
-            f"""
-            **Data:** {dados["data"]}  
-            **Infração:** {dados["categoria"]}  
-            **Gravidade:** {dados["gravidade"]}  
-            **Professor:** {dados["professor"]}  
-            **Alunos:** {", ".join(dados["alunos"])}  
-            **Turmas:** {", ".join(dados["turmas"])}
-            """
-        )
+               col1, col2 = st.columns(2)
 
-        col1, col2 = st.columns(2)
+               with col1:
+                   if st.button("✅ Confirmar Registro", type="primary"):
+                       salvas = 0
+                       duplicadas = 0
 
-        with col1:
-            if st.button("✅ Confirmar Registro", type="primary"):
-                salvas = 0
-                duplicadas = 0
+                       for turma in dados["turmas"]:
+                           for aluno in dados["alunos"]:
+                               registro = df_alunos[
+                                   (df_alunos["nome"] == aluno)
+                                   & (df_alunos["turma"] == turma)
+                               ]
 
-                for turma in dados["turmas"]:
-                    for aluno in dados["alunos"]:
-                        registro = df_alunos[
-                            (df_alunos["nome"] == aluno)
-                            & (df_alunos["turma"] == turma)
-                        ]
+                               if registro.empty:
+                                   continue
 
-                        if registro.empty:
-                            continue
+                               ra = registro["ra"].values[0]
 
-                        ra = registro["ra"].values[0]
+                               if verificar_ocorrencia_duplicada(
+                                   ra,
+                                   dados["categoria"],
+                                   dados["data"],
+                                   df_ocorrencias,
+                               ):
+                                   duplicadas += 1
+                                   continue
 
-                        if verificar_ocorrencia_duplicada(
-                            ra,
-                            dados["categoria"],
-                            dados["data"],
-                            df_ocorrencias,
-                        ):
-                            duplicadas += 1
-                            continue
+                               nova = {
+                                   "data": dados["data"],
+                                   "aluno": aluno,
+                                   "ra": ra,
+                                   "turma": turma,
+                                   "categoria": dados["categoria"],
+                                   "gravidade": dados["gravidade"],
+                                   "relato": dados["relato"],
+                                   "encaminhamento": dados["encaminhamento"],
+                                   "professor": dados["professor"],
+                               }
 
-                        nova = {
-                            "data": dados["data"],
-                            "aluno": aluno,
-                            "ra": ra,
-                            "turma": turma,
-                            "categoria": dados["categoria"],
-                            "gravidade": dados["gravidade"],
-                            "relato": dados["relato"],
-                            "encaminhamento": dados["encaminhamento"],
-                            "professor": dados["professor"],
-                        }
+                               if salvar_ocorrencia(nova):
+                                   salvas += 1
+                                   if st.session_state.backup_manager:
+                                       st.session_state.backup_manager.criar_backup()
 
-                        if salvar_ocorrencia(nova):
-                            salvas += 1
-                            if st.session_state.backup_manager:
-                                st.session_state.backup_manager.criar_backup()
+                       if salvas > 0:
+                           st.session_state.ocorrencia_salva_sucesso = True
 
-                if salvas > 0:
-                    st.session_state.ocorrencia_salva_sucesso = True
+                       if duplicadas > 0:
+                           st.warning(
+                               f"⚠️ {duplicadas} ocorrência(s) duplicada(s) ignorada(s)."
+                           )
 
-                if duplicadas > 0:
-                    st.warning(
-                        f"⚠️ {duplicadas} ocorrência(s) duplicada(s) ignorada(s)."
-                    )
+                       # Limpeza de estado
+                       for k in [
+                           "confirmar_registro",
+                           "dados_registro",
+                           "relato",
+                           "busca_infracao",
+                           "infracao_principal",
+                           "grupo_infracao",
+                       ]:
+                           if k in st.session_state:
+                               del st.session_state[k]
 
-                # Limpeza de estado
-                for k in [
-                    "confirmar_registro",
-                    "dados_registro",
-                    "relato",
-                    "busca_infracao",
-                    "infracao_principal",
-                    "grupo_infracao",
-                ]:
-                    if k in st.session_state:
-                        del st.session_state[k]
+                       st.rerun()
 
-                st.rerun()
-
-        with col2:
-            if st.button("❌ Cancelar"):
-                del st.session_state.confirmar_registro
-                del st.session_state.dados_registro
-                st.rerun()
-                # ======================================================
+               with col2:
+                   if st.button("❌ Cancelar"):
+                       del st.session_state.confirmar_registro
+                       del st.session_state.dados_registro
+                       st.rerun()
+                       # ======================================================
 # PÁGINA 📄 COMUNICADO AOS PAIS / RESPONSÁVEIS
 # ======================================================
 
@@ -2616,8 +2616,7 @@ elif menu == "📄 Comunicado aos Pais":
                 "turma": aluno_info["turma"],
                 "total_ocorrencias": len(ocorrencias_aluno),
             }
-
-            ocorrencia_data = {
+                        ocorrencia_data = {
                 "data": occ_info["data"],
                 "categoria": occ_info["categoria"],
                 "gravidade": occ_info["gravidade"],
@@ -2950,7 +2949,7 @@ elif menu == "📋 Histórico de Ocorrências":
                     st.session_state.editando_id = None
                     st.session_state.dados_edicao = None
                     st.rerun()
-                    # ======================================================
+                                        # ======================================================
 # PÁGINA 📊 GRÁFICOS E INDICADORES
 # ======================================================
 
@@ -3441,7 +3440,7 @@ elif menu == "📋 Gerenciar Turmas":
             if st.button("❌ Cancelar"):
                 st.session_state.turma_para_deletar = None
                 st.rerun()
-                # ======================================================
+                                # ======================================================
 # PÁGINA 🎨 ELETIVA
 # ======================================================
 
@@ -3649,7 +3648,8 @@ elif menu == "🎨 Eletiva":
                     f"✅ {len(selecionados)} estudante(s) removido(s)."
                 )
                 st.rerun()
-                # ======================================================
+
+# ======================================================
 # PÁGINA 👥 LISTA DE ALUNOS
 # ======================================================
 
@@ -3713,7 +3713,8 @@ elif menu == "👥 Lista de Alunos":
     )
 
     st.info(f"👥 Total de alunos exibidos: {len(df_view)}")
-    # ======================================================
+
+# ======================================================
 # PÁGINA 🏫 MAPA DA SALA
 # ======================================================
 
@@ -3889,14 +3890,14 @@ elif menu == "🏫 Mapa da Sala":
 
     with c1:
         if st.button("🔀 Atribuir Aleatoriamente"):
-            # CORREÇÃO: Cria uma cópia da lista para não modificar a original
-            nomes_embaralhados = nomes_alunos.copy()
-            random.shuffle(nomes_embaralhados)
+            import random
+
+            random.shuffle(nomes_alunos)
 
             for idx in range(total_assentos):
                 st.session_state[mapa_key][str(idx)] = ""
 
-            for i, nome in enumerate(nomes_embaralhados):
+            for i, nome in enumerate(nomes_alunos):
                 if i < total_assentos:
                     st.session_state[mapa_key][str(i)] = nome
 
@@ -3914,7 +3915,8 @@ elif menu == "🏫 Mapa da Sala":
         if st.button("💾 Salvar Layout", type="primary"):
             st.success("✅ Layout salvo com sucesso!")
             # Futuro: salvar no Supabase
-            # ======================================================
+
+# ======================================================
 # PÁGINA 🖨️ IMPRIMIR PDF
 # ======================================================
 
@@ -4080,3 +4082,30 @@ elif menu == "🖨️ Imprimir PDF":
             file_name=f"Ocorrencia_{occ_ind['id']}.pdf",
             mime="application/pdf",
         )
+
+# ======================================================
+# PÁGINA 💾 BACKUPS
+# ======================================================
+
+elif menu == "💾 Backups":
+    if "render_backup_page" in globals():
+        render_backup_page(st.session_state.backup_manager)
+    else:
+        st.info("Funcionalidade de backup disponível via módulo externo.")
+
+# ======================================================
+# RODAPÉ FINAL
+# ======================================================
+
+st.markdown("---")
+st.markdown(
+    f"""
+    <div style="text-align: center; color: #666; font-size: 0.9rem; margin-top: 2rem;">
+        <p><b>Sistema Conviva 179</b> - Gestão de Ocorrências Escolares</p>
+        <p>{ESCOLA_NOME} • {ESCOLA_SUBTITULO}</p>
+        <p>Protocolo de Convivência e Proteção Escolar - SEDUC/SP</p>
+        <p>Versão 16.0 FINAL | Desenvolvido com Streamlit + Supabase</p>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
