@@ -654,101 +654,245 @@ PROTOCOLO_179 = {
         },
         "Ameaça": {
             "gravidade": "Grave",
-            "encaminhamento": "✅ Registrar em ata circunstanciada\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ B.O. recomendado"
+            "encaminhamento": "✅ Registrar em ata circunstanciada\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ B.O. recomendado\n✅ Medidas protetivas se necessário"
         },
         "Bullying": {
             "gravidade": "Leve",
-            "encaminhamento": "✅ Mediação pedagógica\n✅ Notificar famílias\n✅ Registrar em ata\n✅ Acompanhamento psicológico"
+            "encaminhamento": "✅ Programa de Mediação de Conflitos\n✅ Acompanhamento pedagógico\n✅ Notificar famílias\n✅ Registrar em ata\n✅ Acompanhamento psicológico"
         },
         "Cyberbullying": {
             "gravidade": "Grave",
-            "encaminhamento": "✅ Registrar em ata circunstanciada\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ B.O. (crime digital)\n✅ Preservar provas"
+            "encaminhamento": "✅ Registrar em ata circunstanciada\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ B.O. (crime digital)\n✅ Preservar provas (prints, URLs)\n✅ Acionar Núcleo Tecnológico"
         },
         "Racismo": {
             "gravidade": "Gravíssima",
-            "encaminhamento": "⚖️ Crime inafiançável (Lei 7.716/89)\n✅ B.O. obrigatório\n✅ Conselho Tutelar\n✅ Notificar famílias\n✅ Diretoria de Ensino"
+            "encaminhamento": "⚖️ CRIME INAFIANÇÁVEL (Lei 7.716/89)\n✅ B.O. OBRIGATÓRIO\n✅ Conselho Tutelar\n✅ Notificar famílias\n✅ Diretoria de Ensino\n✅ Medidas disciplinares cabíveis"
         },
         "Homofobia": {
             "gravidade": "Gravíssima",
-            "encaminhamento": "⚖️ Crime equiparado ao racismo\n✅ B.O. obrigatório\n✅ Conselho Tutelar\n✅ Notificar famílias\n✅ Diretoria de Ensino"
+            "encaminhamento": "⚖️ CRIME (equiparado ao racismo - STF)\n✅ B.O. OBRIGATÓRIO\n✅ Conselho Tutelar\n✅ Notificar famílias\n✅ Diretoria de Ensino\n✅ Medidas disciplinares cabíveis"
         },
+        "Transfobia": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "⚖️ CRIME (equiparado ao racismo - STF)\n✅ B.O. OBRIGATÓRIO\n✅ Conselho Tutelar\n✅ Notificar famílias\n✅ Diretoria de Ensino\n✅ Medidas disciplinares cabíveis"
+        },
+        "Gordofobia": {
+            "gravidade": "Leve",
+            "encaminhamento": "✅ Mediação pedagógica\n✅ Acompanhamento psicológico\n✅ Notificar famílias\n✅ Registrar em ata\n✅ Trabalho educativo sobre diversidade"
+        },
+        "Xenofobia": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "⚖️ CRIME INAFIANÇÁVEL\n✅ B.O. OBRIGATÓRIO\n✅ Conselho Tutelar\n✅ Notificar famílias\n✅ Diretoria de Ensino"
+        },
+        "Capacitismo (Discriminação por Deficiência)": {
+            "gravidade": "Grave",
+            "encaminhamento": "✅ B.O. recomendado\n✅ Conselho Tutelar\n✅ Notificar famílias\n✅ AEE (Atendimento Educacional Especializado)\n✅ Diretoria de Ensino"
+        },
+        "Misoginia / Violência de Gênero": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "⚖️ CRIME (Lei Maria da Penha)\n✅ B.O. OBRIGATÓRIO\n✅ DDM (Delegacia da Mulher)\n✅ Conselho Tutelar\n✅ CREAS\n✅ Medidas protetivas"
+        },
+        "Assédio Moral": {
+            "gravidade": "Grave",
+            "encaminhamento": "✅ Registrar em ata circunstanciada\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ B.O. recomendado\n✅ Acompanhamento psicológico"
+        },
+        "Assédio Sexual": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "🚨 CRIME - NÃO FAZER MEDIAÇÃO\n✅ B.O. OBRIGATÓRIO\n✅ Conselho Tutelar\n✅ DDM (se for o caso)\n✅ Afastamento do agressor\n✅ Acompanhamento psicológico da vítima"
+        },
+        "Importunação Sexual / Estupro": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "🚨 CRIME GRAVÍSSIMO\n✅ B.O. IMEDIATO\n✅ SAMU (se necessário)\n✅ Conselho Tutelar\n✅ IML (se for o caso)\n✅ Não confrontar o agressor\n✅ Preservar provas"
+        },
+        "Apologia ao Nazismo": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "⚖️ CRIME (Lei 7.716/89)\n✅ B.O. OBRIGATÓRIO\n✅ Conselho Tutelar\n✅ Diretoria de Ensino\n✅ Medidas disciplinares cabíveis"
+        }
     },
     "🔫 Armas e Segurança": {
         "Posse de Arma de Fogo / Simulacro": {
             "gravidade": "Gravíssima",
-            "encaminhamento": "🚨 Acionar PM (190)\n✅ Isolar área\n✅ Não tocar no objeto\n✅ B.O. obrigatório\n✅ Conselho Tutelar"
+            "encaminhamento": "🚨 EMERGÊNCIA - ACIONAR PM (190)\n✅ Isolar área\n✅ Não tocar no objeto\n✅ B.O. OBRIGATÓRIO\n✅ Conselho Tutelar\n✅ Afastamento imediato"
         },
         "Posse de Arma Branca": {
             "gravidade": "Gravíssima",
-            "encaminhamento": "🚨 Acionar PM (190)\n✅ Isolar área\n✅ B.O. obrigatório\n✅ Conselho Tutelar"
+            "encaminhamento": "🚨 ACIONAR PM (190)\n✅ Isolar área\n✅ B.O. OBRIGATÓRIO\n✅ Conselho Tutelar\n✅ Afastamento imediato"
         },
         "Posse de Arma de Brinquedo": {
             "gravidade": "Leve",
-            "encaminhamento": "✅ Retirar o objeto\n✅ Notificar famílias\n✅ Registrar em ata\n✅ Trabalho educativo"
+            "encaminhamento": "✅ Retirar o objeto\n✅ Notificar famílias\n✅ Registrar em ata\n✅ Trabalho educativo sobre violência"
         },
+        "Ameaça de Ataque Ativo": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "🚨 EMERGÊNCIA MÁXIMA\n✅ PM (190) e SAMU (192)\n✅ Protocolo de Segurança Escolar\n✅ Evacuação se necessário\n✅ B.O. OBRIGATÓRIO\n✅ Diretoria de Ensino"
+        },
+        "Ataque Ativo Concretizado": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "🚨 EMERGÊNCIA MÁXIMA\n✅ PM (190) e SAMU (192)\n✅ Protocolo de Segurança Escolar\n✅ B.O. OBRIGATÓRIO\n✅ IML (se houver óbito)\n✅ Apoio psicológico emergencial"
+        },
+        "Invasão": {
+            "gravidade": "Grave",
+            "encaminhamento": "✅ PM (190) se necessário\n✅ Registrar em ata\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ Reforçar segurança da escola"
+        },
+        "Ocupação de Unidade Escolar": {
+            "gravidade": "Leve",
+            "encaminhamento": "✅ Dialogar com estudantes\n✅ Notificar famílias\n✅ Diretoria de Ensino\n✅ Registrar em ata\n✅ Buscar mediação"
+        },
+        "Roubo": {
+            "gravidade": "Grave",
+            "encaminhamento": "✅ B.O. recomendado\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ Registrar em ata\n✅ Acionar segurança"
+        },
+        "Furto": {
+            "gravidade": "Leve",
+            "encaminhamento": "✅ Registrar em ata\n✅ Notificar famílias\n✅ Conselho Tutelar (se menor)\n✅ Mediação pedagógica"
+        },
+        "Dano ao Patrimônio / Vandalismo": {
+            "gravidade": "Leve",
+            "encaminhamento": "✅ Registrar em ata\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ Reparação do dano\n✅ Trabalho educativo"
+        }
     },
     "💊 Drogas e Substâncias": {
         "Posse de Celular / Dispositivo Eletrônico": {
             "gravidade": "Leve",
-            "encaminhamento": "✅ Retirar dispositivo\n✅ Notificar famílias\n✅ Registrar em ata\n✅ Devolver aos responsáveis"
+            "encaminhamento": "✅ Retirar dispositivo (conforme regimento)\n✅ Notificar famílias\n✅ Registrar em ata\n✅ Devolver aos responsáveis"
         },
         "Consumo de Álcool e Tabaco": {
             "gravidade": "Leve",
-            "encaminhamento": "✅ Notificar famílias\n✅ Conselho Tutelar\n✅ Registrar em ata\n✅ Acompanhamento psicológico"
+            "encaminhamento": "✅ Notificar famílias\n✅ Conselho Tutelar\n✅ Registrar em ata\n✅ Acompanhamento psicológico\n✅ Trabalho educativo sobre saúde"
+        },
+        "Consumo de Cigarro Eletrônico": {
+            "gravidade": "Leve",
+            "encaminhamento": "✅ Notificar famílias\n✅ Conselho Tutelar\n✅ Registrar em ata\n✅ Acompanhamento psicológico\n✅ Trabalho educativo sobre saúde"
         },
         "Consumo de Substâncias Ilícitas": {
             "gravidade": "Grave",
-            "encaminhamento": "✅ SAMU (192) se emergência\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ B.O. recomendado\n✅ CAPS/CREAS"
+            "encaminhamento": "✅ SAMU (192) se houver emergência\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ B.O. recomendado\n✅ CAPS/CREAS\n✅ Acompanhamento especializado"
+        },
+        "Comercialização de Álcool e Tabaco": {
+            "gravidade": "Grave",
+            "encaminhamento": "✅ B.O. recomendado\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ Vigilância Sanitária\n✅ Registrar em ata"
         },
         "Envolvimento com Tráfico de Drogas": {
             "gravidade": "Gravíssima",
-            "encaminhamento": "🚨 B.O. obrigatório\n✅ PM (190) se necessário\n✅ Conselho Tutelar\n✅ Não confrontar diretamente"
-        },
+            "encaminhamento": "🚨 B.O. OBRIGATÓRIO\n✅ PM (190) se necessário\n✅ Conselho Tutelar\n✅ Não confrontar diretamente\n✅ Sigilo e segurança\n✅ Diretoria de Ensino"
+        }
     },
     "🧠 Saúde Mental e Comportamento": {
         "Indisciplina": {
             "gravidade": "Leve",
-            "encaminhamento": "✅ Mediação pedagógica\n✅ Registrar em ata\n✅ Notificar famílias\n✅ Conselho de Classe"
+            "encaminhamento": "✅ Mediação pedagógica\n✅ Registrar em ata\n✅ Notificar famílias\n✅ Conselho de Classe\n✅ Acompanhamento pedagógico"
         },
         "Evasão Escolar / Infrequência": {
             "gravidade": "Grave",
-            "encaminhamento": "✅ Busca ativa\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ Diretoria de Ensino"
+            "encaminhamento": "✅ Buscar ativa (visita domiciliar)\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ Registrar em ata\n✅ Diretoria de Ensino\n✅ Programa de Busca Ativa"
         },
         "Sinais de Automutilação": {
             "gravidade": "Grave",
-            "encaminhamento": "✅ SAMU (192) se risco imediato\n✅ Notificar famílias urgente\n✅ Conselho Tutelar\n✅ CAPS"
+            "encaminhamento": "✅ SAMU (192) se houver risco imediato\n✅ Notificar famílias URGENTE\n✅ Conselho Tutelar\n✅ CAPS Infantil/Juvenil\n✅ Acompanhamento psicológico\n✅ Rede de proteção"
+        },
+        "Sinais de Isolamento Social": {
+            "gravidade": "Leve",
+            "encaminhamento": "✅ Acompanhamento psicológico\n✅ Notificar famílias\n✅ Orientação Educacional\n✅ Trabalho em grupo\n✅ Observação contínua"
+        },
+        "Sinais de Alterações Emocionais": {
+            "gravidade": "Leve",
+            "encaminhamento": "✅ Acompanhamento psicológico\n✅ Notificar famílias\n✅ Orientação Educacional\n✅ Observação contínua"
         },
         "Tentativa de Suicídio": {
             "gravidade": "Gravíssima",
-            "encaminhamento": "🚨 SAMU (192) imediato\n✅ Hospital de referência\n✅ Notificar famílias urgente\n✅ Conselho Tutelar\n✅ CAPS"
+            "encaminhamento": "🚨 SAMU (192) IMEDIATO\n✅ Hospital de referência\n✅ Notificar famílias URGENTE\n✅ Conselho Tutelar\n✅ CAPS\n✅ Rede de proteção\n✅ Pós-venção"
         },
         "Suicídio Concretizado": {
             "gravidade": "Gravíssima",
-            "encaminhamento": "🚨 SAMU/PM/IML\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ Diretoria de Ensino\n✅ Apoio psicológico"
+            "encaminhamento": "🚨 SAMU/PM/IML\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ Diretoria de Ensino\n✅ Apoio psicológico emergencial\n✅ Pós-venção"
         },
+        "Mal Súbito": {
+            "gravidade": "Grave",
+            "encaminhamento": "✅ SAMU (192)\n✅ Hospital de referência\n✅ Notificar famílias URGENTE\n✅ Registrar em ata\n✅ Acompanhamento"
+        },
+        "Óbito": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "🚨 SAMU/PM/IML\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ Diretoria de Ensino\n✅ Apoio psicológico emergencial\n✅ Pós-venção"
+        }
+    },
+    "🌐 Crimes e Situações Graves": {
+        "Crimes Cibernéticos": {
+            "gravidade": "Grave",
+            "encaminhamento": "✅ B.O. (Delegacia de Crimes Digitais)\n✅ Preservar provas (prints, URLs)\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ Núcleo Tecnológico da DE"
+        },
+        "Fake News / Disseminação de Informações Falsas": {
+            "gravidade": "Leve",
+            "encaminhamento": "✅ Trabalho educativo sobre informação\n✅ Notificar famílias\n✅ Registrar em ata\n✅ Orientação sobre consequências legais"
+        },
+        "Violência Doméstica / Maus Tratos": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "⚠️ SIGILO ABSOLUTO\n✅ Conselho Tutelar OBRIGATÓRIO\n✅ CREAS\n✅ DDM (se for o caso)\n✅ B.O.\n✅ Não confrontar agressor\n✅ Rede de proteção"
+        },
+        "Vulnerabilidade Familiar / Negligência": {
+            "gravidade": "Grave",
+            "encaminhamento": "✅ Conselho Tutelar\n✅ CREAS\n✅ Notificar famílias\n✅ CRAS\n✅ Rede de proteção social"
+        },
+        "Alerta de Desaparecimento": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "🚨 PM (190) IMEDIATO\n✅ Notificar famílias URGENTE\n✅ Conselho Tutelar\n✅ B.O.\n✅ Disseminar informações\n✅ Rede de busca"
+        },
+        "Sequestro": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "🚨 PM (190) IMEDIATO\n✅ Não negociar\n✅ Notificar famílias\n✅ B.O.\n✅ Seguir orientações policiais"
+        },
+        "Homicídio / Homicídio Tentado": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "🚨 PM (190) e SAMU (192)\n✅ B.O. OBRIGATÓRIO\n✅ IML (se for o caso)\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ Pós-venção"
+        },
+        "Feminicídio": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "🚨 PM (190) e SAMU (192)\n✅ B.O. OBRIGATÓRIO\n✅ DDM\n✅ IML (se for o caso)\n✅ Notificar famílias\n✅ Conselho Tutelar"
+        },
+        "Incitamento a Atos Infracionais": {
+            "gravidade": "Grave",
+            "encaminhamento": "✅ B.O. recomendado\n✅ Conselho Tutelar\n✅ Notificar famílias\n✅ Registrar em ata\n✅ Medidas disciplinares"
+        }
     },
     "📋 Infrações Administrativas e Disciplinares": {
+        "Acidentes e Eventos Inesperados": {
+            "gravidade": "Grave",
+            "encaminhamento": "✅ SAMU (192) se necessário\n✅ Notificar famílias URGENTE\n✅ Registrar em ata\n✅ B.O. se necessário\n✅ Diretoria de Ensino"
+        },
+        "Atos Obscenos / Atos Libidinosos": {
+            "gravidade": "Leve",
+            "encaminhamento": "✅ Notificar famílias\n✅ Conselho Tutelar\n✅ Acompanhamento psicológico\n✅ Registrar em ata\n✅ Trabalho educativo"
+        },
+        "Uso Inadequado de Dispositivos Eletrônicos": {
+            "gravidade": "Leve",
+            "encaminhamento": "✅ Retirar dispositivo\n✅ Notificar famílias\n✅ Registrar em ata\n✅ Trabalho educativo sobre uso responsável"
+        },
         "Saída não autorizada": {
             "gravidade": "Grave",
-            "encaminhamento": "✅ Registrar em ata\n✅ Notificar famílias urgente\n✅ Buscar o estudante\n✅ Conselho Tutelar (se recorrente)"
+            "encaminhamento": "✅ Registrar em ata\n✅ Notificar famílias URGENTE\n✅ Buscar o estudante\n✅ Conselho Tutelar (se recorrente)\n✅ Reforçar controle de acesso"
         },
         "Ausência não justificada / Cabular aula": {
             "gravidade": "Grave",
-            "encaminhamento": "✅ Registrar em ata\n✅ Notificar famílias\n✅ Conselho Tutelar (se recorrente)\n✅ Orientação Educacional"
+            "encaminhamento": "✅ Registrar em ata\n✅ Notificar famílias\n✅ Buscar o estudante\n✅ Conselho Tutelar (se recorrente)\n✅ Orientação Educacional\n✅ Verificar situação de vulnerabilidade"
         },
+        "Outros": {
+            "gravidade": "Leve",
+            "encaminhamento": "✅ Registrar em ata\n✅ Notificar famílias\n✅ Avaliar necessidade de outros encaminhamentos\n✅ Conselho Tutelar se necessário"
+        }
+    },
+    "⚠️ Infrações Acadêmicas e de Pontualidade": {
         "Chegar atrasado": {
             "gravidade": "Leve",
-            "encaminhamento": "✅ Registrar em ata\n✅ Conversar com o aluno\n✅ Notificar famílias (se recorrente)"
+            "encaminhamento": "✅ Registrar em ata\n✅ Conversar com o aluno\n✅ Notificar famílias (se recorrente)\n✅ Verificar motivo dos atrasos\n✅ Orientação Educacional"
         },
         "Copiar atividades / Colar em avaliações": {
             "gravidade": "Média",
-            "encaminhamento": "✅ Registrar em ata\n✅ Aplicar nova avaliação\n✅ Notificar famílias\n✅ Orientação Educacional"
+            "encaminhamento": "✅ Registrar em ata\n✅ Aplicar nova avaliação\n✅ Notificar famílias\n✅ Orientação Educacional\n✅ Trabalho educativo sobre honestidade acadêmica\n✅ Conselho de Classe"
         },
         "Falsificar assinatura de responsáveis": {
             "gravidade": "Grave",
-            "encaminhamento": "✅ Registrar em ata\n✅ Notificar famílias urgente\n✅ Conselho Tutelar\n✅ B.O. recomendado"
-        },
-    },
+            "encaminhamento": "✅ Registrar em ata circunstanciada\n✅ Notificar famílias URGENTE\n✅ Conselho Tutelar\n✅ Diretoria de Ensino\n✅ Acompanhamento psicológico\n✅ B.O. recomendado (crime de falsidade ideológica)"
+        }
+    }
 }
 
 # ======================================================
