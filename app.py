@@ -6,6 +6,7 @@ import pandas as pd
 import openpyxl
 import plotly.express as px
 import plotly.graph_objects as go
+import random  # <--- CORREÇÃO: Movido para o topo
 
 from datetime import datetime, timedelta, time
 from io import BytesIO
@@ -84,87 +85,6 @@ if SUPABASE_VALID:
 # CONFIGURAÇÃO STREAMLIT
 # ======================================================
 st.set_page_config(
-    st.markdown(
-    """
-    <style>
-    /* ===== RESET ===== */
-    footer {visibility: hidden;}
-    #MainMenu {visibility: hidden;}
-
-    * {
-        font-family: "Segoe UI", sans-serif;
-    }
-
-    .block-container {
-        padding-top: 1.2rem;
-    }
-
-    /* ===== SIDEBAR ===== */
-    [data-testid="stSidebar"] {
-        background-color: #f4f6f8;
-        border-right: 1px solid #e5e7eb;
-    }
-
-    /* ===== REMOVE RADIO BOLINHA ===== */
-    [data-testid="stSidebar"] input[type="radio"] {
-        display: none;
-    }
-
-    /* ===== MENU ITEM ===== */
-    [data-testid="stSidebar"] label {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 8px 12px;
-        border-radius: 8px;
-        margin-bottom: 2px;
-        cursor: pointer;
-        font-weight: 500;
-        color: #374151;
-    }
-
-    /* HOVER */
-    [data-testid="stSidebar"] label:hover {
-        background-color: #e5e7eb;
-    }
-
-    /* SELECIONADO */
-    [data-testid="stSidebar"] label[data-selected="true"] {
-        background-color: #2563eb;
-        color: white;
-        font-weight: 600;
-    }
-
-    /* ===== HEADER PRINCIPAL ===== */
-    .header-box {
-        background: linear-gradient(135deg, #2563eb, #4f46e5);
-        padding: 1.5rem;
-        border-radius: 12px;
-        color: white;
-        margin-bottom: 1.5rem;
-    }
-
-    .header-box h1 {
-        font-size: 1.8rem;
-        margin-bottom: 0.2rem;
-    }
-
-    .header-box h3 {
-        font-weight: 400;
-        opacity: 0.9;
-    }
-
-    /* ===== MÉTRICAS ===== */
-    [data-testid="metric-container"] {
-        border-radius: 12px;
-        border: 1px solid #e5e7eb;
-        padding: 14px;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
     page_title="Sistema Conviva 179 - E.E. Profª Eliane",
     layout="wide",
     page_icon="🏫",
@@ -255,7 +175,7 @@ ESCOLA_LOGO = os.path.join("assets", "images", "eliane_dantas.png")
 # ======================================================
 # MENU LATERAL
 # ======================================================
-st.sidebar.markdown("### 📚 Menu Principal")
+st.sidebar.markdown("## Menu")
 
 menu = st.sidebar.radio(
     "",
@@ -761,6 +681,35 @@ def excluir_alunos_por_turma(turma: str) -> bool:
         carregar_alunos.clear()
     return sucesso
 
+# ======================================================
+# CORREÇÃO 1: FUNÇÃO editar_nome_turma ADICIONADA
+# ======================================================
+@com_tratamento_erro
+def editar_nome_turma(turma_antiga: str, turma_nova: str) -> bool:
+    """
+    Atualiza o nome da turma para todos os alunos que pertencem a ela.
+    """
+    if not turma_antiga or not turma_nova:
+        raise ErroValidacao("turma", "Nome da turma não pode ser vazio")
+    
+    if turma_antiga == turma_nova:
+        return True  # Nada a fazer
+
+    # Busca todos os alunos da turma antiga
+    df_alunos = carregar_alunos()
+    alunos_turma = df_alunos[df_alunos["turma"] == turma_antiga]
+    
+    sucesso_geral = True
+    for _, aluno in alunos_turma.iterrows():
+        # Atualiza a turma de cada aluno individualmente
+        if not atualizar_aluno(aluno["ra"], {"turma": turma_nova}):
+            sucesso_geral = False
+            
+    if sucesso_geral:
+        carregar_alunos.clear() # Limpa o cache para recarregar os dados
+        return True
+    else:
+        return False
 
 # ======================================================
 # PROFESSORES
@@ -3940,14 +3889,14 @@ elif menu == "🏫 Mapa da Sala":
 
     with c1:
         if st.button("🔀 Atribuir Aleatoriamente"):
-            import random
-
-            random.shuffle(nomes_alunos)
+            # CORREÇÃO: Cria uma cópia da lista para não modificar a original
+            nomes_embaralhados = nomes_alunos.copy()
+            random.shuffle(nomes_embaralhados)
 
             for idx in range(total_assentos):
                 st.session_state[mapa_key][str(idx)] = ""
 
-            for i, nome in enumerate(nomes_alunos):
+            for i, nome in enumerate(nomes_embaralhados):
                 if i < total_assentos:
                     st.session_state[mapa_key][str(i)] = nome
 
@@ -4131,4 +4080,3 @@ elif menu == "🖨️ Imprimir PDF":
             file_name=f"Ocorrencia_{occ_ind['id']}.pdf",
             mime="application/pdf",
         )
-        
