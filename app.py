@@ -2603,6 +2603,10 @@ elif menu == "👥 Lista de Alunos":
 # PÁGINA 🏫 MAPA DA SALA
 # ======================================================
 
+# ======================================================
+# PÁGINA 🏫 MAPA DA SALA - VERSÃO CORRIGIDA E FUNCIONAL
+# ======================================================
+
 elif menu == "🏫 Mapa da Sala":
     st.header("🏫 Mapa da Sala de Aula")
     st.info("💡 Organize os assentos da sala e distribua os alunos manualmente ou de forma automática.")
@@ -2611,73 +2615,178 @@ elif menu == "🏫 Mapa da Sala":
         st.warning("⚠️ Cadastre alunos antes de usar o mapa da sala.")
         st.stop()
 
+    # --------------------------------------------------
+    # CONFIGURAÇÕES DA SALA
+    # --------------------------------------------------
     st.subheader("⚙️ Configurações da Sala")
+    
     col1, col2, col3 = st.columns(3)
+    
     with col1:
-        num_fileiras = st.slider("Número de fileiras", min_value=1, max_value=10, value=5, key="num_fileiras")
+        num_fileiras = st.slider(
+            "Número de fileiras",
+            min_value=1,
+            max_value=10,
+            value=5,
+            key="num_fileiras_mapa"
+        )
+    
     with col2:
-        carteiras_por_fileira = st.slider("Carteiras por fileira", min_value=1, max_value=8, value=6, key="carteiras_por_fileira")
+        carteiras_por_fileira = st.slider(
+            "Carteiras por fileira",
+            min_value=1,
+            max_value=8,
+            value=6,
+            key="carteiras_fileira_mapa"
+        )
+    
     with col3:
-        orientacao_lousa = st.selectbox("Orientação da lousa", ["Topo", "Fundo", "Esquerda", "Direita"], key="orientacao_lousa")
+        orientacao_lousa = st.selectbox(
+            "Orientação da lousa",
+            ["Topo", "Fundo", "Esquerda", "Direita"],
+            key="orientacao_lousa_mapa"
+        )
 
     total_assentos = num_fileiras * carteiras_por_fileira
 
+    # --------------------------------------------------
+    # SELEÇÃO DA TURMA
+    # --------------------------------------------------
     st.markdown("---")
-    turma_sel = st.selectbox("Selecione a Turma", sorted(df_alunos["turma"].unique().tolist()))
+    turmas_disponiveis = sorted(df_alunos["turma"].unique().tolist())
+    turma_sel = st.selectbox(
+        "Selecione a Turma",
+        turmas_disponiveis,
+        key="turma_mapa_select"
+    )
+
     alunos_turma = df_alunos[df_alunos["turma"] == turma_sel].copy()
-    nomes_alunos = alunos_turma["nome"].tolist()
-
+    nomes_alunos = sorted(alunos_turma["nome"].tolist())
+    
     st.subheader(f"👥 Alunos da Turma {turma_sel}")
-    st.info(f"{len(alunos_turma)} aluno(s) | {num_fileiras}×{carteiras_por_fileira} = {total_assentos} assentos")
+    st.info(f"📊 {len(alunos_turma)} alunos | {num_fileiras} fileiras × {carteiras_por_fileira} carteiras = {total_assentos} assentos")
 
-    mapa_key = f"mapa_{gerar_chave_segura(turma_sel)}"
+    # --------------------------------------------------
+    # INICIALIZAR ESTADO DOS ASSENTOS
+    # --------------------------------------------------
+    mapa_key = f"mapa_sala_{gerar_chave_segura(turma_sel)}"
+    
+    # Inicializar o estado se não existir
     if mapa_key not in st.session_state:
         st.session_state[mapa_key] = {str(i): "" for i in range(total_assentos)}
     else:
+        # Ajustar tamanho se a configuração mudou
         estado_anterior = st.session_state[mapa_key]
-        st.session_state[mapa_key] = {str(i): estado_anterior.get(str(i), "") for i in range(total_assentos)}
+        novo_estado = {}
+        for i in range(total_assentos):
+            novo_estado[str(i)] = estado_anterior.get(str(i), "")
+        st.session_state[mapa_key] = novo_estado
 
+    # --------------------------------------------------
+    # CSS PARA OS ASSENTOS
+    # --------------------------------------------------
+    st.markdown("""
+    <style>
+    .sala-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin: 20px 0;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 12px;
+    }
+    .fileira-row {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+    }
+    .assento-card {
+        width: 70px;
+        height: 50px;
+        border: 2px solid #ddd;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 9px;
+        font-weight: bold;
+        text-align: center;
+        background: white;
+        transition: all 0.2s;
+        padding: 2px;
+        word-break: break-word;
+    }
+    .assento-card.ocupado {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-color: #5a67d8;
+    }
+    .assento-card.vazio {
+        background: white;
+        color: #666;
+    }
+    .lousa {
+        width: 100%;
+        max-width: 300px;
+        height: 35px;
+        background: #2d3748;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        border-radius: 6px;
+        margin: 10px auto;
+    }
+    .sugestao-item {
+        padding: 8px;
+        background: #fef3c7;
+        border-radius: 6px;
+        margin: 4px 0;
+        border-left: 4px solid #f59e0b;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # --------------------------------------------------
+    # EXIBIR LAYOUT DA SALA
+    # --------------------------------------------------
     st.markdown("---")
     st.subheader("🪑 Layout da Sala")
 
-    if orientacao_lousa in ("Topo", "Esquerda"):
-        st.markdown("### 📚 LOUSA")
+    # Mostrar lousa conforme orientação
+    if orientacao_lousa in ["Topo", "Esquerda"]:
+        st.markdown('<div class="lousa">📚 LOUSA</div>', unsafe_allow_html=True)
 
+    # Container da sala
+    sala_html = '<div class="sala-grid">'
+    
     for fileira in range(num_fileiras):
-        cols = st.columns(carteiras_por_fileira)
-        for carteira, col in enumerate(cols):
+        sala_html += '<div class="fileira-row">'
+        for carteira in range(carteiras_por_fileira):
             idx = fileira * carteiras_por_fileira + carteira
-            key_input = f"{mapa_key}_{idx}"
-            with col:
-                valor = st.text_input(f"C{idx + 1}", value=st.session_state[mapa_key].get(str(idx), ""), key=key_input)
-            st.session_state[mapa_key][str(idx)] = valor.strip()
+            nome_no_assento = st.session_state[mapa_key].get(str(idx), "")
+            
+            if nome_no_assento:
+                # Mostrar apenas primeiro nome para caber
+                nome_exib = nome_no_assento.split()[0] if nome_no_assento else f"C{idx+1}"
+                sala_html += f'<div class="assento-card ocupado" title="{nome_no_assento}">{nome_exib}</div>'
+            else:
+                sala_html += f'<div class="assento-card vazio">C{idx+1}</div>'
+        sala_html += '</div>'
+    
+    sala_html += '</div>'
+    st.markdown(sala_html, unsafe_allow_html=True)
 
-    if orientacao_lousa in ("Fundo", "Direita"):
-        st.markdown("### 📚 LOUSA")
+    if orientacao_lousa in ["Fundo", "Direita"]:
+        st.markdown('<div class="lousa">📚 LOUSA</div>', unsafe_allow_html=True)
 
-    sugestoes = {}
-    for idx_str, nome_digitado in st.session_state[mapa_key].items():
-        idx = int(idx_str)
-        if not nome_digitado:
-            continue
-        melhor, score = encontrar_melhor_match(nome_digitado, nomes_alunos)
-        if melhor and melhor != nome_digitado and score >= 0.6:
-            sugestoes[idx] = (melhor, score)
-
-    if sugestoes:
-        st.markdown("---")
-        st.subheader("🔍 Sugestões de Correspondência")
-        for idx, (nome_sugerido, score) in sugestoes.items():
-            st.write(f"Carteira {idx + 1}: {nome_sugerido} ({int(score * 100)}%)")
-        if st.button("✅ Aplicar Correções Automáticas"):
-            for idx, (nome_sugerido, score) in sugestoes.items():
-                if score >= 0.9:
-                    st.session_state[mapa_key][str(idx)] = nome_sugerido
-            st.success("✅ Correções aplicadas.")
-            st.rerun()
-
-    st.markdown("---")
-    assentos_ocupados = [nome for nome in st.session_state[mapa_key].values() if nome]
+    # --------------------------------------------------
+    # ESTATÍSTICAS
+    # --------------------------------------------------
+    assentos_ocupados = [v for v in st.session_state[mapa_key].values() if v.strip()]
+    
     col1, col2, col3 = st.columns(3)
     with col1:
         st.metric("Total de Assentos", total_assentos)
@@ -2686,30 +2795,144 @@ elif menu == "🏫 Mapa da Sala":
     with col3:
         st.metric("Assentos Vazios", total_assentos - len(assentos_ocupados))
 
+    # --------------------------------------------------
+    # ALUNOS SEM ASSENTO
+    # --------------------------------------------------
+    nomes_atribuidos = set(assentos_ocupados)
+    alunos_sem_assento = [nome for nome in nomes_alunos if nome not in nomes_atribuidos]
+    
+    if alunos_sem_assento:
+        st.warning(f"⚠️ {len(alunos_sem_assento)} alunos ainda não têm assento atribuído.")
+        with st.expander("📋 Ver alunos sem assento"):
+            for aluno in alunos_sem_assento:
+                st.write(f"• {aluno}")
+
+    # --------------------------------------------------
+    # FORMULÁRIO DE EDIÇÃO DOS ASSENTOS
+    # --------------------------------------------------
     st.markdown("---")
-    st.subheader("🛠️ Ferramentas")
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        if st.button("🔀 Atribuir Aleatoriamente"):
+    st.subheader("📝 Editar Assentos")
+    
+    # Organizar em colunas para melhor visualização
+    colunas_por_linha = 4
+    for fileira in range(num_fileiras):
+        st.markdown(f"**Fileira {fileira + 1}**")
+        cols = st.columns(colunas_por_linha)
+        
+        for carteira in range(carteiras_por_fileira):
+            col_idx = carteira % colunas_por_linha
+            idx = fileira * carteiras_por_fileira + carteira
+            
+            with cols[col_idx]:
+                # Campo de entrada com sugestão automática
+                valor_atual = st.session_state[mapa_key].get(str(idx), "")
+                
+                # Input do usuário
+                novo_valor = st.text_input(
+                    f"Carteira {idx + 1}",
+                    value=valor_atual,
+                    key=f"input_{mapa_key}_{idx}",
+                    placeholder="Digite o nome"
+                )
+                
+                # Atualizar estado
+                if novo_valor != valor_atual:
+                    st.session_state[mapa_key][str(idx)] = novo_valor
+                
+                # Buscar sugestão por proximidade
+                if novo_valor and novo_valor.strip():
+                    melhor_match, score = encontrar_melhor_match(novo_valor, nomes_alunos)
+                    
+                    # Mostrar sugestão se encontrada com boa similaridade
+                    if melhor_match and score >= 0.5 and melhor_match.lower() != novo_valor.lower():
+                        st.caption(f"💡 {melhor_match} ({int(score * 100)}%)")
+                        
+                        # Botão para aplicar sugestão
+                        if st.button("✅ Usar", key=f"apply_{mapa_key}_{idx}"):
+                            st.session_state[mapa_key][str(idx)] = melhor_match
+                            st.rerun()
+        
+        # Pular linha entre fileiras
+        if fileira < num_fileiras - 1:
+            st.markdown("<br>", unsafe_allow_html=True)
+
+    # --------------------------------------------------
+    # FERRAMENTAS DE ORGANIZAÇÃO
+    # --------------------------------------------------
+    st.markdown("---")
+    st.subheader("🛠️ Ferramentas de Organização")
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        if st.button("🔀 Atribuir Aleatoriamente", use_container_width=True, key="btn_aleatorio"):
+            # Criar cópia da lista de alunos
             nomes_embaralhados = nomes_alunos.copy()
             random.shuffle(nomes_embaralhados)
-            for idx in range(total_assentos):
-                st.session_state[mapa_key][str(idx)] = ""
+            
+            # Limpar todos os assentos primeiro
+            for i in range(total_assentos):
+                st.session_state[mapa_key][str(i)] = ""
+            
+            # Preencher assentos com alunos embaralhados
             for i, nome in enumerate(nomes_embaralhados):
                 if i < total_assentos:
                     st.session_state[mapa_key][str(i)] = nome
-            st.success("✅ Assentos atribuídos aleatoriamente.")
+            
+            st.success(f"✅ {min(len(nomes_alunos), total_assentos)} alunos atribuídos aleatoriamente!")
             st.rerun()
-    with c2:
-        if st.button("🧹 Limpar Todos os Assentos"):
-            for idx in range(total_assentos):
-                st.session_state[mapa_key][str(idx)] = ""
-            st.success("✅ Todos os assentos foram liberados.")
-            st.rerun()
-    with c3:
-        if st.button("💾 Salvar Layout", type="primary"):
-            st.success("✅ Layout salvo com sucesso!")
 
+    with col2:
+        if st.button("🧹 Limpar Todos", use_container_width=True, key="btn_limpar"):
+            for i in range(total_assentos):
+                st.session_state[mapa_key][str(i)] = ""
+            st.success("✅ Todos os assentos foram liberados!")
+            st.rerun()
+
+    with col3:
+        if st.button("🔍 Corrigir Nomes", use_container_width=True, key="btn_corrigir"):
+            correcoes = 0
+            for i in range(total_assentos):
+                nome_atual = st.session_state[mapa_key].get(str(i), "")
+                if nome_atual:
+                    melhor_match, score = encontrar_melhor_match(nome_atual, nomes_alunos)
+                    # Só corrige se tiver alta confiança (>= 85%)
+                    if melhor_match and score >= 0.85 and melhor_match != nome_atual:
+                        st.session_state[mapa_key][str(i)] = melhor_match
+                        correcoes += 1
+            
+            if correcoes > 0:
+                st.success(f"✅ {correcoes} nome(s) corrigido(s) automaticamente!")
+            else:
+                st.info("ℹ️ Nenhum nome precisou de correção.")
+            st.rerun()
+
+    with col4:
+        if st.button("💾 Salvar Layout", use_container_width=True, type="primary", key="btn_salvar"):
+            # Aqui você pode implementar o salvamento no Supabase
+            st.success("✅ Layout salvo com sucesso!")
+            st.info("💡 O layout foi salvo na sessão atual. Para salvar permanentemente, implemente a integração com o banco de dados.")
+
+    # --------------------------------------------------
+    # VISUALIZAÇÃO DE ALUNOS NA TURMA
+    # --------------------------------------------------
+    st.markdown("---")
+    with st.expander("📋 Ver todos os alunos da turma"):
+        st.dataframe(
+            alunos_turma[["nome", "ra", "situacao"]].sort_values("nome"),
+            use_container_width=True
+        )
+
+    # --------------------------------------------------
+    # LEGENDA
+    # --------------------------------------------------
+    st.markdown("---")
+    st.caption("""
+    **Legenda:**
+    - 🟣 **Assento ocupado** - Aluno atribuído
+    - ⬜ **Assento vazio** - Disponível para atribuição
+    - 💡 **Sugestão** - Clique em "Usar" para aplicar a correção sugerida
+    """)
 
 # ======================================================
 # PÁGINA 🖨️ IMPRIMIR PDF
