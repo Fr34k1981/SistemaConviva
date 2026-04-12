@@ -1996,7 +1996,7 @@ def gerar_pdf_comunicado(aluno_data: dict, ocorrencia_data: dict, medidas_aplica
 
 def _init_session_state():
     defaults = {
-        def _init_session_state():
+def _init_session_state():
     defaults = {
         # ... (mantenha todos os existentes)
         "editando_id": None,
