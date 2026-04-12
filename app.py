@@ -4439,8 +4439,7 @@ elif menu == "📅 Agendamento de Espaços":
         "⚙️ Gestão", 
         "🧹 Manutenção"
     ])
-    
-    # ======================================================
+        # ======================================================
     # ABA 1: AGENDAR (COM TEMPLATES)
     # ======================================================
     with tabs_agend[0]:
@@ -4526,6 +4525,13 @@ elif menu == "📅 Agendamento de Espaços":
                             st.balloons()
                             carregar_agendamentos_filtrado.clear()
                             
+                            # ⭐ ATUALIZAR GAMIFICAÇÃO ⭐
+                            st.session_state.agendamentos_criados += sucessos
+                            
+                            # Verificar conquista de agendamento
+                            if st.session_state.agendamentos_criados >= 5:
+                                verificar_conquista("agendamento_perfeito")
+                            
                             if salvar_como_template and nome_template:
                                 config = {
                                     "turma": turma,
@@ -4545,12 +4551,6 @@ elif menu == "📅 Agendamento de Espaços":
             st.info("💡 **Agendamento Fixo Semanal** - Use a aba '🗓️ Grade Semanal' para configurar horários fixos!")
             if st.button("➡️ Ir para Grade Semanal", type="primary"):
                 st.rerun()
-
-                if r.status_code in (200, 201):
-    # Atualizar gamificação
-    st.session_state.agendamentos_criados += 1
-    if st.session_state.agendamentos_criados == 5:
-        verificar_conquista("agendamento_perfeito")
     
     # ======================================================
     # ABA 2: MEUS AGENDAMENTOS
