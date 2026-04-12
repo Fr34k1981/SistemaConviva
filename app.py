@@ -3077,7 +3077,7 @@ elif menu == "📋 Gerenciar Turmas":
                 if st.button("❌ Cancelar"):
                     st.session_state.turma_para_deletar = None
                     st.rerun()
-                    # ======================================================
+# ======================================================
 # PÁGINA 📝 REGISTRAR OCORRÊNCIA
 # ======================================================
 
@@ -3225,22 +3225,24 @@ elif menu == "📝 Registrar Ocorrência":
             if salvas > 0:
                 st.session_state.ocorrencia_salva_sucesso = True
                 show_toast(f"{salvas} ocorrência(s) registrada(s)!", "success")
+                
+                # ⭐ ATUALIZAR GAMIFICAÇÃO ⭐
+                st.session_state.registros_ocorrencias += salvas
+                
+                # Verificar conquistas baseado no total acumulado
+                if st.session_state.registros_ocorrencias >= 1:
+                    verificar_conquista("primeiro_registro")
+                if st.session_state.registros_ocorrencias >= 10:
+                    verificar_conquista("10_ocorrencias")
+                if st.session_state.registros_ocorrencias >= 50:
+                    verificar_conquista("50_ocorrencias")
             
             if duplicadas > 0:
                 st.warning(f"⚠️ {duplicadas} ocorrência(s) duplicada(s) ignorada(s).")
             
             carregar_ocorrencias.clear()
             st.rerun()
-            if sucesso:
-    # Atualizar contagem para gamificação
-    st.session_state.registros_ocorrencias += 1
-    if st.session_state.registros_ocorrencias == 1:
-        verificar_conquista("primeiro_registro")
-    elif st.session_state.registros_ocorrencias == 10:
-        verificar_conquista("10_ocorrencias")
-    elif st.session_state.registros_ocorrencias == 50:
-        verificar_conquista("50_ocorrencias")
-            # ======================================================
+ # ======================================================
 # PÁGINA 📋 HISTÓRICO DE OCORRÊNCIAS
 # ======================================================
 
