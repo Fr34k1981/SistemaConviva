@@ -2484,7 +2484,7 @@ elif menu == "📊 Gráficos e Indicadores":
     st.download_button("📄 Baixar CSV", data=csv, file_name=f"ocorrencias_filtradas_{datetime.now().strftime('%Y%m%d_%H%M')}.csv", mime="text/csv")
 
 # ======================================================
-# PÁGINA 📥 IMPORTAR ALUNOS (ARQUIVOS COM CABEÇALHO IRREGULAR)
+# PÁGINA 📥 IMPORTAR ALUNOS (VERSÃO FINAL - ROBUSTA)
 # ======================================================
 
 elif menu == "📥 Importar Alunos":
@@ -2493,104 +2493,189 @@ elif menu == "📥 Importar Alunos":
     st.info("""
     💡 **Como importar:**
     1. Digite o nome da turma
-    2. Selecione o arquivo (CSV ou Excel)
-    3. Configure quantas linhas pular no início
-    4. Selecione as colunas de RA e Nome
-    5. Clique em Importar
+    2. Selecione o arquivo da SEDUC (CSV ou Excel)
+    3. Selecione as colunas de RA e Nome
+    4. Clique em Importar
     """)
     
     turma_alunos = st.text_input(
         "🏫 Nome da TURMA:",
-        placeholder="Ex: 6º Ano A",
+        placeholder="Ex: 6º Ano B",
         key="turma_import"
     )
     
     arquivo_upload = st.file_uploader(
-        "📁 Selecione o arquivo (CSV ou Excel)",
+        "📁 Selecione o arquivo da SEDUC",
         type=["csv", "xlsx", "xls"],
         key="arquivo_csv"
     )
     
     if arquivo_upload is not None:
+        # Salvar o arquivo temporariamente para análise
+        import tempfile
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.csv') as tmp_file:
+            tmp_file.write(arquivo_upload.getvalue())
+            tmp_path = tmp_file.name
+        
         try:
-            # Ler arquivo
-            if arquivo_upload.name.endswith('.csv'):
-                # Tentar diferentes separadores
+            # Tentar múltiplas formas de ler o arquivo
+            df_import = None
+            
+            # Tentativa 1: CSV com separador ;
+            try:
+                df_import = pd.read_csv(tmp_path, sep=';', encoding='utf-8-sig', dtype=str)
+            except:
+                pass
+            
+            # Tentativa 2: CSV com separador ,
+            if df_import is None:
                 try:
-                    df_import = pd.read_csv(arquivo_upload, sep=';', encoding='utf-8-sig', header=None)
+                    df_import = pd.read_csv(tmp_path, sep=',', encoding='utf-8-sig', dtype=str)
                 except:
-                    df_import = pd.read_csv(arquivo_upload, sep=',', encoding='utf-8-sig', header=None)
-            else:
-                df_import = pd.read_excel(arquivo_upload, header=None)
+                    pass
             
-            st.success(f"✅ Arquivo lido! {len(df_import)} linhas encontradas.")
+            # Tentativa 3: CSV sem cabeçalho
+            if df_import is None:
+                try:
+                    df_import = pd.read_csv(tmp_path, sep=';', encoding='utf-8-sig', header=None, dtype=str)
+                except:
+                    pass
             
-            # Configurar linhas para pular
-            st.write("### ⚙️ Configurações")
-            pular_linhas = st.number_input(
-                "Pular primeiras linhas:",
-                min_value=0,
-                max_value=20,
-                value=1,
-                help="Número de linhas a pular no início do arquivo"
-            )
+            # Tentativa 4: Excel
+            if df_import is None:
+                try:
+                    df_import = pd.read_excel(tmp_path, dtype=str)
+                except:
+                    pass
             
-            # Aplicar skip
-            df_dados = df_import.iloc[pular_linhas:].copy()
-            df_dados = df_dados.reset_index(drop=True)
+            # Tentativa 5: Excel sem cabeçalho
+            if df_import is None:
+                try:
+                    df_import = pd.read_excel(tmp_path, header=None, dtype=str)
+                except:
+                    pass
             
-            st.write("### 👀 Dados após pular linhas:")
-            st.dataframe(df_dados.head(20), use_container_width=True)
+            if df_import is None:
+                st.error("❌ Não foi possível ler o arquivo. Verifique o formato.")
+                st.stop()
             
-            # Selecionar colunas por índice
+            # Limpar o arquivo temporário
+            os.unlink(tmp_path)
+            
+            st.success(f"✅ Arquivo lido! {len(df_import)} linhas, {len(df_import.columns)} colunas.")
+            
+            # Mostrar os dados brutos
+            st.write("### 👀 Dados do arquivo:")
+            st.dataframe(df_import.head(20), use_container_width=True)
+            
+            # Encontrar automaticamente as colunas de RA e Nome
+            colunas = df_import.columns.tolist()
+            
+            # Função para encontrar coluna por conteúdo
+            def encontrar_coluna_por_conteudo(df, padrao):
+                for col in df.columns:
+                    # Verificar nome da coluna
+                    if padrao in str(col).lower():
+                        return col
+                    # Verificar primeiras células
+                    for val in df[col].head(10):
+                        if pd.notna(val) and padrao in str(val).lower():
+                            return col
+                return None
+            
+            # Tentar encontrar colunas automaticamente
+            col_ra_sugestao = None
+            col_nome_sugestao = None
+            
+            # Procurar RA (números com 9-12 dígitos)
+            for col in df_import.columns:
+                for val in df_import[col].head(20):
+                    if pd.notna(val):
+                        val_str = str(val)
+                        digitos = ''.join(c for c in val_str if c.isdigit())
+                        if len(digitos) >= 9 and len(digitos) <= 12:
+                            col_ra_sugestao = col
+                            break
+                if col_ra_sugestao:
+                    break
+            
+            # Procurar Nome (texto com espaços, letras maiúsculas)
+            for col in df_import.columns:
+                for val in df_import[col].head(20):
+                    if pd.notna(val):
+                        val_str = str(val)
+                        if ' ' in val_str and len(val_str) > 10 and val_str.isupper():
+                            col_nome_sugestao = col
+                            break
+                if col_nome_sugestao:
+                    break
+            
             st.write("### 🔍 Selecione as colunas:")
             
-            num_colunas = len(df_dados.columns)
-            colunas_disponiveis = [f"Coluna {i} (ex: {str(df_dados.iloc[0, i])[:30]})" for i in range(num_colunas)]
+            # Criar opções para selects
+            opcoes_colunas = ["-- Selecione --"] + colunas
+            
+            # Índices para os selects
+            idx_ra = 0
+            idx_nome = 0
+            
+            if col_ra_sugestao:
+                idx_ra = opcoes_colunas.index(col_ra_sugestao) if col_ra_sugestao in opcoes_colunas else 0
+            if col_nome_sugestao:
+                idx_nome = opcoes_colunas.index(col_nome_sugestao) if col_nome_sugestao in opcoes_colunas else 0
             
             col1, col2 = st.columns(2)
             with col1:
-                col_ra_idx = st.selectbox(
+                col_ra = st.selectbox(
                     "📍 Coluna do RA:",
-                    range(num_colunas),
-                    format_func=lambda x: f"Coluna {x} - {str(df_dados.iloc[0, x])[:30] if len(df_dados) > 0 else ''}",
-                    help="Selecione a coluna que contém o RA"
+                    opcoes_colunas,
+                    index=idx_ra,
+                    help="Selecione a coluna que contém o número do RA"
                 )
-                col_nome_idx = st.selectbox(
-                    "📍 Coluna do NOME:",
-                    range(num_colunas),
-                    format_func=lambda x: f"Coluna {x} - {str(df_dados.iloc[0, x])[:30] if len(df_dados) > 0 else ''}",
-                    help="Selecione a coluna que contém o nome do aluno"
-                )
+                
+                if col_ra_sugestao:
+                    st.caption(f"💡 Sugestão: {col_ra_sugestao}")
             
             with col2:
-                col_nasc_idx = st.selectbox(
-                    "📍 Coluna da DATA DE NASCIMENTO (opcional):",
-                    ["Não usar"] + list(range(num_colunas)),
-                    format_func=lambda x: "Não usar" if x == "Não usar" else f"Coluna {x} - {str(df_dados.iloc[0, x])[:30] if len(df_dados) > 0 else ''}",
-                    help="Selecione a coluna da data de nascimento"
+                col_nome = st.selectbox(
+                    "📍 Coluna do NOME:",
+                    opcoes_colunas,
+                    index=idx_nome,
+                    help="Selecione a coluna que contém o nome do aluno"
                 )
-                col_sit_idx = st.selectbox(
-                    "📍 Coluna da SITUAÇÃO (opcional):",
-                    ["Não usar"] + list(range(num_colunas)),
-                    format_func=lambda x: "Não usar" if x == "Não usar" else f"Coluna {x} - {str(df_dados.iloc[0, x])[:30] if len(df_dados) > 0 else ''}",
-                    help="Selecione a coluna da situação"
-                )
+                
+                if col_nome_sugestao:
+                    st.caption(f"💡 Sugestão: {col_nome_sugestao}")
+            
+            # Opções avançadas
+            with st.expander("⚙️ Opções avançadas"):
+                pular_primeira_linha = st.checkbox("Pular primeira linha (se for cabeçalho)", value=True)
+                col_nasc = st.selectbox("Coluna da Data de Nascimento (opcional):", ["-- Não usar --"] + colunas)
+                col_sit = st.selectbox("Coluna da Situação (opcional):", ["-- Não usar --"] + colunas)
             
             st.markdown("---")
             
             # Verificar turma existente
             df_alunos_existente = carregar_alunos()
-            turmas_existentes = df_alunos_existente['turma'].unique().tolist() if not df_alunos_existente.empty else []
             
-            if turma_alunos and turma_alunos in turmas_existentes:
-                st.warning(f"⚠️ A turma **{turma_alunos}** já existe!")
-                st.info("Alunos NOVOS serão adicionados. Alunos já existentes NESTA turma serão ATUALIZADOS.")
+            if turma_alunos:
+                turmas_existentes = df_alunos_existente['turma'].unique().tolist() if not df_alunos_existente.empty else []
+                if turma_alunos in turmas_existentes:
+                    st.warning(f"⚠️ A turma **{turma_alunos}** já existe! Alunos serão atualizados se já estiverem nela.")
             
             if st.button("🚀 IMPORTAR ALUNOS", type="primary", use_container_width=True):
                 if not turma_alunos:
                     st.error("❌ Digite o nome da turma!")
+                elif col_ra == "-- Selecione --" or col_nome == "-- Selecione --":
+                    st.error("❌ Selecione as colunas de RA e Nome!")
                 else:
+                    # Preparar dados
+                    df_processar = df_import.copy()
+                    
+                    if pular_primeira_linha:
+                        df_processar = df_processar.iloc[1:]
+                    
                     novos = 0
                     atualizados = 0
                     ignorados = 0
@@ -2599,15 +2684,14 @@ elif menu == "📥 Importar Alunos":
                     progress = st.progress(0)
                     status = st.empty()
                     
-                    total = len(df_dados)
+                    total = len(df_processar)
                     
-                    for i in range(total):
+                    for i, (idx, row) in enumerate(df_processar.iterrows()):
                         try:
-                            # Pegar valores das colunas selecionadas
-                            ra_valor = df_dados.iloc[i, col_ra_idx]
-                            nome_valor = df_dados.iloc[i, col_nome_idx]
+                            # Pegar valores
+                            ra_valor = row[col_ra]
+                            nome_valor = row[col_nome]
                             
-                            # Pular se vazio
                             if pd.isna(ra_valor) or pd.isna(nome_valor):
                                 erros += 1
                                 continue
@@ -2622,16 +2706,16 @@ elif menu == "📥 Importar Alunos":
                             
                             # Data de nascimento
                             nasc_str = ""
-                            if col_nasc_idx != "Não usar":
-                                val = df_dados.iloc[i, col_nasc_idx]
-                                if not pd.isna(val):
+                            if col_nasc != "-- Não usar --" and col_nasc in row:
+                                val = row[col_nasc]
+                                if pd.notna(val):
                                     nasc_str = str(val).strip()
                             
                             # Situação
                             sit_str = "Ativo"
-                            if col_sit_idx != "Não usar":
-                                val = df_dados.iloc[i, col_sit_idx]
-                                if not pd.isna(val):
+                            if col_sit != "-- Não usar --" and col_sit in row:
+                                val = row[col_sit]
+                                if pd.notna(val):
                                     sit_str = str(val).strip()
                             
                             aluno = {
@@ -2660,11 +2744,11 @@ elif menu == "📥 Importar Alunos":
                                 else:
                                     erros += 1
                                     
-                        except:
+                        except Exception as e:
                             erros += 1
                         
                         progress.progress((i + 1) / total)
-                        status.text(f"Processando {i + 1}/{total}...")
+                        status.text(f"Processando... {novos} novos, {atualizados} atualizados")
                     
                     progress.empty()
                     status.empty()
@@ -2684,14 +2768,18 @@ elif menu == "📥 Importar Alunos":
                         st.rerun()
                         
         except Exception as e:
-            st.error(f"❌ Erro: {str(e)}")
+            st.error(f"❌ Erro ao processar arquivo: {str(e)}")
+            st.info("💡 Tente salvar o arquivo como CSV (separado por ponto e vírgula) no Excel.")
+    else:
+        st.info("📁 Selecione um arquivo para começar.")
     
     # Mostrar turmas existentes
     st.markdown("---")
     st.subheader("📊 Turmas cadastradas")
     if not df_alunos.empty:
         resumo = df_alunos.groupby('turma').size().reset_index(name='Total')
-        st.dataframe(resumo.sort_values('turma'), use_container_width=True)
+        resumo.columns = ['Turma', 'Total de Alunos']
+        st.dataframe(resumo.sort_values('Turma'), use_container_width=True)
     else:
         st.info("Nenhuma turma cadastrada ainda.")
 # ======================================================
