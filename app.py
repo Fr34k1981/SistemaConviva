@@ -4670,114 +4670,225 @@ elif menu == "📅 Agendamento de Espaços":
     # ABA 1: AGENDAR (COM TEMPLATES)
     # ======================================================
     with tabs_agend[0]:
-        st.subheader("📅 Agendamento Rápido")
+        st.markdown("## 📅 Agendar Espaço")
         
         df_prof_agend = prof_list_agend()
         lista_nomes = sorted(df_prof_agend["nome"].dropna().tolist()) if not df_prof_agend.empty else []
         
-        # Templates rápidos
-        if lista_nomes:
-            with st.expander("📂 Templates Salvos", expanded=False):
-                professor_temp = st.selectbox("Professor:", lista_nomes, key="temp_prof")
-                templates = carregar_templates(professor_temp)
-                if templates:
-                    cols = st.columns([2, 1])
-                    with cols[0]:
-                        template_sel = st.selectbox("Selecione:", templates, key="temp_sel")
-                    with cols[1]:
-                        if st.button("📂 Carregar", use_container_width=True):
-                            st.success(f"✅ Template '{template_sel}' carregado!")
-                            show_toast(f"Template '{template_sel}' carregado com sucesso!", "success")
-                else:
-                    st.info("Nenhum template salvo para este professor")
-        
-        tipo_agendamento = st.radio(
-            "🔄 Tipo de Agendamento:",
-            ["📅 Data específica", "🔁 Fixo Semanal"],
-            horizontal=True,
-            key="tipo_agendamento"
-        )
-        
-        if tipo_agendamento == "📅 Data específica":
-            with st.form("form_agendamento_data"):
-                col1, col2 = st.columns(2)
-                with col1:
-                    professor = st.selectbox("👨‍🏫 Professor:", [""] + lista_nomes)
-                    turma = st.selectbox("🎓 Turma:", [""] + sorted(TURMAS_INTERVALOS_AGEND.keys()))
-                    disciplina = st.selectbox("📚 Disciplina:", [""] + DISCIPLINAS_AGEND)
-                
-                with col2:
-                    prioridade = st.selectbox("⭐ Prioridade:", [""] + PRIORIDADES_ESTENDIDAS + ["NORMAL"])
-                    espaco = st.selectbox("📍 Espaço:", [""] + ESPACOS_AGEND)
-                    data = st.date_input("📅 Data:", min_value=datetime.now().date() + timedelta(days=1))
-                
-                horario1 = st.selectbox("1ª Aula:", [""] + HORARIOS_AGEND)
-                horario2 = st.selectbox("2ª Aula (opcional):", [""] + HORARIOS_AGEND)
-                
-                salvar_como_template = st.checkbox("💾 Salvar como template para uso futuro")
-                nome_template = ""
-                if salvar_como_template:
-                    nome_template = st.text_input("Nome do template:", placeholder="Ex: Aulas de Matemática")
-                
-                submitted = st.form_submit_button("✅ Confirmar Agendamento", type="primary", use_container_width=True)
-                
-                if submitted:
-                    if not all([professor, turma, disciplina, prioridade, espaco, horario1]):
-                        st.error("⚠️ Preencha todos os campos obrigatórios")
-                    else:
-                        horarios = [h for h in [horario1, horario2] if h]
-                        sucessos = 0
-                        
-                        for h in horarios:
-                            conf = verificar_conflito_api(data.strftime("%Y-%m-%d"), h, espaco)
-                            if not conf:
-                                ok, _ = salvar_agendamento_api({
-                                    "data_agendamento": data.strftime("%Y-%m-%d"),
-                                    "horario": h,
-                                    "espaco": espaco,
-                                    "turma": turma,
-                                    "disciplina": disciplina,
-                                    "prioridade": prioridade,
-                                    "professor_nome": professor,
-                                    "status": "ATIVO",
-                                    "tipo": "DATA_ESPECIFICA"
-                                })
-                                if ok:
-                                    sucessos += 1
-                        
-                        if sucessos > 0:
-                            st.success(f"✅ {sucessos} agendamento(s) confirmado(s)!")
-                            registrar_log("CRIAR_AGENDAMENTO", professor, f"{data.strftime('%d/%m/%Y')} - {espaco} - {horarios}")
-                            show_toast(f"{sucessos} agendamento(s) criado(s)!", "success")
-                            st.balloons()
-                            carregar_agendamentos_filtrado.clear()
-                            
-                            # ⭐ ATUALIZAR GAMIFICAÇÃO ⭐
-                            st.session_state.agendamentos_criados += sucessos
-                            
-                            # Verificar conquista de agendamento
-                            if st.session_state.agendamentos_criados >= 5:
-                                verificar_conquista("agendamento_perfeito")
-                            
-                            if salvar_como_template and nome_template:
-                                config = {
-                                    "turma": turma,
-                                    "disciplina": disciplina,
-                                    "prioridade": prioridade,
-                                    "espaco": espaco,
-                                    "horarios": horarios
-                                }
-                                salvar_template(professor, nome_template, config)
-                                st.success(f"✅ Template '{nome_template}' salvo!")
-                            
-                            st.rerun()
-                        else:
-                            st.error("❌ Não foi possível criar o agendamento.")
-        
+        if not lista_nomes:
+            st.error("❌ Nenhum professor cadastrado. Cadastre um professor primeiro!")
         else:
-            st.info("💡 **Agendamento Fixo Semanal** - Use a aba '🗓️ Grade Semanal' para configurar horários fixos!")
-            if st.button("➡️ Ir para Grade Semanal", type="primary"):
-                st.rerun()
+            # Cards informativos no topo
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.markdown("""
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px; color: white; text-align: center;">
+                    <h3>📚 Disciplinas</h3>
+                    <p style="font-size: 24px; margin: 0;">{}</p>
+                </div>
+                """.format(len(DISCIPLINAS_AGEND)), unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown("""
+                <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 20px; border-radius: 10px; color: white; text-align: center;">
+                    <h3>📍 Espaços</h3>
+                    <p style="font-size: 24px; margin: 0;">{}</p>
+                </div>
+                """.format(len(ESPACOS_AGEND)), unsafe_allow_html=True)
+            
+            with col3:
+                st.markdown("""
+                <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 20px; border-radius: 10px; color: white; text-align: center;">
+                    <h3>⏰ Horários</h3>
+                    <p style="font-size: 24px; margin: 0;">{}</p>
+                </div>
+                """.format(len(HORARIOS_AGEND)), unsafe_allow_html=True)
+            
+            st.divider()
+            
+            # Seleção de tipo de agendamento com cards
+            st.markdown("### 🔄 Escolha o Tipo de Agendamento")
+            
+            tipo_col1, tipo_col2 = st.columns(2)
+            
+            with tipo_col1:
+                if st.button("📅 Data Específica", use_container_width=True, key="btn_data_especifica"):
+                    st.session_state.tipo_agend = "data"
+            
+            with tipo_col2:
+                if st.button("🔁 Fixo Semanal", use_container_width=True, key="btn_fixo"):
+                    st.session_state.tipo_agend = "fixo"
+            
+            tipo_agendamento = st.session_state.get("tipo_agend", "data")
+            
+            st.divider()
+            
+            if tipo_agendamento == "data":
+                st.markdown("### 📋 Agendamento por Data Específica")
+                
+                with st.form("form_agendamento_data", border=True):
+                    # Linha 1: Professor e Turma
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        professor = st.selectbox(
+                            "👨‍🏫 Professor *",
+                            [""] + lista_nomes,
+                            help="Selecione o professor responsável"
+                        )
+                    with col2:
+                        turma = st.selectbox(
+                            "🎓 Turma *",
+                            [""] + sorted(TURMAS_INTERVALOS_AGEND.keys()),
+                            help="Selecione a turma"
+                        )
+                    
+                    # Linha 2: Disciplina e Espaço
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        disciplina = st.selectbox(
+                            "📚 Disciplina *",
+                            [""] + DISCIPLINAS_AGEND,
+                            help="Selecione a disciplina"
+                        )
+                    with col2:
+                        espaco = st.selectbox(
+                            "📍 Espaço *",
+                            [""] + ESPACOS_AGEND,
+                            help="Selecione o espaço/sala"
+                        )
+                    
+                    # Linha 3: Data e Prioridade
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        data = st.date_input(
+                            "📅 Data *",
+                            value=datetime.now().date() + timedelta(days=1),
+                            min_value=datetime.now().date() + timedelta(days=1),
+                            help="Selecione a data do agendamento"
+                        )
+                    with col2:
+                        prioridade = st.selectbox(
+                            "⭐ Prioridade *",
+                            [""] + PRIORIDADES_ESTENDIDAS + ["NORMAL"],
+                            help="Selecione a prioridade"
+                        )
+                    
+                    # Horários
+                    st.markdown("#### ⏰ Horários de Aula")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        horario1 = st.selectbox(
+                            "1ª Aula *",
+                            [""] + HORARIOS_AGEND,
+                            help="Primeiro horário da aula",
+                            key="h1"
+                        )
+                    with col2:
+                        horario2 = st.selectbox(
+                            "2ª Aula (opcional)",
+                            [""] + HORARIOS_AGEND,
+                            help="Segundo horário (se houver)",
+                            key="h2"
+                        )
+                    
+                    # Template
+                    st.markdown("#### 💾 Salvar como Template")
+                    salvar_como_template = st.checkbox("Desejo salvar esta configuração como template para reutilizar")
+                    nome_template = ""
+                    if salvar_como_template:
+                        nome_template = st.text_input(
+                            "Nome do template",
+                            placeholder="Ex: Aulas de Matemática - 6º Ano",
+                            help="Dê um nome descritivo para reutilizar depois"
+                        )
+                    
+                    # Botão de submissão
+                    submitted = st.form_submit_button(
+                        "✅ Confirmar Agendamento",
+                        type="primary",
+                        use_container_width=True
+                    )
+                    
+                    if submitted:
+                        # Validação
+                        if not all([professor, turma, disciplina, prioridade, espaco, horario1]):
+                            st.error("⚠️ Preencha todos os campos obrigatórios (marcados com *)")
+                        else:
+                            with st.spinner("⏳ Criando agendamento..."):
+                                horarios = [h for h in [horario1, horario2] if h]
+                                sucessos = 0
+                                conflitos = 0
+                                
+                                for h in horarios:
+                                    conf = verificar_conflito_api(data.strftime("%Y-%m-%d"), h, espaco)
+                                    if conf:
+                                        conflitos += 1
+                                    else:
+                                        ok, _ = salvar_agendamento_api({
+                                            "data_agendamento": data.strftime("%Y-%m-%d"),
+                                            "horario": h,
+                                            "espaco": espaco,
+                                            "turma": turma,
+                                            "disciplina": disciplina,
+                                            "prioridade": prioridade,
+                                            "professor_nome": professor,
+                                            "status": "ATIVO",
+                                            "tipo": "DATA_ESPECIFICA"
+                                        })
+                                        if ok:
+                                            sucessos += 1
+                                
+                                # Mostrar resultados em cards
+                                if sucessos > 0:
+                                    st.success(f"✅ {sucessos} agendamento(s) criado(s) com sucesso!")
+                                    
+                                    # Card de resumo
+                                    col1, col2, col3, col4 = st.columns(4)
+                                    with col1:
+                                        st.metric("📅 Data", data.strftime("%d/%m/%Y"))
+                                    with col2:
+                                        st.metric("🎓 Turma", turma)
+                                    with col3:
+                                        st.metric("📍 Espaço", espaco)
+                                    with col4:
+                                        st.metric("⏰ Horários", len(horarios))
+                                    
+                                    registrar_log("CRIAR_AGENDAMENTO", professor, f"{data.strftime('%d/%m/%Y')} - {espaco} - {horarios}")
+                                    show_toast(f"{sucessos} agendamento(s) criado(s)!", "success")
+                                    st.balloons()
+                                    carregar_agendamentos_filtrado.clear()
+                                    
+                                    # ⭐ ATUALIZAR GAMIFICAÇÃO ⭐
+                                    st.session_state.agendamentos_criados += sucessos
+                                    
+                                    # Verificar conquista
+                                    if st.session_state.agendamentos_criados >= 5:
+                                        verificar_conquista("agendamento_perfeito")
+                                    
+                                    # Salvar template se solicitado
+                                    if salvar_como_template and nome_template:
+                                        config = {
+                                            "turma": turma,
+                                            "disciplina": disciplina,
+                                            "prioridade": prioridade,
+                                            "espaco": espaco,
+                                            "horarios": horarios
+                                        }
+                                        salvar_template(professor, nome_template, config)
+                                        st.success(f"💾 Template '{nome_template}' salvo!")
+                                    
+                                    st.rerun()
+                                
+                                if conflitos > 0:
+                                    st.warning(f"⚠️ {conflitos} horário(s) com conflito de agendamento neste espaço!")
+                                
+                                if sucessos == 0 and conflitos == 0:
+                                    st.error("❌ Não foi possível criar o agendamento. Verifique os dados.")
+            
+            else:
+                st.info("💡 **Agendamento Fixo Semanal** - Use a aba '🗓️ Grade Semanal' para configurar horários que se repetem toda semana!")
+                if st.button("➡️ Ir para Grade Semanal", type="primary", use_container_width=True):
+                    st.rerun()
     
     # ======================================================
     # ABA 2: MEUS AGENDAMENTOS
