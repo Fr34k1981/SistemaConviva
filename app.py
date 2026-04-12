@@ -73,7 +73,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 # ======================================================
-# CSS PREMIUM COMPLETO - DESIGN MODERNO E VIBRANTE (CORRIGIDO)
+# CSS PREMIUM COMPLETO - DESIGN MODERNO E VIBRANTE (CORRIGIDO FINAL)
 # ======================================================
 st.markdown("""
 <style>
@@ -445,6 +445,46 @@ section[data-testid="stSidebar"] .stMarkdown h2 {
 }
 
 /* ============================================ */
+/* ========== CORREÇÃO DEFINITIVA DO TOOLTIP DO MENU ========== */
+/* ============================================ */
+
+/* Remove qualquer tooltip, título flutuante ou texto fantasma */
+div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button::after,
+div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button::before,
+.stButton > button::after,
+.stButton > button::before,
+button[title]::after,
+button[title]::before {
+    display: none !important;
+    content: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+}
+
+/* Remove o atributo title que causa o tooltip nativo */
+div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button[title] {
+    pointer-events: auto;
+}
+
+/* Oculta completamente o container de tooltip do Streamlit */
+.stButton > button > div[data-testid="stTooltipHoverTarget"],
+[data-testid="stTooltipHoverTarget"],
+div[class*="tooltip"],
+div[class*="Tooltip"] {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
+/* Garante que nenhum texto extra apareça no hover */
+div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button:hover {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(236, 72, 153, 0.05)) !important;
+    color: var(--primary) !important;
+    transform: translateX(4px) !important;
+}
+
+/* ============================================ */
 /* ========== BOTÕES DO MENU LATERAL ========== */
 /* ============================================ */
 div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] {
@@ -458,7 +498,7 @@ div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button {
     padding: 0.75rem 1rem !important;
     text-align: left !important;
     font-size: 0.95rem !important;
-    font-weight:500 !important;
+    font-weight: 500 !important;
     color: var(--gray) !important;
     width: 100% !important;
     transition: all 0.25s ease !important;
@@ -473,30 +513,12 @@ div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button {
     position: relative;
 }
 
-/* Remove o tooltip nativo do Streamlit */
-div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button::after,
-div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button::before {
-    display: none !important;
-    content: none !important;
-}
-
-/* Oculta o elemento de tooltip */
-.stButton > button > div[data-testid="stTooltipHoverTarget"] {
-    display: none !important;
-}
-
 div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button span {
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     white-space: nowrap !important;
     display: block !important;
     max-width: 100% !important;
-}
-
-div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button:hover {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(236, 72, 153, 0.05)) !important;
-    color: var(--primary) !important;
-    transform: translateX(4px) !important;
 }
 
 div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button[kind="primary"] {
