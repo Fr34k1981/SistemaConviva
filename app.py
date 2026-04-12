@@ -129,6 +129,48 @@ html, body, [class*="css"] {
     font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif !important;
 }
 
+/* ============================================ */
+/* ========== CORREÇÃO COMPLETA DE TOOLTIPS ========== */
+/* ============================================ */
+
+/* Esconder TODOS os tooltips e títulos - ADICIONADO AQUI DENTRO DO STYLE */
+[data-testid="stTooltipHoverTarget"],
+[class*="tooltip"],
+[class*="Tooltip"],
+button[title]::after,
+button[title]::before,
+div[title]::after,
+div[title]::before,
+span[title]::after,
+span[title]::before,
+a[title]::after,
+a[title]::before,
+[data-testid="stSidebar"] button::after,
+[data-testid="stSidebar"] button::before,
+[data-testid="stSidebar"] [title]::after,
+[data-testid="stSidebar"] [title]::before,
+div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button::after,
+div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button::before,
+.stButton > button::after,
+.stButton > button::before {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    content: none !important;
+}
+
+/* Remover atributo title via CSS */
+* {
+    title: none !important;
+}
+
+/* Esconder elementos flutuantes do Streamlit na sidebar */
+[data-testid="stSidebar"] [style*="position: absolute"],
+[data-testid="stSidebar"] [style*="position:absolute"] {
+    display: none !important;
+}
+
 /* CORREÇÃO DE QUEBRA DE TEXTO */
 h1, h2, h3, h4, h5, h6, p, span, div, label, li, button, a, .stMarkdown, .stText, .stCaption {
     white-space: normal !important;
@@ -168,13 +210,8 @@ h4 { font-size: 1.1rem !important; }
     50% { opacity: 0.8; transform: scale(1.02); }
 }
 
-.animate-fade-in {
-    animation: fadeIn 0.5s ease-out;
-}
-
-.animate-slide-in {
-    animation: slideIn 0.4s ease-out;
-}
+.animate-fade-in { animation: fadeIn 0.5s ease-out; }
+.animate-slide-in { animation: slideIn 0.4s ease-out; }
 
 /* ============================================ */
 /* ========== LAYOUT PRINCIPAL ========== */
@@ -445,46 +482,6 @@ section[data-testid="stSidebar"] .stMarkdown h2 {
 }
 
 /* ============================================ */
-/* ========== CORREÇÃO DEFINITIVA DO TOOLTIP DO MENU ========== */
-/* ============================================ */
-
-/* Remove qualquer tooltip, título flutuante ou texto fantasma */
-div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button::after,
-div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button::before,
-.stButton > button::after,
-.stButton > button::before,
-button[title]::after,
-button[title]::before {
-    display: none !important;
-    content: none !important;
-    opacity: 0 !important;
-    visibility: hidden !important;
-}
-
-/* Remove o atributo title que causa o tooltip nativo */
-div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button[title] {
-    pointer-events: auto;
-}
-
-/* Oculta completamente o container de tooltip do Streamlit */
-.stButton > button > div[data-testid="stTooltipHoverTarget"],
-[data-testid="stTooltipHoverTarget"],
-div[class*="tooltip"],
-div[class*="Tooltip"] {
-    display: none !important;
-    opacity: 0 !important;
-    visibility: hidden !important;
-    pointer-events: none !important;
-}
-
-/* Garante que nenhum texto extra apareça no hover */
-div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button:hover {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(236, 72, 153, 0.05)) !important;
-    color: var(--primary) !important;
-    transform: translateX(4px) !important;
-}
-
-/* ============================================ */
 /* ========== BOTÕES DO MENU LATERAL ========== */
 /* ============================================ */
 div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] {
@@ -519,6 +516,12 @@ div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button span {
     white-space: nowrap !important;
     display: block !important;
     max-width: 100% !important;
+}
+
+div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button:hover {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(236, 72, 153, 0.05)) !important;
+    color: var(--primary) !important;
+    transform: translateX(4px) !important;
 }
 
 div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button[kind="primary"] {
@@ -778,57 +781,6 @@ footer { visibility: hidden; }
 }
 </style>
 """, unsafe_allow_html=True)
-/* ============================================ */
-/* ========== CORREÇÃO COMPLETA DE TOOLTIPS ========== */
-/* ============================================ */
-
-/* Esconder TODOS os tooltips e títulos */
-[data-testid="stTooltipHoverTarget"],
-[class*="tooltip"],
-[class*="Tooltip"],
-button[title],
-div[title],
-span[title],
-a[title],
-[data-testid="stSidebar"] button::after,
-[data-testid="stSidebar"] button::before,
-[data-testid="stSidebar"] [title] {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
-}
-
-/* Remover atributo title via CSS */
-* {
-    title: none !important;
-}
-
-/* Garantir que nenhum texto extra apareça */
-[data-testid="stSidebar"] * {
-    text-overflow: ellipsis !important;
-    overflow: hidden !important;
-}
-
-/* Esconder elementos flutuantes do Streamlit */
-.stApp > div > div > div > div > div > div:not([class]),
-div[data-testid="stSidebar"] > div > div > div > div > div:not([class]) {
-    display: none !important;
-}
-
-/* Prevenir quebra de texto nos botões do menu */
-[data-testid="stSidebar"] button {
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    max-width: 100% !important;
-}
-
-/* Esconder qualquer elemento com posição absoluta na sidebar */
-[data-testid="stSidebar"] [style*="position: absolute"],
-[data-testid="stSidebar"] [style*="position:absolute"] {
-    display: none !important;
-}
 # ======================================================
 # DADOS DA ESCOLA
 # ======================================================
