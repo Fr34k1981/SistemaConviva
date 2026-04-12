@@ -71,12 +71,15 @@ st.set_page_config(
     layout="wide",
     page_icon="🏫",
     initial_sidebar_state="expanded"
-)# ======================================================
-# CSS PREMIUM - DESIGN MODERNO E ELEGANTE
+)
+# ======================================================
+# CSS PREMIUM COMPLETO - DESIGN MODERNO E VIBRANTE
 # ======================================================
 st.markdown("""
 <style>
+/* ============================================ */
 /* ========== VARIÁVEIS E FONTES ========== */
+/* ============================================ */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 :root {
@@ -98,24 +101,33 @@ st.markdown("""
     --gradient-warning: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
     --gradient-danger: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
     --gradient-dark: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    --gradient-blue: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+    --gradient-purple: linear-gradient(135deg, #8b5cf6 0%, #d946ef 100%);
+    --gradient-orange: linear-gradient(135deg, #f97316 0%, #fbbf24 100%);
+    --gradient-pink: linear-gradient(135deg, #ec4899 0%, #f472b6 100%);
+    --gradient-teal: linear-gradient(135deg, #14b8a6 0%, #2dd4bf 100%);
     
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
     --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
     --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+    --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
     
     --radius-sm: 0.375rem;
     --radius-md: 0.5rem;
     --radius-lg: 0.75rem;
     --radius-xl: 1rem;
     --radius-2xl: 1.5rem;
+    --radius-3xl: 2rem;
 }
 
 * {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
+/* ============================================ */
 /* ========== ANIMAÇÕES ========== */
+/* ============================================ */
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
@@ -126,6 +138,21 @@ st.markdown("""
     to { transform: translateX(0); opacity: 1; }
 }
 
+@keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(1.02); }
+}
+
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+}
+
 .animate-fade-in {
     animation: fadeIn 0.5s ease-out;
 }
@@ -134,15 +161,21 @@ st.markdown("""
     animation: slideIn 0.4s ease-out;
 }
 
+.animate-pulse {
+    animation: pulse 2s infinite;
+}
+
+/* ============================================ */
 /* ========== LAYOUT PRINCIPAL ========== */
+/* ============================================ */
 .main-header {
     background: var(--gradient-primary);
     padding: 2.5rem 2rem;
-    border-radius: var(--radius-2xl);
+    border-radius: var(--radius-3xl);
     color: white;
     text-align: center;
     margin-bottom: 2rem;
-    box-shadow: var(--shadow-xl);
+    box-shadow: var(--shadow-2xl);
     position: relative;
     overflow: hidden;
 }
@@ -152,10 +185,11 @@ st.markdown("""
     position: absolute;
     top: -50%;
     right: -10%;
-    width: 300px;
-    height: 300px;
-    background: rgba(255, 255, 255, 0.1);
+    width: 400px;
+    height: 400px;
+    background: rgba(255, 255, 255, 0.08);
     border-radius: 50%;
+    animation: pulse 4s infinite;
 }
 
 .main-header::after {
@@ -163,23 +197,25 @@ st.markdown("""
     position: absolute;
     bottom: -30%;
     left: -5%;
-    width: 200px;
-    height: 200px;
-    background: rgba(255, 255, 255, 0.08);
+    width: 300px;
+    height: 300px;
+    background: rgba(255, 255, 255, 0.05);
     border-radius: 50%;
+    animation: pulse 5s infinite reverse;
 }
 
 .school-name {
-    font-size: 2.25rem;
+    font-size: 2.5rem;
     font-weight: 800;
     letter-spacing: -0.02em;
     margin-bottom: 0.5rem;
     position: relative;
     z-index: 1;
+    text-shadow: 0 4px 20px rgba(0,0,0,0.1);
 }
 
 .school-subtitle {
-    font-size: 1.1rem;
+    font-size: 1.2rem;
     font-weight: 500;
     opacity: 0.95;
     margin-bottom: 1rem;
@@ -187,12 +223,14 @@ st.markdown("""
     z-index: 1;
 }
 
+/* ============================================ */
 /* ========== CARDS MODERNOS ========== */
+/* ============================================ */
 .card {
     background: white;
     padding: 1.5rem;
-    border-radius: var(--radius-xl);
-    border: 1px solid var(--border);
+    border-radius: var(--radius-2xl);
+    border: 1.5px solid var(--border);
     margin: 0.75rem 0;
     box-shadow: var(--shadow-sm);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -213,8 +251,8 @@ st.markdown("""
 }
 
 .card:hover {
-    box-shadow: var(--shadow-lg);
-    transform: translateY(-2px);
+    box-shadow: var(--shadow-xl);
+    transform: translateY(-3px);
     border-color: transparent;
 }
 
@@ -242,62 +280,66 @@ st.markdown("""
     line-height: 1.2;
 }
 
-/* ========== MÉTRICAS ========== */
+/* ============================================ */
+/* ========== MÉTRICAS COLORIDAS ========== */
+/* ============================================ */
 .metric-card {
-    background: white;
     padding: 1.75rem;
-    border-radius: var(--radius-xl);
+    border-radius: var(--radius-2xl);
     text-align: center;
-    box-shadow: var(--shadow-md);
-    transition: all 0.3s;
-    border: 1px solid var(--border);
+    box-shadow: var(--shadow-lg);
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1.5px solid var(--border);
     position: relative;
     overflow: hidden;
+    color: white;
 }
 
-.metric-card::after {
+.metric-card::before {
     content: '';
     position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: var(--gradient-primary);
-    transform: scaleX(0);
-    transition: transform 0.3s;
-    transform-origin: left;
+    top: -50%;
+    right: -50%;
+    width: 200px;
+    height: 200px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    transition: all 0.5s;
 }
 
 .metric-card:hover {
-    box-shadow: var(--shadow-xl);
-    transform: translateY(-4px);
+    box-shadow: var(--shadow-2xl);
+    transform: translateY(-5px);
 }
 
-.metric-card:hover::after {
-    transform: scaleX(1);
+.metric-card:hover::before {
+    top: -30%;
+    right: -30%;
 }
 
 .metric-value {
     font-size: 2.75rem;
     font-weight: 800;
-    color: var(--primary);
     line-height: 1.2;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
 .metric-label {
     font-size: 0.95rem;
     font-weight: 500;
-    color: var(--gray);
     margin-top: 0.5rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    opacity: 0.9;
 }
 
-/* ========== BOTÕES ========== */
+/* ============================================ */
+/* ========== BOTÕES PREMIUM ========== */
+/* ============================================ */
 .stButton > button {
-    border-radius: var(--radius-lg) !important;
+    border-radius: var(--radius-xl) !important;
     font-weight: 600 !important;
-    transition: all 0.3s !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
     border: none !important;
     padding: 0.625rem 1.5rem !important;
     font-size: 0.95rem !important;
@@ -331,27 +373,30 @@ st.markdown("""
 }
 
 .stButton > button[kind="primary"]:hover {
-    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4) !important;
-    transform: translateY(-1px);
+    box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4) !important;
+    transform: translateY(-2px);
 }
 
 .stButton > button[kind="secondary"] {
     background: white !important;
     color: var(--dark) !important;
-    border: 1px solid var(--border) !important;
+    border: 1.5px solid var(--border) !important;
 }
 
 .stButton > button[kind="secondary"]:hover {
     background: var(--light) !important;
     border-color: var(--primary) !important;
+    transform: translateY(-1px);
 }
 
-/* ========== INPUTS ========== */
+/* ============================================ */
+/* ========== INPUTS MODERNOS ========== */
+/* ============================================ */
 .stTextInput > div > div > input,
 .stTextArea > div > div > textarea,
 .stSelectbox > div > div > select,
 .stMultiSelect > div > div > div {
-    border-radius: var(--radius-lg) !important;
+    border-radius: var(--radius-xl) !important;
     border: 1.5px solid var(--border) !important;
     transition: all 0.3s !important;
     padding: 0.625rem 1rem !important;
@@ -363,21 +408,23 @@ st.markdown("""
 .stTextArea > div > div > textarea:focus,
 .stSelectbox > div > div > select:focus {
     border-color: var(--primary) !important;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1) !important;
     outline: none !important;
 }
 
-/* ========== TABS ========== */
+/* ============================================ */
+/* ========== TABS ESTILIZADAS ========== */
+/* ============================================ */
 .stTabs [data-baseweb="tab-list"] {
     gap: 0.5rem;
     background: var(--light);
     padding: 0.5rem;
-    border-radius: var(--radius-xl);
-    border: 1px solid var(--border);
+    border-radius: var(--radius-2xl);
+    border: 1.5px solid var(--border);
 }
 
 .stTabs [data-baseweb="tab"] {
-    border-radius: var(--radius-lg) !important;
+    border-radius: var(--radius-xl) !important;
     padding: 0.625rem 1.25rem !important;
     font-weight: 500 !important;
     color: var(--gray) !important;
@@ -395,48 +442,34 @@ st.markdown("""
     background: white !important;
     color: var(--primary) !important;
     font-weight: 600 !important;
-    box-shadow: var(--shadow-sm) !important;
+    box-shadow: var(--shadow-md) !important;
 }
 
-/* ========== SIDEBAR ========== */
+/* ============================================ */
+/* ========== SIDEBAR PREMIUM ========== */
+/* ============================================ */
 section[data-testid="stSidebar"] {
     background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-    border-right: 1px solid var(--border);
-    box-shadow: var(--shadow-lg);
+    border-right: 1.5px solid var(--border);
+    box-shadow: var(--shadow-xl);
 }
 
 section[data-testid="stSidebar"] .stMarkdown h2 {
-    font-size: 1.1rem;
+    font-size: 1.2rem;
     font-weight: 700;
     color: var(--dark);
     margin-bottom: 1rem;
     padding: 0 0.5rem;
 }
 
-section[data-testid="stSidebar"] div[role="radiogroup"] > label {
-    border-radius: var(--radius-lg) !important;
-    padding: 0.75rem 1rem !important;
-    margin: 0.25rem 0 !important;
-    transition: all 0.3s !important;
-    font-weight: 500 !important;
-}
-
-section[data-testid="stSidebar"] div[role="radiogroup"] > label:hover {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%) !important;
-}
-
-section[data-testid="stSidebar"] div[role="radiogroup"] > label[data-checked="true"] {
-    background: var(--gradient-primary) !important;
-    color: white !important;
-    box-shadow: var(--shadow-md) !important;
-}
-
-/* ========== DATAFRAME ========== */
+/* ============================================ */
+/* ========== DATAFRAME PREMIUM ========== */
+/* ============================================ */
 [data-testid="stDataFrame"] {
-    border-radius: var(--radius-xl) !important;
+    border-radius: var(--radius-2xl) !important;
     overflow: hidden !important;
-    border: 1px solid var(--border) !important;
-    box-shadow: var(--shadow-sm) !important;
+    border: 1.5px solid var(--border) !important;
+    box-shadow: var(--shadow-md) !important;
 }
 
 [data-testid="stDataFrame"] th {
@@ -452,29 +485,16 @@ section[data-testid="stSidebar"] div[role="radiogroup"] > label[data-checked="tr
 }
 
 [data-testid="stDataFrame"] tr:hover td {
-    background: var(--light) !important;
+    background: linear-gradient(135deg, #f0f4ff, #ffffff) !important;
 }
 
-/* ========== EXPANDER ========== */
-.streamlit-expanderHeader {
-    border-radius: var(--radius-lg) !important;
-    background: white !important;
-    border: 1px solid var(--border) !important;
-    font-weight: 600 !important;
-    color: var(--dark) !important;
-    transition: all 0.3s !important;
-}
-
-.streamlit-expanderHeader:hover {
-    background: var(--light) !important;
-    border-color: var(--primary) !important;
-}
-
+/* ============================================ */
 /* ========== ALERTAS E MENSAGENS ========== */
+/* ============================================ */
 .success-box {
     background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
-    border: 1px solid var(--success);
-    border-radius: var(--radius-xl);
+    border: 1.5px solid var(--success);
+    border-radius: var(--radius-2xl);
     padding: 1.25rem;
     margin: 1.25rem 0;
     color: #065f46;
@@ -485,8 +505,8 @@ section[data-testid="stSidebar"] div[role="radiogroup"] > label[data-checked="tr
 
 .warning-box {
     background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
-    border: 1px solid var(--warning);
-    border-radius: var(--radius-xl);
+    border: 1.5px solid var(--warning);
+    border-radius: var(--radius-2xl);
     padding: 1.25rem;
     margin: 1.25rem 0;
     color: #92400e;
@@ -496,8 +516,8 @@ section[data-testid="stSidebar"] div[role="radiogroup"] > label[data-checked="tr
 
 .error-box {
     background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
-    border: 1px solid var(--danger);
-    border-radius: var(--radius-xl);
+    border: 1.5px solid var(--danger);
+    border-radius: var(--radius-2xl);
     padding: 1.25rem;
     margin: 1.25rem 0;
     color: #991b1b;
@@ -507,8 +527,8 @@ section[data-testid="stSidebar"] div[role="radiogroup"] > label[data-checked="tr
 
 .info-box {
     background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-    border: 1px solid var(--primary);
-    border-radius: var(--radius-xl);
+    border: 1.5px solid var(--primary);
+    border-radius: var(--radius-2xl);
     padding: 1.25rem;
     margin: 1.25rem 0;
     color: #1e40af;
@@ -516,7 +536,96 @@ section[data-testid="stSidebar"] div[role="radiogroup"] > label[data-checked="tr
     box-shadow: var(--shadow-md);
 }
 
-/* ========== SCROLLBAR ========== */
+.stAlert {
+    border-radius: 16px !important;
+    border-left-width: 5px !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+    animation: slideIn 0.3s ease-out !important;
+}
+
+/* ============================================ */
+/* ========== EXPANDER MODERNO ========== */
+/* ============================================ */
+div[data-testid="stExpander"] {
+    border-radius: 16px !important;
+    border: 1.5px solid var(--border) !important;
+    background: white !important;
+    box-shadow: var(--shadow-sm) !important;
+    margin: 0.75rem 0 !important;
+    transition: all 0.3s ease !important;
+}
+
+div[data-testid="stExpander"]:hover {
+    box-shadow: 0 6px 16px rgba(99, 102, 241, 0.12) !important;
+    border-color: var(--primary) !important;
+}
+
+.streamlit-expanderHeader {
+    border-radius: 16px !important;
+    background: linear-gradient(135deg, #fafbfc, #ffffff) !important;
+    font-weight: 600 !important;
+    color: var(--dark) !important;
+    padding: 0.75rem 1.25rem !important;
+}
+
+.streamlit-expanderHeader:hover {
+    background: linear-gradient(135deg, #f0f4ff, #ffffff) !important;
+}
+
+/* ============================================ */
+/* ========== FORMULÁRIOS PREMIUM ========== */
+/* ============================================ */
+div[data-testid="stForm"] {
+    background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%) !important;
+    border-radius: 20px !important;
+    padding: 1.75rem !important;
+    border: 1.5px solid var(--border) !important;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.06) !important;
+    margin: 1.5rem 0 !important;
+}
+
+div[data-testid="stForm"]:hover {
+    border-color: var(--primary) !important;
+    box-shadow: 0 12px 28px rgba(99, 102, 241, 0.12) !important;
+}
+
+/* ============================================ */
+/* ========== BADGES COLORIDOS ========== */
+/* ============================================ */
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.badge-success { 
+    background: linear-gradient(135deg, #d1fae5, #a7f3d0); 
+    color: #065f46; 
+}
+.badge-warning { 
+    background: linear-gradient(135deg, #fef3c7, #fde68a); 
+    color: #92400e; 
+}
+.badge-danger { 
+    background: linear-gradient(135deg, #fee2e2, #fecaca); 
+    color: #991b1b; 
+}
+.badge-info { 
+    background: linear-gradient(135deg, #dbeafe, #bfdbfe); 
+    color: #1e40af; 
+}
+.badge-primary { 
+    background: var(--gradient-primary); 
+    color: white; 
+}
+
+/* ============================================ */
+/* ========== SCROLLBAR PREMIUM ========== */
+/* ============================================ */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -528,15 +637,42 @@ section[data-testid="stSidebar"] div[role="radiogroup"] > label[data-checked="tr
 }
 
 ::-webkit-scrollbar-thumb {
-    background: var(--gray);
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
     border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: var(--primary);
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
 }
 
+/* ============================================ */
+/* ========== PROGRESS BAR ========== */
+/* ============================================ */
+.stProgress > div > div > div {
+    background: var(--gradient-primary) !important;
+    border-radius: 9999px !important;
+}
+
+/* ============================================ */
+/* ========== MÉTRICAS STREAMLIT ========== */
+/* ============================================ */
+[data-testid="metric-container"] {
+    background: white;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-xl);
+    padding: 1rem;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s;
+}
+
+[data-testid="metric-container"]:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--primary);
+}
+
+/* ============================================ */
 /* ========== FOOTER ========== */
+/* ============================================ */
 footer {
     visibility: hidden;
 }
@@ -545,10 +681,49 @@ footer {
     visibility: hidden;
 }
 
-/* ========== PROGRESS BAR ========== */
-.stProgress > div > div > div {
-    background: var(--gradient-primary) !important;
-    border-radius: 9999px !important;
+/* ============================================ */
+/* ========== UTILITÁRIOS ========== */
+/* ============================================ */
+.glass-effect {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1.5px solid rgba(255, 255, 255, 0.3);
+}
+
+.gradient-text {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 800;
+}
+
+.shimmer {
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+/* ============================================ */
+/* ========== RESPONSIVO ========== */
+/* ============================================ */
+@media (max-width: 768px) {
+    .main-header {
+        padding: 1.5rem 1rem;
+    }
+    
+    .school-name {
+        font-size: 1.5rem;
+    }
+    
+    .metric-value {
+        font-size: 2rem;
+    }
+    
+    .metric-card {
+        padding: 1.25rem;
+    }
 }
 </style>
 """, unsafe_allow_html=True)
