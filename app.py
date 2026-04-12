@@ -140,7 +140,10 @@ div[class*="tooltip-container"],
 [data-baseweb="tooltip"],
 [data-baseweb*="tooltip"],
 div[id*="tooltip"],
-div[class*="popup"] {
+div[class*="popup"],
+[data-baseweb="popover"],
+[class*="Popover"],
+[class*="PopoverContent"] {
     display: none !important;
     visibility: hidden !important;
     opacity: 0 !important;
@@ -151,6 +154,10 @@ div[class*="popup"] {
     width: 0 !important;
     height: 0 !important;
     overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    clip-path: inset(100%) !important;
 }
 
 /* Remove completamente pseudo-elementos que possam conter texto */
@@ -159,7 +166,11 @@ div[class*="popup"] {
 button::after,
 button::before,
 [data-testid="stSidebar"] button::after,
-[data-testid="stSidebar"] button::before {
+[data-testid="stSidebar"] button::before,
+[data-testid="stSidebar"] a::after,
+[data-testid="stSidebar"] a::before,
+[data-testid="stSidebar"] span::after,
+[data-testid="stSidebar"] span::before {
     display: none !important;
     content: none !important;
 }
@@ -169,51 +180,61 @@ button, div, span, a {
     title: "" !important;
 }
 
-/* Esconde qualquer elemento com posição absoluta dentro da sidebar */
-[data-testid="stSidebar"] [style*="position: absolute"],
-[data-testid="stSidebar"] [style*="position:absolute"],
-[data-testid="stSidebar"] div[style*="position: fixed"],
-[data-testid="stSidebar"] div[style*="position:fixed"] {
-    display: none !important;
+/* ============================================ */
+/* ========== SIDEBAR - ELIMINAÇÃO TOTAL DE POPUPS ========== */
+/* ============================================ */
+
+[data-testid="stSidebar"] {
+    overflow: hidden !important;
+    position: relative !important;
+    z-index: 10 !important;
+    clip-path: inset(0) !important;
 }
 
-/* ============================================ */
-/* ========== CORREÇÃO DE TEXTO ILEGÍVEL NA SIDEBAR ========== */
-/* ============================================ */
+[data-testid="stSidebar"] > div {
+    overflow: hidden !important;
+    clip-path: inset(0) !important;
+}
 
-/* Remove completamente qualquer overlay/popover na sidebar */
-[data-testid="stSidebar"] [role="dialog"],
-[data-testid="stSidebar"] [role="menu"],
-[data-testid="stSidebar"] [role="navigation"] > div > div,
-div[class*="StyledSidebarContent"] [class*="PopoverContent"],
-div[class*="StyledSidebarContent"] [class*="Popover"],
-div[class*="MenuContent"],
-[data-baseweb="popover"] {
+/* Esconde TODOS os elementos com posicionamento absoluto/fixed na sidebar */
+[data-testid="stSidebar"] [style*="position: absolute"],
+[data-testid="stSidebar"] [style*="position:absolute"],
+[data-testid="stSidebar"] [style*="position: fixed"],
+[data-testid="stSidebar"] [style*="position:fixed"],
+[data-testid="stSidebar"] [style*="position: sticky"],
+[data-testid="stSidebar"] [style*="position:sticky"] {
     display: none !important;
     visibility: hidden !important;
     opacity: 0 !important;
     pointer-events: none !important;
 }
 
-/* Remove texto flutuante/ilegível */
-[data-testid="stSidebar"] div[style*="z-index"],
-[data-testid="stSidebar"] span[style*="position"],
-div[class*="StyledNavigation"] [class*="Tooltip"],
-div[class*="StyledNavigation"] [class*="Popover"] {
+/* Remove qualquer div/span flutuante */
+[data-testid="stSidebar"] div[role="dialog"],
+[data-testid="stSidebar"] div[role="menu"],
+[data-testid="stSidebar"] div[role="region"],
+[data-testid="stSidebar"] [role="dialog"],
+[data-testid="stSidebar"] [role="menu"],
+[data-testid="stSidebar"] [class*="PopoverContent"],
+[data-testid="stSidebar"] [class*="Popover"],
+[data-testid="stSidebar"] [class*="Tooltip"],
+[data-testid="stSidebar"] [class*="Popper"],
+[data-testid="stSidebar"] [class*="tooltip"] {
     display: none !important;
     visibility: hidden !important;
     opacity: 0 !important;
+    pointer-events: none !important;
+    position: absolute !important;
+    left: -9999px !important;
+    top: -9999px !important;
 }
 
-/* Garante que o menu nunca ultrapasse os limites */
-[data-testid="stSidebar"] {
-    overflow: hidden !important;
-    position: relative !important;
-    z-index: 10 !important;
-}
-
-[data-testid="stSidebar"] > div {
-    overflow: hidden !important;
+/* Elementos com z-index na sidebar devem ser escondidos */
+[data-testid="stSidebar"] [style*="z-index"],
+[data-testid="stSidebar"] [style*="zIndex"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
 }
 
 /* ============================================ */
