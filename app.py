@@ -73,15 +73,18 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 # ======================================================
-# CSS PREMIUM COMPLETO - DESIGN MODERNO E VIBRANTE
+# CSS PREMIUM COMPLETO - DESIGN MODERNO E VIBRANTE (CORRIGIDO)
 # ======================================================
 st.markdown("""
 <style>
 /* ============================================ */
-/* ========== VARIÁVEIS E FONTES ========== */
+/* ========== IMPORTAÇÃO DE FONTES ========== */
 /* ============================================ */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
+/* ============================================ */
+/* ========== VARIÁVEIS E RESET ========== */
+/* ============================================ */
 :root {
     --primary: #6366f1;
     --primary-light: #818cf8;
@@ -100,12 +103,6 @@ st.markdown("""
     --gradient-success: linear-gradient(135deg, #10b981 0%, #34d399 100%);
     --gradient-warning: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
     --gradient-danger: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
-    --gradient-dark: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-    --gradient-blue: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
-    --gradient-purple: linear-gradient(135deg, #8b5cf6 0%, #d946ef 100%);
-    --gradient-orange: linear-gradient(135deg, #f97316 0%, #fbbf24 100%);
-    --gradient-pink: linear-gradient(135deg, #ec4899 0%, #f472b6 100%);
-    --gradient-teal: linear-gradient(135deg, #14b8a6 0%, #2dd4bf 100%);
     
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
@@ -121,9 +118,37 @@ st.markdown("""
     --radius-3xl: 2rem;
 }
 
+/* ============================================ */
+/* ========== RESET GLOBAL ========== */
+/* ============================================ */
 * {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
+
+html, body, [class*="css"] {
+    font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif !important;
+}
+
+/* CORREÇÃO DE QUEBRA DE TEXTO */
+h1, h2, h3, h4, h5, h6, p, span, div, label, li, button, a, .stMarkdown, .stText, .stCaption {
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+    line-height: 1.5 !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 700 !important;
+    letter-spacing: -0.02em !important;
+    color: var(--dark) !important;
+    margin-bottom: 1rem !important;
+}
+
+h1 { font-size: 2rem !important; }
+h2 { font-size: 1.6rem !important; }
+h3 { font-size: 1.3rem !important; }
+h4 { font-size: 1.1rem !important; }
 
 /* ============================================ */
 /* ========== ANIMAÇÕES ========== */
@@ -143,26 +168,12 @@ st.markdown("""
     50% { opacity: 0.8; transform: scale(1.02); }
 }
 
-@keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
-}
-
-@keyframes bounce {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-5px); }
-}
-
 .animate-fade-in {
     animation: fadeIn 0.5s ease-out;
 }
 
 .animate-slide-in {
     animation: slideIn 0.4s ease-out;
-}
-
-.animate-pulse {
-    animation: pulse 2s infinite;
 }
 
 /* ============================================ */
@@ -212,6 +223,8 @@ st.markdown("""
     position: relative;
     z-index: 1;
     text-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    white-space: normal !important;
+    word-break: break-word;
 }
 
 .school-subtitle {
@@ -238,26 +251,10 @@ st.markdown("""
     overflow: hidden;
 }
 
-.card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: var(--gradient-primary);
-    opacity: 0;
-    transition: opacity 0.3s;
-}
-
 .card:hover {
     box-shadow: var(--shadow-xl);
     transform: translateY(-3px);
-    border-color: transparent;
-}
-
-.card:hover::before {
-    opacity: 1;
+    border-color: var(--primary-light);
 }
 
 .card-title {
@@ -268,6 +265,8 @@ st.markdown("""
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    white-space: normal !important;
+    word-break: break-word;
 }
 
 .card-value {
@@ -284,7 +283,7 @@ st.markdown("""
 /* ========== MÉTRICAS COLORIDAS ========== */
 /* ============================================ */
 .metric-card {
-    padding: 1.75rem;
+    padding: 1.75rem 1rem;
     border-radius: var(--radius-2xl);
     text-align: center;
     box-shadow: var(--shadow-lg);
@@ -293,18 +292,10 @@ st.markdown("""
     position: relative;
     overflow: hidden;
     color: white;
-}
-
-.metric-card::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    right: -50%;
-    width: 200px;
-    height: 200px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 50%;
-    transition: all 0.5s;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .metric-card:hover {
@@ -312,25 +303,23 @@ st.markdown("""
     transform: translateY(-5px);
 }
 
-.metric-card:hover::before {
-    top: -30%;
-    right: -30%;
-}
-
 .metric-value {
-    font-size: 2.75rem;
+    font-size: 2.5rem;
     font-weight: 800;
     line-height: 1.2;
     text-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    white-space: nowrap;
 }
 
 .metric-label {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     font-weight: 500;
     margin-top: 0.5rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     opacity: 0.9;
+    white-space: normal !important;
+    word-break: break-word;
 }
 
 /* ============================================ */
@@ -339,31 +328,16 @@ st.markdown("""
 .stButton > button {
     border-radius: var(--radius-xl) !important;
     font-weight: 600 !important;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    transition: all 0.3s ease !important;
     border: none !important;
-    padding: 0.625rem 1.5rem !important;
+    padding: 0.625rem 1.25rem !important;
     font-size: 0.95rem !important;
     letter-spacing: 0.01em !important;
     position: relative;
     overflow: hidden;
-}
-
-.stButton > button::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.3);
-    transform: translate(-50%, -50%);
-    transition: width 0.6s, height 0.6s;
-}
-
-.stButton > button:hover::before {
-    width: 300px;
-    height: 300px;
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    min-height: 44px;
 }
 
 .stButton > button[kind="primary"] {
@@ -402,6 +376,7 @@ st.markdown("""
     padding: 0.625rem 1rem !important;
     font-size: 0.95rem !important;
     background: white !important;
+    line-height: 1.5 !important;
 }
 
 .stTextInput > div > div > input:focus,
@@ -410,6 +385,10 @@ st.markdown("""
     border-color: var(--primary) !important;
     box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1) !important;
     outline: none !important;
+}
+
+.stTextArea textarea {
+    min-height: 120px !important;
 }
 
 /* ============================================ */
@@ -421,6 +400,7 @@ st.markdown("""
     padding: 0.5rem;
     border-radius: var(--radius-2xl);
     border: 1.5px solid var(--border);
+    flex-wrap: wrap;
 }
 
 .stTabs [data-baseweb="tab"] {
@@ -431,6 +411,8 @@ st.markdown("""
     transition: all 0.3s !important;
     border: none !important;
     background: transparent !important;
+    white-space: nowrap !important;
+    flex-shrink: 0;
 }
 
 .stTabs [data-baseweb="tab"]:hover {
@@ -463,6 +445,46 @@ section[data-testid="stSidebar"] .stMarkdown h2 {
 }
 
 /* ============================================ */
+/* ========== BOTÕES DO MENU LATERAL ========== */
+/* ============================================ */
+div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] {
+    margin: 0.2rem 0 !important;
+}
+
+div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button {
+    background: transparent !important;
+    border: none !important;
+    border-radius: 12px !important;
+    padding: 0.75rem 1rem !important;
+    text-align: left !important;
+    font-size: 0.95rem !important;
+    font-weight: 500 !important;
+    color: var(--gray) !important;
+    width: 100% !important;
+    transition: all 0.25s ease !important;
+    box-shadow: none !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.75rem !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    min-height: 44px;
+}
+
+div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button:hover {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(236, 72, 153, 0.05)) !important;
+    color: var(--primary) !important;
+    transform: translateX(4px) !important;
+}
+
+div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button[kind="primary"] {
+    background: var(--gradient-primary) !important;
+    color: white !important;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3) !important;
+}
+
+/* ============================================ */
 /* ========== DATAFRAME PREMIUM ========== */
 /* ============================================ */
 [data-testid="stDataFrame"] {
@@ -477,11 +499,14 @@ section[data-testid="stSidebar"] .stMarkdown h2 {
     color: white !important;
     font-weight: 600 !important;
     padding: 0.75rem 1rem !important;
+    white-space: nowrap !important;
 }
 
 [data-testid="stDataFrame"] td {
     padding: 0.5rem 1rem !important;
     border-bottom: 1px solid var(--border) !important;
+    white-space: normal !important;
+    word-break: break-word;
 }
 
 [data-testid="stDataFrame"] tr:hover td {
@@ -491,49 +516,39 @@ section[data-testid="stSidebar"] .stMarkdown h2 {
 /* ============================================ */
 /* ========== ALERTAS E MENSAGENS ========== */
 /* ============================================ */
+.success-box, .warning-box, .error-box, .info-box {
+    border-radius: var(--radius-2xl) !important;
+    padding: 1.25rem !important;
+    margin: 1.25rem 0 !important;
+    font-weight: 500 !important;
+    box-shadow: var(--shadow-md) !important;
+    animation: slideIn 0.4s ease-out !important;
+    white-space: normal !important;
+    word-break: break-word;
+}
+
 .success-box {
     background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
     border: 1.5px solid var(--success);
-    border-radius: var(--radius-2xl);
-    padding: 1.25rem;
-    margin: 1.25rem 0;
     color: #065f46;
-    font-weight: 500;
-    box-shadow: var(--shadow-md);
-    animation: slideIn 0.4s ease-out;
 }
 
 .warning-box {
     background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
     border: 1.5px solid var(--warning);
-    border-radius: var(--radius-2xl);
-    padding: 1.25rem;
-    margin: 1.25rem 0;
     color: #92400e;
-    font-weight: 500;
-    box-shadow: var(--shadow-md);
 }
 
 .error-box {
     background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
     border: 1.5px solid var(--danger);
-    border-radius: var(--radius-2xl);
-    padding: 1.25rem;
-    margin: 1.25rem 0;
     color: #991b1b;
-    font-weight: 500;
-    box-shadow: var(--shadow-md);
 }
 
 .info-box {
     background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
     border: 1.5px solid var(--primary);
-    border-radius: var(--radius-2xl);
-    padding: 1.25rem;
-    margin: 1.25rem 0;
     color: #1e40af;
-    font-weight: 500;
-    box-shadow: var(--shadow-md);
 }
 
 .stAlert {
@@ -541,6 +556,8 @@ section[data-testid="stSidebar"] .stMarkdown h2 {
     border-left-width: 5px !important;
     box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
     animation: slideIn 0.3s ease-out !important;
+    white-space: normal !important;
+    word-break: break-word;
 }
 
 /* ============================================ */
@@ -566,6 +583,8 @@ div[data-testid="stExpander"]:hover {
     font-weight: 600 !important;
     color: var(--dark) !important;
     padding: 0.75rem 1.25rem !important;
+    white-space: normal !important;
+    word-break: break-word;
 }
 
 .streamlit-expanderHeader:hover {
@@ -594,34 +613,20 @@ div[data-testid="stForm"]:hover {
 /* ============================================ */
 .badge {
     display: inline-block;
-    padding: 0.25rem 0.75rem;
+    padding: 0.35rem 0.85rem;
     border-radius: 9999px;
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    white-space: nowrap;
 }
 
-.badge-success { 
-    background: linear-gradient(135deg, #d1fae5, #a7f3d0); 
-    color: #065f46; 
-}
-.badge-warning { 
-    background: linear-gradient(135deg, #fef3c7, #fde68a); 
-    color: #92400e; 
-}
-.badge-danger { 
-    background: linear-gradient(135deg, #fee2e2, #fecaca); 
-    color: #991b1b; 
-}
-.badge-info { 
-    background: linear-gradient(135deg, #dbeafe, #bfdbfe); 
-    color: #1e40af; 
-}
-.badge-primary { 
-    background: var(--gradient-primary); 
-    color: white; 
-}
+.badge-success { background: linear-gradient(135deg, #d1fae5, #a7f3d0); color: #065f46; }
+.badge-warning { background: linear-gradient(135deg, #fef3c7, #fde68a); color: #92400e; }
+.badge-danger { background: linear-gradient(135deg, #fee2e2, #fecaca); color: #991b1b; }
+.badge-info { background: linear-gradient(135deg, #dbeafe, #bfdbfe); color: #1e40af; }
+.badge-primary { background: var(--gradient-primary); color: white; }
 
 /* ============================================ */
 /* ========== SCROLLBAR PREMIUM ========== */
@@ -670,16 +675,16 @@ div[data-testid="stForm"]:hover {
     border-color: var(--primary);
 }
 
+[data-testid="metric-container"] label {
+    white-space: normal !important;
+    word-break: break-word;
+}
+
 /* ============================================ */
 /* ========== FOOTER ========== */
 /* ============================================ */
-footer {
-    visibility: hidden;
-}
-
-#MainMenu {
-    visibility: hidden;
-}
+footer { visibility: hidden; }
+#MainMenu { visibility: hidden; }
 
 /* ============================================ */
 /* ========== UTILITÁRIOS ========== */
@@ -699,12 +704,6 @@ footer {
     font-weight: 800;
 }
 
-.shimmer {
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite;
-}
-
 /* ============================================ */
 /* ========== RESPONSIVO ========== */
 /* ============================================ */
@@ -714,7 +713,7 @@ footer {
     }
     
     .school-name {
-        font-size: 1.5rem;
+        font-size: 1.8rem;
     }
     
     .metric-value {
@@ -722,7 +721,16 @@ footer {
     }
     
     .metric-card {
-        padding: 1.25rem;
+        padding: 1.25rem 0.75rem;
+    }
+    
+    .metric-label {
+        font-size: 0.75rem;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        padding: 0.5rem 0.75rem !important;
+        font-size: 0.8rem !important;
     }
 }
 </style>
@@ -730,7 +738,7 @@ footer {
 # ======================================================
 # DADOS DA ESCOLA
 # ======================================================
-ESCOLA_NOME = "E.E. Profª Eliane"
+ESCOLA_NOME = "E.E. Profª Eliane Dantas da Silva"
 ESCOLA_SUBTITULO = "Sistema Conviva 179"
 ESCOLA_ENDERECO = "R. Valter Souza Costa, 147 - Jardim Primavera, Ferraz de Vasconcelos - SP"
 ESCOLA_CEP = "CEP: 08535-310"
