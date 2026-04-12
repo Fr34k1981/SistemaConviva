@@ -73,17 +73,23 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 # ======================================================
-# CSS PREMIUM COMPLETO - DESIGN MODERNO E VIBRANTE (CORRIGIDO FINAL)
+# CSS PREMIUM - DESIGN LIMPO E CORREÇÃO DEFINITIVA DE TOOLTIPS
 # ======================================================
 st.markdown("""
 <style>
 /* ============================================ */
-/* ========== IMPORTAÇÃO DE FONTES ========== */
+/* ========== RESET E FONTES NATIVAS ========== */
 /* ============================================ */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+* {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+}
+
+html, body, [class*="css"] {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+}
 
 /* ============================================ */
-/* ========== VARIÁVEIS E RESET ========== */
+/* ========== VARIÁVEIS DE CORES ========== */
 /* ============================================ */
 :root {
     --primary: #6366f1;
@@ -119,59 +125,61 @@ st.markdown("""
 }
 
 /* ============================================ */
-/* ========== RESET GLOBAL ========== */
-/* ============================================ */
-* {
-    font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
-}
-
-html, body, [class*="css"] {
-    font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif !important;
-}
-
-/* ============================================ */
-/* ========== CORREÇÃO COMPLETA DE TOOLTIPS ========== */
+/* ========== CORREÇÃO AGRESSIVA DE TOOLTIPS ========== */
 /* ============================================ */
 
-/* Esconder TODOS os tooltips e títulos - ADICIONADO AQUI DENTRO DO STYLE */
+/* Esconde qualquer elemento de tooltip do Streamlit, independente da classe */
 [data-testid="stTooltipHoverTarget"],
 [class*="tooltip"],
 [class*="Tooltip"],
-button[title]::after,
-button[title]::before,
-div[title]::after,
-div[title]::before,
-span[title]::after,
-span[title]::before,
-a[title]::after,
-a[title]::before,
-[data-testid="stSidebar"] button::after,
-[data-testid="stSidebar"] button::before,
-[data-testid="stSidebar"] [title]::after,
-[data-testid="stSidebar"] [title]::before,
-div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button::after,
-div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button::before,
-.stButton > button::after,
-.stButton > button::before {
+[role="tooltip"],
+div[class*="TooltipContainer"],
+div[class*="tooltip-container"],
+.stTooltip,
+#stTooltip,
+[data-baseweb="tooltip"],
+[data-baseweb*="tooltip"],
+div[id*="tooltip"],
+div[class*="popup"] {
     display: none !important;
     visibility: hidden !important;
     opacity: 0 !important;
     pointer-events: none !important;
+    position: absolute !important;
+    left: -9999px !important;
+    top: -9999px !important;
+    width: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
+}
+
+/* Remove completamente pseudo-elementos que possam conter texto */
+.stButton > button::after,
+.stButton > button::before,
+button::after,
+button::before,
+[data-testid="stSidebar"] button::after,
+[data-testid="stSidebar"] button::before {
+    display: none !important;
     content: none !important;
 }
 
-/* Remover atributo title via CSS */
-* {
-    title: none !important;
+/* Remove o atributo title nativo do navegador - faz com que não apareça tooltip padrão */
+button, div, span, a {
+    title: "" !important;
 }
 
-/* Esconder elementos flutuantes do Streamlit na sidebar */
+/* Esconde qualquer elemento com posição absoluta dentro da sidebar */
 [data-testid="stSidebar"] [style*="position: absolute"],
-[data-testid="stSidebar"] [style*="position:absolute"] {
+[data-testid="stSidebar"] [style*="position:absolute"],
+[data-testid="stSidebar"] div[style*="position: fixed"],
+[data-testid="stSidebar"] div[style*="position:fixed"] {
     display: none !important;
 }
 
-/* CORREÇÃO DE QUEBRA DE TEXTO */
+/* ============================================ */
+/* ========== CORREÇÃO DE QUEBRA DE TEXTO ========== */
+/* ============================================ */
 h1, h2, h3, h4, h5, h6, p, span, div, label, li, button, a, .stMarkdown, .stText, .stCaption {
     white-space: normal !important;
     word-wrap: break-word !important;
@@ -783,45 +791,99 @@ footer { visibility: hidden; }
 """, unsafe_allow_html=True)
 
 # ======================================================
-# REMOÇÃO DE TOOLTIPS VIA JAVASCRIPT (SOLUÇÃO DEFINITIVA)
+# JAVASCRIPT DEFINITIVO PARA ELIMINAR TOOLTIPS
 # ======================================================
 st.components.v1.html("""
 <script>
 (function() {
-    function removeTooltips() {
-        // Remove elementos de tooltip do Streamlit
-        document.querySelectorAll('[data-testid="stTooltipHoverTarget"]').forEach(el => el.remove());
-        document.querySelectorAll('[class*="tooltip"]').forEach(el => {
-            if (el.className.includes('tooltip') || el.className.includes('Tooltip')) {
+    'use strict';
+    
+    // Função que elimina qualquer vestígio de tooltip
+    function exterminarTooltips() {
+        // Seletores abrangentes para capturar tooltips do Streamlit
+        const seletores = [
+            '[data-testid="stTooltipHoverTarget"]',
+            '[class*="tooltip"]',
+            '[class*="Tooltip"]',
+            '[role="tooltip"]',
+            '.stTooltip',
+            '#stTooltip',
+            '[data-baseweb="tooltip"]',
+            'div[class*="TooltipContainer"]',
+            'div[class*="tooltip-container"]'
+        ];
+        
+        seletores.forEach(sel => {
+            document.querySelectorAll(sel).forEach(el => {
                 el.remove();
-            }
+            });
         });
         
-        // Remove atributos title e aria-label dos botões da sidebar
-        document.querySelectorAll('[data-testid="stSidebar"] button').forEach(btn => {
+        // Remove atributos que causam tooltip nativo nos botões da sidebar
+        const botoesSidebar = document.querySelectorAll('[data-testid="stSidebar"] button');
+        botoesSidebar.forEach(btn => {
             btn.removeAttribute('title');
             btn.removeAttribute('aria-label');
             btn.removeAttribute('data-tooltip');
+            btn.removeAttribute('aria-describedby');
+            // Define um título vazio para prevenir recriação
+            btn.setAttribute('title', '');
         });
         
-        // Remove qualquer elemento com role="tooltip"
-        document.querySelectorAll('[role="tooltip"]').forEach(el => el.remove());
+        // Remove qualquer div com posição absoluta na sidebar que possa ser tooltip
+        const divsSidebar = document.querySelectorAll('[data-testid="stSidebar"] div');
+        divsSidebar.forEach(div => {
+            const style = window.getComputedStyle(div);
+            if (style.position === 'absolute' || style.position === 'fixed') {
+                div.remove();
+            }
+        });
+        
+        // Tenta remover tooltips que estejam fora da sidebar também
+        document.querySelectorAll('body > div:last-child').forEach(el => {
+            if (el.innerHTML.includes('tooltip') || el.getAttribute('data-testid') === 'stTooltipHoverTarget') {
+                el.remove();
+            }
+        });
     }
     
+    // Injeta regra CSS adicional diretamente no head
+    const style = document.createElement('style');
+    style.textContent = `
+        [data-testid="stTooltipHoverTarget"],
+        [class*="tooltip"],
+        [class*="Tooltip"],
+        [role="tooltip"],
+        .stTooltip,
+        #stTooltip {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+    `;
+    document.head.appendChild(style);
+    
     // Executa imediatamente
-    removeTooltips();
+    exterminarTooltips();
     
-    // Executa a cada 100ms por 2 segundos (garante remoção após carregamento)
-    let attempts = 0;
-    const interval = setInterval(() => {
-        removeTooltips();
-        attempts++;
-        if (attempts > 20) clearInterval(interval);
-    }, 100);
+    // Executa a cada 300ms para garantir que tooltips criados tardiamente sejam removidos
+    setInterval(exterminarTooltips, 300);
     
-    // Observa mudanças no DOM
-    const observer = new MutationObserver(removeTooltips);
-    observer.observe(document.body, { childList: true, subtree: true });
+    // Observer para detectar mudanças no DOM
+    const observer = new MutationObserver(function(mutations) {
+        exterminarTooltips();
+    });
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true });
+    
+    // Intercepta eventos de mouse para limpeza proativa
+    document.addEventListener('mouseover', function(e) {
+        exterminarTooltips();
+    }, true);
+    
+    // Também no carregamento completo da página
+    window.addEventListener('load', exterminarTooltips);
+    
 })();
 </script>
 """, height=0)
