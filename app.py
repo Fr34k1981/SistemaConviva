@@ -2784,7 +2784,7 @@ elif menu == "📥 Importar Alunos":
         st.info("Nenhuma turma cadastrada ainda.")
 
 # ======================================================
-# PÁGINA 👥 LISTA DE ALUNOS (COM FILTRO ATIVO/TODOS)
+# PÁGINA 👥 LISTA DE ALUNOS (CORRIGIDA - CONTAGEM PRECISA)
 # ======================================================
 
 elif menu == "👥 Lista de Alunos":
@@ -2807,10 +2807,14 @@ elif menu == "👥 Lista de Alunos":
             
             with col2:
                 # FILTRO DE SITUAÇÃO - PADRÃO: APENAS ATIVOS
-                situacoes_disp = ["Ativos", "Todos"]
                 if "situacao" in df_alunos.columns:
-                    situacoes_unicas = df_alunos["situacao"].dropna().unique().tolist()
-                    situacoes_disp = ["Ativos", "Todos"] + situacoes_unicas
+                    # Normalizar situações (maiúsculas, sem espaços extras)
+                    df_alunos["situacao_norm"] = df_alunos["situacao"].str.strip().str.title()
+                    situacoes_unicas = sorted(df_alunos["situacao_norm"].dropna().unique().tolist())
+                else:
+                    situacoes_unicas = ["Ativo"]
+                
+                situacoes_disp = ["Ativos", "Todos"] + situacoes_unicas
                 
                 filtro_situacao = st.selectbox(
                     "📊 Situação", 
@@ -2825,15 +2829,20 @@ elif menu == "👥 Lista de Alunos":
             # Aplicar filtros
             df_view = df_alunos.copy()
             
+            # Normalizar situação para filtro
+            if "situacao" in df_view.columns:
+                df_view["situacao_norm"] = df_view["situacao"].str.strip().str.title()
+            
             if filtro_turma != "Todas":
                 df_view = df_view[df_view["turma"] == filtro_turma]
             
-            # FILTRO DE SITUAÇÃO
+            # FILTRO DE SITUAÇÃO - CORRIGIDO
             if filtro_situacao == "Ativos":
-                if "situacao" in df_view.columns:
-                    df_view = df_view[df_view["situacao"].str.contains("Ativo", case=False, na=False)]
+                if "situacao_norm" in df_view.columns:
+                    df_view = df_view[df_view["situacao_norm"] == "Ativo"]
             elif filtro_situacao != "Todos":
-                df_view = df_view[df_view["situacao"] == filtro_situacao]
+                if "situacao_norm" in df_view.columns:
+                    df_view = df_view[df_view["situacao_norm"] == filtro_situacao]
             
             if busca_nome:
                 df_view = df_view[
@@ -2841,26 +2850,82 @@ elif menu == "👥 Lista de Alunos":
                     df_view["ra"].astype(str).str.contains(busca_nome, na=False)
                 ]
             
-            # Estatísticas rápidas
-            total_ativos = len(df_alunos[df_alunos["situacao"].str.contains("Ativo", case=False, na=False)]) if "situacao" in df_alunos.columns else len(df_alunos)
-            total_geral = len(df_alunos)
+            # Estatísticas CORRIGIDAS - contagem precisa por turma
+            st.markdown("---")
             
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("👥 Total de Alunos", total_geral)
-            with col2:
-                st.metric("✅ Alunos Ativos", total_ativos)
-            with col3:
-                st.metric("📋 Exibindo", len(df_view))
+            if filtro_turma != "Todas":
+                # Contagem apenas para a turma selecionada
+                total_geral_turma = len(df_alunos[df_alunos["turma"] == filtro_turma])
+                
+                if "situacao" in df_alunos.columns:
+                    df_turma = df_alunos[df_alunos["turma"] == filtro_turma].copy()
+                    df_turma["situacao_norm"] = df_turma["situacao"].str.strip().str.title()
+                    total_ativos_turma = len(df_turma[df_turma["situacao_norm"] == "Ativo"])
+                else:
+                    total_ativos_turma = total_geral_turma
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric(f"👥 Total na turma {filtro_turma}", total_geral_turma)
+                with col2:
+                    st.metric(f"✅ Ativos na turma {filtro_turma}", total_ativos_turma)
+                with col3:
+                    st.metric("📋 Exibindo agora", len(df_view))
+            else:
+                # Contagem geral (todas as turmas)
+                total_geral = len(df_alunos)
+                
+                if "situacao" in df_alunos.columns:
+                    df_alunos_temp = df_alunos.copy()
+                    df_alunos_temp["situacao_norm"] = df_alunos_temp["situacao"].str.strip().str.title()
+                    total_ativos = len(df_alunos_temp[df_alunos_temp["situacao_norm"] == "Ativo"])
+                else:
+                    total_ativos = total_geral
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("👥 Total de Alunos", total_geral)
+                with col2:
+                    st.metric("✅ Alunos Ativos", total_ativos)
+                with col3:
+                    st.metric("📋 Exibindo agora", len(df_view))
             
             st.markdown("---")
             
             if df_view.empty:
                 st.info("📭 Nenhum aluno encontrado com os filtros selecionados.")
             else:
+                # Remover coluna temporária antes de exibir
+                if "situacao_norm" in df_view.columns:
+                    df_view = df_view.drop(columns=["situacao_norm"])
+                
                 colunas_exibir = [col for col in ["ra", "nome", "turma", "situacao", "data_nascimento"] if col in df_view.columns]
                 st.dataframe(df_view[colunas_exibir].sort_values(["turma", "nome"]), use_container_width=True)
                 
+                # Mostrar resumo por turma se estiver em "Todas"
+                if filtro_turma == "Todas":
+                    st.markdown("---")
+                    st.subheader("📊 Resumo por Turma")
+                    
+                    # Criar resumo com contagens corretas
+                    if "situacao" in df_alunos.columns:
+                        df_alunos_temp = df_alunos.copy()
+                        df_alunos_temp["situacao_norm"] = df_alunos_temp["situacao"].str.strip().str.title()
+                        
+                        resumo = df_alunos_temp.groupby("turma").agg(
+                            total=("ra", "count"),
+                            ativos=("situacao_norm", lambda x: (x == "Ativo").sum())
+                        ).reset_index()
+                    else:
+                        resumo = df_alunos.groupby("turma").agg(
+                            total=("ra", "count")
+                        ).reset_index()
+                        resumo["ativos"] = resumo["total"]
+                    
+                    resumo.columns = ["Turma", "Total", "Ativos"]
+                    st.dataframe(resumo.sort_values("Turma"), use_container_width=True)
+                
+                # Exportar
                 if st.button("📥 Exportar Lista (CSV)", key="btn_exportar_csv_lista"):
                     csv = df_view.to_csv(index=False, encoding='utf-8-sig')
                     st.download_button(
@@ -2920,20 +2985,35 @@ elif menu == "👥 Lista de Alunos":
         else:
             st.subheader("✏️ Editar ou Excluir Aluno")
             
-            df_busca = df_alunos[df_alunos["situacao"].str.contains("Ativo", case=False, na=False)] if "situacao" in df_alunos.columns else df_alunos
+            # Normalizar situação para busca
+            if "situacao" in df_alunos.columns:
+                df_alunos["situacao_norm"] = df_alunos["situacao"].str.strip().str.title()
+                df_busca = df_alunos[df_alunos["situacao_norm"] == "Ativo"]
+            else:
+                df_busca = df_alunos
             
             if df_busca.empty:
                 st.warning("⚠️ Nenhum aluno ATIVO encontrado. Mostrando todos.")
                 df_busca = df_alunos
             
-            aluno_busca = st.selectbox(
+            # Ordenar por turma e nome
+            df_busca = df_busca.sort_values(["turma", "nome"])
+            
+            # Criar lista formatada para selectbox
+            opcoes_alunos = []
+            for _, row in df_busca.iterrows():
+                opcoes_alunos.append(f"{row['nome']} - {row['turma']} (RA: {row['ra']})")
+            
+            aluno_selecionado = st.selectbox(
                 "Selecione o Aluno",
-                df_busca["nome"].tolist(),
+                opcoes_alunos,
                 key="aluno_editar"
             )
             
-            if aluno_busca:
-                aluno_info = df_alunos[df_alunos["nome"] == aluno_busca].iloc[0]
+            if aluno_selecionado:
+                # Extrair RA da opção selecionada
+                ra_selecionado = aluno_selecionado.split("(RA: ")[1].replace(")", "").strip()
+                aluno_info = df_alunos[df_alunos["ra"] == ra_selecionado].iloc[0]
                 
                 st.markdown("---")
                 st.subheader("📝 Editar Informações")
@@ -3007,7 +3087,10 @@ elif menu == "👥 Lista de Alunos":
                             if st.button("❌ Cancelar", key="cancel_excluir_aluno_tab3"):
                                 del st.session_state.confirmar_exclusao_aluno
                                 st.rerun()
-
+            
+            # Limpar coluna temporária
+            if "situacao_norm" in df_alunos.columns:
+                df_alunos = df_alunos.drop(columns=["situacao_norm"])
 # ======================================================
 # PÁGINA 📋 GERENCIAR TURMAS
 # ======================================================
