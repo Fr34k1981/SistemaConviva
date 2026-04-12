@@ -458,7 +458,7 @@ div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button {
     padding: 0.75rem 1rem !important;
     text-align: left !important;
     font-size: 0.95rem !important;
-    font-weight: 500 !important;
+    font-weight:500 !important;
     color: var(--gray) !important;
     width: 100% !important;
     transition: all 0.25s ease !important;
@@ -470,6 +470,27 @@ div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button {
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     min-height: 44px;
+    position: relative;
+}
+
+/* Remove o tooltip nativo do Streamlit */
+div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button::after,
+div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button::before {
+    display: none !important;
+    content: none !important;
+}
+
+/* Oculta o elemento de tooltip */
+.stButton > button > div[data-testid="stTooltipHoverTarget"] {
+    display: none !important;
+}
+
+div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button span {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    display: block !important;
+    max-width: 100% !important;
 }
 
 div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button:hover {
