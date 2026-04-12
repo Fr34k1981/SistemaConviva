@@ -1615,7 +1615,7 @@ def gerar_pdf_comunicado(aluno_data: dict, ocorrencia_data: dict, medidas_aplica
 # SESSION STATE — INICIALIZAÇÃO
 # ======================================================
 
-def _init_session_state():
+ddef _init_session_state():
     defaults = {
         "editando_id": None,
         "dados_edicao": None,
@@ -1647,6 +1647,9 @@ def _init_session_state():
         "pending_cancel_id": None,
         "pending_delete_id": None,
         "pending_delete_prof": None,
+        # ⭐ ADICIONAR ESTA LINHA:
+        "confirmar_exclusao_aluno": None,
+        "confirmar_exclusao_aluno": None,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
