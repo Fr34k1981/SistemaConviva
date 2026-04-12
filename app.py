@@ -1236,14 +1236,14 @@ PROTOCOLO_179 = {
 # FUNÇÕES UTILITÁRIAS PREMIUM
 # ======================================================
 
-def show_toast(message: str, type: str = "success", duration: int = 3000):
+def show_toast(message: str, toast_type: str = "success", duration: int = 3000):
     """Mostra notificação toast estilizada"""
-    icon = "✅" if type == "success" else "❌" if type == "error" else "⚠️" if type == "warning" else "ℹ️"
+    icon = "✅" if toast_type == "success" else "❌" if toast_type == "error" else "⚠️" if toast_type == "warning" else "ℹ️"
     st.toast(f"{icon} {message}")
 
-def info_message(message: str, type: str = "info"):
+def info_message(message: str, msg_type: str = "info"):
     """Mostra mensagem estilizada"""
-    box_class = f"{type}-box"
+    box_class = f"{msg_type}-box"
     st.markdown(f'<div class="{box_class} animate-slide-in">{message}</div>', unsafe_allow_html=True)
 
 def normalizar_texto(valor: str) -> str:
@@ -4499,8 +4499,8 @@ elif menu == "📅 Agendamento de Espaços":
     # FUNÇÕES AUXILIARES DO AGENDAMENTO
     # ======================================================
     
-    def show_toast(message: str, type: str = "success"):
-        icon = "✅" if type == "success" else "❌" if type == "error" else "⚠️" if type == "warning" else "ℹ️"
+    def show_toast(message: str, toast_type: str = "success"):
+        icon = "✅" if toast_type == "success" else "❌" if toast_type == "error" else "⚠️" if toast_type == "warning" else "ℹ️"
         st.toast(f"{icon} {message}")
     
     def get_disponibilidade_espaco(espaco, data, horario):
