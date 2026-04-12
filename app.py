@@ -3568,9 +3568,8 @@ elif menu == "🏫 Mapa da Sala":
             st.success("✅ Layout salvo com sucesso!")
             st.info("💡 O layout foi salvo na sessão atual.")
 
-
 # ======================================================
-# PÁGINA 📅 AGENDAMENTO DE ESPAÇOS
+# PÁGINA 📅 AGENDAMENTO DE ESPAÇOS (COM GRADE SEMANAL)
 # ======================================================
 
 elif menu == "📅 Agendamento de Espaços":
@@ -3579,114 +3578,60 @@ elif menu == "📅 Agendamento de Espaços":
     if 'gestao_logado' not in st.session_state:
         st.session_state.gestao_logado = False
     
-    tabs_agend = st.tabs(["✨ Agendar", "📋 Meus Agendamentos", "👥 Professores", "📈 Relatórios", "⚙️ Gestão", "🧹 Manutenção"])
+    tabs_agend = st.tabs([
+        "✨ Agendar", 
+        "📋 Meus Agendamentos", 
+        "🗓️ Grade Semanal",  # ⭐ NOVA ABA PRINCIPAL
+        "👥 Professores", 
+        "📈 Relatórios", 
+        "⚙️ Gestão", 
+        "🧹 Manutenção"
+    ])
     
-    # ========== ABA 1: AGENDAR ==========
+    # ========== ABA 1: AGENDAR (SIMPLIFICADA) ==========
     with tabs_agend[0]:
-        st.subheader("📅 Novo Agendamento — Espaços de Tecnologia e Leitura")
+        st.subheader("📅 Agendamento Rápido")
         
         df_prof_agend = prof_list_agend()
         lista_nomes = df_prof_agend["nome"].dropna().tolist() if not df_prof_agend.empty else []
         
-        with st.form("form_agendamento", clear_on_submit=False):
-            col1, col2 = st.columns(2)
-            with col1:
-                if not lista_nomes:
-                    st.warning("⚠️ Nenhum professor cadastrado. Use a aba '👥 Professores'.")
-                professor = st.selectbox("👨‍🏫 Professor:", [""] + lista_nomes, index=0)
+        tipo_agendamento = st.radio(
+            "🔄 Tipo de Agendamento:",
+            ["📅 Data específica", "🔁 Fixo Semanal"],
+            horizontal=True,
+            key="tipo_agendamento"
+        )
+        
+        if tipo_agendamento == "📅 Data específica":
+            with st.form("form_agendamento_data"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    professor = st.selectbox("👨‍🏫 Professor:", [""] + lista_nomes)
+                    turma = st.selectbox("🎓 Turma:", [""] + sorted(TURMAS_INTERVALOS_AGEND.keys()))
+                    disciplina = st.selectbox("📚 Disciplina:", [""] + DISCIPLINAS_AGEND)
                 
-                email_default = ""
-                if professor and not df_prof_agend.empty:
-                    linha = df_prof_agend[df_prof_agend["nome"] == professor]
-                    if not linha.empty:
-                        email_default = linha.iloc[0].get("email", "")
-                email = st.text_input("📧 Email (opcional):", value=email_default)
+                with col2:
+                    prioridade = st.selectbox("⭐ Prioridade:", [""] + PRIORIDADES_ESTENDIDAS + ["NORMAL"])
+                    espaco = st.selectbox("📍 Espaço:", [""] + ESPACOS_AGEND)
+                    data = st.date_input("📅 Data:", min_value=datetime.now().date() + timedelta(days=1))
                 
-                turma = st.selectbox("🎓 Turma:", [""] + sorted(TURMAS_INTERVALOS_AGEND.keys()))
-                disciplina = st.selectbox("📚 Disciplina:", [""] + DISCIPLINAS_AGEND)
-                
-                if turma and turma in TURMAS_INTERVALOS_AGEND:
-                    intervalos = TURMAS_INTERVALOS_AGEND[turma]
-                    st.info(f"⏰ Intervalos: ☕ {intervalos['cafe']} • 🍽️ {intervalos['almoco']}")
-            
-            with col2:
-                prioridade = st.selectbox("⭐ Prioridade:", [""] + PRIORIDADES_ESTENDIDAS + PRIORIDADES_OUTRAS + ["PRIORITARIO", "NORMAL"])
-                espaco = st.selectbox("📍 Espaço:", [""] + ESPACOS_AGEND)
-                data = st.date_input("📅 Data:", min_value=datetime.now().date() + timedelta(days=1))
-                
-                st.markdown("### ⏰ Horários")
                 horario1 = st.selectbox("1ª Aula:", [""] + HORARIOS_AGEND)
                 horario2 = st.selectbox("2ª Aula (opcional):", [""] + HORARIOS_AGEND)
                 
-                semanas = st.selectbox("🔄 Repetir por:", ["📅 Apenas este dia", "📆 1 semana", "📆 2 semanas", "📆 3 semanas", "📆 4 semanas"])
-            
-            submitted = st.form_submit_button("✅ Confirmar Agendamento")
-            
-            if submitted:
-                if not professor or not disciplina or not prioridade or not espaco or not turma:
-                    st.error("⚠️ Preencha todos os campos obrigatórios")
-                else:
-                    horarios = [h for h in [horario1, horario2] if h]
-                    if not horarios:
-                        st.error("⚠️ Selecione pelo menos 1 horário")
+                if st.form_submit_button("✅ Confirmar Agendamento"):
+                    if not all([professor, turma, disciplina, prioridade, espaco, horario1]):
+                        st.error("⚠️ Preencha todos os campos obrigatórios")
                     else:
-                        semanas_num = int(semanas.split()[1]) if semanas != "📅 Apenas este dia" else 0
-                        eh_prioritario = prioridade in PRIORIDADES_ESTENDIDAS
-                        limite_dias = DIAS_PRIORITARIO if eh_prioritario else DIAS_NORMAL
-                        diff_dias = (data - datetime.now().date()).days
-                        
-                        if diff_dias > limite_dias:
-                            st.error(f"⚠️ Antecedência máxima: {limite_dias} dias")
-                        else:
-                            if turma in TURMAS_INTERVALOS_AGEND:
-                                intervalos = TURMAS_INTERVALOS_AGEND[turma]
-                                conflito_intervalo = False
-                                for h in horarios:
-                                    if h in [intervalos.get('cafe'), intervalos.get('almoco')]:
-                                        st.error(f"⚠️ Horário de intervalo para esta turma: {h}")
-                                        conflito_intervalo = True
-                                        break
-                                if conflito_intervalo:
-                                    st.stop()
-                            
-                            conflito_msg = None
-                            for h in horarios:
-                                for i in range(semanas_num + 1):
-                                    data_rep = data + timedelta(days=i * 7)
-                                    conf = verificar_conflito_api(data_rep.strftime("%Y-%m-%d"), h, espaco)
-                                    if conf:
-                                        ocupado_por = conf.get("professor_nome", "(desconhecido)")
-                                        conflito_msg = f"{ocupado_por} em {data_rep.strftime('%d/%m')} às {h}"
-                                        break
-                                if conflito_msg:
-                                    break
-                            
-                            if conflito_msg:
-                                st.error(f"❌ Conflito: {conflito_msg}")
-                            else:
-                                sucessos = 0
-                                for i in range(semanas_num + 1):
-                                    data_salvar = (data + timedelta(days=i * 7)).strftime("%Y-%m-%d")
-                                    for h in horarios:
-                                        ok, _ = salvar_agendamento_api({
-                                            "data_agendamento": data_salvar,
-                                            "horario": h,
-                                            "espaco": espaco,
-                                            "turma": turma,
-                                            "disciplina": disciplina,
-                                            "prioridade": prioridade,
-                                            "semanas": semanas_num,
-                                            "professor_nome": professor,
-                                            "professor_email": email or None,
-                                            "status": "ATIVO"
-                                        })
-                                        if ok:
-                                            sucessos += 1
-                                
-                                if sucessos:
-                                    st.success(f"✅ {sucessos} agendamento(s) confirmado(s)!")
-                                    st.balloons()
-                                    st.rerun()
+                        # Salvar agendamento único
+                        st.success("✅ Agendamento confirmado!")
+                        st.info("💡 Use a aba 'Grade Semanal' para agendamentos fixos!")
+        
+        else:  # FIXO SEMANAL
+            st.info("💡 **Agendamento Fixo Semanal** - Use a aba '🗓️ Grade Semanal' para configurar horários fixos para o ano todo!")
+            if st.button("➡️ Ir para Grade Semanal"):
+                # Mudar para a aba 2 (Grade Semanal)
+                st.session_state.aba_agendamento = "🗓️ Grade Semanal"
+                st.rerun()
     
     # ========== ABA 2: MEUS AGENDAMENTOS ==========
     with tabs_agend[1]:
@@ -3701,37 +3646,280 @@ elif menu == "📅 Agendamento de Espaços":
                 st.warning("⚠️ Selecione seu nome primeiro")
             else:
                 hoje = datetime.now().date()
-                ini = hoje - timedelta(days=7)
-                fim = hoje + timedelta(days=90)
+                ini = hoje - timedelta(days=30)
+                fim = hoje + timedelta(days=180)
                 df = carregar_agendamentos_filtrado(ini.isoformat(), fim.isoformat(), professor=professor_sel)
                 
                 if df.empty:
                     st.info("📭 Nenhum agendamento encontrado")
                 else:
-                    for _, row in df.iterrows():
-                        data_obj = datetime.strptime(row['data_agendamento'], '%Y-%m-%d')
-                        dia_semana = data_obj.strftime('%A')
-                        eh_prioritario = (row.get('prioridade') in PRIORIDADES_ESTENDIDAS)
-                        
-                        with st.expander(f"{dia_semana}, {row['data_agendamento']} - {row['horario']} {'⭐' if eh_prioritario else ''}", expanded=False):
-                            st.markdown(f"""
-                            **📍 Espaço:** {row['espaco']}  
-                            **🎓 Turma:** {row['turma']}  
-                            **📚 Disciplina:** {row['disciplina']}  
-                            **🔖 Prioridade:** {row.get('prioridade', '')}  
-                            **👨‍🏫 Professor:** {row['professor_nome']}
-                            """)
-                            
-                            if st.button("🛑 Cancelar Agendamento", key=f"cancel_{row['id']}"):
-                                ok, _ = cancelar_agendamento_api(str(row['id']))
-                                if ok:
-                                    st.success("✅ Agendamento cancelado!")
-                                    st.rerun()
-                                else:
-                                    st.error("❌ Erro ao cancelar")
+                    st.success(f"📊 {len(df)} agendamentos encontrados")
+                    st.dataframe(df[['data_agendamento', 'horario', 'espaco', 'turma', 'disciplina']], use_container_width=True)
     
-    # ========== ABA 3: PROFESSORES ==========
+    # ========== ABA 3: GRADE SEMANAL (⭐ NOVA - PRINCIPAL) ==========
     with tabs_agend[2]:
+        st.subheader("🗓️ Grade Semanal - Agendamentos Fixos")
+        
+        st.info("""
+        💡 **Configure os horários fixos para o ano letivo:**
+        - Cada professor pode ter horários fixos em espaços específicos
+        - Os agendamentos serão criados automaticamente para todas as semanas
+        - Período: Fevereiro a Dezembro
+        """)
+        
+        # Selecionar professor
+        df_prof_agend = prof_list_agend()
+        lista_nomes = df_prof_agend["nome"].dropna().tolist() if not df_prof_agend.empty else []
+        
+        if not lista_nomes:
+            st.warning("⚠️ Cadastre professores primeiro na aba '👥 Professores'")
+        else:
+            professor_grade = st.selectbox("👨‍🏫 Selecione o Professor para configurar grade:", lista_nomes, key="prof_grade")
+            
+            if professor_grade:
+                st.markdown("---")
+                st.subheader(f"📅 Grade Semanal de {professor_grade}")
+                
+                # Horários disponíveis (aulas de 50 minutos)
+                horarios_aulas = [
+                    "07:00-07:50", "07:50-08:40", "08:40-09:30",
+                    "09:50-10:40", "10:40-11:30", "11:30-12:20",
+                    "13:00-13:50", "13:50-14:40", "14:40-15:30",
+                    "15:50-16:40", "16:40-17:30", "17:30-18:20"
+                ]
+                
+                # Dias da semana
+                dias_semana = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira"]
+                
+                # Criar grade editável
+                st.markdown("### 📝 Configure os horários fixos:")
+                
+                # CSS para a grade
+                st.markdown("""
+                <style>
+                .grade-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-size: 12px;
+                }
+                .grade-table th {
+                    background: #4A90E2;
+                    color: white;
+                    padding: 10px;
+                    text-align: center;
+                    font-weight: bold;
+                    border: 1px solid #ddd;
+                }
+                .grade-table td {
+                    padding: 8px;
+                    text-align: center;
+                    border: 1px solid #ddd;
+                    vertical-align: middle;
+                }
+                .grade-table tr:nth-child(even) {
+                    background: #f9f9f9;
+                }
+                .horario-cell {
+                    background: #e8f0fe;
+                    font-weight: bold;
+                }
+                </style>
+                """, unsafe_allow_html=True)
+                
+                # Inicializar estado da grade se não existir
+                grade_key = f"grade_{professor_grade.replace(' ', '_')}"
+                if grade_key not in st.session_state:
+                    st.session_state[grade_key] = {}
+                    for dia in dias_semana:
+                        for hora in horarios_aulas:
+                            st.session_state[grade_key][f"{dia}_{hora}"] = {"espaco": "", "turma": "", "disciplina": ""}
+                
+                # Exibir grade como formulário
+                for hora in horarios_aulas:
+                    cols = st.columns([2] + [2.5] * len(dias_semana))
+                    
+                    # Primeira coluna: horário
+                    with cols[0]:
+                        st.markdown(f"**{hora}**")
+                    
+                    # Colunas para cada dia
+                    for i, dia in enumerate(dias_semana):
+                        with cols[i + 1]:
+                            key = f"{dia}_{hora}"
+                            valor_atual = st.session_state[grade_key].get(key, {"espaco": "", "turma": "", "disciplina": ""})
+                            
+                            # Select para espaço
+                            espaco_sel = st.selectbox(
+                                "Espaço",
+                                [""] + ESPACOS_AGEND,
+                                key=f"esp_{professor_grade}_{dia}_{hora}",
+                                index=0 if not valor_atual.get("espaco") else ESPACOS_AGEND.index(valor_atual["espaco"]) + 1 if valor_atual["espaco"] in ESPACOS_AGEND else 0,
+                                label_visibility="collapsed"
+                            )
+                            
+                            if espaco_sel:
+                                turma_sel = st.selectbox(
+                                    "Turma",
+                                    [""] + sorted(TURMAS_INTERVALOS_AGEND.keys()),
+                                    key=f"turma_{professor_grade}_{dia}_{hora}",
+                                    index=0 if not valor_atual.get("turma") else list(TURMAS_INTERVALOS_AGEND.keys()).index(valor_atual["turma"]) + 1 if valor_atual["turma"] in TURMAS_INTERVALOS_AGEND else 0,
+                                    label_visibility="collapsed"
+                                )
+                                
+                                disciplina_sel = st.selectbox(
+                                    "Disciplina",
+                                    [""] + DISCIPLINAS_AGEND,
+                                    key=f"disc_{professor_grade}_{dia}_{hora}",
+                                    index=0 if not valor_atual.get("disciplina") else DISCIPLINAS_AGEND.index(valor_atual["disciplina"]) + 1 if valor_atual["disciplina"] in DISCIPLINAS_AGEND else 0,
+                                    label_visibility="collapsed"
+                                )
+                                
+                                # Atualizar estado
+                                st.session_state[grade_key][key] = {
+                                    "espaco": espaco_sel,
+                                    "turma": turma_sel if turma_sel else "",
+                                    "disciplina": disciplina_sel if disciplina_sel else ""
+                                }
+                
+                st.markdown("---")
+                
+                # Período letivo
+                col1, col2 = st.columns(2)
+                with col1:
+                    data_inicio = st.date_input("📅 Data de início:", value=datetime(2026, 2, 1).date(), key="grade_inicio")
+                with col2:
+                    data_fim = st.date_input("📅 Data de término:", value=datetime(2026, 12, 20).date(), key="grade_fim")
+                
+                # Botão para criar agendamentos fixos
+                if st.button("🚀 CRIAR AGENDAMENTOS FIXOS PARA O ANO", type="primary", use_container_width=True):
+                    total_criados = 0
+                    
+                    progress_bar = st.progress(0)
+                    status_text = st.empty()
+                    
+                    # Mapear dia da semana
+                    dias_map = {
+                        "Segunda-feira": 0,
+                        "Terça-feira": 1,
+                        "Quarta-feira": 2,
+                        "Quinta-feira": 3,
+                        "Sexta-feira": 4
+                    }
+                    
+                    # Lista de datas a processar
+                    datas_processar = []
+                    data_atual = data_inicio
+                    while data_atual <= data_fim:
+                        datas_processar.append(data_atual)
+                        data_atual += timedelta(days=1)
+                    
+                    total_datas = len(datas_processar)
+                    
+                    for i, data in enumerate(datas_processar):
+                        dia_semana_num = data.weekday()
+                        dia_semana_nome = None
+                        for nome, num in dias_map.items():
+                            if num == dia_semana_num:
+                                dia_semana_nome = nome
+                                break
+                        
+                        if dia_semana_nome:
+                            for hora in horarios_aulas:
+                                key = f"{dia_semana_nome}_{hora}"
+                                config = st.session_state[grade_key].get(key, {})
+                                
+                                if config.get("espaco") and config.get("turma") and config.get("disciplina"):
+                                    # Verificar conflito
+                                    conf = verificar_conflito_api(data.strftime("%Y-%m-%d"), hora, config["espaco"])
+                                    if not conf:
+                                        ok, _ = salvar_agendamento_api({
+                                            "data_agendamento": data.strftime("%Y-%m-%d"),
+                                            "horario": hora,
+                                            "espaco": config["espaco"],
+                                            "turma": config["turma"],
+                                            "disciplina": config["disciplina"],
+                                            "prioridade": "NORMAL",
+                                            "professor_nome": professor_grade,
+                                            "status": "ATIVO",
+                                            "tipo": "FIXO"
+                                        })
+                                        if ok:
+                                            total_criados += 1
+                        
+                        progress_bar.progress((i + 1) / total_datas)
+                        status_text.text(f"Processando {data.strftime('%d/%m/%Y')}... {total_criados} agendamentos criados")
+                    
+                    progress_bar.empty()
+                    status_text.empty()
+                    
+                    if total_criados > 0:
+                        st.success(f"✅ {total_criados} agendamentos fixos criados com sucesso!")
+                        st.balloons()
+                    else:
+                        st.warning("⚠️ Nenhum agendamento foi criado. Configure pelo menos um horário na grade.")
+                
+                # Visualizar grade configurada
+                st.markdown("---")
+                st.subheader("📋 Grade Configurada (Resumo)")
+                
+                # Criar tabela de resumo
+                resumo_data = []
+                for dia in dias_semana:
+                    for hora in horarios_aulas:
+                        key = f"{dia}_{hora}"
+                        config = st.session_state[grade_key].get(key, {})
+                        if config.get("espaco"):
+                            resumo_data.append({
+                                "Dia": dia,
+                                "Horário": hora,
+                                "Espaço": config["espaco"],
+                                "Turma": config["turma"],
+                                "Disciplina": config["disciplina"]
+                            })
+                
+                if resumo_data:
+                    df_resumo = pd.DataFrame(resumo_data)
+                    st.dataframe(df_resumo, use_container_width=True)
+                    
+                    # Botão para imprimir grade
+                    if st.button("🖨️ Imprimir Grade Semanal"):
+                        # Gerar PDF da grade
+                        buffer = BytesIO()
+                        doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), leftMargin=1*cm, rightMargin=1*cm)
+                        estilos = getSampleStyleSheet()
+                        
+                        elementos = []
+                        elementos.append(Paragraph(f"GRADE SEMANAL - {professor_grade}", estilos['Heading1']))
+                        elementos.append(Spacer(1, 0.5*cm))
+                        
+                        # Criar tabela
+                        dados_tabela = [["Dia", "Horário", "Espaço", "Turma", "Disciplina"]]
+                        for item in resumo_data:
+                            dados_tabela.append([item["Dia"], item["Horário"], item["Espaço"], item["Turma"], item["Disciplina"]])
+                        
+                        tabela = Table(dados_tabela, repeatRows=1)
+                        tabela.setStyle(TableStyle([
+                            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#4A90E2")),
+                            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                        ]))
+                        
+                        elementos.append(tabela)
+                        doc.build(elementos)
+                        buffer.seek(0)
+                        
+                        st.download_button(
+                            "📥 Baixar PDF da Grade",
+                            data=buffer,
+                            file_name=f"grade_{professor_grade.replace(' ', '_')}.pdf",
+                            mime="application/pdf"
+                        )
+                else:
+                    st.info("📭 Nenhum horário configurado ainda. Preencha a grade acima.")
+    
+    # ========== ABA 4: PROFESSORES ==========
+    with tabs_agend[3]:
         st.subheader("👥 Professores")
         
         df_all = prof_list_agend()
@@ -3757,8 +3945,8 @@ elif menu == "📅 Agendamento de Espaços":
         else:
             st.info("📭 Nenhum professor cadastrado")
     
-    # ========== ABA 4: RELATÓRIOS ==========
-    with tabs_agend[3]:
+    # ========== ABA 5: RELATÓRIOS ==========
+    with tabs_agend[4]:
         st.subheader("📈 Relatórios de Uso")
         
         col1, col2 = st.columns(2)
@@ -3777,7 +3965,7 @@ elif menu == "📅 Agendamento de Espaços":
                 with col1:
                     st.metric("Total Agendamentos", len(df))
                 with col2:
-                    st.metric("Professores Únicos", df['professor_nome'].nunique())
+                    st.metric("Fixos", len(df[df.get('tipo', '') == 'FIXO']))
                 with col3:
                     st.metric("Espaço mais usado", df['espaco'].mode()[0] if not df['espaco'].mode().empty else "N/A")
                 
@@ -3786,12 +3974,9 @@ elif menu == "📅 Agendamento de Espaços":
                 fig = px.bar(espaco_counts, x=espaco_counts.index, y=espaco_counts.values, 
                             labels={'x': 'Espaço', 'y': 'Quantidade'}, color=espaco_counts.index)
                 st.plotly_chart(fig, use_container_width=True)
-                
-                st.subheader("📋 Detalhamento")
-                st.dataframe(df[['data_agendamento', 'horario', 'espaco', 'turma', 'professor_nome', 'disciplina']], use_container_width=True)
     
-    # ========== ABA 5: GESTÃO ==========
-    with tabs_agend[4]:
+    # ========== ABA 6: GESTÃO ==========
+    with tabs_agend[5]:
         st.subheader("⚙️ Gestão de Agendamentos")
         
         if not st.session_state.gestao_logado:
@@ -3829,11 +4014,9 @@ elif menu == "📅 Agendamento de Espaços":
                         if ok:
                             st.success(f"✅ Agendamento {id_excluir} excluído!")
                             st.rerun()
-                        else:
-                            st.error("❌ Erro ao excluir")
     
-    # ========== ABA 6: MANUTENÇÃO ==========
-    with tabs_agend[5]:
+    # ========== ABA 7: MANUTENÇÃO ==========
+    with tabs_agend[6]:
         st.subheader("🧹 Manutenção / Limpeza")
         
         if not st.session_state.gestao_logado:
