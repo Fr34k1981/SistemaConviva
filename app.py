@@ -178,6 +178,45 @@ button, div, span, a {
 }
 
 /* ============================================ */
+/* ========== CORREÇÃO DE TEXTO ILEGÍVEL NA SIDEBAR ========== */
+/* ============================================ */
+
+/* Remove completamente qualquer overlay/popover na sidebar */
+[data-testid="stSidebar"] [role="dialog"],
+[data-testid="stSidebar"] [role="menu"],
+[data-testid="stSidebar"] [role="navigation"] > div > div,
+div[class*="StyledSidebarContent"] [class*="PopoverContent"],
+div[class*="StyledSidebarContent"] [class*="Popover"],
+div[class*="MenuContent"],
+[data-baseweb="popover"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* Remove texto flutuante/ilegível */
+[data-testid="stSidebar"] div[style*="z-index"],
+[data-testid="stSidebar"] span[style*="position"],
+div[class*="StyledNavigation"] [class*="Tooltip"],
+div[class*="StyledNavigation"] [class*="Popover"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+}
+
+/* Garante que o menu nunca ultrapasse os limites */
+[data-testid="stSidebar"] {
+    overflow: hidden !important;
+    position: relative !important;
+    z-index: 10 !important;
+}
+
+[data-testid="stSidebar"] > div {
+    overflow: hidden !important;
+}
+
+/* ============================================ */
 /* ========== CORREÇÃO DE QUEBRA DE TEXTO ========== */
 /* ============================================ */
 h1, h2, h3, h4, h5, h6, p, span, div, label, li, button, a, .stMarkdown, .stText, .stCaption {
