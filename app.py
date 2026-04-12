@@ -1638,21 +1638,29 @@ def carregar_agendamentos_filtrado(data_ini: str, data_fim: str, espaco: str = N
     try:
         base = "/rest/v1/agendamentos?select=id,data_agendamento,horario,espaco,turma,disciplina,prioridade,semanas,professor_nome,professor_email,status,tipo&order=data_agendamento.asc,horario.asc"
         filtros = f"&data_agendamento=gte.{data_ini}&data_agendamento=lte.{data_fim}"
+        
         if espaco and espaco in ESPACOS_AGEND:
             filtros += f"&espaco=eq.{espaco}"
+        
         if professor:
-            filtros += f"&professor_nome=eq.{professor}"
+            # Codificar o nome do professor corretamente para a URL (com aspas)
+            professor_encoded = professor.replace(" ", "%20")
+            filtros += f'&professor_nome=eq."{professor_encoded}"'
+        
         rows = _rest_get_agend(base + filtros)
         return pd.DataFrame(rows) if rows else pd.DataFrame()
+        
     except Exception as e:
         st.warning(f"Falha ao consultar agendamentos: {e}")
         return pd.DataFrame()
+
 
 def _rest_get_agend(path: str, params: dict = None, timeout: int = 20):
     url = f"{SUPABASE_URL}{path}"
     r = requests.get(url, headers=HEADERS, params=params or {}, timeout=timeout)
     r.raise_for_status()
     return r.json()
+
 
 def salvar_agendamento_api(dados: dict):
     url = f"{SUPABASE_URL}/rest/v1/agendamentos"
@@ -1661,15 +1669,18 @@ def salvar_agendamento_api(dados: dict):
         return False, f"{r.status_code} - {r.text}"
     return True, r.json()
 
+
 def cancelar_agendamento_api(id_agend: str):
     url = f"{SUPABASE_URL}/rest/v1/agendamentos?id=eq.{id_agend}"
     r = requests.patch(url, json={"status": "CANCELADO"}, headers=HEADERS, timeout=20)
     return r.status_code in (200, 204), None
 
+
 def excluir_agendamento_api(id_agend: str):
     url = f"{SUPABASE_URL}/rest/v1/agendamentos?id=eq.{id_agend}"
     r = requests.patch(url, json={"status": "EXCLUIDO_GESTAO"}, headers=HEADERS, timeout=20)
     return r.status_code in (200, 204), None
+
 
 def verificar_conflito_api(data_yyyy_mm_dd: str, horario: str, espaco: str):
     try:
@@ -1679,16 +1690,18 @@ def verificar_conflito_api(data_yyyy_mm_dd: str, horario: str, espaco: str):
     except Exception:
         return None
 
+
 def prof_list_agend(only_active: bool = True) -> pd.DataFrame:
     try:
         path = "/rest/v1/professores?select=id,nome,email,cargo&order=nome.asc"
         rows = _rest_get_agend(path)
-        df = pd.DataFrame(rows) if rows else pd.DataFrame(columns=["id","nome","email","cargo"])
+        df = pd.DataFrame(rows) if rows else pd.DataFrame(columns=["id", "nome", "email", "cargo"])
         if not df.empty and 'cargo' in df.columns:
             df['status'] = 'ATIVO'
         return df
     except Exception:
-        return pd.DataFrame(columns=["id","nome","email","cargo","status"])
+        return pd.DataFrame(columns=["id", "nome", "email", "cargo", "status"])
+
 
 def prof_upsert_agend(nome: str, email: str, status: str = "ATIVO"):
     payload = {"nome": (nome or "").strip(), "email": (email or "").strip(), "cargo": "Professor"}
