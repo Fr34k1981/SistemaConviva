@@ -1991,28 +1991,12 @@ def gerar_pdf_comunicado(aluno_data: dict, ocorrencia_data: dict, medidas_aplica
     buffer.seek(0)
     return buffer
 # ======================================================
-# SESSION STATE — INICIALIZAÇÃO
+# SESSION STATE — INICIALIZAÇÃO (CORRIGIDO)
 # ======================================================
 
 def _init_session_state():
     defaults = {
-def _init_session_state():
-    defaults = {
-        # ... (mantenha todos os existentes)
-        "editando_id": None,
-        "dados_edicao": None,
-        # ...
-        
-        # ⭐ NOVOS PARA GAMIFICAÇÃO
-        "pontos_usuario": 0,
-        "conquistas_usuario": [],
-        "nivel_usuario": 1,
-        "registros_ocorrencias": 0,
-        "agendamentos_criados": 0,
-    }
-    for key, value in defaults.items():
-        if key not in st.session_state:
-            st.session_state[key] = value
+        # Estados de Edição/Ocorrências
         "editando_id": None,
         "dados_edicao": None,
         "ocorrencia_salva_sucesso": False,
@@ -2020,37 +2004,63 @@ def _init_session_state():
         "gravidade_alterada": False,
         "adicionar_outra_infracao": False,
         "infracoes_adicionais": [],
+        "mensagem_exclusao": None,
+        
+        # Estados de Professores
         "editando_prof": None,
         "professor_salvo_sucesso": False,
         "nome_professor_salvo": "",
         "cargo_professor_salvo": "",
+        "confirmar_exclusao_prof": None,
+        
+        # Estados de Responsáveis
         "editando_resp": None,
         "responsavel_salvo_sucesso": False,
         "nome_responsavel_salvo": "",
         "cargo_responsavel_salvo": "",
+        "confirmar_exclusao_resp": None,
+        
+        # Estados de Turmas
         "turma_para_editar": None,
         "turma_para_deletar": None,
         "turma_para_substituir": None,
         "turma_selecionada": None,
         "senha_exclusao_validada": False,
+        "confirmar_exclusao_aluno": None,
+        
+        # Estados de Eletivas
         "ELETIVAS": None,
         "FONTE_ELETIVAS": None,
+        
+        # Estados de Backup
         "backup_manager": None,
         "backup_realizado": False,
-        # Agendamento
+        
+        # Estados de Agendamento
         "gestao_logado": False,
         "aba_agendamento": "✨ Agendar",
         "pending_cancel_id": None,
         "pending_delete_id": None,
         "pending_delete_prof": None,
-        "confirmar_exclusao_aluno": None,
         "logs_agendamento": [],
+        
+        # ⭐ NOVOS PARA GAMIFICAÇÃO
+        "pontos_usuario": 0,
+        "conquistas_usuario": [],
+        "nivel_usuario": 1,
+        "registros_ocorrencias": 0,
+        "agendamentos_criados": 0,
+        
+        # Navegação
         "menu_selecionado": "🏠 Dashboard",
+        "pagina_atual": "🏠 Dashboard",
     }
+    
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
 
+# Inicializa o estado da sessão
 _init_session_state()
 
 # ======================================================
