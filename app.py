@@ -2075,15 +2075,7 @@ if not st.session_state.backup_realizado:
         st.session_state.backup_manager.criar_backup()
         st.session_state.backup_manager.limpar_backups_antigos(dias_retencao=30)
         st.session_state.backup_realizado = True
-    except Exception as e:
-        logger.error(f"Erro ao executar backup automático: {e}")
-
-        if not st.session_state.backup_realizado:
-    try:
-        st.session_state.backup_manager.criar_backup()
-        st.session_state.backup_manager.limpar_backups_antigos(dias_retencao=30)
-        st.session_state.backup_realizado = True
-        verificar_conquista("backup_realizado")  # ⭐ ADICIONE ESTA LINHA
+        verificar_conquista("backup_realizado")  # ⭐ Conquista por fazer backup
     except Exception as e:
         logger.error(f"Erro ao executar backup automático: {e}")
 
