@@ -1156,6 +1156,269 @@ def buscar_infracao_fuzzy(busca: str, protocolo: dict) -> dict:
         if encontradas:
             resultados[grupo] = encontradas
     return resultados
+
+# ======================================================
+# SISTEMA DE NOTIFICAÇÕES
+# ======================================================
+
+def obter_notificacoes():
+    """Retorna notificações baseadas em eventos importantes"""
+    notificacoes = []
+    
+    # 1. Ocorrências graves nas últimas 24h
+    if not df_ocorrencias.empty and 'data' in df_ocorrencias.columns:
+        try:
+            df_ocorrencias['data_dt'] = pd.to_datetime(df_ocorrencias['data'], format='%d/%m/%Y %H:%M', errors='coerce')
+            df_recentes = df_ocorrencias[df_ocorrencias['data_dt'] >= datetime.now() - timedelta(hours=24)]
+            graves = df_recentes[df_recentes['gravidade'].isin(['Grave', 'Gravíssima'])]
+            
+            if not graves.empty:
+                notificacoes.append({
+                    "icone": "🚨",
+                    "cor": "#ef4444",
+                    "titulo": "Ocorrências Graves",
+                    "texto": f"{len(graves)} ocorrências graves nas últimas 24h"
+                })
+        except:
+            pass
+    
+    # 2. Alunos com muitas ocorrências (alerta de risco)
+    if not df_ocorrencias.empty:
+        try:
+            df_ocorrencias['data_dt'] = pd.to_datetime(df_ocorrencias['data'], format='%d/%m/%Y %H:%M', errors='coerce')
+            ultimos_60_dias = df_ocorrencias[df_ocorrencias['data_dt'] >= datetime.now() - timedelta(days=60)]
+            contagem = ultimos_60_dias['aluno'].value_counts()
+            alunos_criticos = contagem[contagem >= 3].index.tolist()
+            
+            if alunos_criticos:
+                notificacoes.append({
+                    "icone": "⚠️",
+                    "cor": "#f59e0b",
+                    "titulo": "Alunos em Risco",
+                    "texto": f"{len(alunos_criticos)} alunos com 3+ ocorrências em 60 dias"
+                })
+        except:
+            pass
+    
+    # 3. Agendamentos para hoje
+    try:
+        hoje = datetime.now().strftime("%Y-%m-%d")
+        df_hoje = carregar_agendamentos_filtrado(hoje, hoje)
+        if not df_hoje.empty:
+            notificacoes.append({
+                "icone": "📅",
+                "cor": "#3b82f6",
+                "titulo": "Agendamentos Hoje",
+                "texto": f"{len(df_hoje)} agendamentos para hoje"
+            })
+    except:
+        pass
+    
+    return notificacoes
+
+
+def exibir_notificacoes_sidebar():
+    """Exibe as notificações no sidebar"""
+    notificacoes = obter_notificacoes()
+    
+    if notificacoes:
+        with st.sidebar.expander(f"🔔 Notificações ({len(notificacoes)})", expanded=True):
+            for n in notificacoes:
+                st.markdown(f"""
+                <div style="background: {n['cor']}10; 
+                            border-left: 4px solid {n['cor']}; 
+                            border-radius: 8px; 
+                            padding: 0.75rem; 
+                            margin: 0.5rem 0;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="font-size: 1.25rem;">{n['icone']}</span>
+                        <div>
+                            <b style="color: {n['cor']};">{n['titulo']}</b><br>
+                            <span style="font-size: 0.8rem; color: #64748b;">{n['texto']}</span>
+                        </div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+    else:
+        with st.sidebar.expander("🔔 Notificações", expanded=False):
+            st.success("✅ Nenhuma notificação pendente")
+
+            # ======================================================
+# SISTEMA DE GAMIFICAÇÃO
+# ======================================================
+
+# Conquistas disponíveis
+CONQUISTAS = {
+    "primeiro_registro": {
+        "nome": "🆕 Primeiro Registro",
+        "descricao": "Registrou a primeira ocorrência",
+        "pontos": 10,
+        "icone": "🌟"
+    },
+    "10_ocorrencias": {
+        "nome": "📝 Repórter Escolar",
+        "descricao": "Registrou 10 ocorrências",
+        "pontos": 50,
+        "icone": "📋"
+    },
+    "50_ocorrencias": {
+        "nome": "📊 Analista de Ocorrências",
+        "descricao": "Registrou 50 ocorrências",
+        "pontos": 100,
+        "icone": "📈"
+    },
+    "turma_completa": {
+        "nome": "🏫 Gestor de Turma",
+        "descricao": "Cadastrou uma turma completa",
+        "pontos": 30,
+        "icone": "👥"
+    },
+    "agendamento_perfeito": {
+        "nome": "📅 Organizador",
+        "descricao": "Criou 5 agendamentos",
+        "pontos": 20,
+        "icone": "🗓️"
+    },
+    "backup_realizado": {
+        "nome": "💾 Guardião dos Dados",
+        "descricao": "Realizou backup do sistema",
+        "pontos": 40,
+        "icone": "🛡️"
+    }
+}
+
+
+def inicializar_gamificacao():
+    """Inicializa o estado da gamificação"""
+    if 'pontos_usuario' not in st.session_state:
+        st.session_state.pontos_usuario = 0
+    if 'conquistas_usuario' not in st.session_state:
+        st.session_state.conquistas_usuario = []
+    if 'nivel_usuario' not in st.session_state:
+        st.session_state.nivel_usuario = 1
+    if 'registros_ocorrencias' not in st.session_state:
+        st.session_state.registros_ocorrencias = 0
+    if 'agendamentos_criados' not in st.session_state:
+        st.session_state.agendamentos_criados = 0
+
+
+def adicionar_pontos(pontos: int, motivo: str = ""):
+    """Adiciona pontos ao usuário"""
+    st.session_state.pontos_usuario += pontes
+    recalcular_nivel()
+    if motivo:
+        st.toast(f"+{pontos} pontos! {motivo}", icon="🌟")
+
+
+def recalcular_nivel():
+    """Recalcula o nível baseado nos pontos"""
+    pontos = st.session_state.pontos_usuario
+    if pontos >= 500:
+        st.session_state.nivel_usuario = 5
+    elif pontos >= 300:
+        st.session_state.nivel_usuario = 4
+    elif pontos >= 150:
+        st.session_state.nivel_usuario = 3
+    elif pontos >= 50:
+        st.session_state.nivel_usuario = 2
+    else:
+        st.session_state.nivel_usuario = 1
+
+
+def get_nivel_nome(nivel: int) -> str:
+    """Retorna o nome do nível"""
+    niveis = {
+        1: "🌱 Iniciante",
+        2: "📚 Aprendiz",
+        3: "⭐ Experiente",
+        4: "🏆 Mestre",
+        5: "👑 Lendário"
+    }
+    return niveis.get(nivel, "🌱 Iniciante")
+
+
+def verificar_conquista(conquista_id: str):
+    """Verifica e concede uma conquista"""
+    if conquista_id not in st.session_state.conquistas_usuario:
+        conquista = CONQUISTAS[conquista_id]
+        st.session_state.conquistas_usuario.append(conquista_id)
+        adicionar_pontos(conquista["pontos"], f"Conquista: {conquista['nome']}")
+        st.balloons()
+        return True
+    return False
+
+
+def exibir_gamificacao_sidebar():
+    """Exibe o widget de gamificação no sidebar"""
+    inicializar_gamificacao()
+    
+    with st.sidebar.expander(f"🏆 Nível {st.session_state.nivel_usuario} - {get_nivel_nome(st.session_state.nivel_usuario)}", expanded=False):
+        pontos = st.session_state.pontos_usuario
+        proximo_nivel = st.session_state.nivel_usuario * 100
+        progresso = (pontos % 100) if pontos > 0 else 0
+        
+        st.markdown(f"""
+        <div style="text-align: center; margin: 0.5rem 0;">
+            <div style="font-size: 2rem;">{get_nivel_nome(st.session_state.nivel_usuario).split()[1]}</div>
+            <div style="font-size: 1.5rem; font-weight: 700;">{pontos} pts</div>
+            <div style="margin-top: 0.5rem; height: 8px; background: #e2e8f0; border-radius: 4px;">
+                <div style="width: {progresso}%; height: 8px; background: linear-gradient(135deg, #6366f1, #ec4899); border-radius: 4px;"></div>
+            </div>
+            <div style="font-size: 0.7rem; color: #64748b; margin-top: 0.25rem;">{progresso}/100 para próximo nível</div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("**🏅 Conquistas:**")
+        if st.session_state.conquistas_usuario:
+            for c_id in st.session_state.conquistas_usuario[:5]:
+                if c_id in CONQUISTAS:
+                    c = CONQUISTAS[c_id]
+                    st.markdown(f"{c['icone']} {c['nome']}")
+        else:
+            st.caption("Continue usando o sistema para ganhar conquistas!")
+
+            # ======================================================
+# ASSISTENTE VIRTUAL
+# ======================================================
+
+def assistente_virtual(pergunta: str) -> str:
+    """Responde perguntas frequentes sobre o sistema"""
+    respostas = {
+        "como registrar ocorrência": "Vá em '📝 Registrar Ocorrência', selecione a turma, o aluno e use a busca inteligente para encontrar a infração.",
+        "como importar alunos": "Use '📥 Importar Alunos', selecione o arquivo CSV da SEDUC, escolha a turma e clique em Importar.",
+        "como agendar espaço": "Em '📅 Agendamento de Espaços', use '✨ Agendar' para data específica ou '🗓️ Grade Semanal' para horários fixos.",
+        "como criar comunicado": "Em '📄 Comunicado aos Pais', selecione o aluno e a ocorrência, marque as medidas e gere o PDF.",
+        "como ver gráficos": "Acesse '📊 Gráficos e Indicadores' para análises visuais das ocorrências.",
+        "como cadastrar professor": "Em '👨‍🏫 Cadastrar Professores', preencha nome e cargo, ou importe uma lista em massa.",
+        "como fazer backup": "Vá em '💾 Backups' para gerar ou importar backups do sistema.",
+        "mapa da sala": "Em '🏫 Mapa da Sala', configure fileiras e carteiras, depois distribua os alunos.",
+        "portal do responsável": "Acesse '👨‍👩‍👧 Portal do Responsável' e faça login com o RA do aluno.",
+    }
+    
+    pergunta_lower = pergunta.lower()
+    for chave, resposta in respostas.items():
+        if chave in pergunta_lower:
+            return resposta
+    
+    return "Desculpe, não entendi. Tente perguntar sobre: registrar ocorrência, importar alunos, agendar espaço, criar comunicado, ver gráficos, cadastrar professor, fazer backup, mapa da sala ou portal do responsável."
+
+
+def exibir_assistente_sidebar():
+    """Exibe o assistente virtual no sidebar"""
+    with st.sidebar.expander("🤖 Assistente Virtual", expanded=False):
+        st.markdown("**Como posso ajudar?**")
+        pergunta = st.text_input("Digite sua dúvida:", placeholder="Ex: Como registrar ocorrência?", key="assistente_input")
+        
+        if pergunta:
+            resposta = assistente_virtual(pergunta)
+            st.info(resposta)
+        
+        st.markdown("---")
+        st.caption("💡 Dicas rápidas:")
+        st.caption("• Use a busca inteligente nas ocorrências")
+        st.caption("• Agendamentos fixos na Grade Semanal")
+        st.caption("• Exporte relatórios em PDF ou Excel")
+
 # ======================================================
 # SUPABASE — FUNÇÕES BASE
 # ======================================================
@@ -1733,6 +1996,23 @@ def gerar_pdf_comunicado(aluno_data: dict, ocorrencia_data: dict, medidas_aplica
 
 def _init_session_state():
     defaults = {
+        def _init_session_state():
+    defaults = {
+        # ... (mantenha todos os existentes)
+        "editando_id": None,
+        "dados_edicao": None,
+        # ...
+        
+        # ⭐ NOVOS PARA GAMIFICAÇÃO
+        "pontos_usuario": 0,
+        "conquistas_usuario": [],
+        "nivel_usuario": 1,
+        "registros_ocorrencias": 0,
+        "agendamentos_criados": 0,
+    }
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
         "editando_id": None,
         "dados_edicao": None,
         "ocorrencia_salva_sucesso": False,
