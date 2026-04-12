@@ -781,6 +781,50 @@ footer { visibility: hidden; }
 }
 </style>
 """, unsafe_allow_html=True)
+
+# ======================================================
+# REMOÇÃO DE TOOLTIPS VIA JAVASCRIPT (SOLUÇÃO DEFINITIVA)
+# ======================================================
+st.components.v1.html("""
+<script>
+(function() {
+    function removeTooltips() {
+        // Remove elementos de tooltip do Streamlit
+        document.querySelectorAll('[data-testid="stTooltipHoverTarget"]').forEach(el => el.remove());
+        document.querySelectorAll('[class*="tooltip"]').forEach(el => {
+            if (el.className.includes('tooltip') || el.className.includes('Tooltip')) {
+                el.remove();
+            }
+        });
+        
+        // Remove atributos title e aria-label dos botões da sidebar
+        document.querySelectorAll('[data-testid="stSidebar"] button').forEach(btn => {
+            btn.removeAttribute('title');
+            btn.removeAttribute('aria-label');
+            btn.removeAttribute('data-tooltip');
+        });
+        
+        // Remove qualquer elemento com role="tooltip"
+        document.querySelectorAll('[role="tooltip"]').forEach(el => el.remove());
+    }
+    
+    // Executa imediatamente
+    removeTooltips();
+    
+    // Executa a cada 100ms por 2 segundos (garante remoção após carregamento)
+    let attempts = 0;
+    const interval = setInterval(() => {
+        removeTooltips();
+        attempts++;
+        if (attempts > 20) clearInterval(interval);
+    }, 100);
+    
+    // Observa mudanças no DOM
+    const observer = new MutationObserver(removeTooltips);
+    observer.observe(document.body, { childList: true, subtree: true });
+})();
+</script>
+""", height=0)
 # ======================================================
 # DADOS DA ESCOLA
 # ======================================================
