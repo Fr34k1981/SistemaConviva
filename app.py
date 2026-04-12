@@ -564,41 +564,120 @@ ESCOLA_EMAIL = "e918623@educacao.sp.gov.br"
 ESCOLA_LOGO = os.path.join("assets", "images", "eliane_dantas.png")
 
 # ======================================================
-# MENU LATERAL PREMIUM
+# MENU LATERAL PREMIUM (SEM RADIO BUTTONS)
 # ======================================================
+
 st.sidebar.markdown("""
-<div style="text-align: center; padding: 1rem 0;">
-    <h2 style="background: linear-gradient(135deg, #6366f1, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800; font-size: 1.5rem; margin: 0;">🏫 Conviva 179</h2>
+<div style="text-align: center; padding: 1.5rem 0.5rem;">
+    <h2 style="background: linear-gradient(135deg, #6366f1, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800; font-size: 1.8rem; margin: 0;">🏫 Conviva 179</h2>
     <p style="color: #64748b; font-size: 0.85rem; margin-top: 0.25rem;">Gestão Escolar Inteligente</p>
 </div>
 """, unsafe_allow_html=True)
 
 st.sidebar.markdown("---")
 
-menu = st.sidebar.radio(
-    "📋 Menu Principal",
-    [
-        "🏠 Dashboard",
-        "📥 Importar Alunos",
-        "📋 Gerenciar Turmas",
-        "👥 Lista de Alunos",
-        "📝 Registrar Ocorrência",
-        "📋 Histórico de Ocorrências",
-        "📄 Comunicado aos Pais",
-        "📊 Gráficos e Indicadores",
-        "🖨️ Imprimir PDF",
-        "👨‍🏫 Cadastrar Professores",
-        "👤 Cadastrar Assinaturas",
-        "🎨 Eletiva",
-        "🏫 Mapa da Sala",
-        "📅 Agendamento de Espaços",
-        "💾 Backups",
-    ],
-    label_visibility="visible"
-)
+# Inicializar página atual se não existir
+if 'pagina_atual' not in st.session_state:
+    st.session_state.pagina_atual = "🏠 Dashboard"
+
+# Estilo CSS para os botões do menu
+st.sidebar.markdown("""
+<style>
+/* Estilo para os botões do menu lateral */
+div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] {
+    margin: 0.25rem 0;
+}
+
+div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button {
+    background: transparent !important;
+    border: none !important;
+    border-radius: 12px !important;
+    padding: 0.85rem 1rem !important;
+    text-align: left !important;
+    font-size: 0.95rem !important;
+    font-weight: 500 !important;
+    color: #475569 !important;
+    width: 100% !important;
+    transition: all 0.3s ease !important;
+    box-shadow: none !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.75rem !important;
+}
+
+div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button:hover {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(236, 72, 153, 0.1)) !important;
+    color: #6366f1 !important;
+    transform: translateX(5px) !important;
+}
+
+/* Botão ativo */
+.menu-ativo {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+    color: white !important;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3) !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# Lista de itens do menu com ícones
+menu_items = [
+    {"nome": "Dashboard", "icone": "🏠"},
+    {"nome": "Importar Alunos", "icone": "📥"},
+    {"nome": "Gerenciar Turmas", "icone": "📋"},
+    {"nome": "Lista de Alunos", "icone": "👥"},
+    {"nome": "Registrar Ocorrência", "icone": "📝"},
+    {"nome": "Histórico de Ocorrências", "icone": "📋"},
+    {"nome": "Comunicado aos Pais", "icone": "📄"},
+    {"nome": "Gráficos e Indicadores", "icone": "📊"},
+    {"nome": "Imprimir PDF", "icone": "🖨️"},
+    {"nome": "Cadastrar Professores", "icone": "👨‍🏫"},
+    {"nome": "Cadastrar Assinaturas", "icone": "👤"},
+    {"nome": "Eletiva", "icone": "🎨"},
+    {"nome": "Mapa da Sala", "icone": "🏫"},
+    {"nome": "Agendamento de Espaços", "icone": "📅"},
+    {"nome": "Backups", "icone": "💾"},
+]
+
+# Criar botões estilizados
+for item in menu_items:
+    nome_completo = f"{item['icone']} {item['nome']}"
+    
+    # Verificar se é a página ativa
+    is_active = st.session_state.pagina_atual == nome_completo
+    
+    # Estilo do botão
+    button_style = "primary" if is_active else "secondary"
+    
+    if st.sidebar.button(
+        nome_completo,
+        key=f"menu_{item['nome'].replace(' ', '_')}",
+        use_container_width=True,
+        type=button_style
+    ):
+        st.session_state.pagina_atual = nome_completo
+        st.rerun()
+
+# Atualizar a variável menu
+menu = st.session_state.pagina_atual
 
 st.sidebar.markdown("---")
-st.sidebar.caption(f"🕐 {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+
+# Informações do sistema
+st.sidebar.markdown(f"""
+<div style="padding: 1rem; background: linear-gradient(135deg, #f8fafc, #e2e8f0); border-radius: 12px; margin-top: 1rem;">
+    <p style="margin: 0; font-size: 0.8rem; color: #64748b; text-align: center;">
+        <b>🕐 {datetime.now().strftime('%d/%m/%Y')}</b><br>
+        <span style="font-size: 0.75rem;">{datetime.now().strftime('%H:%M')}</span>
+    </p>
+</div>
+""", unsafe_allow_html=True)
+
+st.sidebar.markdown("""
+<div style="text-align: center; margin-top: 1rem;">
+    <p style="font-size: 0.7rem; color: #94a3b8;">v10.0 Premium</p>
+</div>
+""", unsafe_allow_html=True)
 
 # ======================================================
 # ELETIVAS — ARQUIVO DE IMPORTAÇÃO
