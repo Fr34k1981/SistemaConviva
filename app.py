@@ -4228,9 +4228,21 @@ elif menu == "🎨 Eletiva":
 
     df_eletiva = montar_dataframe_eletiva(professora_sel, df_alunos, ELETIVAS)
     
-    total = len(df_eletiva)
-    encontrados = len(df_eletiva[df_eletiva["Status"] == "Encontrado"])
-    nao_encontrados = len(df_eletiva[df_eletiva["Status"] == "Não encontrado"])
+    # Validar se o DataFrame foi criado corretamente
+    if df_eletiva.empty:
+        st.warning("⚠️ Nenhum aluno encontrado para esta professora de eletiva.")
+        total = 0
+        encontrados = 0
+        nao_encontrados = 0
+    elif "Status" not in df_eletiva.columns:
+        st.error("❌ Erro ao processar dados da eletiva. Coluna 'Status' não encontrada.")
+        total = len(df_eletiva)
+        encontrados = 0
+        nao_encontrados = 0
+    else:
+        total = len(df_eletiva)
+        encontrados = len(df_eletiva[df_eletiva["Status"] == "Encontrado"])
+        nao_encontrados = len(df_eletiva[df_eletiva["Status"] == "Não encontrado"])
 
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -4240,14 +4252,17 @@ elif menu == "🎨 Eletiva":
     with col3:
         st.metric("Não Encontrados", nao_encontrados)
 
-    busca_nome = st.text_input("🔍 Buscar estudante na eletiva", placeholder="Digite parte do nome")
-    filtro_status = st.selectbox("Filtrar por status", ["Todos", "Encontrado", "Não encontrado"])
-    
-    df_view = df_eletiva.copy()
-    if busca_nome:
-        df_view = df_view[df_view["Nome da Eletiva"].str.contains(busca_nome, case=False, na=False)]
-    if filtro_status != "Todos":
-        df_view = df_view[df_view["Status"] == filtro_status]
+    if not df_eletiva.empty and "Status" in df_eletiva.columns:
+        busca_nome = st.text_input("🔍 Buscar estudante na eletiva", placeholder="Digite parte do nome")
+        filtro_status = st.selectbox("Filtrar por status", ["Todos", "Encontrado", "Não encontrado"])
+        
+        df_view = df_eletiva.copy()
+        if busca_nome and "Nome da Eletiva" in df_view.columns:
+            df_view = df_view[df_view["Nome da Eletiva"].str.contains(busca_nome, case=False, na=False)]
+        if filtro_status != "Todos":
+            df_view = df_view[df_view["Status"] == filtro_status]
+    else:
+        df_view = pd.DataFrame()  # DataFrame vazio se houver erro
 
     st.markdown("---")
     st.subheader("📋 Estudantes da Eletiva")
