@@ -79,20 +79,59 @@ st.set_page_config(
 # Remove completamente a navegação nativa que causa o bug de texto ilegível
 st.markdown("""
 <script>
-    // Remove elementos de navegação que escapam
-    window.addEventListener('load', function() {
-        // Remove labels de navegação ilegíveis
-        const navItems = document.querySelectorAll('[role="navigation"] span, [class*="navitem"], [class*="nav-label"]');
-        navItems.forEach(item => item.style.display = 'none');
+(function() {
+    // Função para remover elementos problemáticos
+    function removeNavElements() {
+        // Remove spans e divs com texto ilegível que escapam
+        document.querySelectorAll('[role="navigation"] span').forEach(el => {
+            el.style.display = 'none';
+            el.style.visibility = 'hidden';
+            el.style.width = '0';
+            el.style.height = '0';
+            el.style.overflow = 'hidden';
+        });
         
-        // Remove qualquer elemento com classe de navegação
-        const navElements = document.querySelectorAll('[class*="CollapsedNavBar"], [class*="ExpandedNavBar"], [class*="NavBar"]');
-        navElements.forEach(item => item.style.display = 'none');
+        // Remove classes de navegação
+        document.querySelectorAll('[class*="navitem"], [class*="nav-label"], [class*="NavLabel"]').forEach(el => {
+            el.style.display = 'none';
+            el.style.visibility = 'hidden';
+        });
         
-        // Força esconder overflow
-        document.documentElement.style.overflow = 'hidden';
-        document.body.style.overflow = 'hidden';
+        // Force overflow hidden no body e html
+        document.documentElement.style.overflow = 'hidden !important';
+        document.body.style.overflow = 'hidden !important';
+        
+        // Remove pseudo-elementos que possam ter conteúdo
+        const style = document.createElement('style');
+        style.textContent = `
+            [role="navigation"]::before,
+            [role="navigation"]::after,
+            [class*="nav"]::before,
+            [class*="nav"]::after {
+                display: none !important;
+                content: none !important;
+            }
+        `;
+        if (!document.querySelector('style[data-nav-fix]')) {
+            style.setAttribute('data-nav-fix', 'true');
+            document.head.appendChild(style);
+        }
+    }
+    
+    // Executar imediatamente
+    removeNavElements();
+    
+    // Monitorar mudanças contínuas
+    const observer = new MutationObserver(removeNavElements);
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true
     });
+    
+    // Executar a cada 100ms como fallback
+    setInterval(removeNavElements, 100);
+})();
 </script>
 """, unsafe_allow_html=True)
 # ======================================================
@@ -192,6 +231,20 @@ span::before {
     overflow: hidden !important;
     clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%) !important;
     max-width: 280px !important;
+    position: relative !important;
+}
+
+/* REMOVE TODOS OS SPANS DENTRO DE [role="navigation"] */
+[role="navigation"] span {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    overflow: hidden !important;
 }
 
 /* Remove labels de navegação que escapam */
@@ -203,7 +256,9 @@ span::before {
 span[class*="nav"],
 span[class*="Nav"],
 div[style*="transform: translateX"],
-div[style*="transform:translateX"] {
+div[style*="transform:translateX"],
+[class*="navitem"],
+[class*="nav-label"] {
     display: none !important;
     visibility: hidden !important;
     opacity: 0 !important;
@@ -212,10 +267,16 @@ div[style*="transform:translateX"] {
 /* Garante que nada saia de main */
 main {
     overflow-x: hidden !important;
+    overflow-y: auto !important;
     position: relative !important;
 }
 
 [data-testid="stAppViewContainer"] {
+    overflow-x: hidden !important;
+}
+
+/* Força clip no body e html */
+body {
     overflow-x: hidden !important;
 }
 
