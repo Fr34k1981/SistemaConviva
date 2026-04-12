@@ -72,6 +72,29 @@ st.set_page_config(
     page_icon="🏫",
     initial_sidebar_state="expanded"
 )
+
+# ======================================================
+# DESABILITAR NAVEGAÇÃO NATIVA DO STREAMLIT
+# ======================================================
+# Remove completamente a navegação nativa que causa o bug de texto ilegível
+st.markdown("""
+<script>
+    // Remove elementos de navegação que escapam
+    window.addEventListener('load', function() {
+        // Remove labels de navegação ilegíveis
+        const navItems = document.querySelectorAll('[role="navigation"] span, [class*="navitem"], [class*="nav-label"]');
+        navItems.forEach(item => item.style.display = 'none');
+        
+        // Remove qualquer elemento com classe de navegação
+        const navElements = document.querySelectorAll('[class*="CollapsedNavBar"], [class*="ExpandedNavBar"], [class*="NavBar"]');
+        navElements.forEach(item => item.style.display = 'none');
+        
+        // Força esconder overflow
+        document.documentElement.style.overflow = 'hidden';
+        document.body.style.overflow = 'hidden';
+    });
+</script>
+""", unsafe_allow_html=True)
 # ======================================================
 # CSS PREMIUM - DESIGN LIMPO E CORREÇÃO DEFINITIVA DE TOOLTIPS
 # ======================================================
@@ -86,6 +109,8 @@ st.markdown("""
 
 html, body, [class*="css"] {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
 }
 
 /* ============================================ */
@@ -128,18 +153,15 @@ html, body, [class*="css"] {
 /* ========== CORREÇÃO AGRESSIVA DE TOOLTIPS ========== */
 /* ============================================ */
 
-/* Esconde qualquer elemento de tooltip do Streamlit, independente da classe */
+/* Remove TODOS os tooltips e popovers */
 [data-testid="stTooltipHoverTarget"],
 [class*="tooltip"],
 [class*="Tooltip"],
 [role="tooltip"],
 div[class*="TooltipContainer"],
 div[class*="tooltip-container"],
-.stTooltip,
-#stTooltip,
 [data-baseweb="tooltip"],
 [data-baseweb*="tooltip"],
-div[id*="tooltip"],
 div[class*="popup"],
 [data-baseweb="popover"],
 [class*="Popover"],
@@ -148,157 +170,52 @@ div[class*="popup"],
     visibility: hidden !important;
     opacity: 0 !important;
     pointer-events: none !important;
-    position: absolute !important;
-    left: -9999px !important;
-    top: -9999px !important;
-    width: 0 !important;
-    height: 0 !important;
-    overflow: hidden !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    border: none !important;
-    clip-path: inset(100%) !important;
 }
 
-/* Remove completamente pseudo-elementos que possam conter texto */
-.stButton > button::after,
-.stButton > button::before,
+/* Remove pseudo-elementos */
 button::after,
 button::before,
-[data-testid="stSidebar"] button::after,
-[data-testid="stSidebar"] button::before,
-[data-testid="stSidebar"] a::after,
-[data-testid="stSidebar"] a::before,
-[data-testid="stSidebar"] span::after,
-[data-testid="stSidebar"] span::before {
+a::after,
+a::before,
+span::after,
+span::before {
     display: none !important;
     content: none !important;
 }
 
-/* Remove o atributo title nativo do navegador - faz com que não apareça tooltip padrão */
-button, div, span, a {
-    title: "" !important;
-}
-
 /* ============================================ */
-/* ========== SIDEBAR - ELIMINAÇÃO TOTAL DE POPUPS ========== */
+/* ========== CORREÇÃO DE NAVEGAÇÃO ESCAPADA ========== */
 /* ============================================ */
 
+/* Force clip na sidebar */
 [data-testid="stSidebar"] {
     overflow: hidden !important;
-    position: relative !important;
-    z-index: 10 !important;
-    clip-path: inset(0) !important;
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%) !important;
+    max-width: 280px !important;
 }
 
-[data-testid="stSidebar"] > div {
-    overflow: hidden !important;
-    clip-path: inset(0) !important;
-}
-
-/* Esconde TODOS os elementos com posicionamento absoluto/fixed na sidebar */
-[data-testid="stSidebar"] [style*="position: absolute"],
-[data-testid="stSidebar"] [style*="position:absolute"],
-[data-testid="stSidebar"] [style*="position: fixed"],
-[data-testid="stSidebar"] [style*="position:fixed"],
-[data-testid="stSidebar"] [style*="position: sticky"],
-[data-testid="stSidebar"] [style*="position:sticky"] {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
-}
-
-/* Remove qualquer div/span flutuante */
-[data-testid="stSidebar"] div[role="dialog"],
-[data-testid="stSidebar"] div[role="menu"],
-[data-testid="stSidebar"] div[role="region"],
-[data-testid="stSidebar"] [role="dialog"],
-[data-testid="stSidebar"] [role="menu"],
-[data-testid="stSidebar"] [class*="PopoverContent"],
-[data-testid="stSidebar"] [class*="Popover"],
-[data-testid="stSidebar"] [class*="Tooltip"],
-[data-testid="stSidebar"] [class*="Popper"],
-[data-testid="stSidebar"] [class*="tooltip"] {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
-    position: absolute !important;
-    left: -9999px !important;
-    top: -9999px !important;
-}
-
-/* Elementos com z-index na sidebar devem ser escondidos */
-[data-testid="stSidebar"] [style*="z-index"],
-[data-testid="stSidebar"] [style*="zIndex"] {
+/* Remove labels de navegação que escapam */
+[role="navigation"] > div,
+[class*="NavigationLabel"],
+[class*="NavLabel"],
+[class*="CollapsedNav"],
+[class*="ExpandedNav"],
+span[class*="nav"],
+span[class*="Nav"],
+div[style*="transform: translateX"],
+div[style*="transform:translateX"] {
     display: none !important;
     visibility: hidden !important;
     opacity: 0 !important;
 }
 
-/* ============================================ */
-/* ========== CORREÇÃO DE NAVEGAÇÃO ESCONDIDA ========== */
-/* ============================================ */
-
-/* Esconde elementos de navegação/labels que escapam */
-[data-testid="stSidebar"] nav,
-[data-testid="stSidebar"] [role="navigation"],
-[data-testid="stSidebar"] ul,
-[data-testid="stSidebar"] li,
-[data-testid="stSidebar"] a[aria-label],
-div[class*="stNavigation"],
-div[class*="NavBar"],
-div[class*="NavigationLabel"],
-[class*="CollapsedNavBar"],
-[class*="ExpandedNavBar"],
-[style*="transform: translateX"],
-[style*="transform:translateX"],
-div[style*="right:"] {
-    clip-path: inset(100%) !important;
-    max-width: 0 !important;
-    max-height: 0 !important;
-    overflow: hidden !important;
-}
-
-/* Remove completamente qualquer label de navegação fora da sidebar */
-span[class*="navitem"],
-span[class*="navLabel"],
-label[class*="nav"],
-div[class*="label"][style*="position"] {
-    display: none !important;
-    visibility: hidden !important;
-    width: 0 !important;
-    height: 0 !important;
-    overflow: hidden !important;
-}
-
-/* Força recorte agressivo na raiz da navbar */
-[data-testid="stSidebar"]::before,
-[data-testid="stSidebar"]::after {
-    content: "" !important;
-    display: block !important;
-    position: absolute !important;
-    top: 0 !important;
-    right: -9999px !important;
-    bottom: 0 !important;
-    width: 9999px !important;
-    background: white !important;
-    z-index: 999 !important;
-    pointer-events: none !important;
-}
-
-/* Remove qualquer container que ultrapasse os limites */
+/* Garante que nada saia de main */
 main {
     overflow-x: hidden !important;
+    position: relative !important;
 }
 
 [data-testid="stAppViewContainer"] {
-    overflow-x: hidden !important;
-}
-
-/* Garante que o conteúdo não ultrapasse */
-body, html {
     overflow-x: hidden !important;
 }
 
