@@ -3022,9 +3022,6 @@ elif menu == "🎨 Eletiva":
                 st.success(f"✅ {len(selecionados)} estudante(s) removido(s).")
                 st.rerun()
 
-
-quero que tenha a opção que seja a que mostra de inicio que so moestre os estudantes ativos e seque possa seleionar a lista completa, mas a principio somente os ativos
-
 # ======================================================
 # PÁGINA 🏫 MAPA DA SALA
 # ======================================================
