@@ -2484,7 +2484,7 @@ elif menu == "📊 Gráficos e Indicadores":
     st.download_button("📄 Baixar CSV", data=csv, file_name=f"ocorrencias_filtradas_{datetime.now().strftime('%Y%m%d_%H%M')}.csv", mime="text/csv")
 
 # ======================================================
-# PÁGINA 📥 IMPORTAR ALUNOS (VERSÃO FINAL FUNCIONAL)
+# PÁGINA 📥 IMPORTAR ALUNOS (CORRIGIDA PARA SEU CSV)
 # ======================================================
 
 elif menu == "📥 Importar Alunos":
@@ -2493,13 +2493,8 @@ elif menu == "📥 Importar Alunos":
     💡 **Como importar:**
     1. Digite o nome da turma (Ex: 6º Ano A, 7º Ano B)
     2. Selecione o arquivo CSV da SEDUC
-    3. Clique em "🚀 Importar Alunos"
-    
-    **Colunas necessárias no CSV:**
-    - RA
-    - Nome do Aluno
-    - Data de Nascimento
-    - Situação do Aluno
+    3. Selecione as colunas corretas abaixo
+    4. Clique em "🚀 Importar Alunos"
     """)
     
     turma_alunos = st.text_input(
@@ -2531,54 +2526,67 @@ elif menu == "📥 Importar Alunos":
             st.write("### 👀 Pré-visualização dos dados:")
             st.dataframe(df_import.head(10), use_container_width=True)
             
-            # Mostrar colunas encontradas
+            # Obter lista de colunas
             colunas = df_import.columns.tolist()
-            st.write("### 📋 Colunas encontradas no arquivo:")
-            st.write(", ".join(colunas))
             
-            # MAPEAMENTO AUTOMÁTICO
-            col_ra = None
-            col_nome = None
-            col_nasc = None
-            col_sit = None
+            st.markdown("---")
+            st.write("### 🔍 Selecione as colunas correspondentes:")
             
-            for col in colunas:
+            # Tentar encontrar automaticamente
+            col_ra_default = 0
+            col_nome_default = 0
+            col_nasc_default = 0
+            col_sit_default = 0
+            
+            for i, col in enumerate(colunas):
                 col_lower = col.lower()
-                if 'ra' in col_lower:
-                    col_ra = col
+                if 'ra' in col_lower and 'dig' not in col_lower:
+                    col_ra_default = i
                 if 'nome' in col_lower:
-                    col_nome = col
+                    col_nome_default = i
                 if 'nasc' in col_lower or 'data' in col_lower:
-                    col_nasc = col
-                if 'situa' in col_lower or 'status' in col_lower:
-                    col_sit = col
+                    col_nasc_default = i
+                if 'situa' in col_lower:
+                    col_sit_default = i
             
-            # Se não encontrou, mostrar campos para seleção manual
-            if col_ra is None or col_nome is None:
-                st.warning("⚠️ Não foi possível identificar automaticamente todas as colunas. Selecione manualmente:")
-                col1, col2 = st.columns(2)
-                with col1:
-                    col_ra = st.selectbox("Coluna do RA:", colunas)
-                    col_nome = st.selectbox("Coluna do Nome:", colunas)
-                with col2:
-                    col_nasc = st.selectbox("Coluna da Data de Nascimento (opcional):", ["Nenhuma"] + colunas)
-                    col_sit = st.selectbox("Coluna da Situação (opcional):", ["Nenhuma"] + colunas)
-                
-                if col_nasc == "Nenhuma":
-                    col_nasc = None
-                if col_sit == "Nenhuma":
-                    col_sit = None
-            else:
-                st.success(f"✅ Colunas identificadas automaticamente!")
-                st.write(f"- **RA:** {col_ra}")
-                st.write(f"- **Nome:** {col_nome}")
-                st.write(f"- **Data de Nascimento:** {col_nasc if col_nasc else 'Não encontrada'}")
-                st.write(f"- **Situação:** {col_sit if col_sit else 'Não encontrada (usará "Ativo")'}")
+            col1, col2 = st.columns(2)
+            with col1:
+                col_ra = st.selectbox(
+                    "📍 Coluna do RA:", 
+                    colunas, 
+                    index=col_ra_default,
+                    help="Selecione a coluna que contém o RA do aluno"
+                )
+                col_nome = st.selectbox(
+                    "📍 Coluna do Nome:", 
+                    colunas, 
+                    index=col_nome_default,
+                    help="Selecione a coluna que contém o nome do aluno"
+                )
+            with col2:
+                col_nasc = st.selectbox(
+                    "📍 Coluna da Data de Nascimento (opcional):", 
+                    ["Não usar"] + colunas, 
+                    index=0,
+                    help="Selecione a coluna que contém a data de nascimento"
+                )
+                col_sit = st.selectbox(
+                    "📍 Coluna da Situação:", 
+                    colunas, 
+                    index=col_sit_default,
+                    help="Selecione a coluna que contém a situação do aluno"
+                )
             
             st.markdown("---")
             
             # Verificar se a turma já existe
             df_alunos_existente = carregar_alunos()
+            turmas_existentes = df_alunos_existente['turma'].unique().tolist() if not df_alunos_existente.empty else []
+            
+            if turma_alunos and turma_alunos in turmas_existentes:
+                st.warning(f"⚠️ A turma **{turma_alunos}** já existe no sistema!")
+                st.info("💡 Alunos NOVOS serão adicionados. Alunos que já estão nesta turma serão ATUALIZADOS.")
+                st.info("🛡️ Alunos que já existem em OUTRAS turmas serão IGNORADOS.")
             
             if st.button("🚀 Importar Alunos", type="primary"):
                 if not turma_alunos:
@@ -2596,7 +2604,7 @@ elif menu == "📥 Importar Alunos":
                     
                     for i, (_, row) in enumerate(df_import.iterrows()):
                         try:
-                            # Pegar valores
+                            # Pegar valores das colunas selecionadas
                             ra_valor = row[col_ra]
                             nome_valor = row[col_nome]
                             
@@ -2608,26 +2616,35 @@ elif menu == "📥 Importar Alunos":
                             ra_str = str(ra_valor).strip()
                             nome_str = str(nome_valor).strip()
                             
+                            # Pular linhas vazias
                             if not ra_str or ra_str == 'nan' or not nome_str or nome_str == 'nan':
                                 erros += 1
                                 continue
                             
-                            # Limpar RA
-                            ra_str = ra_str.replace('.', '').replace('-', '').strip()
+                            # Limpar RA - remover pontos, traços, espaços
+                            ra_str = ra_str.replace('.', '').replace('-', '').replace(' ', '').strip()
                             
                             # Data de nascimento
                             nasc_str = ""
-                            if col_nasc and col_nasc in row:
+                            if col_nasc != "Não usar":
                                 nasc_valor = row[col_nasc]
                                 if not pd.isna(nasc_valor):
                                     nasc_str = str(nasc_valor).strip()
                             
                             # Situação
                             sit_str = "Ativo"
-                            if col_sit and col_sit in row:
-                                sit_valor = row[col_sit]
-                                if not pd.isna(sit_valor):
-                                    sit_str = str(sit_valor).strip()
+                            sit_valor = row[col_sit]
+                            if not pd.isna(sit_valor):
+                                sit_str = str(sit_valor).strip()
+                                # Normalizar situação
+                                if 'transfer' in sit_str.lower():
+                                    sit_str = "Transferido"
+                                elif 'ativo' in sit_str.lower():
+                                    sit_str = "Ativo"
+                                elif 'inativo' in sit_str.lower():
+                                    sit_str = "Inativo"
+                                elif 'remanej' in sit_str.lower():
+                                    sit_str = "Remanejado"
                             
                             aluno = {
                                 'ra': ra_str,
@@ -2643,7 +2660,7 @@ elif menu == "📥 Importar Alunos":
                             if not aluno_existente.empty:
                                 turma_antiga = aluno_existente.iloc[0].get('turma', '')
                                 if turma_antiga == turma_alunos:
-                                    # Atualizar
+                                    # Atualizar aluno na mesma turma
                                     ok = atualizar_aluno(ra_str, aluno)
                                     if ok:
                                         contagem_atualizados += 1
@@ -2659,19 +2676,20 @@ elif menu == "📥 Importar Alunos":
                                     contagem_novos += 1
                                 else:
                                     erros += 1
+                                    
                         except Exception as e:
                             erros += 1
                         
                         # Atualizar progresso
                         progress_bar.progress((i + 1) / total_linhas)
-                        status_text.text(f"Processando... {i + 1}/{total_linhas}")
+                        status_text.text(f"Processando... {i + 1}/{total_linhas} (Novos: {contagem_novos}, Atualizados: {contagem_atualizados})")
                     
                     progress_bar.empty()
                     status_text.empty()
                     
                     # Mostrar resultados
                     if contagem_novos > 0 or contagem_atualizados > 0:
-                        st.success("✅ **Importação concluída com sucesso!**")
+                        st.success(f"✅ **Importação concluída!** {contagem_novos + contagem_atualizados} alunos processados.")
                         st.balloons()
                     
                     col1, col2, col3, col4 = st.columns(4)
@@ -2688,6 +2706,8 @@ elif menu == "📥 Importar Alunos":
                     if contagem_novos > 0 or contagem_atualizados > 0:
                         carregar_alunos.clear()
                         st.rerun()
+                    else:
+                        st.warning("⚠️ Nenhum aluno foi importado. Verifique se as colunas foram selecionadas corretamente.")
                         
         except Exception as e:
             st.error(f"❌ Erro ao processar arquivo: {str(e)}")
