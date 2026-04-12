@@ -2484,7 +2484,7 @@ elif menu == "📊 Gráficos e Indicadores":
     st.download_button("📄 Baixar CSV", data=csv, file_name=f"ocorrencias_filtradas_{datetime.now().strftime('%Y%m%d_%H%M')}.csv", mime="text/csv")
 
 # ======================================================
-# PÁGINA 📥 IMPORTAR ALUNOS
+# PÁGINA 📥 IMPORTAR ALUNOS (CORRIGIDA)
 # ======================================================
 
 elif menu == "📥 Importar Alunos":
@@ -2546,7 +2546,8 @@ elif menu == "📥 Importar Alunos":
                 
                 if turma_alunos in turmas_existentes:
                     st.warning(f"⚠️ A turma **{turma_alunos}** já existe no sistema!")
-                    st.info("💡 Se importar novamente, os alunos serão **atualizados** (não duplicados).")
+                    st.info("💡 Alunos NOVOS serão adicionados. Alunos que já estão nesta turma serão ATUALIZADOS.")
+                    st.info("🛡️ Alunos que já existem em OUTRAS turmas serão IGNORADOS (não serão removidos da turma original).")
                 
                 if st.button("🚀 Importar Alunos", type="primary"):
                     if not turma_alunos:
@@ -2554,6 +2555,7 @@ elif menu == "📥 Importar Alunos":
                     else:
                         contagem_novos = 0
                         contagem_atualizados = 0
+                        contagem_ignorados = 0
                         erros = 0
                         
                         progress_bar = st.progress(0)
@@ -2579,12 +2581,19 @@ elif menu == "📥 Importar Alunos":
                                 aluno_existente = df_alunos_existente[df_alunos_existente['ra'] == ra_str] if not df_alunos_existente.empty else pd.DataFrame()
                                 
                                 if not aluno_existente.empty:
-                                    ok = atualizar_aluno(ra_str, aluno)
-                                    if ok:
-                                        contagem_atualizados += 1
+                                    turma_antiga = aluno_existente.iloc[0].get('turma', '')
+                                    if turma_antiga == turma_alunos:
+                                        # Aluno já está NESTA turma - apenas atualizar dados
+                                        ok = atualizar_aluno(ra_str, aluno)
+                                        if ok:
+                                            contagem_atualizados += 1
+                                        else:
+                                            erros += 1
                                     else:
-                                        erros += 1
+                                        # Aluno existe em OUTRA turma - IGNORAR (não remover da turma original)
+                                        contagem_ignorados += 1
                                 else:
+                                    # Aluno novo - adicionar
                                     ok = salvar_aluno(aluno)
                                     if ok:
                                         contagem_novos += 1
@@ -2601,14 +2610,16 @@ elif menu == "📥 Importar Alunos":
                         status_text.empty()
                         
                         st.success("✅ **Importação concluída!**")
-                        col1, col2, col3 = st.columns(3)
+                        col1, col2, col3, col4 = st.columns(4)
                         with col1:
                             st.metric("🆕 Novos alunos", contagem_novos)
                         with col2:
                             st.metric("🔄 Atualizados", contagem_atualizados)
                         with col3:
+                            st.metric("⚠️ Ignorados", contagem_ignorados, help="Alunos que já existem em OUTRA turma")
+                        with col4:
                             if erros > 0:
-                                st.metric("⚠️ Erros", erros)
+                                st.metric("❌ Erros", erros)
                         
                         carregar_alunos.clear()
                         st.rerun()
