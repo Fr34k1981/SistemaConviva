@@ -174,60 +174,61 @@ span::before {
 
 /* ============================================ */
 /* ========== CORREÇÃO DE NAVEGAÇÃO ESCAPADA ========== */
+/* ========= SELETOR NUCLEAR - ELIMINA TUDO ==== */
 /* ============================================ */
 
-/* Force clip na sidebar */
+/* Remove TODOS os spans que não estão dentro da sidebar */
+body > * span,
+main span,
+[data-testid="stAppViewContainer"] span:not([data-testid="stSidebar"] span) {
+    max-width: 280px !important;
+    overflow: hidden !important;
+}
+
+/* Esconde completamente qualquer elemento fora da viewport */
+[style*="position: absolute"],
+[style*="position: fixed"],
+div[style*="right:"],
+div[style*="left:"],
+span[style*="position"] {
+    display: none !important;
+    visibility: hidden !important;
+}
+
+/* Remove pseudo-elementos globais */
+*::before,
+*::after {
+    display: none !important;
+}
+
+/* Garante clip na sidebar */
 [data-testid="stSidebar"] {
     overflow: hidden !important;
-    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%) !important;
+    clip-path: inset(0) !important;
+    position: relative !important;
     max-width: 280px !important;
-    position: relative !important;
+    width: 280px !important;
 }
 
-/* REMOVE TODOS OS SPANS DENTRO DE [role="navigation"] */
-[role="navigation"] span {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    width: 0 !important;
-    height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    border: 0 !important;
-    overflow: hidden !important;
-}
-
-/* Remove labels de navegação que escapam */
-[role="navigation"] > div,
-[class*="NavigationLabel"],
-[class*="NavLabel"],
-[class*="CollapsedNav"],
-[class*="ExpandedNav"],
-span[class*="nav"],
-span[class*="Nav"],
-div[style*="transform: translateX"],
-div[style*="transform:translateX"],
-[class*="navitem"],
-[class*="nav-label"] {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-}
-
-/* Garante que nada saia de main */
+/* Força esconder qualquer coisa que saia dos limites */
 main {
-    overflow-x: hidden !important;
-    overflow-y: auto !important;
-    position: relative !important;
+    overflow: hidden !important;
+    max-width: 100vw !important;
 }
 
 [data-testid="stAppViewContainer"] {
-    overflow-x: hidden !important;
+    overflow: hidden !important;
+    max-width: 100vw !important;
 }
 
-/* Força clip no body e html */
+/* Clip path agressivo no raiz */
+html {
+    overflow-x: clip !important;
+}
+
 body {
-    overflow-x: hidden !important;
+    overflow-x: clip !important;
+    max-width: 100vw !important;
 }
 
 /* ============================================ */
