@@ -238,6 +238,71 @@ button, div, span, a {
 }
 
 /* ============================================ */
+/* ========== CORREÇÃO DE NAVEGAÇÃO ESCONDIDA ========== */
+/* ============================================ */
+
+/* Esconde elementos de navegação/labels que escapam */
+[data-testid="stSidebar"] nav,
+[data-testid="stSidebar"] [role="navigation"],
+[data-testid="stSidebar"] ul,
+[data-testid="stSidebar"] li,
+[data-testid="stSidebar"] a[aria-label],
+div[class*="stNavigation"],
+div[class*="NavBar"],
+div[class*="NavigationLabel"],
+[class*="CollapsedNavBar"],
+[class*="ExpandedNavBar"],
+[style*="transform: translateX"],
+[style*="transform:translateX"],
+div[style*="right:"] {
+    clip-path: inset(100%) !important;
+    max-width: 0 !important;
+    max-height: 0 !important;
+    overflow: hidden !important;
+}
+
+/* Remove completamente qualquer label de navegação fora da sidebar */
+span[class*="navitem"],
+span[class*="navLabel"],
+label[class*="nav"],
+div[class*="label"][style*="position"] {
+    display: none !important;
+    visibility: hidden !important;
+    width: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
+}
+
+/* Força recorte agressivo na raiz da navbar */
+[data-testid="stSidebar"]::before,
+[data-testid="stSidebar"]::after {
+    content: "" !important;
+    display: block !important;
+    position: absolute !important;
+    top: 0 !important;
+    right: -9999px !important;
+    bottom: 0 !important;
+    width: 9999px !important;
+    background: white !important;
+    z-index: 999 !important;
+    pointer-events: none !important;
+}
+
+/* Remove qualquer container que ultrapasse os limites */
+main {
+    overflow-x: hidden !important;
+}
+
+[data-testid="stAppViewContainer"] {
+    overflow-x: hidden !important;
+}
+
+/* Garante que o conteúdo não ultrapasse */
+body, html {
+    overflow-x: hidden !important;
+}
+
+/* ============================================ */
 /* ========== CORREÇÃO DE QUEBRA DE TEXTO ========== */
 /* ============================================ */
 h1, h2, h3, h4, h5, h6, p, span, div, label, li, button, a, .stMarkdown, .stText, .stCaption {
