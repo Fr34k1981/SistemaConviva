@@ -778,6 +778,57 @@ footer { visibility: hidden; }
 }
 </style>
 """, unsafe_allow_html=True)
+/* ============================================ */
+/* ========== CORREÇÃO COMPLETA DE TOOLTIPS ========== */
+/* ============================================ */
+
+/* Esconder TODOS os tooltips e títulos */
+[data-testid="stTooltipHoverTarget"],
+[class*="tooltip"],
+[class*="Tooltip"],
+button[title],
+div[title],
+span[title],
+a[title],
+[data-testid="stSidebar"] button::after,
+[data-testid="stSidebar"] button::before,
+[data-testid="stSidebar"] [title] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* Remover atributo title via CSS */
+* {
+    title: none !important;
+}
+
+/* Garantir que nenhum texto extra apareça */
+[data-testid="stSidebar"] * {
+    text-overflow: ellipsis !important;
+    overflow: hidden !important;
+}
+
+/* Esconder elementos flutuantes do Streamlit */
+.stApp > div > div > div > div > div > div:not([class]),
+div[data-testid="stSidebar"] > div > div > div > div > div:not([class]) {
+    display: none !important;
+}
+
+/* Prevenir quebra de texto nos botões do menu */
+[data-testid="stSidebar"] button {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 100% !important;
+}
+
+/* Esconder qualquer elemento com posição absoluta na sidebar */
+[data-testid="stSidebar"] [style*="position: absolute"],
+[data-testid="stSidebar"] [style*="position:absolute"] {
+    display: none !important;
+}
 # ======================================================
 # DADOS DA ESCOLA
 # ======================================================
