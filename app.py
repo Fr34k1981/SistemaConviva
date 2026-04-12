@@ -2068,6 +2068,15 @@ if not st.session_state.backup_realizado:
     except Exception as e:
         logger.error(f"Erro ao executar backup automático: {e}")
 
+        if not st.session_state.backup_realizado:
+    try:
+        st.session_state.backup_manager.criar_backup()
+        st.session_state.backup_manager.limpar_backups_antigos(dias_retencao=30)
+        st.session_state.backup_realizado = True
+        verificar_conquista("backup_realizado")  # ⭐ ADICIONE ESTA LINHA
+    except Exception as e:
+        logger.error(f"Erro ao executar backup automático: {e}")
+
 # ======================================================
 # CARREGAMENTO INICIAL DE DADOS
 # ======================================================
@@ -3220,6 +3229,15 @@ elif menu == "📝 Registrar Ocorrência":
             
             carregar_ocorrencias.clear()
             st.rerun()
+            if sucesso:
+    # Atualizar contagem para gamificação
+    st.session_state.registros_ocorrencias += 1
+    if st.session_state.registros_ocorrencias == 1:
+        verificar_conquista("primeiro_registro")
+    elif st.session_state.registros_ocorrencias == 10:
+        verificar_conquista("10_ocorrencias")
+    elif st.session_state.registros_ocorrencias == 50:
+        verificar_conquista("50_ocorrencias")
             # ======================================================
 # PÁGINA 📋 HISTÓRICO DE OCORRÊNCIAS
 # ======================================================
@@ -4523,6 +4541,12 @@ elif menu == "📅 Agendamento de Espaços":
             st.info("💡 **Agendamento Fixo Semanal** - Use a aba '🗓️ Grade Semanal' para configurar horários fixos!")
             if st.button("➡️ Ir para Grade Semanal", type="primary"):
                 st.rerun()
+
+                if r.status_code in (200, 201):
+    # Atualizar gamificação
+    st.session_state.agendamentos_criados += 1
+    if st.session_state.agendamentos_criados == 5:
+        verificar_conquista("agendamento_perfeito")
     
     # ======================================================
     # ABA 2: MEUS AGENDAMENTOS
