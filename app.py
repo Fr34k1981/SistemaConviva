@@ -1672,7 +1672,7 @@ else:
 ELETIVAS = st.session_state.ELETIVAS
 FONTE_ELETIVAS = st.session_state.FONTE_ELETIVAS
 # ======================================================
-# PÁGINA 🏠 DASHBOARD - VISUAL PREMIUM
+# PÁGINA 🏠 DASHBOARD - COMPLETO E COLORIDO
 # ======================================================
 
 if menu == "🏠 Dashboard":
@@ -1694,13 +1694,13 @@ if menu == "🏠 Dashboard":
     <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem;">
         <div style="font-size: 2.5rem;">👋</div>
         <div>
-            <h2 style="margin: 0; color: var(--dark);">Bem-vindo ao Sistema Conviva 179!</h2>
-            <p style="margin: 0; color: var(--gray); font-size: 1.1rem;">Gerencie ocorrências, alunos e agendamentos de forma inteligente.</p>
+            <h2 style="margin: 0; background: linear-gradient(135deg, #1e293b, #475569); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Bem-vindo ao Sistema Conviva 179!</h2>
+            <p style="margin: 0; color: #64748b; font-size: 1.1rem;">Gerencie ocorrências, alunos e agendamentos de forma inteligente.</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
     
-    # Métricas Principais
+    # Métricas Principais com cores vibrantes
     total_alunos = len(df_alunos) if not df_alunos.empty else 0
     total_ocorrencias = len(df_ocorrencias) if not df_ocorrencias.empty else 0
     total_professores = len(df_professores) if not df_professores.empty else 0
@@ -1708,61 +1708,99 @@ if menu == "🏠 Dashboard":
     if not df_alunos.empty and "situacao" in df_alunos.columns:
         df_alunos["situacao_norm"] = df_alunos["situacao"].str.strip().str.title()
         total_ativos = len(df_alunos[df_alunos["situacao_norm"] == "Ativo"])
+        total_transferidos = len(df_alunos[df_alunos["situacao_norm"] == "Transferido"])
     else:
         total_ativos = total_alunos
+        total_transferidos = 0
     
+    # Cards coloridos
     st.markdown("### 📊 Visão Geral")
     
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
+    
     with col1:
         st.markdown(f"""
-        <div class="metric-card animate-fade-in" style="animation-delay: 0.1s;">
+        <div class="metric-card animate-fade-in" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
             <div style="font-size: 2rem; margin-bottom: 0.5rem;">👥</div>
-            <div class="metric-value">{total_alunos}</div>
-            <div class="metric-label">Total de Alunos</div>
-            <div style="margin-top: 0.5rem; color: var(--success); font-size: 0.9rem;">{total_ativos} ativos</div>
+            <div class="metric-value" style="color: white !important;">{total_alunos}</div>
+            <div class="metric-label" style="color: rgba(255,255,255,0.9) !important;">Total de Alunos</div>
+            <div style="margin-top: 0.5rem; color: #d1fae5; font-size: 0.85rem;">{total_ativos} ativos</div>
         </div>
         """, unsafe_allow_html=True)
     
     with col2:
         gravissimas = len(df_ocorrencias[df_ocorrencias["gravidade"] == "Gravíssima"]) if not df_ocorrencias.empty and "gravidade" in df_ocorrencias.columns else 0
         st.markdown(f"""
-        <div class="metric-card animate-fade-in" style="animation-delay: 0.2s;">
+        <div class="metric-card animate-fade-in" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); animation-delay: 0.1s;">
             <div style="font-size: 2rem; margin-bottom: 0.5rem;">⚠️</div>
-            <div class="metric-value">{total_ocorrencias}</div>
-            <div class="metric-label">Ocorrências</div>
-            <div style="margin-top: 0.5rem; color: var(--danger); font-size: 0.9rem;">{gravissimas} gravíssimas</div>
+            <div class="metric-value" style="color: white !important;">{total_ocorrencias}</div>
+            <div class="metric-label" style="color: rgba(255,255,255,0.9) !important;">Ocorrências</div>
+            <div style="margin-top: 0.5rem; color: #fee2e2; font-size: 0.85rem;">{gravissimas} gravíssimas</div>
         </div>
         """, unsafe_allow_html=True)
     
     with col3:
         st.markdown(f"""
-        <div class="metric-card animate-fade-in" style="animation-delay: 0.3s;">
+        <div class="metric-card animate-fade-in" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); animation-delay: 0.2s;">
             <div style="font-size: 2rem; margin-bottom: 0.5rem;">👨‍🏫</div>
-            <div class="metric-value">{total_professores}</div>
-            <div class="metric-label">Professores</div>
+            <div class="metric-value" style="color: white !important;">{total_professores}</div>
+            <div class="metric-label" style="color: rgba(255,255,255,0.9) !important;">Professores</div>
         </div>
         """, unsafe_allow_html=True)
     
     with col4:
-        media = round(total_ocorrencias / total_alunos, 2) if total_alunos > 0 else 0
         st.markdown(f"""
-        <div class="metric-card animate-fade-in" style="animation-delay: 0.4s;">
-            <div style="font-size: 2rem; margin-bottom: 0.5rem;">📈</div>
-            <div class="metric-value">{media}</div>
-            <div class="metric-label">Ocorrências/Aluno</div>
+        <div class="metric-card animate-fade-in" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); animation-delay: 0.3s;">
+            <div style="font-size: 2rem; margin-bottom: 0.5rem;">✅</div>
+            <div class="metric-value" style="color: white !important;">{total_ativos}</div>
+            <div class="metric-label" style="color: rgba(255,255,255,0.9) !important;">Alunos Ativos</div>
         </div>
         """, unsafe_allow_html=True)
     
-    # Gráficos
-    if not df_ocorrencias.empty:
+    with col5:
+        st.markdown(f"""
+        <div class="metric-card animate-fade-in" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); animation-delay: 0.4s;">
+            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔄</div>
+            <div class="metric-value" style="color: white !important;">{total_transferidos}</div>
+            <div class="metric-label" style="color: rgba(255,255,255,0.9) !important;">Transferidos</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Distribuição por Gravidade com cores vibrantes
+    if not df_ocorrencias.empty and "gravidade" in df_ocorrencias.columns:
         st.markdown("---")
-        st.markdown("### 📊 Análise de Ocorrências")
+        st.markdown("### 📊 Distribuição de Ocorrências por Gravidade")
         
         col1, col2 = st.columns(2)
         
         with col1:
             contagem_grav = df_ocorrencias['gravidade'].value_counts()
+            
+            # Cards coloridos por gravidade
+            gravidades = ['Leve', 'Média', 'Grave', 'Gravíssima']
+            cores_grav = ['#10b981', '#f59e0b', '#f97316', '#ef4444']
+            
+            for grav, cor in zip(gravidades, cores_grav):
+                qtd = contagem_grav.get(grav, 0)
+                percent = (qtd / total_ocorrencias * 100) if total_ocorrencias > 0 else 0
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, {cor}20, {cor}40); 
+                            border-left: 4px solid {cor}; 
+                            border-radius: 8px; 
+                            padding: 0.75rem 1rem; 
+                            margin: 0.5rem 0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 600; color: {cor};">{grav}</span>
+                        <span style="font-weight: 700; font-size: 1.25rem;">{qtd}</span>
+                    </div>
+                    <div style="margin-top: 0.25rem; height: 6px; background: #e2e8f0; border-radius: 3px;">
+                        <div style="width: {percent}%; height: 6px; background: {cor}; border-radius: 3px;"></div>
+                    </div>
+                    <span style="font-size: 0.75rem; color: #64748b;">{percent:.1f}%</span>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        with col2:
             fig_grav = px.pie(
                 values=contagem_grav.values,
                 names=contagem_grav.index,
@@ -1770,21 +1808,103 @@ if menu == "🏠 Dashboard":
                 color_discrete_sequence=['#10b981', '#f59e0b', '#f97316', '#ef4444'],
                 hole=0.4
             )
-            fig_grav.update_layout(font_family="Inter", title_font_size=16)
+            fig_grav.update_layout(
+                font_family="Inter",
+                title_font_size=16,
+                legend_font_size=12,
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)'
+            )
+            fig_grav.update_traces(textinfo='percent+label', textposition='inside')
             st.plotly_chart(fig_grav, use_container_width=True)
+    
+    # Top 10 Turmas com mais ocorrências
+    if not df_ocorrencias.empty and "turma" in df_ocorrencias.columns:
+        st.markdown("---")
+        st.markdown("### 🏫 Top 10 Turmas com Mais Ocorrências")
         
-        with col2:
-            top_turmas = df_ocorrencias['turma'].value_counts().head(10)
+        top_turmas = df_ocorrencias['turma'].value_counts().head(10)
+        
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
             fig_turmas = px.bar(
                 x=top_turmas.values,
                 y=top_turmas.index,
                 orientation='h',
-                title='Top 10 Turmas com Mais Ocorrências',
+                title='Top 10 Turmas',
                 color=top_turmas.values,
-                color_continuous_scale='Blues'
+                color_continuous_scale='Blues',
+                labels={'x': 'Quantidade de Ocorrências', 'y': 'Turma'}
             )
-            fig_turmas.update_layout(font_family="Inter", title_font_size=16, showlegend=False)
+            fig_turmas.update_layout(
+                font_family="Inter",
+                title_font_size=16,
+                showlegend=False,
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)'
+            )
             st.plotly_chart(fig_turmas, use_container_width=True)
+        
+        with col2:
+            st.markdown("#### 📋 Detalhes")
+            for turma, qtd in top_turmas.items():
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, #e0e7ff, #c7d2fe); 
+                            border-radius: 8px; 
+                            padding: 0.5rem 1rem; 
+                            margin: 0.25rem 0;">
+                    <b>{turma}</b>: {qtd} ocorrência(s)
+                </div>
+                """, unsafe_allow_html=True)
+    
+    # Top 10 Alunos com mais ocorrências
+    if not df_ocorrencias.empty and "aluno" in df_ocorrencias.columns:
+        st.markdown("---")
+        st.markdown("### 🏆 Top 10 Alunos com Mais Ocorrências")
+        
+        top_alunos = df_ocorrencias['aluno'].value_counts().head(10)
+        
+        fig_alunos = px.bar(
+            x=top_alunos.values,
+            y=top_alunos.index,
+            orientation='h',
+            title='Top 10 Alunos',
+            color=top_alunos.values,
+            color_continuous_scale='Reds',
+            labels={'x': 'Quantidade de Ocorrências', 'y': 'Aluno'}
+        )
+        fig_alunos.update_layout(
+            font_family="Inter",
+            title_font_size=16,
+            showlegend=False,
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)'
+        )
+        st.plotly_chart(fig_alunos, use_container_width=True)
+    
+    # Resumo de ocorrências por categoria
+    if not df_ocorrencias.empty and "categoria" in df_ocorrencias.columns:
+        st.markdown("---")
+        st.markdown("### 📌 Ocorrências por Categoria")
+        
+        categorias = df_ocorrencias['categoria'].value_counts().head(8)
+        
+        cols = st.columns(4)
+        for i, (cat, qtd) in enumerate(categorias.items()):
+            with cols[i % 4]:
+                cores = ['#667eea', '#f093fb', '#4facfe', '#43e97b', '#fa709a', '#f5576c', '#00f2fe', '#38f9d7']
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, {cores[i]}20, {cores[i]}40);
+                            border: 1px solid {cores[i]};
+                            border-radius: 12px;
+                            padding: 1rem;
+                            margin: 0.5rem 0;
+                            text-align: center;">
+                    <div style="font-size: 1.5rem; font-weight: 700; color: {cores[i]};">{qtd}</div>
+                    <div style="font-size: 0.75rem; color: #475569; margin-top: 0.25rem;">{cat[:30]}...</div>
+                </div>
+                """, unsafe_allow_html=True)
     
     # Ações Rápidas
     st.markdown("---")
@@ -1793,20 +1913,23 @@ if menu == "🏠 Dashboard":
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         if st.button("📝 Nova Ocorrência", use_container_width=True, type="primary", key="quick_ocorrencia"):
-            st.session_state.menu_selecionado = "📝 Registrar Ocorrência"
+            st.session_state.pagina_atual = "📝 Registrar Ocorrência"
             st.rerun()
     with col2:
         if st.button("👥 Ver Alunos", use_container_width=True, key="quick_alunos"):
-            st.session_state.menu_selecionado = "👥 Lista de Alunos"
+            st.session_state.pagina_atual = "👥 Lista de Alunos"
             st.rerun()
     with col3:
         if st.button("📅 Agendar Espaço", use_container_width=True, key="quick_agendamento"):
-            st.session_state.menu_selecionado = "📅 Agendamento de Espaços"
+            st.session_state.pagina_atual = "📅 Agendamento de Espaços"
             st.rerun()
     with col4:
         if st.button("📊 Relatórios", use_container_width=True, key="quick_relatorios"):
-            st.session_state.menu_selecionado = "📊 Gráficos e Indicadores"
+            st.session_state.pagina_atual = "📊 Gráficos e Indicadores"
             st.rerun()
+    
+    st.markdown("---")
+    st.info(f"📌 Fonte das eletivas: **{FONTE_ELETIVAS.upper()}** | 🗓️ Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}")
             # ======================================================
 # PÁGINA 📥 IMPORTAR ALUNOS
 # ======================================================
