@@ -798,6 +798,7 @@ div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button:hover 
 # Lista de itens do menu com ícones
 menu_items = [
     {"nome": "Dashboard", "icone": "🏠"},
+    {"nome": "Portal do Responsável", "icone": "👨‍👩‍👧"},
     {"nome": "Importar Alunos", "icone": "📥"},
     {"nome": "Gerenciar Turmas", "icone": "📋"},
     {"nome": "Lista de Alunos", "icone": "👥"},
@@ -2108,7 +2109,76 @@ if menu == "🏠 Dashboard":
             # ======================================================
 # PÁGINA 📥 IMPORTAR ALUNOS
 # ======================================================
+# ======================================================
+# PÁGINA 👨‍👩‍👧 PORTAL DO RESPONSÁVEL (COMPLETA)
+# ======================================================
 
+elif menu == "👨‍👩‍👧 Portal do Responsável":
+    st.header("👨‍👩‍👧 Portal do Responsável")
+    
+    st.markdown("""
+    <div class="info-box animate-fade-in">
+        <h4 style="margin: 0 0 0.5rem 0;">🔐 Acesso Restrito</h4>
+        <p style="margin: 0;">Digite o RA do aluno e a senha para acessar as informações.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        ra_acesso = st.text_input("RA do Aluno:", placeholder="Digite o RA", key="portal_ra")
+    with col2:
+        senha_acesso = st.text_input("Senha:", type="password", placeholder="Digite a senha", key="portal_senha")
+    
+    if st.button("🔓 Acessar Portal", type="primary", use_container_width=True):
+        if not ra_acesso or not senha_acesso:
+            st.error("❌ Preencha RA e senha!")
+        else:
+            # Buscar aluno
+            aluno_encontrado = df_alunos[df_alunos['ra'].astype(str) == ra_acesso] if not df_alunos.empty else pd.DataFrame()
+            
+            if aluno_encontrado.empty:
+                st.error("❌ Aluno não encontrado!")
+            else:
+                # Senha padrão para demonstração
+                senha_correta = "123456"
+                
+                if senha_acesso != senha_correta:
+                    st.error("❌ Senha incorreta!")
+                else:
+                    aluno = aluno_encontrado.iloc[0]
+                    st.success(f"✅ Bem-vindo, responsável por **{aluno['nome']}**!")
+                    
+                    st.markdown("---")
+                    
+                    # Informações do aluno
+                    st.subheader("📋 Informações do Aluno")
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("RA", aluno['ra'])
+                    with col2:
+                        st.metric("Turma", aluno.get('turma', 'N/A'))
+                    with col3:
+                        st.metric("Situação", aluno.get('situacao', 'Ativo'))
+                    
+                    st.markdown("---")
+                    
+                    # Ocorrências do aluno
+                    st.subheader("📝 Histórico de Ocorrências")
+                    ocorrencias_aluno = df_ocorrencias[df_ocorrencias['ra'].astype(str) == ra_acesso] if not df_ocorrencias.empty else pd.DataFrame()
+                    
+                    if ocorrencias_aluno.empty:
+                        st.success("✅ Nenhuma ocorrência registrada para este aluno!")
+                    else:
+                        st.warning(f"⚠️ {len(ocorrencias_aluno)} ocorrência(s) registrada(s)")
+                        
+                        for _, occ in ocorrencias_aluno.sort_values('data', ascending=False).iterrows():
+                            with st.expander(f"📅 {occ['data']} - {occ['categoria']} ({occ['gravidade']})"):
+                                st.write(f"**Professor:** {occ.get('professor', 'N/A')}")
+                                st.write(f"**Relato:** {occ.get('relato', 'N/A')}")
+                                st.write(f"**Encaminhamento:** {occ.get('encaminhamento', 'N/A')}")
+                    
+                    st.markdown("---")
+                    st.caption("Em caso de dúvidas, entre em contato com a secretaria da escola.")
 elif menu == "📥 Importar Alunos":
     st.header("📥 Importar Alunos por Turma")
     
