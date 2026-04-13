@@ -1816,82 +1816,75 @@ def verificar_ocorrencia_duplicada(ra: str, categoria: str, data_str: str, df_oc
 # AGENDAMENTO - FUNÇÕES SUPABASE
 # ======================================================
 
+ # ======================================================
+# AGENDAMENTO - FUNÇÕES SUPABASE
+# ======================================================
+
 @st.cache_data(ttl=120)
 def carregar_agendamentos_filtrado(data_ini: str, data_fim: str, espaco: str = None, professor: str = None) -> pd.DataFrame:
+    """
+    Carrega agendamentos do Supabase com tratamento robusto de erros.
+    Se falhar, retorna DataFrame vazio em vez de travar.
+    """
     try:
-        base = "/rest/v1/agendamentos?select=id,data_agendamento,horario,espaco,turma,disciplina,prioridade,semanas,professor_nome,professor_email,status,tipo&order=data_agendamento.asc,horario.asc"
-        filtros = f"&data_agendamento=gte.{data_ini}&data_agendamento=lte.{data_fim}"
+        # Verificar se Supabase está configurado
+        if not SUPABASE_VALID:
+            st.warning("⚠️ Supabase não configurado. Verifique SUPABASE_URL e SUPABASE_KEY.")
+            return pd.DataFrame()
         
+        # Construir URL base
+        base_select = "id,data_agendamento,horario,espaco,turma,disciplina,prioridade,semanas,professor_nome,professor_email,status,tipo"
+        url = f"{SUPABASE_URL}/rest/v1/agendamentos"
+        
+        # Parâmetros da consulta
+        params = {
+            "select": base_select,
+            "data_agendamento": f"gte.{data_ini},lte.{data_fim}",
+            "order": "data_agendamento.asc,horario.asc"
+        }
+        
+        # Adicionar filtros opcionais
         if espaco and espaco in ESPACOS_AGEND:
-            filtros += f"&espaco=eq.{espaco}"
+            params["espaco"] = f"eq.{espaco}"
         
         if professor:
-            professor_encoded = professor.replace(" ", "%20")
-            filtros += f'&professor_nome=eq."{professor_encoded}"'
+            params["professor_nome"] = f"eq.{professor}"
         
-        rows = _rest_get_agend(base + filtros)
-        return pd.DataFrame(rows) if rows else pd.DataFrame()
+        # Headers com autenticação
+        headers = HEADERS.copy()
+        headers["Prefer"] = "return=representation"
         
-    except Exception as e:
-        st.warning(f"Falha ao consultar agendamentos: {e}")
+        # Fazer requisição
+        response = requests.get(url, headers=headers, params=params, timeout=20)
+        
+        # Verificar resposta
+        if response.status_code == 200:
+            dados = response.json()
+            if dados:
+                return pd.DataFrame(dados)
+            else:
+                return pd.DataFrame()
+        elif response.status_code == 401:
+            st.warning("🔐 Erro de autenticação com Supabase. Verifique suas credenciais no arquivo .env")
+            return pd.DataFrame()
+        elif response.status_code == 404:
+            st.info("📭 Tabela 'agendamentos' não encontrada no Supabase.")
+            return pd.DataFrame()
+        else:
+            st.warning(f"⚠️ Erro ao consultar agendamentos: {response.status_code}")
+            return pd.DataFrame()
+            
+    except requests.exceptions.Timeout:
+        st.warning("⏱️ Tempo esgotado ao consultar agendamentos. Verifique sua conexão.")
         return pd.DataFrame()
-
-
-def _rest_get_agend(path: str, params: dict = None, timeout: int = 20):
-    url = f"{SUPABASE_URL}{path}"
-    r = requests.get(url, headers=HEADERS, params=params or {}, timeout=timeout)
-    r.raise_for_status()
-    return r.json()
-
-
-def salvar_agendamento_api(dados: dict):
-    url = f"{SUPABASE_URL}/rest/v1/agendamentos"
-    r = requests.post(url, json=dados, headers=HEADERS, timeout=20)
-    if r.status_code not in (200, 201):
-        return False, f"{r.status_code} - {r.text}"
-    return True, r.json()
-
-
-def cancelar_agendamento_api(id_agend: str):
-    url = f"{SUPABASE_URL}/rest/v1/agendamentos?id=eq.{id_agend}"
-    r = requests.patch(url, json={"status": "CANCELADO"}, headers=HEADERS, timeout=20)
-    return r.status_code in (200, 204), None
-
-
-def excluir_agendamento_api(id_agend: str):
-    url = f"{SUPABASE_URL}/rest/v1/agendamentos?id=eq.{id_agend}"
-    r = requests.patch(url, json={"status": "EXCLUIDO_GESTAO"}, headers=HEADERS, timeout=20)
-    return r.status_code in (200, 204), None
-
-
-def verificar_conflito_api(data_yyyy_mm_dd: str, horario: str, espaco: str):
-    try:
-        path = f"/rest/v1/agendamentos?select=id,professor_nome,prioridade&data_agendamento=eq.{data_yyyy_mm_dd}&horario=eq.{horario}&espaco=eq.{espaco}&status=eq.ATIVO&limit=1"
-        rows = _rest_get_agend(path)
-        return rows[0] if rows else None
-    except Exception:
-        return None
-
-
-def prof_list_agend(only_active: bool = True) -> pd.DataFrame:
-    try:
-        path = "/rest/v1/professores?select=id,nome,email,cargo&order=nome.asc"
-        rows = _rest_get_agend(path)
-        df = pd.DataFrame(rows) if rows else pd.DataFrame(columns=["id", "nome", "email", "cargo"])
-        if not df.empty and 'cargo' in df.columns:
-            df['status'] = 'ATIVO'
-        return df
-    except Exception:
-        return pd.DataFrame(columns=["id", "nome", "email", "cargo", "status"])
-
-
-def prof_upsert_agend(nome: str, email: str, status: str = "ATIVO"):
-    payload = {"nome": (nome or "").strip(), "email": (email or "").strip(), "cargo": "Professor"}
-    url = f"{SUPABASE_URL}/rest/v1/professores"
-    headers_upsert = HEADERS.copy()
-    headers_upsert["Prefer"] = "resolution=merge-duplicates,return=representation"
-    r = requests.post(url, json=payload, headers=headers_upsert, timeout=20)
-    return r.status_code in (200, 201), r.json() if r.status_code in (200, 201) else None
+    except requests.exceptions.ConnectionError:
+        st.warning("🌐 Erro de conexão. Verifique sua internet.")
+        return pd.DataFrame()
+    except Exception as e:
+        # Não mostrar erro completo para não assustar o usuário
+        # Apenas logar e retornar vazio
+        logger.error(f"Erro ao carregar agendamentos: {e}")
+        return pd.DataFrame()
 
 # ======================================================
 # ELETIVAS — IMPORTAÇÃO EXCEL
