@@ -2041,72 +2041,10 @@ st.components.v1.html("""
 })();
 </script>
 """, height=0)
-            if salvas > 0:
-                st.session_state.ocorrencia_salva_sucesso = True
-                show_toast(f"{salvas} ocorrência(s) registrada(s)!", "success")
-                
-                # ⭐ ATUALIZAR GAMIFICAÇÃO ⭐
-                st.session_state.registros_ocorrencias += salvas
-                
-                # Verificar conquistas baseado no total acumulado
-                if st.session_state.registros_ocorrencias >= 1:
-                    verificar_conquista("primeiro_registro")
-                if st.session_state.registros_ocorrencias >= 10:
-                    verificar_conquista("10_ocorrencias")
-                if st.session_state.registros_ocorrencias >= 50:
-                    verificar_conquista("50_ocorrencias")
-            
-            if duplicadas > 0:
-                st.warning(f"⚠️ {duplicadas} ocorrência(s) duplicada(s) ignorada(s).")
-            
-            carregar_ocorrencias.clear()
-            st.rerun()
-                        if sucessos > 0:
-                            st.success(f"✅ {sucessos} agendamento(s) confirmado(s)!")
-                            registrar_log("CRIAR_AGENDAMENTO", professor, f"{data.strftime('%d/%m/%Y')} - {espaco} - {horarios}")
-                            show_toast(f"{sucessos} agendamento(s) criado(s)!", "success")
-                            st.balloons()
-                            carregar_agendamentos_filtrado.clear()
-                            
-                            # ⭐ ATUALIZAR GAMIFICAÇÃO ⭐
-                            st.session_state.agendamentos_criados += sucessos
-                            
-                            # Verificar conquista de agendamento
-                            if st.session_state.agendamentos_criados >= 5:
-                                verificar_conquista("agendamento_perfeito")
-                            
-                            if salvar_como_template and nome_template:
-                                config = {
-                                    "turma": turma,
-                                    "disciplina": disciplina,
-                                    "prioridade": prioridade,
-                                    "espaco": espaco,
-                                    "horarios": horarios
-                                }
-                                salvar_template(professor, nome_template, config)
-                                st.success(f"✅ Template '{nome_template}' salvo!")
-                            
-                            st.rerun()
-                        else:
-                            st.error("❌ Não foi possível criar o agendamento.")
-        
-        else:
-            st.info("💡 **Agendamento Fixo Semanal** - Use a aba '🗓️ Grade Semanal' para configurar horários fixos!")
-            if st.button("➡️ Ir para Grade Semanal", type="primary"):
-                st.rerun()
-                # ======================================================
-# EXIBIR WIDGETS NO SIDEBAR
 # ======================================================
 exibir_notificacoes_sidebar()
 exibir_gamificacao_sidebar()
 exibir_assistente_sidebar()
-if menu == "🏠 Dashboard":
-    # Seu código do Dashboard
-elif menu == "👨‍👩‍👧 Portal do Responsável":
-    # Seu código do Portal
-elif menu == "📥 Importar Alunos":
-    # Seu código de Importar Alunos
-# ... e assim por diante
 # ======================================================
 # PÁGINA 🏠 DASHBOARD - COMPLETO E COLORIDO
 # ======================================================
@@ -2943,10 +2881,10 @@ elif menu == "📝 Registrar Ocorrência":
 
     if busca:
         grupos_filtrados = buscar_infracao_fuzzy(busca, PROTOCOLO_179)
-     if grupos_filtrados:
+        if grupos_filtrados:
             grupo = st.selectbox("Grupo", list(grupos_filtrados.keys()), key="grupo_infracao")
             infracoes = grupos_filtrados[grupo]
-    else:
+        else:
             st.warning("⚠️ Nenhuma infração encontrada. Mostrando todas.")
             grupo = st.selectbox("Grupo", list(PROTOCOLO_179.keys()), key="grupo_infracao")
             infracoes = PROTOCOLO_179[grupo]
@@ -2986,9 +2924,9 @@ elif menu == "📝 Registrar Ocorrência":
     st.markdown("---")
 
     if st.button("💾 Salvar Ocorrência(s)", type="primary"):
-    if not prof or not relato.strip():
+        if not prof or not relato.strip():
             st.error("❌ Preencha professor e relato.")
-    else:
+        else:
             salvas = 0
             duplicadas = 0
             
