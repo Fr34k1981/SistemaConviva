@@ -62,6 +62,8 @@ if SUPABASE_VALID:
         "Content-Type": "application/json",
         "Prefer": "return=representation",
     }
+else:
+    logger.warning("⚠️ Supabase não configurado. Verifique as variáveis SUPABASE_URL e SUPABASE_KEY no .env")
 
 # ======================================================
 # CONFIGURAÇÃO STREAMLIT
@@ -968,6 +970,11 @@ st.sidebar.markdown("---")
 # Inicializar página atual se não existir
 if 'pagina_atual' not in st.session_state:
     st.session_state.pagina_atual = "🏠 Dashboard"
+
+# Alerta se Supabase não está configurado
+if not SUPABASE_VALID:
+    st.sidebar.error("❌ **Supabase não configurado!**\n\nVerifique se as variáveis `SUPABASE_URL` e `SUPABASE_KEY` estão definidas no arquivo `.env`.")
+
 
 # Estilo CSS para os botões do menu
 st.sidebar.markdown("""
@@ -3334,11 +3341,31 @@ elif menu == "📝 Registrar Ocorrência":
         st.session_state.ocorrencia_salva_sucesso = False
         st.session_state.salvando_ocorrencia = False
 
-    if df_alunos.empty:
+    # Recarregar alunos se estiverem vazios
+    df_alunos_temp = df_alunos
+    if df_alunos_temp.empty:
+        with st.spinner("⏳ Carregando alunos..."):
+            try:
+                df_alunos_temp = carregar_alunos()
+            except Exception as e:
+                st.error(f"❌ Erro ao carregar alunos: {e}")
+                st.stop()
+
+    if df_alunos_temp.empty:
         st.warning("⚠️ Cadastre ou importe alunos antes de registrar ocorrências.")
         st.stop()
 
-    if df_professores.empty:
+    # Recarregar professores se estiverem vazios
+    df_professores_temp = df_professores
+    if df_professores_temp.empty:
+        with st.spinner("⏳ Carregando professores..."):
+            try:
+                df_professores_temp = carregar_professores()
+            except Exception as e:
+                st.error(f"❌ Erro ao carregar professores: {e}")
+                st.stop()
+
+    if df_professores_temp.empty:
         st.warning("⚠️ Cadastre professores antes de registrar ocorrências.")
         st.stop()
 
