@@ -128,15 +128,12 @@ html, body, [class*="css"] {
 /* ========== CORREÇÃO AGRESSIVA DE TOOLTIPS ========== */
 /* ============================================ */
 [data-testid="stTooltipHoverTarget"],
-[class*="tooltip"],
-[class*="Tooltip"],
 [role="tooltip"],
 div[class*="TooltipContainer"],
 div[class*="tooltip-container"],
 .stTooltip,
 #stTooltip,
 [data-baseweb="tooltip"],
-[data-baseweb*="tooltip"],
 div[id*="tooltip"] {
     display: none !important;
     visibility: hidden !important;
@@ -160,11 +157,27 @@ button::before,
     content: none !important;
 }
 
-[data-testid="stSidebar"] [style*="position: absolute"],
-[data-testid="stSidebar"] [style*="position:absolute"],
-[data-testid="stSidebar"] div[style*="position: fixed"],
-[data-testid="stSidebar"] div[style*="position:fixed"] {
+/* Esconde apenas elementos absolutos de tooltip/decoração no sidebar,
+   mas NÃO esconde dropdowns/listas de seleção (popover, listbox, menu) */
+[data-testid="stSidebar"] [style*="position: absolute"]:not([data-baseweb]):not([role="listbox"]):not([role="option"]):not([role="menu"]):not([role="menuitem"]):not([class*="popover"]):not([class*="dropdown"]):not([class*="menu"]),
+[data-testid="stSidebar"] [style*="position:absolute"]:not([data-baseweb]):not([role="listbox"]):not([role="option"]):not([role="menu"]):not([class*="popover"]):not([class*="dropdown"]):not([class*="menu"]),
+[data-testid="stSidebar"] div[style*="position: fixed"]:not([data-baseweb]):not([role="listbox"]):not([class*="popover"]):not([class*="dropdown"]),
+[data-testid="stSidebar"] div[style*="position:fixed"]:not([data-baseweb]):not([role="listbox"]):not([class*="popover"]):not([class*="dropdown"]) {
     display: none !important;
+}
+
+/* Garante que dropdowns/popovers do baseweb (selectbox, multiselect) sejam sempre visíveis */
+[data-baseweb="popover"],
+[data-baseweb="menu"],
+[data-baseweb="select"] [role="listbox"],
+[role="listbox"],
+[role="option"],
+ul[data-baseweb],
+li[data-baseweb] {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
 }
 
 /* ============================================ */
