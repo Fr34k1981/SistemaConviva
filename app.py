@@ -1999,36 +1999,53 @@ def converter_eletivas_supabase_para_dict(df_eletivas: pd.DataFrame) -> dict:
 
 def montar_dataframe_eletiva(nome_professora: str, df_alunos: pd.DataFrame, eletivas_dict: dict) -> pd.DataFrame:
     registros = []
-    alunos_db = df_alunos.copy()
+    
+    # Se df_alunos está vazio, criar DataFrame com estrutura mínima
+    if df_alunos.empty:
+        alunos_db = pd.DataFrame({"nome": [], "nome_norm": [], "ra": [], "turma": [], "situacao": []})
+    else:
+        alunos_db = df_alunos.copy()
+    
+    # Encontrar coluna de nome
     nome_coluna = None
     for c in alunos_db.columns:
         if c.lower() in ("nome", "nome do aluno", "aluno"):
             nome_coluna = c
             break
-    if nome_coluna:
+    
+    # Criar coluna normalizada
+    if nome_coluna and not alunos_db.empty:
         alunos_db["nome_norm"] = alunos_db[nome_coluna].apply(normalizar_texto)
     else:
         alunos_db["nome_norm"] = ""
+    
+    # Processar eletivas
     for item in eletivas_dict.get(nome_professora, []):
         nome_original = item.get("nome", "")
         serie_original = item.get("serie", "")
         nome_norm_excel = normalizar_texto(nome_original)
         melhor_match = None
         melhor_score = 0.0
-        for _, aluno in alunos_db.iterrows():
-            score = SequenceMatcher(None, nome_norm_excel, aluno.get("nome_norm", "")).ratio()
-            if score > melhor_score:
-                melhor_score = score
-                melhor_match = aluno
+        
+        # Buscar melhor match nos alunos
+        if not alunos_db.empty:
+            for idx, aluno in alunos_db.iterrows():
+                nome_norm_aluno = aluno.get("nome_norm", "") if hasattr(aluno, 'get') else aluno["nome_norm"] if "nome_norm" in alunos_db.columns else ""
+                score = SequenceMatcher(None, nome_norm_excel, str(nome_norm_aluno)).ratio()
+                if score > melhor_score:
+                    melhor_score = score
+                    melhor_match = aluno
+        
+        # Adicionar registro
         if melhor_match is not None and melhor_score >= 0.80:
             registros.append({
                 "Professora": nome_professora,
                 "Nome da Eletiva": nome_original,
                 "Série da Eletiva": serie_original,
-                "Aluno Cadastrado": melhor_match.get("nome", ""),
-                "RA": melhor_match.get("ra", ""),
-                "Turma no Sistema": melhor_match.get("turma", ""),
-                "Situação": melhor_match.get("situacao", ""),
+                "Aluno Cadastrado": melhor_match.get("nome", "") if hasattr(melhor_match, 'get') else melhor_match.get("nome") if "nome" in alunos_db.columns else "",
+                "RA": melhor_match.get("ra", "") if hasattr(melhor_match, 'get') else melhor_match.get("ra") if "ra" in alunos_db.columns else "",
+                "Turma no Sistema": melhor_match.get("turma", "") if hasattr(melhor_match, 'get') else melhor_match.get("turma") if "turma" in alunos_db.columns else "",
+                "Situação": melhor_match.get("situacao", "") if hasattr(melhor_match, 'get') else melhor_match.get("situacao") if "situacao" in alunos_db.columns else "",
                 "Status": "Encontrado",
             })
         else:
@@ -2042,6 +2059,7 @@ def montar_dataframe_eletiva(nome_professora: str, df_alunos: pd.DataFrame, elet
                 "Situação": "",
                 "Status": "Não encontrado",
             })
+    
     return pd.DataFrame(registros)
 
 ELETIVAS_EXCEL = carregar_eletivas_do_excel(ELETIVAS_ARQUIVO, fallback=ELETIVAS)
@@ -4226,7 +4244,25 @@ elif menu == "🎨 Eletiva":
     professora_sel = st.selectbox("Selecione a Professora", sorted(ELETIVAS.keys()))
     alunos_raw = ELETIVAS.get(professora_sel, [])
 
-    df_eletiva = montar_dataframe_eletiva(professora_sel, df_alunos, ELETIVAS)
+    # Carregar dados de alunos se não estiverem carregados
+    if df_alunos.empty:
+        with st.spinner("⏳ Carregando dados de alunos..."):
+            try:
+                df_alunos_temp = carregar_alunos()
+                if not df_alunos_temp.empty:
+                    df_alunos = df_alunos_temp
+                    st.success("✅ Alunos carregados com sucesso!")
+                else:
+                    st.warning("⚠️ Nenhum aluno encontrado no banco de dados.")
+            except Exception as e:
+                st.error(f"❌ Erro ao carregar alunos: {e}")
+    
+    # Montar dataframe com validação
+    try:
+        df_eletiva = montar_dataframe_eletiva(professora_sel, df_alunos, ELETIVAS)
+    except Exception as e:
+        st.error(f"❌ Erro ao processar eletiva: {e}")
+        df_eletiva = pd.DataFrame()
     
     # Validar se o DataFrame foi criado corretamente
     if df_eletiva.empty:
