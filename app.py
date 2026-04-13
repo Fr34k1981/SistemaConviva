@@ -3353,27 +3353,65 @@ elif menu == "📝 Registrar Ocorrência":
 
     data_str = f"{data_fato.strftime('%d/%m/%Y')} {hora_fato.strftime('%H:%M')}"
     
-    turmas_disponiveis = sorted(df_alunos["turma"].unique().tolist())
-    turmas_sel = st.multiselect("🏫 Turma(s)", turmas_disponiveis, default=[turmas_disponiveis[0]] if turmas_disponiveis else [], key="turmas_sel")
+    # Verificar e carregar turmas com melhor validação
+    turmas_disponiveis = []
+    
+    if "turma" in df_alunos.columns:
+        turmas_disponiveis = sorted([t for t in df_alunos["turma"].unique().tolist() if t and str(t).strip()])
+    
+    if not turmas_disponiveis:
+        st.error("❌ Nenhuma turma disponível. Verifique se os alunos têm turma cadastrada.")
+        st.stop()
+    
+    turmas_sel = st.multiselect(
+        "🏫 Turma(s) *",
+        turmas_disponiveis,
+        default=[turmas_disponiveis[0]] if turmas_disponiveis else [],
+        key="turmas_sel",
+        help="Selecione uma ou mais turmas"
+    )
 
     if not turmas_sel:
         st.warning("⚠️ Selecione ao menos uma turma.")
         st.stop()
 
-    alunos_turma = df_alunos[df_alunos["turma"].isin(turmas_sel)]
+    alunos_turma = df_alunos[df_alunos["turma"].isin(turmas_sel)].copy()
+    
+    if alunos_turma.empty:
+        st.error("❌ Nenhum aluno encontrado nas turmas selecionadas.")
+        st.stop()
     
     # Mostrar apenas alunos ATIVOS
     if "situacao" in alunos_turma.columns:
         alunos_turma["situacao_norm"] = alunos_turma["situacao"].str.strip().str.title()
-        alunos_turma = alunos_turma[alunos_turma["situacao_norm"] == "Ativo"]
+        alunos_ativos = alunos_turma[alunos_turma["situacao_norm"] == "Ativo"]
+        if not alunos_ativos.empty:
+            alunos_turma = alunos_ativos
+        # Se não houver ativos, mantém todos
+    
+    lista_alunos = sorted(alunos_turma["nome"].dropna().unique().tolist())
+    
+    if not lista_alunos:
+        st.error("❌ Nenhum aluno disponível nas turmas selecionadas.")
+        st.stop()
 
     st.markdown("### 👥 Estudantes Envolvidos")
     modo_multiplo = st.checkbox("Registrar para múltiplos estudantes", key="modo_multiplo")
 
     if modo_multiplo:
-        alunos_selecionados = st.multiselect("Selecione os estudantes", alunos_turma["nome"].tolist(), key="alunos_multiplos")
+        alunos_selecionados = st.multiselect(
+            "Selecione os estudantes *",
+            lista_alunos,
+            key="alunos_multiplos",
+            help="Você pode selecionar vários alunos para uma única ocorrência"
+        )
     else:
-        aluno_unico = st.selectbox("Aluno", alunos_turma["nome"].tolist(), key="aluno_unico")
+        aluno_unico = st.selectbox(
+            "Selecione o estudante *",
+            [""] + lista_alunos,
+            key="aluno_unico",
+            help="Selecione o aluno envolvido na ocorrência"
+        )
         alunos_selecionados = [aluno_unico] if aluno_unico else []
 
     if not alunos_selecionados:
