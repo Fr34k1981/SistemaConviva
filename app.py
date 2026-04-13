@@ -27,7 +27,7 @@ import tempfile
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.platypus import (
-    SimpleDocTemplate, Table, TableStyle, Paragraph, 
+    SimpleDocTemplate, Table, TableStyle, Paragraph,
     Spacer, Image, PageBreak
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -78,16 +78,14 @@ st.set_page_config(
 # ======================================================
 # CONFIGURAÇÃO PARA DESABILITAR NAVEGAÇÃO DO STREAMLIT
 # ======================================================
-# Isso remove completamente a navegação nativa que causa o bug
 st.markdown("""
     <script>
-        // Desabilita a navegação automática do Streamlit
         window.location.hash = '';
     </script>
     """, unsafe_allow_html=True)
 
 # ======================================================
-# CSS PREMIUM - DESIGN LIMPO E CORREÇÃO DEFINITIVA DE TOOLTIPS
+# CSS PREMIUM - DESIGN LIMPO E CORREÇÃO DE TOOLTIPS
 # ======================================================
 st.markdown("""
 <style>
@@ -143,8 +141,6 @@ html, body, [class*="css"] {
 /* ============================================ */
 /* ========== CORREÇÃO AGRESSIVA DE TOOLTIPS ========== */
 /* ============================================ */
-
-/* Remove TODOS os tooltips e popovers */
 [data-testid="stTooltipHoverTarget"],
 [class*="tooltip"],
 [class*="Tooltip"],
@@ -163,7 +159,6 @@ div[class*="popup"],
     pointer-events: none !important;
 }
 
-/* Remove pseudo-elementos */
 button::after,
 button::before,
 a::after,
@@ -176,10 +171,7 @@ span::before {
 
 /* ============================================ */
 /* ========== CORREÇÃO DE NAVEGAÇÃO ESCAPADA ========== */
-/* ========= SELETOR NUCLEAR - ELIMINA TUDO ==== */
 /* ============================================ */
-
-/* Remove TODOS os spans que não estão dentro da sidebar */
 body > * span,
 main span,
 [data-testid="stAppViewContainer"] span:not([data-testid="stSidebar"] span) {
@@ -187,7 +179,6 @@ main span,
     overflow: hidden !important;
 }
 
-/* Esconde completamente qualquer elemento fora da viewport */
 [style*="position: absolute"],
 [style*="position: fixed"],
 div[style*="right:"],
@@ -197,13 +188,11 @@ span[style*="position"] {
     visibility: hidden !important;
 }
 
-/* Remove pseudo-elementos globais */
 *::before,
 *::after {
     display: none !important;
 }
 
-/* Garante clip na sidebar */
 [data-testid="stSidebar"] {
     overflow: hidden !important;
     clip-path: inset(0) !important;
@@ -212,7 +201,6 @@ span[style*="position"] {
     width: 280px !important;
 }
 
-/* Força esconder qualquer coisa que saia dos limites */
 main {
     overflow: hidden !important;
     max-width: 100vw !important;
@@ -223,7 +211,6 @@ main {
     max-width: 100vw !important;
 }
 
-/* Clip path agressivo no raiz */
 html {
     overflow-x: clip !important;
 }
@@ -847,16 +834,14 @@ footer { visibility: hidden; }
 """, unsafe_allow_html=True)
 
 # ======================================================
-# JAVASCRIPT DEFINITIVO PARA ELIMINAR TOOLTIPS
+# JAVASCRIPT PARA ELIMINAR TOOLTIPS
 # ======================================================
 st.components.v1.html("""
 <script>
 (function() {
     'use strict';
     
-    // Função que elimina qualquer vestígio de tooltip
     function exterminarTooltips() {
-        // Seletores abrangentes para capturar tooltips do Streamlit
         const seletores = [
             '[data-testid="stTooltipHoverTarget"]',
             '[class*="tooltip"]',
@@ -875,18 +860,15 @@ st.components.v1.html("""
             });
         });
         
-        // Remove atributos que causam tooltip nativo nos botões da sidebar
         const botoesSidebar = document.querySelectorAll('[data-testid="stSidebar"] button');
         botoesSidebar.forEach(btn => {
             btn.removeAttribute('title');
             btn.removeAttribute('aria-label');
             btn.removeAttribute('data-tooltip');
             btn.removeAttribute('aria-describedby');
-            // Define um título vazio para prevenir recriação
             btn.setAttribute('title', '');
         });
         
-        // Remove qualquer div com posição absoluta na sidebar que possa ser tooltip
         const divsSidebar = document.querySelectorAll('[data-testid="stSidebar"] div');
         divsSidebar.forEach(div => {
             const style = window.getComputedStyle(div);
@@ -895,7 +877,6 @@ st.components.v1.html("""
             }
         });
         
-        // Tenta remover tooltips que estejam fora da sidebar também
         document.querySelectorAll('body > div:last-child').forEach(el => {
             if (el.innerHTML.includes('tooltip') || el.getAttribute('data-testid') === 'stTooltipHoverTarget') {
                 el.remove();
@@ -903,7 +884,6 @@ st.components.v1.html("""
         });
     }
     
-    // Injeta regra CSS adicional diretamente no head
     const style = document.createElement('style');
     style.textContent = `
         [data-testid="stTooltipHoverTarget"],
@@ -920,24 +900,18 @@ st.components.v1.html("""
     `;
     document.head.appendChild(style);
     
-    // Executa imediatamente
     exterminarTooltips();
-    
-    // Executa a cada 300ms para garantir que tooltips criados tardiamente sejam removidos
     setInterval(exterminarTooltips, 300);
     
-    // Observer para detectar mudanças no DOM
     const observer = new MutationObserver(function(mutations) {
         exterminarTooltips();
     });
     observer.observe(document.body, { childList: true, subtree: true, attributes: true });
     
-    // Intercepta eventos de mouse para limpeza proativa
     document.addEventListener('mouseover', function(e) {
         exterminarTooltips();
     }, true);
     
-    // Também no carregamento completo da página
     window.addEventListener('load', exterminarTooltips);
     
 })();
@@ -975,15 +949,12 @@ if 'pagina_atual' not in st.session_state:
 if not SUPABASE_VALID:
     st.sidebar.error("❌ **Supabase não configurado!**\n\nVerifique se as variáveis `SUPABASE_URL` e `SUPABASE_KEY` estão definidas no arquivo `.env`.")
 
-
 # Estilo CSS para os botões do menu
 st.sidebar.markdown("""
 <style>
-/* Estilo para os botões do menu lateral */
 div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] {
     margin: 0.25rem 0;
 }
-
 div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button {
     background: transparent !important;
     border: none !important;
@@ -1000,14 +971,11 @@ div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button {
     align-items: center !important;
     gap: 0.75rem !important;
 }
-
 div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button:hover {
     background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(236, 72, 153, 0.1)) !important;
     color: #6366f1 !important;
     transform: translateX(5px) !important;
 }
-
-/* Botão ativo */
 .menu-ativo {
     background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
     color: white !important;
@@ -1039,11 +1007,7 @@ menu_items = [
 # Criar botões estilizados
 for item in menu_items:
     nome_completo = f"{item['icone']} {item['nome']}"
-    
-    # Verificar se é a página ativa
     is_active = st.session_state.pagina_atual == nome_completo
-    
-    # Estilo do botão
     button_style = "primary" if is_active else "secondary"
     
     if st.sidebar.button(
@@ -1075,7 +1039,6 @@ st.sidebar.markdown("""
     <p style="font-size: 0.7rem; color: #94a3b8;">v10.0 Premium</p>
 </div>
 """, unsafe_allow_html=True)
-
 # ======================================================
 # ELETIVAS — ARQUIVO DE IMPORTAÇÃO
 # ======================================================
@@ -1223,7 +1186,7 @@ CORES_GRAVIDADE = {
 }
 
 # ======================================================
-# PROTOCOLO 179 COMPLETO (RESUMIDO PARA CABER)
+# PROTOCOLO 179 COMPLETO
 # ======================================================
 PROTOCOLO_179 = {
     "📌 Violência e Agressão": {
@@ -1293,6 +1256,7 @@ PROTOCOLO_179 = {
         },
     },
 }
+
 # ======================================================
 # FUNÇÕES UTILITÁRIAS PREMIUM
 # ======================================================
@@ -1377,7 +1341,6 @@ def buscar_infracao_fuzzy(busca: str, protocolo: dict) -> dict:
         if encontradas:
             resultados[grupo] = encontradas
     return resultados
-
 # ======================================================
 # SISTEMA DE NOTIFICAÇÕES
 # ======================================================
@@ -1464,7 +1427,7 @@ def exibir_notificacoes_sidebar():
         with st.sidebar.expander("🔔 Notificações", expanded=False):
             st.success("✅ Nenhuma notificação pendente")
 
-            # ======================================================
+# ======================================================
 # SISTEMA DE GAMIFICAÇÃO
 # ======================================================
 
@@ -1598,7 +1561,7 @@ def exibir_gamificacao_sidebar():
         else:
             st.caption("Continue usando o sistema para ganhar conquistas!")
 
-            # ======================================================
+# ======================================================
 # ASSISTENTE VIRTUAL
 # ======================================================
 
@@ -1849,7 +1812,6 @@ def verificar_ocorrencia_duplicada(ra: str, categoria: str, data_str: str, df_oc
         return False
     duplicadas = df_ocorrencias[(df_ocorrencias["ra"] == ra) & (df_ocorrencias["categoria"] == categoria) & (df_ocorrencias["data"] == data_str)]
     return not duplicadas.empty
-
 # ======================================================
 # AGENDAMENTO - FUNÇÕES SUPABASE
 # ======================================================
@@ -1864,7 +1826,6 @@ def carregar_agendamentos_filtrado(data_ini: str, data_fim: str, espaco: str = N
             filtros += f"&espaco=eq.{espaco}"
         
         if professor:
-            # Codificar o nome do professor corretamente para a URL (com aspas)
             professor_encoded = professor.replace(" ", "%20")
             filtros += f'&professor_nome=eq."{professor_encoded}"'
         
@@ -2007,26 +1968,22 @@ def converter_eletivas_supabase_para_dict(df_eletivas: pd.DataFrame) -> dict:
 def montar_dataframe_eletiva(nome_professora: str, df_alunos: pd.DataFrame, eletivas_dict: dict) -> pd.DataFrame:
     registros = []
     
-    # Se df_alunos está vazio, criar DataFrame com estrutura mínima
     if df_alunos.empty:
         alunos_db = pd.DataFrame({"nome": [], "nome_norm": [], "ra": [], "turma": [], "situacao": []})
     else:
         alunos_db = df_alunos.copy()
     
-    # Encontrar coluna de nome
     nome_coluna = None
     for c in alunos_db.columns:
         if c.lower() in ("nome", "nome do aluno", "aluno"):
             nome_coluna = c
             break
     
-    # Criar coluna normalizada
     if nome_coluna and not alunos_db.empty:
         alunos_db["nome_norm"] = alunos_db[nome_coluna].apply(normalizar_texto)
     else:
         alunos_db["nome_norm"] = ""
     
-    # Processar eletivas
     for item in eletivas_dict.get(nome_professora, []):
         nome_original = item.get("nome", "")
         serie_original = item.get("serie", "")
@@ -2034,7 +1991,6 @@ def montar_dataframe_eletiva(nome_professora: str, df_alunos: pd.DataFrame, elet
         melhor_match = None
         melhor_score = 0.0
         
-        # Buscar melhor match nos alunos
         if not alunos_db.empty:
             for idx, aluno in alunos_db.iterrows():
                 nome_norm_aluno = aluno.get("nome_norm", "") if hasattr(aluno, 'get') else aluno["nome_norm"] if "nome_norm" in alunos_db.columns else ""
@@ -2043,7 +1999,6 @@ def montar_dataframe_eletiva(nome_professora: str, df_alunos: pd.DataFrame, elet
                     melhor_score = score
                     melhor_match = aluno
         
-        # Adicionar registro
         if melhor_match is not None and melhor_score >= 0.80:
             registros.append({
                 "Professora": nome_professora,
@@ -2093,9 +2048,6 @@ def _adicionar_logo(elementos: list):
 # ======================================================
 
 def gerar_pdf_eletiva(nome_professora: str, df_eletiva: pd.DataFrame) -> BytesIO:
-    """
-    Gera um PDF com a lista de estudantes da eletiva de uma professora
-    """
     buffer = BytesIO()
     doc = _criar_documento_pdf(buffer)
     estilos = getSampleStyleSheet()
@@ -2103,7 +2055,6 @@ def gerar_pdf_eletiva(nome_professora: str, df_eletiva: pd.DataFrame) -> BytesIO
     
     _adicionar_logo(elementos)
     
-    # Título
     titulo_style = ParagraphStyle(
         'TituloEletiva',
         parent=estilos['Heading1'],
@@ -2115,12 +2066,10 @@ def gerar_pdf_eletiva(nome_professora: str, df_eletiva: pd.DataFrame) -> BytesIO
     elementos.append(Paragraph(f"LISTA DE ELETIVA", titulo_style))
     elementos.append(Spacer(1, 0.3*cm))
     
-    # Informações da professora
     elementos.append(Paragraph(f"<b>Professora:</b> {nome_professora}", estilos['Normal']))
     elementos.append(Paragraph(f"<b>Total de estudantes:</b> {len(df_eletiva)}", estilos['Normal']))
     elementos.append(Spacer(1, 0.5*cm))
     
-    # Tabela de estudantes
     cabecalho = ["Nome da Eletiva", "Série", "RA", "Turma", "Status"]
     linhas = []
     
@@ -2295,8 +2244,9 @@ def _init_session_state():
         "pending_delete_id": None,
         "pending_delete_prof": None,
         "logs_agendamento": [],
+        "tipo_agend": "data",
         
-        # ⭐ NOVOS PARA GAMIFICAÇÃO
+        # Gamificação
         "pontos_usuario": 0,
         "conquistas_usuario": [],
         "nivel_usuario": 1,
@@ -2327,7 +2277,7 @@ if not st.session_state.backup_realizado:
         st.session_state.backup_manager.criar_backup()
         st.session_state.backup_manager.limpar_backups_antigos(dias_retencao=30)
         st.session_state.backup_realizado = True
-        verificar_conquista("backup_realizado")  # ⭐ Conquista por fazer backup
+        verificar_conquista("backup_realizado")
     except Exception as e:
         logger.error(f"Erro ao executar backup automático: {e}")
 
@@ -2390,6 +2340,13 @@ else:
 
 ELETIVAS = st.session_state.ELETIVAS
 FONTE_ELETIVAS = st.session_state.FONTE_ELETIVAS
+
+# ======================================================
+# EXIBIR WIDGETS DA SIDEBAR (NOTIFICAÇÕES, GAMIFICAÇÃO, ASSISTENTE)
+# ======================================================
+exibir_notificacoes_sidebar()
+exibir_gamificacao_sidebar()
+exibir_assistente_sidebar()
 # ======================================================
 # PÁGINA 🏠 DASHBOARD - COMPLETO E COLORIDO
 # ======================================================
@@ -2419,7 +2376,7 @@ if menu == "🏠 Dashboard":
     </div>
     """, unsafe_allow_html=True)
     
-    # Métricas Principais com cores vibrantes
+    # Métricas Principais
     total_alunos = len(df_alunos) if not df_alunos.empty else 0
     total_ocorrencias = len(df_ocorrencias) if not df_ocorrencias.empty else 0
     total_professores = len(df_professores) if not df_professores.empty else 0
@@ -2432,7 +2389,6 @@ if menu == "🏠 Dashboard":
         total_ativos = total_alunos
         total_transferidos = 0
     
-    # Cards coloridos
     st.markdown("### 📊 Visão Geral")
     
     col1, col2, col3, col4, col5 = st.columns(5)
@@ -2485,7 +2441,7 @@ if menu == "🏠 Dashboard":
         </div>
         """, unsafe_allow_html=True)
     
-    # Distribuição por Gravidade com cores vibrantes
+    # Distribuição por Gravidade
     if not df_ocorrencias.empty and "gravidade" in df_ocorrencias.columns:
         st.markdown("---")
         st.markdown("### 📊 Distribuição de Ocorrências por Gravidade")
@@ -2494,8 +2450,6 @@ if menu == "🏠 Dashboard":
         
         with col1:
             contagem_grav = df_ocorrencias['gravidade'].value_counts()
-            
-            # Cards coloridos por gravidade
             gravidades = ['Leve', 'Média', 'Grave', 'Gravíssima']
             cores_grav = ['#10b981', '#f59e0b', '#f97316', '#ef4444']
             
@@ -2649,11 +2603,8 @@ if menu == "🏠 Dashboard":
     
     st.markdown("---")
     st.info(f"📌 Fonte das eletivas: **{FONTE_ELETIVAS.upper()}** | 🗓️ Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}")
-            # ======================================================
-# PÁGINA 📥 IMPORTAR ALUNOS
-# ======================================================
-# ======================================================
-# PÁGINA 👨‍👩‍👧 PORTAL DO RESPONSÁVEL (COMPLETA)
+    # ======================================================
+# PÁGINA 👨‍👩‍👧 PORTAL DO RESPONSÁVEL
 # ======================================================
 
 elif menu == "👨‍👩‍👧 Portal do Responsável":
@@ -2676,13 +2627,11 @@ elif menu == "👨‍👩‍👧 Portal do Responsável":
         if not ra_acesso or not senha_acesso:
             st.error("❌ Preencha RA e senha!")
         else:
-            # Buscar aluno
             aluno_encontrado = df_alunos[df_alunos['ra'].astype(str) == ra_acesso] if not df_alunos.empty else pd.DataFrame()
             
             if aluno_encontrado.empty:
                 st.error("❌ Aluno não encontrado!")
             else:
-                # Senha padrão para demonstração
                 senha_correta = "123456"
                 
                 if senha_acesso != senha_correta:
@@ -2693,7 +2642,6 @@ elif menu == "👨‍👩‍👧 Portal do Responsável":
                     
                     st.markdown("---")
                     
-                    # Informações do aluno
                     st.subheader("📋 Informações do Aluno")
                     col1, col2, col3 = st.columns(3)
                     with col1:
@@ -2705,7 +2653,6 @@ elif menu == "👨‍👩‍👧 Portal do Responsável":
                     
                     st.markdown("---")
                     
-                    # Ocorrências do aluno
                     st.subheader("📝 Histórico de Ocorrências")
                     ocorrencias_aluno = df_ocorrencias[df_ocorrencias['ra'].astype(str) == ra_acesso] if not df_ocorrencias.empty else pd.DataFrame()
                     
@@ -2722,6 +2669,11 @@ elif menu == "👨‍👩‍👧 Portal do Responsável":
                     
                     st.markdown("---")
                     st.caption("Em caso de dúvidas, entre em contato com a secretaria da escola.")
+
+# ======================================================
+# PÁGINA 📥 IMPORTAR ALUNOS
+# ======================================================
+
 elif menu == "📥 Importar Alunos":
     st.header("📥 Importar Alunos por Turma")
     
@@ -2760,7 +2712,6 @@ elif menu == "📥 Importar Alunos":
             
             colunas = df_import.columns.tolist()
             
-            # Identificação automática
             col_ra = None
             col_nome = None
             col_situacao = None
@@ -2806,7 +2757,6 @@ elif menu == "📥 Importar Alunos":
             else:
                 st.warning("📊 **Situação:** Não encontrada (usará 'Ativo')")
             
-            # Seleção manual se necessário
             if col_ra is None or col_nome is None:
                 st.warning("⚠️ Selecione manualmente as colunas:")
                 col1, col2 = st.columns(2)
@@ -2932,7 +2882,6 @@ elif menu == "📥 Importar Alunos":
     else:
         st.info("📁 Selecione um arquivo CSV para começar.")
     
-    # Mostrar turmas existentes
     st.markdown("---")
     st.subheader("📊 Turmas cadastradas")
     if not df_alunos.empty:
@@ -2941,8 +2890,9 @@ elif menu == "📥 Importar Alunos":
         st.dataframe(resumo.sort_values('Turma'), use_container_width=True, hide_index=True)
     else:
         st.info("Nenhuma turma cadastrada ainda.")
-        # ======================================================
-# PÁGINA 👥 LISTA DE ALUNOS (COM FILTRO ATIVO/TODOS)
+
+# ======================================================
+# PÁGINA 👥 LISTA DE ALUNOS
 # ======================================================
 
 elif menu == "👥 Lista de Alunos":
@@ -2950,7 +2900,6 @@ elif menu == "👥 Lista de Alunos":
     
     tab1, tab2, tab3 = st.tabs(["📋 Listar Alunos", "➕ Cadastrar Aluno", "✏️ Editar/Excluir"])
     
-    # ========== ABA 1: LISTAR ==========
     with tab1:
         if df_alunos.empty:
             st.info("📭 Nenhum aluno cadastrado. Use a aba '➕ Cadastrar Aluno' ou '📥 Importar Alunos'.")
@@ -2991,7 +2940,6 @@ elif menu == "👥 Lista de Alunos":
                     df_view["ra"].astype(str).str.contains(busca_nome, na=False)
                 ]
             
-            # Estatísticas
             total_geral = len(df_alunos)
             total_ativos = len(df_alunos[df_alunos["situacao_norm"] == "Ativo"])
             
@@ -3021,7 +2969,6 @@ elif menu == "👥 Lista de Alunos":
                         mime="text/csv"
                     )
     
-    # ========== ABA 2: CADASTRAR ==========
     with tab2:
         st.subheader("➕ Cadastrar Novo Aluno")
         
@@ -3057,7 +3004,6 @@ elif menu == "👥 Lista de Alunos":
                         else:
                             st.error("❌ Erro ao salvar aluno.")
     
-    # ========== ABA 3: EDITAR/EXCLUIR ==========
     with tab3:
         if df_alunos.empty:
             st.info("📭 Nenhum aluno cadastrado.")
@@ -3251,7 +3197,6 @@ elif menu == "📋 Gerenciar Turmas":
                     
                     colunas = df_import.columns.tolist()
                     
-                    # Mapeamento automático
                     col_ra = None
                     col_nome = None
                     col_situacao = None
@@ -3329,8 +3274,9 @@ elif menu == "📋 Gerenciar Turmas":
                 if st.button("❌ Cancelar"):
                     st.session_state.turma_para_deletar = None
                     st.rerun()
+
 # ======================================================
-# PÁGINA 📝 REGISTRAR OCORRÊNCIA
+# PÁGINA 📝 REGISTRAR OCORRÊNCIA (VERSÃO CORRIGIDA)
 # ======================================================
 
 elif menu == "📝 Registrar Ocorrência":
@@ -3361,27 +3307,53 @@ elif menu == "📝 Registrar Ocorrência":
         st.warning("⚠️ Nenhum professor cadastrado. Cadastre professores primeiro.")
         st.stop()
 
-    # Garantir que as colunas essenciais existam
-    if "nome" not in df_alunos_temp.columns or "turma" not in df_alunos_temp.columns:
-        st.error("❌ As colunas 'nome' e 'turma' são obrigatórias na tabela de alunos.")
+    # ------------------------------------------------------------
+    # 2. MAPEAMENTO DINÂMICO DAS COLUNAS (NOME, TURMA, RA, SITUAÇÃO)
+    # ------------------------------------------------------------
+    colunas_nome = ['nome', 'aluno', 'nome_aluno', 'nomecompleto']
+    colunas_turma = ['turma', 'serie', 'classe']
+    colunas_ra = ['ra', 'registro', 'matricula']
+    colunas_situacao = ['situacao', 'status']
+
+    mapeamento = {}
+    for chave, opcoes in [('nome', colunas_nome), ('turma', colunas_turma), ('ra', colunas_ra), ('situacao', colunas_situacao)]:
+        for col in df_alunos_temp.columns:
+            if col.lower() in opcoes:
+                mapeamento[chave] = col
+                break
+
+    if 'nome' not in mapeamento or 'turma' not in mapeamento:
+        st.error("❌ As colunas de nome ou turma não foram identificadas. Verifique a estrutura da tabela de alunos.")
+        st.write("Colunas disponíveis:", df_alunos_temp.columns.tolist())
         st.stop()
 
+    # Renomeia temporariamente para padronizar
+    renomear = {
+        mapeamento['nome']: 'nome',
+        mapeamento['turma']: 'turma'
+    }
+    if 'ra' in mapeamento:
+        renomear[mapeamento['ra']] = 'ra'
+    if 'situacao' in mapeamento:
+        renomear[mapeamento['situacao']] = 'situacao'
+
+    df_alunos_temp = df_alunos_temp.rename(columns=renomear)
+
     # ------------------------------------------------------------
-    # 2. FILTRO DE ALUNOS ATIVOS (COM FALLBACK)
+    # 3. FILTRO DE ALUNOS ATIVOS (COM FALLBACK)
     # ------------------------------------------------------------
-    if "situacao" in df_alunos_temp.columns:
-        # Normalizar a coluna situação
-        df_alunos_temp["situacao_norm"] = df_alunos_temp["situacao"].astype(str).str.strip().str.title()
-        ativos = df_alunos_temp[df_alunos_temp["situacao_norm"] == "Ativo"]
+    if 'situacao' in df_alunos_temp.columns:
+        df_alunos_temp['situacao_norm'] = df_alunos_temp['situacao'].astype(str).str.strip().str.title()
+        ativos = df_alunos_temp[df_alunos_temp['situacao_norm'] == 'Ativo']
         if not ativos.empty:
             df_alunos_temp = ativos
         else:
             st.info("ℹ️ Nenhum aluno ativo encontrado. Exibindo todos os alunos.")
 
     # ------------------------------------------------------------
-    # 3. SELEÇÃO DE TURMA(S)
+    # 4. SELEÇÃO DE TURMA(S)
     # ------------------------------------------------------------
-    turmas_disponiveis = sorted(df_alunos_temp["turma"].dropna().unique().tolist())
+    turmas_disponiveis = sorted(df_alunos_temp['turma'].dropna().unique().tolist())
     if not turmas_disponiveis:
         st.error("❌ Nenhuma turma encontrada nos dados.")
         st.stop()
@@ -3399,18 +3371,18 @@ elif menu == "📝 Registrar Ocorrência":
         st.stop()
 
     # Filtrar alunos das turmas escolhidas
-    alunos_turma = df_alunos_temp[df_alunos_temp["turma"].isin(turmas_sel)].copy()
+    alunos_turma = df_alunos_temp[df_alunos_temp['turma'].isin(turmas_sel)].copy()
     if alunos_turma.empty:
         st.error("❌ Nenhum aluno encontrado nas turmas selecionadas.")
         st.stop()
 
-    lista_alunos = sorted(alunos_turma["nome"].dropna().unique().tolist())
+    lista_alunos = sorted(alunos_turma['nome'].dropna().unique().tolist())
     if not lista_alunos:
         st.error("❌ Nenhum nome de aluno disponível nas turmas selecionadas.")
         st.stop()
 
     # ------------------------------------------------------------
-    # 4. SELEÇÃO DE ESTUDANTES (ÚNICO OU MÚLTIPLOS)
+    # 5. SELEÇÃO DE ESTUDANTES (ÚNICO OU MÚLTIPLOS)
     # ------------------------------------------------------------
     st.markdown("### 👥 Estudantes Envolvidos")
     modo_multiplo = st.checkbox("Registrar para múltiplos estudantes", key="modo_multiplo")
@@ -3436,7 +3408,7 @@ elif menu == "📝 Registrar Ocorrência":
         st.stop()
 
     # ------------------------------------------------------------
-    # 5. DATA, HORA E PROFESSOR
+    # 6. DATA, HORA E PROFESSOR
     # ------------------------------------------------------------
     tz_sp = pytz.timezone("America/Sao_Paulo")
     agora = datetime.now(tz_sp)
@@ -3452,7 +3424,7 @@ elif menu == "📝 Registrar Ocorrência":
     prof = st.selectbox("Professor 👨‍🏫", df_professores_temp["nome"].tolist(), key="professor_sel")
 
     # ------------------------------------------------------------
-    # 6. INFRAÇÃO (PROTOCOLO 179)
+    # 7. INFRAÇÃO (PROTOCOLO 179)
     # ------------------------------------------------------------
     st.markdown("---")
     st.subheader("📋 Infração (Protocolo 179)")
@@ -3504,7 +3476,7 @@ elif menu == "📝 Registrar Ocorrência":
     st.markdown("---")
 
     # ------------------------------------------------------------
-    # 7. SALVAR OCORRÊNCIA(S)
+    # 8. SALVAR OCORRÊNCIA(S)
     # ------------------------------------------------------------
     if st.button("💾 Salvar Ocorrência(s)", type="primary"):
         if not prof or not relato.strip():
@@ -3547,7 +3519,7 @@ elif menu == "📝 Registrar Ocorrência":
                 st.session_state.ocorrencia_salva_sucesso = True
                 show_toast(f"{salvas} ocorrência(s) registrada(s)!", "success")
 
-                # ⭐ Atualizar gamificação
+                # Atualizar gamificação
                 st.session_state.registros_ocorrencias += salvas
                 if st.session_state.registros_ocorrencias >= 1:
                     verificar_conquista("primeiro_registro")
@@ -3562,231 +3534,7 @@ elif menu == "📝 Registrar Ocorrência":
             carregar_ocorrencias.clear()
             st.rerun()
 
-    # ------------------------------------------------------------
-    # 2. MAPEAMENTO DINÂMICO DE COLUNAS (NOME, TURMA, RA, SITUAÇÃO)
-    # ------------------------------------------------------------
-    colunas_nome = ['nome', 'aluno', 'nome_aluno', 'nomecompleto']
-    colunas_turma = ['turma', 'serie', 'classe']
-    colunas_ra = ['ra', 'registro', 'matricula']
-    colunas_situacao = ['situacao', 'status']
-
-    mapeamento = {}
-    for chave, opcoes in [('nome', colunas_nome), ('turma', colunas_turma), ('ra', colunas_ra), ('situacao', colunas_situacao)]:
-        for col in df_alunos_temp.columns:
-            if col.lower() in opcoes:
-                mapeamento[chave] = col
-                break
-
-    if 'nome' not in mapeamento or 'turma' not in mapeamento:
-        st.error("❌ As colunas de nome ou turma não foram identificadas. Verifique a estrutura da tabela de alunos.")
-        st.stop()
-
-    # Renomear colunas mapeadas para nomes padronizados temporariamente
-    renomear = {
-        mapeamento['nome']: 'nome',
-        mapeamento['turma']: 'turma'
-    }
-    if 'ra' in mapeamento:
-        renomear[mapeamento['ra']] = 'ra'
-    if 'situacao' in mapeamento:
-        renomear[mapeamento['situacao']] = 'situacao'
-
-    df_alunos_temp = df_alunos_temp.rename(columns=renomear)
-
-    # ------------------------------------------------------------
-    # 3. FILTRO DE ALUNOS ATIVOS (COM FALLBACK PARA EVITAR LISTA VAZIA)
-    # ------------------------------------------------------------
-    if 'situacao' in df_alunos_temp.columns:
-        # Normalizar situação
-        df_alunos_temp['situacao_norm'] = df_alunos_temp['situacao'].astype(str).str.strip().str.title()
-        ativos = df_alunos_temp[df_alunos_temp['situacao_norm'] == 'Ativo']
-        if not ativos.empty:
-            df_alunos_temp = ativos
-        else:
-            st.info("ℹ️ Nenhum aluno ativo encontrado. Exibindo todos os alunos.")
-
-    # ------------------------------------------------------------
-    # 4. SELEÇÃO DE TURMA(S)
-    # ------------------------------------------------------------
-    turmas_disponiveis = sorted(df_alunos_temp['turma'].dropna().unique().tolist())
-    if not turmas_disponiveis:
-        st.error("❌ Nenhuma turma disponível. Verifique se os alunos têm turma cadastrada.")
-        st.stop()
-
-    turmas_sel = st.multiselect(
-        "🏫 Turma(s) *",
-        turmas_disponiveis,
-        default=[turmas_disponiveis[0]] if turmas_disponiveis else [],
-        key="turmas_sel",
-        help="Selecione uma ou mais turmas"
-    )
-
-    if not turmas_sel:
-        st.warning("⚠️ Selecione ao menos uma turma.")
-        st.stop()
-
-    # Filtrar alunos das turmas selecionadas
-    alunos_turma = df_alunos_temp[df_alunos_temp['turma'].isin(turmas_sel)].copy()
-    if alunos_turma.empty:
-        st.error("❌ Nenhum aluno encontrado nas turmas selecionadas.")
-        st.stop()
-
-    lista_alunos = sorted(alunos_turma['nome'].dropna().unique().tolist())
-    if not lista_alunos:
-        st.error("❌ Nenhum nome de aluno disponível nas turmas selecionadas.")
-        st.stop()
-
-    # ------------------------------------------------------------
-    # 5. SELEÇÃO DE ESTUDANTES (MÚLTIPLOS OU ÚNICO)
-    # ------------------------------------------------------------
-    st.markdown("### 👥 Estudantes Envolvidos")
-    modo_multiplo = st.checkbox("Registrar para múltiplos estudantes", key="modo_multiplo")
-
-    if modo_multiplo:
-        alunos_selecionados = st.multiselect(
-            "Selecione os estudantes *",
-            lista_alunos,
-            key="alunos_multiplos",
-            help="Você pode selecionar vários alunos para uma única ocorrência"
-        )
-    else:
-        aluno_unico = st.selectbox(
-            "Selecione o estudante *",
-            [""] + lista_alunos,
-            key="aluno_unico",
-            help="Selecione o aluno envolvido na ocorrência"
-        )
-        alunos_selecionados = [aluno_unico] if aluno_unico else []
-
-    if not alunos_selecionados:
-        st.warning("⚠️ Selecione ao menos um estudante.")
-        st.stop()
-
-    # ------------------------------------------------------------
-    # 6. SELEÇÃO DE PROFESSOR E INFRAÇÃO (PROTOCOLO 179)
-    # ------------------------------------------------------------
-    tz_sp = pytz.timezone("America/Sao_Paulo")
-    agora = datetime.now(tz_sp)
-
-    col1, col2 = st.columns(2)
-    with col1:
-        data_fato = st.date_input("📅 Data do fato", value=agora.date(), key="data_fato")
-    with col2:
-        hora_fato = st.time_input("⏰ Hora do fato", value=agora.time(), key="hora_fato")
-
-    data_str = f"{data_fato.strftime('%d/%m/%Y')} {hora_fato.strftime('%H:%M')}"
-
-    prof = st.selectbox("Professor 👨‍🏫", df_professores_temp["nome"].tolist(), key="professor_sel")
-
-    st.markdown("---")
-    st.subheader("📋 Infração (Protocolo 179)")
-
-    busca = st.text_input("🔍 Buscar infração", placeholder="Ex: celular, bullying, atraso...", key="busca_infracao")
-
-    if busca:
-        grupos_filtrados = buscar_infracao_fuzzy(busca, PROTOCOLO_179)
-        if grupos_filtrados:
-            grupo = st.selectbox("Grupo", list(grupos_filtrados.keys()), key="grupo_infracao")
-            infracoes = grupos_filtrados[grupo]
-        else:
-            st.warning("⚠️ Nenhuma infração encontrada. Mostrando todas.")
-            grupo = st.selectbox("Grupo", list(PROTOCOLO_179.keys()), key="grupo_infracao")
-            infracoes = PROTOCOLO_179[grupo]
-    else:
-        grupo = st.selectbox("Grupo", list(PROTOCOLO_179.keys()), key="grupo_infracao")
-        infracoes = PROTOCOLO_179[grupo]
-
-    infracao_principal = st.selectbox("Infração", list(infracoes.keys()), key="infracao_principal")
-    dados_infracao = infracoes[infracao_principal]
-    gravidade_sugerida = dados_infracao["gravidade"]
-    encaminhamento_sugerido = dados_infracao["encaminhamento"]
-
-    st.markdown(f'<span class="badge badge-primary" style="font-size: 1rem; padding: 0.5rem 1.5rem;">🎯 {infracao_principal}</span>', unsafe_allow_html=True)
-
-    cor_gravidade = CORES_GRAVIDADE.get(gravidade_sugerida, "#9E9E9E")
-    st.markdown(f"""
-    <div class="protocolo-info">
-        <b>📋 Protocolo 179 - Preenchimento Automático</b><br><br>
-        <b>Infração:</b> {infracao_principal}<br>
-        <b>Gravidade sugerida:</b> <span style="color:{cor_gravidade};font-weight:bold">{gravidade_sugerida}</span><br><br>
-        <b>Encaminhamentos sugeridos:</b><br>
-        {encaminhamento_sugerido.replace(chr(10), '<br>')}
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("### ⚖️ Gravidade")
-    gravidade = st.selectbox("Gravidade", ["Leve", "Média", "Grave", "Gravíssima"],
-                            index=["Leve", "Média", "Grave", "Gravíssima"].index(gravidade_sugerida) if gravidade_sugerida in ["Leve", "Média", "Grave", "Gravíssima"] else 0,
-                            key="gravidade_sel")
-
-    if gravidade != gravidade_sugerida:
-        st.warning(f"⚠️ Gravidade alterada de {gravidade_sugerida} para {gravidade}.")
-
-    encam = st.text_area("🔀 Encaminhamentos", value=encaminhamento_sugerido, height=140, key="encaminhamento")
-    relato = st.text_area("📝 Relato dos fatos", height=160, placeholder="Descreva os fatos de forma clara e objetiva...", key="relato")
-
-    st.markdown("---")
-
-    if st.button("💾 Salvar Ocorrência(s)", type="primary"):
-        if not prof or not relato.strip():
-            st.error("❌ Preencha professor e relato.")
-        else:
-            salvas = 0
-            duplicadas = 0
-
-            # Usar o dataframe temporário (já mapeado) para buscar RA
-            for turma in turmas_sel:
-                for aluno in alunos_selecionados:
-                    # Buscar registro do aluno na turma específica
-                    registro = df_alunos_temp[(df_alunos_temp["nome"] == aluno) & (df_alunos_temp["turma"] == turma)]
-                    if registro.empty:
-                        continue
-
-                    ra = registro["ra"].values[0] if "ra" in registro.columns else ""
-
-                    # Verificar duplicidade
-                    if verificar_ocorrencia_duplicada(ra, infracao_principal, data_str, df_ocorrencias):
-                        duplicadas += 1
-                        continue
-
-                    nova = {
-                        "data": data_str,
-                        "aluno": aluno,
-                        "ra": ra,
-                        "turma": turma,
-                        "categoria": infracao_principal,
-                        "gravidade": gravidade,
-                        "relato": relato,
-                        "encaminhamento": encam,
-                        "professor": prof,
-                    }
-
-                    if salvar_ocorrencia(nova):
-                        salvas += 1
-                        if st.session_state.backup_manager:
-                            st.session_state.backup_manager.criar_backup()
-
-            if salvas > 0:
-                st.session_state.ocorrencia_salva_sucesso = True
-                show_toast(f"{salvas} ocorrência(s) registrada(s)!", "success")
-
-                # ⭐ ATUALIZAR GAMIFICAÇÃO ⭐
-                st.session_state.registros_ocorrencias += salvas
-
-                # Verificar conquistas baseado no total acumulado
-                if st.session_state.registros_ocorrencias >= 1:
-                    verificar_conquista("primeiro_registro")
-                if st.session_state.registros_ocorrencias >= 10:
-                    verificar_conquista("10_ocorrencias")
-                if st.session_state.registros_ocorrencias >= 50:
-                    verificar_conquista("50_ocorrencias")
-
-            if duplicadas > 0:
-                st.warning(f"⚠️ {duplicadas} ocorrência(s) duplicada(s) ignorada(s).")
-
-            carregar_ocorrencias.clear()
-            st.rerun()
- # ======================================================
+# ======================================================
 # PÁGINA 📋 HISTÓRICO DE OCORRÊNCIAS
 # ======================================================
 
@@ -3801,7 +3549,6 @@ elif menu == "📋 Histórico de Ocorrências":
         st.info("📭 Nenhuma ocorrência registrada.")
         st.stop()
 
-    # Filtros
     col1, col2, col3 = st.columns(3)
     with col1:
         turmas_disp = ["Todas"] + sorted(df_ocorrencias["turma"].dropna().unique().tolist())
@@ -3861,7 +3608,6 @@ elif menu == "📋 Histórico de Ocorrências":
                 st.session_state.dados_edicao = df_view[df_view["id"] == id_editar].iloc[0].to_dict()
                 st.rerun()
 
-    # Formulário de edição
     if st.session_state.get("editando_id") and st.session_state.get("dados_edicao"):
         dados = st.session_state.dados_edicao
         st.markdown("---")
@@ -3891,7 +3637,8 @@ elif menu == "📋 Histórico de Ocorrências":
                 st.session_state.editando_id = None
                 st.session_state.dados_edicao = None
                 st.rerun()
-                # ======================================================
+
+# ======================================================
 # PÁGINA 📊 GRÁFICOS E INDICADORES
 # ======================================================
 
@@ -3902,7 +3649,6 @@ elif menu == "📊 Gráficos e Indicadores":
         st.info("📭 Nenhuma ocorrência registrada.")
         st.stop()
 
-    # Filtros
     col1, col2, col3 = st.columns(3)
     with col1:
         filtro_periodo = st.selectbox("📅 Período", ["Todos", "Últimos 30 dias", "Este ano", "Personalizado"])
@@ -3934,7 +3680,6 @@ elif menu == "📊 Gráficos e Indicadores":
     if filtro_gravidade != "Todas":
         df_filtro = df_filtro[df_filtro["gravidade"] == filtro_gravidade]
 
-    # Métricas
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric("Total", len(df_filtro))
@@ -3947,7 +3692,6 @@ elif menu == "📊 Gráficos e Indicadores":
 
     st.markdown("---")
 
-    # Gráficos
     col1, col2 = st.columns(2)
     
     with col1:
@@ -3977,7 +3721,6 @@ elif menu == "📊 Gráficos e Indicadores":
         fig_line.update_traces(line_color="#6366f1")
         st.plotly_chart(fig_line, use_container_width=True)
 
-    # Exportar
     csv = df_filtro.drop(columns=["data_dt"], errors="ignore").to_csv(index=False, sep=";", encoding="utf-8-sig")
     st.download_button("📥 Baixar CSV", data=csv, file_name=f"ocorrencias_{datetime.now().strftime('%Y%m%d')}.csv", mime="text/csv")
     # ======================================================
@@ -4161,7 +3904,8 @@ elif menu == "📄 Comunicado aos Pais":
                 mime="application/zip"
             )
             st.success("✅ Comunicados em lote gerados com sucesso!")
-            # ======================================================
+
+# ======================================================
 # PÁGINA 🖨️ IMPRIMIR PDF
 # ======================================================
 
@@ -4256,7 +4000,8 @@ elif menu == "🖨️ Imprimir PDF":
             file_name=f"Ocorrencia_{occ_ind['id']}.pdf",
             mime="application/pdf"
         )
-        # ======================================================
+
+# ======================================================
 # PÁGINA 👨‍🏫 CADASTRAR PROFESSORES
 # ======================================================
 
@@ -4297,7 +4042,6 @@ elif menu == "👨‍🏫 Cadastrar Professores":
 
     st.markdown("---")
 
-    # Formulário de cadastro
     if st.session_state.get("editando_prof"):
         prof_edit = df_professores[df_professores["id"] == st.session_state.editando_prof].iloc[0]
         st.subheader("✏️ Editar Professor")
@@ -4386,7 +4130,8 @@ elif menu == "👨‍🏫 Cadastrar Professores":
                     st.rerun()
     else:
         st.info("📭 Nenhum professor cadastrado.")
-        # ======================================================
+
+# ======================================================
 # PÁGINA 👤 CADASTRAR ASSINATURAS
 # ======================================================
 
@@ -4486,7 +4231,8 @@ elif menu == "👤 Cadastrar Assinaturas":
                     st.rerun()
     else:
         st.info("📭 Nenhum responsável cadastrado.")
-        # ======================================================
+
+# ======================================================
 # PÁGINA 🎨 ELETIVA
 # ======================================================
 
@@ -4543,7 +4289,6 @@ elif menu == "🎨 Eletiva":
     professora_sel = st.selectbox("Selecione a Professora", sorted(ELETIVAS.keys()))
     alunos_raw = ELETIVAS.get(professora_sel, [])
 
-    # Carregar dados de alunos se não estiverem carregados
     if df_alunos.empty:
         with st.spinner("⏳ Carregando dados de alunos..."):
             try:
@@ -4556,14 +4301,12 @@ elif menu == "🎨 Eletiva":
             except Exception as e:
                 st.error(f"❌ Erro ao carregar alunos: {e}")
     
-    # Montar dataframe com validação
     try:
         df_eletiva = montar_dataframe_eletiva(professora_sel, df_alunos, ELETIVAS)
     except Exception as e:
         st.error(f"❌ Erro ao processar eletiva: {e}")
         df_eletiva = pd.DataFrame()
     
-    # Validar se o DataFrame foi criado corretamente
     if df_eletiva.empty:
         st.warning("⚠️ Nenhum aluno encontrado para esta professora de eletiva.")
         total = 0
@@ -4597,7 +4340,7 @@ elif menu == "🎨 Eletiva":
         if filtro_status != "Todos":
             df_view = df_view[df_view["Status"] == filtro_status]
     else:
-        df_view = pd.DataFrame()  # DataFrame vazio se houver erro
+        df_view = pd.DataFrame()
 
     st.markdown("---")
     st.subheader("📋 Estudantes da Eletiva")
@@ -4645,7 +4388,8 @@ elif menu == "🎨 Eletiva":
                 
                 st.success(f"✅ {len(selecionados)} estudante(s) removido(s).")
                 st.rerun()
-                # ======================================================
+
+# ======================================================
 # PÁGINA 🏫 MAPA DA SALA
 # ======================================================
 
@@ -4663,7 +4407,6 @@ elif menu == "🏫 Mapa da Sala":
         st.warning("⚠️ Cadastre alunos antes de usar o mapa da sala.")
         st.stop()
 
-    # Configurações da sala
     st.subheader("⚙️ Configurações da Sala")
     
     col1, col2, col3 = st.columns(3)
@@ -4682,7 +4425,6 @@ elif menu == "🏫 Mapa da Sala":
 
     alunos_turma = df_alunos[df_alunos["turma"] == turma_sel].copy()
     
-    # Mostrar apenas ATIVOS
     if "situacao" in alunos_turma.columns:
         alunos_turma["situacao_norm"] = alunos_turma["situacao"].str.strip().str.title()
         alunos_turma = alunos_turma[alunos_turma["situacao_norm"] == "Ativo"]
@@ -4692,7 +4434,6 @@ elif menu == "🏫 Mapa da Sala":
     st.subheader(f"👥 Alunos da Turma {turma_sel}")
     st.info(f"📊 {len(alunos_turma)} alunos ativos | {num_fileiras} fileiras × {carteiras_por_fileira} carteiras = {total_assentos} assentos")
 
-    # Inicializar estado dos assentos
     mapa_key = f"mapa_sala_{gerar_chave_segura(turma_sel)}"
     
     if mapa_key not in st.session_state:
@@ -4701,7 +4442,6 @@ elif menu == "🏫 Mapa da Sala":
         estado_anterior = st.session_state[mapa_key]
         st.session_state[mapa_key] = {str(i): estado_anterior.get(str(i), "") for i in range(total_assentos)}
 
-    # CSS para os assentos
     st.markdown("""
     <style>
     .sala-grid {
@@ -4783,7 +4523,6 @@ elif menu == "🏫 Mapa da Sala":
     if orientacao_lousa in ["Fundo", "Direita"]:
         st.markdown('<div class="lousa">📚 LOUSA</div>', unsafe_allow_html=True)
 
-    # Estatísticas
     assentos_ocupados = [v for v in st.session_state[mapa_key].values() if v.strip()]
     
     col1, col2, col3 = st.columns(3)
@@ -4794,7 +4533,6 @@ elif menu == "🏫 Mapa da Sala":
     with col3:
         st.metric("Assentos Vazios", total_assentos - len(assentos_ocupados))
 
-    # Alunos sem assento
     nomes_atribuidos = set(assentos_ocupados)
     alunos_sem_assento = [nome for nome in nomes_alunos if nome not in nomes_atribuidos]
     
@@ -4804,7 +4542,6 @@ elif menu == "🏫 Mapa da Sala":
             for aluno in alunos_sem_assento:
                 st.write(f"• {aluno}")
 
-    # Formulário de edição
     st.markdown("---")
     st.subheader("📝 Editar Assentos")
     
@@ -4840,7 +4577,6 @@ elif menu == "🏫 Mapa da Sala":
         if fileira < num_fileiras - 1:
             st.markdown("<br>", unsafe_allow_html=True)
 
-    # Ferramentas
     st.markdown("---")
     st.subheader("🛠️ Ferramentas de Organização")
 
@@ -4883,14 +4619,16 @@ elif menu == "🏫 Mapa da Sala":
     with col4:
         if st.button("💾 Salvar Layout", use_container_width=True, type="secondary"):
             st.success("✅ Layout salvo com sucesso!")
-            # ======================================================
+
+# ======================================================
 # PÁGINA 💾 BACKUPS
 # ======================================================
 
 elif menu == "💾 Backups":
     render_backup_page()
-    # ======================================================
-# PÁGINA 📅 AGENDAMENTO DE ESPAÇOS (VERSÃO PREMIUM COMPLETA)
+
+# ======================================================
+# PÁGINA 📅 AGENDAMENTO DE ESPAÇOS
 # ======================================================
 
 elif menu == "📅 Agendamento de Espaços":
@@ -4899,11 +4637,7 @@ elif menu == "📅 Agendamento de Espaços":
     from reportlab.lib.pagesizes import A4, landscape
     import json
     
-    # ======================================================
-    # FUNÇÕES AUXILIARES DO AGENDAMENTO
-    # ======================================================
-    
-    def show_toast(message: str, toast_type: str = "success"):
+    def show_toast_agend(message: str, toast_type: str = "success"):
         icon = "✅" if toast_type == "success" else "❌" if toast_type == "error" else "⚠️" if toast_type == "warning" else "ℹ️"
         st.toast(f"{icon} {message}")
     
@@ -4994,17 +4728,12 @@ elif menu == "📅 Agendamento de Espaços":
         output.seek(0)
         return output
     
-    # ======================================================
-    # INICIALIZAÇÃO
-    # ======================================================
-    
     if 'gestao_logado' not in st.session_state:
         st.session_state.gestao_logado = False
     
     if 'logs_agendamento' not in st.session_state:
         st.session_state.logs_agendamento = []
     
-    # Tabs do sistema de agendamento
     tabs_agend = st.tabs([
         "✨ Agendar", 
         "📋 Meus Agendamentos", 
@@ -5016,9 +4745,8 @@ elif menu == "📅 Agendamento de Espaços":
         "⚙️ Gestão", 
         "🧹 Manutenção"
     ])
-    # ======================================================
-    # ABA 1: AGENDAR (COM TEMPLATES)
-    # ======================================================
+    
+    # ========== ABA 1: AGENDAR ==========
     with tabs_agend[0]:
         st.markdown("## 📅 Agendar Espaço")
         
@@ -5028,35 +4756,33 @@ elif menu == "📅 Agendamento de Espaços":
         if not lista_nomes:
             st.error("❌ Nenhum professor cadastrado. Cadastre um professor primeiro!")
         else:
-            # Cards informativos no topo
             col1, col2, col3 = st.columns(3)
             with col1:
-                st.markdown("""
+                st.markdown(f"""
                 <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px; color: white; text-align: center;">
                     <h3>📚 Disciplinas</h3>
-                    <p style="font-size: 24px; margin: 0;">{}</p>
+                    <p style="font-size: 24px; margin: 0;">{len(DISCIPLINAS_AGEND)}</p>
                 </div>
-                """.format(len(DISCIPLINAS_AGEND)), unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
             
             with col2:
-                st.markdown("""
+                st.markdown(f"""
                 <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 20px; border-radius: 10px; color: white; text-align: center;">
                     <h3>📍 Espaços</h3>
-                    <p style="font-size: 24px; margin: 0;">{}</p>
+                    <p style="font-size: 24px; margin: 0;">{len(ESPACOS_AGEND)}</p>
                 </div>
-                """.format(len(ESPACOS_AGEND)), unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
             
             with col3:
-                st.markdown("""
+                st.markdown(f"""
                 <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 20px; border-radius: 10px; color: white; text-align: center;">
                     <h3>⏰ Horários</h3>
-                    <p style="font-size: 24px; margin: 0;">{}</p>
+                    <p style="font-size: 24px; margin: 0;">{len(HORARIOS_AGEND)}</p>
                 </div>
-                """.format(len(HORARIOS_AGEND)), unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
             
             st.divider()
             
-            # Seleção de tipo de agendamento com cards
             st.markdown("### 🔄 Escolha o Tipo de Agendamento")
             
             tipo_col1, tipo_col2 = st.columns(2)
@@ -5077,90 +4803,40 @@ elif menu == "📅 Agendamento de Espaços":
                 st.markdown("### 📋 Agendamento por Data Específica")
                 
                 with st.form("form_agendamento_data", border=True):
-                    # Linha 1: Professor e Turma
                     col1, col2 = st.columns(2)
                     with col1:
-                        professor = st.selectbox(
-                            "👨‍🏫 Professor *",
-                            [""] + lista_nomes,
-                            help="Selecione o professor responsável"
-                        )
+                        professor = st.selectbox("👨‍🏫 Professor *", [""] + lista_nomes)
                     with col2:
-                        turma = st.selectbox(
-                            "🎓 Turma *",
-                            [""] + sorted(TURMAS_INTERVALOS_AGEND.keys()),
-                            help="Selecione a turma"
-                        )
+                        turma = st.selectbox("🎓 Turma *", [""] + sorted(TURMAS_INTERVALOS_AGEND.keys()))
                     
-                    # Linha 2: Disciplina e Espaço
                     col1, col2 = st.columns(2)
                     with col1:
-                        disciplina = st.selectbox(
-                            "📚 Disciplina *",
-                            [""] + DISCIPLINAS_AGEND,
-                            help="Selecione a disciplina"
-                        )
+                        disciplina = st.selectbox("📚 Disciplina *", [""] + DISCIPLINAS_AGEND)
                     with col2:
-                        espaco = st.selectbox(
-                            "📍 Espaço *",
-                            [""] + ESPACOS_AGEND,
-                            help="Selecione o espaço/sala"
-                        )
+                        espaco = st.selectbox("📍 Espaço *", [""] + ESPACOS_AGEND)
                     
-                    # Linha 3: Data e Prioridade
                     col1, col2 = st.columns(2)
                     with col1:
-                        data = st.date_input(
-                            "📅 Data *",
-                            value=datetime.now().date() + timedelta(days=1),
-                            min_value=datetime.now().date() + timedelta(days=1),
-                            help="Selecione a data do agendamento"
-                        )
+                        data = st.date_input("📅 Data *", value=datetime.now().date() + timedelta(days=1), min_value=datetime.now().date() + timedelta(days=1))
                     with col2:
-                        prioridade = st.selectbox(
-                            "⭐ Prioridade *",
-                            [""] + PRIORIDADES_ESTENDIDAS + ["NORMAL"],
-                            help="Selecione a prioridade"
-                        )
+                        prioridade = st.selectbox("⭐ Prioridade *", [""] + PRIORIDADES_ESTENDIDAS + ["NORMAL"])
                     
-                    # Horários
                     st.markdown("#### ⏰ Horários de Aula")
                     col1, col2 = st.columns(2)
                     with col1:
-                        horario1 = st.selectbox(
-                            "1ª Aula *",
-                            [""] + HORARIOS_AGEND,
-                            help="Primeiro horário da aula",
-                            key="h1"
-                        )
+                        horario1 = st.selectbox("1ª Aula *", [""] + HORARIOS_AGEND, key="h1")
                     with col2:
-                        horario2 = st.selectbox(
-                            "2ª Aula (opcional)",
-                            [""] + HORARIOS_AGEND,
-                            help="Segundo horário (se houver)",
-                            key="h2"
-                        )
+                        horario2 = st.selectbox("2ª Aula (opcional)", [""] + HORARIOS_AGEND, key="h2")
                     
-                    # Template
                     st.markdown("#### 💾 Salvar como Template")
                     salvar_como_template = st.checkbox("Desejo salvar esta configuração como template para reutilizar")
                     nome_template = ""
                     if salvar_como_template:
-                        nome_template = st.text_input(
-                            "Nome do template",
-                            placeholder="Ex: Aulas de Matemática - 6º Ano",
-                            help="Dê um nome descritivo para reutilizar depois"
-                        )
+                        nome_template = st.text_input("Nome do template", placeholder="Ex: Aulas de Matemática - 6º Ano")
                     
-                    # Botão de submissão
-                    submitted = st.form_submit_button(
-                        "✅ Confirmar Agendamento",
-                        type="primary",
-                        use_container_width=True
-                    )
+                    submitted = st.form_submit_button("✅ Confirmar Agendamento", type="primary", use_container_width=True)
                     
                     if submitted:
-                        # Validação
                         if not all([professor, turma, disciplina, prioridade, espaco, horario1]):
                             st.error("⚠️ Preencha todos os campos obrigatórios (marcados com *)")
                         else:
@@ -5188,11 +4864,9 @@ elif menu == "📅 Agendamento de Espaços":
                                         if ok:
                                             sucessos += 1
                                 
-                                # Mostrar resultados em cards
                                 if sucessos > 0:
                                     st.success(f"✅ {sucessos} agendamento(s) criado(s) com sucesso!")
                                     
-                                    # Card de resumo
                                     col1, col2, col3, col4 = st.columns(4)
                                     with col1:
                                         st.metric("📅 Data", data.strftime("%d/%m/%Y"))
@@ -5204,18 +4878,15 @@ elif menu == "📅 Agendamento de Espaços":
                                         st.metric("⏰ Horários", len(horarios))
                                     
                                     registrar_log("CRIAR_AGENDAMENTO", professor, f"{data.strftime('%d/%m/%Y')} - {espaco} - {horarios}")
-                                    show_toast(f"{sucessos} agendamento(s) criado(s)!", "success")
+                                    show_toast_agend(f"{sucessos} agendamento(s) criado(s)!", "success")
                                     st.balloons()
                                     carregar_agendamentos_filtrado.clear()
                                     
-                                    # ⭐ ATUALIZAR GAMIFICAÇÃO ⭐
                                     st.session_state.agendamentos_criados += sucessos
                                     
-                                    # Verificar conquista
                                     if st.session_state.agendamentos_criados >= 5:
                                         verificar_conquista("agendamento_perfeito")
                                     
-                                    # Salvar template se solicitado
                                     if salvar_como_template and nome_template:
                                         config = {
                                             "turma": turma,
@@ -5240,9 +4911,7 @@ elif menu == "📅 Agendamento de Espaços":
                 if st.button("➡️ Ir para Grade Semanal", type="primary", use_container_width=True):
                     st.rerun()
     
-    # ======================================================
-    # ABA 2: MEUS AGENDAMENTOS
-    # ======================================================
+    # ========== ABA 2: MEUS AGENDAMENTOS ==========
     with tabs_agend[1]:
         st.subheader("📋 Meus Agendamentos")
         
@@ -5285,7 +4954,6 @@ elif menu == "📅 Agendamento de Espaços":
                     
                     st.dataframe(df_display, use_container_width=True, hide_index=True)
                     
-                    # Cancelar agendamento
                     st.markdown("---")
                     st.subheader("🛑 Cancelar Agendamento")
                     id_cancelar = st.selectbox("Selecione o ID para cancelar:", df['id'].tolist(), key="id_cancelar")
@@ -5299,7 +4967,6 @@ elif menu == "📅 Agendamento de Espaços":
                         else:
                             st.error("❌ Erro ao cancelar")
                     
-                    # Exportar para Excel
                     if st.button("📊 Exportar para Excel", key="export_meus"):
                         excel_data = exportar_para_excel(df_display, "meus_agendamentos")
                         st.download_button(
@@ -5309,9 +4976,7 @@ elif menu == "📅 Agendamento de Espaços":
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                         )
     
-    # ======================================================
-    # ABA 3: GRADE SEMANAL (COM TEMPLATES E DISPONIBILIDADE)
-    # ======================================================
+    # ========== ABA 3: GRADE SEMANAL ==========
     with tabs_agend[2]:
         st.subheader("🗓️ Grade Semanal - Agendamentos Fixos")
         
@@ -5326,7 +4991,6 @@ elif menu == "📅 Agendamento de Espaços":
             professor_grade = st.selectbox("👨‍🏫 Selecione o Professor:", lista_nomes, key="prof_grade")
             
             if professor_grade:
-                # Templates salvos
                 templates = carregar_templates(professor_grade)
                 if templates:
                     with st.expander("📂 Templates Salvos", expanded=False):
@@ -5340,7 +5004,7 @@ elif menu == "📅 Agendamento de Espaços":
                                     st.session_state[grade_key] = {}
                                 if aplicar_template(professor_grade, template_sel, grade_key):
                                     st.success(f"✅ Template '{template_sel}' carregado!")
-                                    show_toast(f"Template '{template_sel}' aplicado!", "success")
+                                    show_toast_agend(f"Template '{template_sel}' aplicado!", "success")
                                     st.rerun()
                         with cols[2]:
                             if st.button("🗑️ Excluir", use_container_width=True):
@@ -5425,7 +5089,6 @@ elif menu == "📅 Agendamento de Espaços":
                 
                 st.markdown("---")
                 
-                # Salvar grade como template
                 with st.expander("💾 Salvar Grade como Template", expanded=False):
                     nome_template_grade = st.text_input("Nome do template:", key="nome_template_grade")
                     if st.button("💾 Salvar Template da Grade", type="primary"):
@@ -5438,25 +5101,19 @@ elif menu == "📅 Agendamento de Espaços":
                             if config_completa:
                                 salvar_template(professor_grade, nome_template_grade, config_completa)
                                 st.success(f"✅ Template '{nome_template_grade}' salvo com {len(config_completa)} horários!")
-                                show_toast(f"Template salvo com sucesso!", "success")
+                                show_toast_agend(f"Template salvo com sucesso!", "success")
                             else:
                                 st.warning("⚠️ Nenhum horário configurado para salvar")
                         else:
                             st.error("❌ Digite um nome para o template")
                 
-                # Período letivo
                 col1, col2 = st.columns(2)
                 with col1:
                     data_inicio = st.date_input("📅 Data de início:", value=datetime(2026, 2, 1).date(), key="grade_inicio")
                 with col2:
                     data_fim = st.date_input("📅 Data de término:", value=datetime(2026, 12, 20).date(), key="grade_fim")
                 
-                frequencia = st.radio(
-                    "🔄 Frequência:",
-                    ["Semanal (toda semana)", "Quinzenal (a cada 15 dias)"],
-                    horizontal=True,
-                    key="freq_grade"
-                )
+                frequencia = st.radio("🔄 Frequência:", ["Semanal (toda semana)", "Quinzenal (a cada 15 dias)"], horizontal=True, key="freq_grade")
                 
                 intervalo = 7 if frequencia == "Semanal (toda semana)" else 14
                 
@@ -5544,13 +5201,12 @@ elif menu == "📅 Agendamento de Espaços":
                                 st.warning(f"⚠️ {conflitos} horários já ocupados")
                             
                             registrar_log("CRIAR_GRADE_FIXA", professor_grade, f"{total_criados} agendamentos - {frequencia}")
-                            show_toast(f"{total_criados} agendamentos fixos criados!", "success")
+                            show_toast_agend(f"{total_criados} agendamentos fixos criados!", "success")
                             st.balloons()
                             carregar_agendamentos_filtrado.clear()
                         else:
                             st.warning("⚠️ Nenhum agendamento foi criado.")
                 
-                # Resumo da grade
                 st.markdown("---")
                 st.subheader("📋 Resumo da Grade")
                 
@@ -5600,9 +5256,7 @@ elif menu == "📅 Agendamento de Espaços":
                         
                         st.download_button("📥 Baixar PDF", data=buffer, file_name=f"grade_{professor_grade}.pdf", mime="application/pdf")
     
-    # ======================================================
-    # ABA 4: VISUALIZAR POR ESPAÇO
-    # ======================================================
+    # ========== ABA 4: VISUALIZAR POR ESPAÇO ==========
     with tabs_agend[3]:
         st.subheader("📍 Visualizar Agenda por Espaço")
         
@@ -5714,9 +5368,7 @@ elif menu == "📅 Agendamento de Espaços":
                     
                     st.success("✅ PDF gerado com sucesso!")
     
-    # ======================================================
-    # ABA 5: DASHBOARD DE AGENDAMENTOS
-    # ======================================================
+    # ========== ABA 5: DASHBOARD ==========
     with tabs_agend[4]:
         st.subheader("📊 Dashboard de Agendamentos")
         
@@ -5735,7 +5387,6 @@ elif menu == "📅 Agendamento de Espaços":
             if df.empty:
                 st.info("📭 Nenhum agendamento no período")
             else:
-                # Métricas
                 col1, col2, col3, col4 = st.columns(4)
                 with col1:
                     st.metric("Total", len(df))
@@ -5749,7 +5400,6 @@ elif menu == "📅 Agendamento de Espaços":
                 
                 st.markdown("---")
                 
-                # Gráficos
                 col1, col2 = st.columns(2)
                 with col1:
                     st.subheader("📊 Uso por Espaço")
@@ -5773,9 +5423,7 @@ elif menu == "📅 Agendamento de Espaços":
                 fig = px.line(por_dia, x='Data', y='Quantidade', markers=True)
                 st.plotly_chart(fig, use_container_width=True)
     
-    # ======================================================
-    # ABA 6: PROFESSORES
-    # ======================================================
+    # ========== ABA 6: PROFESSORES ==========
     with tabs_agend[5]:
         st.subheader("👥 Professores")
         
@@ -5791,7 +5439,7 @@ elif menu == "📅 Agendamento de Espaços":
                         ok, _ = prof_upsert_agend(nome, email)
                         if ok:
                             st.success(f"✅ Professor {nome} cadastrado!")
-                            show_toast(f"Professor {nome} cadastrado!", "success")
+                            show_toast_agend(f"Professor {nome} cadastrado!", "success")
                             st.rerun()
                         else:
                             st.error("❌ Erro ao cadastrar")
@@ -5803,9 +5451,7 @@ elif menu == "📅 Agendamento de Espaços":
         else:
             st.info("📭 Nenhum professor cadastrado")
     
-    # ======================================================
-    # ABA 7: RELATÓRIOS
-    # ======================================================
+    # ========== ABA 7: RELATÓRIOS ==========
     with tabs_agend[6]:
         st.subheader("📈 Relatórios de Uso")
         
@@ -5846,13 +5492,10 @@ elif menu == "📅 Agendamento de Espaços":
                 colunas_disponiveis = [c for c in colunas_exibir if c in df.columns]
                 st.dataframe(df[colunas_disponiveis], use_container_width=True, hide_index=True)
                 
-                # Exportar
                 csv = df.to_csv(index=False, encoding='utf-8-sig')
                 st.download_button("📥 Baixar CSV", data=csv, file_name=f"relatorio_agendamentos_{datetime.now().strftime('%Y%m%d')}.csv", mime="text/csv")
     
-    # ======================================================
-    # ABA 8: GESTÃO
-    # ======================================================
+    # ========== ABA 8: GESTÃO ==========
     with tabs_agend[7]:
         st.subheader("⚙️ Gestão de Agendamentos")
         
@@ -5862,7 +5505,7 @@ elif menu == "📅 Agendamento de Espaços":
                 if senha == SENHA_GESTAO_AGEND:
                     st.session_state.gestao_logado = True
                     st.success("✅ Acesso autorizado!")
-                    show_toast("Acesso autorizado!", "success")
+                    show_toast_agend("Acesso autorizado!", "success")
                     st.rerun()
                 else:
                     st.error("❌ Senha inválida")
@@ -5895,7 +5538,7 @@ elif menu == "📅 Agendamento de Espaços":
                         if ok:
                             st.success(f"✅ Agendamento {id_excluir} excluído!")
                             registrar_log("EXCLUIR_AGENDAMENTO", "Gestão", f"ID: {id_excluir}")
-                            show_toast("Agendamento excluído!", "success")
+                            show_toast_agend("Agendamento excluído!", "success")
                             carregar_agendamentos_filtrado.clear()
                             st.rerun()
                         else:
@@ -5903,7 +5546,6 @@ elif menu == "📅 Agendamento de Espaços":
             
             st.markdown("---")
             
-            # Logs de atividades
             with st.expander("📋 Logs de Atividades", expanded=False):
                 if st.session_state.logs_agendamento:
                     for log in st.session_state.logs_agendamento[:20]:
@@ -5911,9 +5553,7 @@ elif menu == "📅 Agendamento de Espaços":
                 else:
                     st.info("Nenhum log registrado")
     
-    # ======================================================
-    # ABA 9: MANUTENÇÃO
-    # ======================================================
+    # ========== ABA 9: MANUTENÇÃO ==========
     with tabs_agend[8]:
         st.subheader("🧹 Manutenção / Limpeza")
         
@@ -5924,7 +5564,6 @@ elif menu == "📅 Agendamento de Espaços":
             
             dias = st.number_input("Remover registros anteriores a (dias):", min_value=7, max_value=3650, value=180)
             
-            # Preview do que será excluído
             cutoff = (datetime.now().date() - timedelta(days=int(dias))).strftime("%Y-%m-%d")
             
             if st.button("🔍 Visualizar registros a excluir"):
@@ -5951,7 +5590,7 @@ elif menu == "📅 Agendamento de Espaços":
                     if r.status_code in (200, 204):
                         st.success(f"✅ Limpeza concluída! (corte: {cutoff})")
                         registrar_log("LIMPEZA", "Gestão", f"Excluídos registros anteriores a {cutoff}")
-                        show_toast("Limpeza concluída com sucesso!", "success")
+                        show_toast_agend("Limpeza concluída com sucesso!", "success")
                         carregar_agendamentos_filtrado.clear()
                     else:
                         st.error(f"❌ Erro: {r.status_code}")
