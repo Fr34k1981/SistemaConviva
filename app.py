@@ -125,70 +125,91 @@ html, body, [class*="css"] {
 }
 
 /* ============================================ */
-/* ========== CORREÇÃO AGRESSIVA DE TOOLTIPS ========== */
+/* ========== CORREÇÃO DE TOOLTIPS E SIDEBAR ========== */
 /* ============================================ */
-[data-testid="stTooltipHoverTarget"],
-[role="tooltip"],
-div[class*="TooltipContainer"],
-div[class*="tooltip-container"],
-.stTooltip,
-#stTooltip,
-[data-baseweb="tooltip"],
-div[id*="tooltip"] {
+
+/* Esconde tooltips nativos do Streamlit */
+[data-testid="stTooltipHoverTarget"] {
     display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
-    position: absolute !important;
-    left: -9999px !important;
-    top: -9999px !important;
-    width: 0 !important;
-    height: 0 !important;
-    overflow: hidden !important;
+}
+[role="tooltip"] {
+    display: none !important;
+}
+[data-baseweb="tooltip"] {
+    display: none !important;
 }
 
-.stButton > button::after,
-.stButton > button::before,
-button::after,
-button::before,
+/* Remove pseudo-elementos decorativos dos botões do menu */
 [data-testid="stSidebar"] button::after,
 [data-testid="stSidebar"] button::before {
     display: none !important;
     content: none !important;
 }
 
-/* Esconde apenas elementos absolutos de tooltip/decoração no sidebar,
-   mas NÃO esconde dropdowns/listas de seleção (popover, listbox, menu) */
-[data-testid="stSidebar"] [style*="position: absolute"]:not([data-baseweb]):not([role="listbox"]):not([role="option"]):not([role="menu"]):not([role="menuitem"]):not([class*="popover"]):not([class*="dropdown"]):not([class*="menu"]),
-[data-testid="stSidebar"] [style*="position:absolute"]:not([data-baseweb]):not([role="listbox"]):not([role="option"]):not([role="menu"]):not([class*="popover"]):not([class*="dropdown"]):not([class*="menu"]),
-[data-testid="stSidebar"] div[style*="position: fixed"]:not([data-baseweb]):not([role="listbox"]):not([class*="popover"]):not([class*="dropdown"]),
-[data-testid="stSidebar"] div[style*="position:fixed"]:not([data-baseweb]):not([role="listbox"]):not([class*="popover"]):not([class*="dropdown"]) {
+/* Esconde o texto fantasma que aparece nos botões do sidebar
+   (são spans com posicionamento absolute usados para acessibilidade/tooltip) */
+[data-testid="stSidebar"] button > span[style*="position"],
+[data-testid="stSidebar"] button > div[style*="position: absolute"],
+[data-testid="stSidebar"] button > div[style*="position:absolute"] {
     display: none !important;
 }
 
-/* Garante que dropdowns/popovers do baseweb (selectbox, multiselect) sejam sempre visíveis */
-[data-baseweb="popover"],
-[data-baseweb="menu"],
-[data-baseweb="select"] [role="listbox"],
-[role="listbox"],
-[role="option"],
-ul[data-baseweb],
-li[data-baseweb] {
+/* ============================================ */
+/* DROPDOWNS — garantir visibilidade total     */
+/* ============================================ */
+
+/* O Streamlit renderiza os dropdowns como portais fora do sidebar,
+   então NÃO limitamos position:absolute globalmente */
+[data-baseweb="popover"] {
+    visibility: visible !important;
+    opacity: 1 !important;
+    display: block !important;
+    z-index: 9999 !important;
+}
+[data-baseweb="menu"] {
+    visibility: visible !important;
+    opacity: 1 !important;
+    display: block !important;
+}
+[role="listbox"] {
+    visibility: visible !important;
+    opacity: 1 !important;
+    display: block !important;
+}
+[role="option"] {
+    visibility: visible !important;
+    opacity: 1 !important;
+    display: flex !important;
+}
+/* Multiselect dropdown list items */
+[data-baseweb="select"] ul,
+[data-baseweb="select"] li {
     display: block !important;
     visibility: visible !important;
     opacity: 1 !important;
-    pointer-events: auto !important;
 }
 
 /* ============================================ */
 /* ========== CORREÇÃO DE QUEBRA DE TEXTO ========== */
 /* ============================================ */
-h1, h2, h3, h4, h5, h6, p, span, div, label, li, button, a, .stMarkdown, .stText, .stCaption {
+h1, h2, h3, h4, h5, h6, p, span, div, label, li, a, .stMarkdown, .stText, .stCaption {
     white-space: normal !important;
     word-wrap: break-word !important;
     word-break: break-word !important;
     overflow-wrap: break-word !important;
     line-height: 1.5 !important;
+}
+
+/* Botões devem manter texto em linha única */
+button, [data-testid="stFileUploaderDropzone"] * {
+    white-space: nowrap !important;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+}
+
+/* Exceto botões do menu lateral que podem quebrar */
+[data-testid="stSidebar"] button {
+    white-space: normal !important;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -533,6 +554,29 @@ div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button span {
     white-space: nowrap !important;
     display: block !important;
     max-width: 100% !important;
+}
+
+/* Esconde spans de acessibilidade/aria que aparecem como texto fantasma */
+div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button > span[style],
+div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button > div[style*="position"],
+[data-testid="stSidebar"] button > span[aria-hidden],
+[data-testid="stSidebar"] button > span.css-hide,
+[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"] > span:not(:first-child),
+[data-testid="stSidebar"] [data-testid="stBaseButton-primary"] > span:not(:first-child) {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    position: absolute !important;
+    left: -9999px !important;
+}
+
+/* Clip do sidebar para não vazar texto */
+[data-testid="stSidebar"] > div:first-child {
+    overflow-x: hidden !important;
+}
+section[data-testid="stSidebar"] {
+    overflow-x: hidden !important;
 }
 
 div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button:hover {
@@ -3594,7 +3638,10 @@ elif menu == "👨‍🏫 Cadastrar Professores":
             with st.container():
                 col1, col2, col3 = st.columns([6, 1, 1])
                 with col1:
-                    st.markdown(f"**{prof['nome']}** — {prof.get('cargo', 'Professor')}")
+                    cargo_display = prof.get('cargo', 'Professor')
+                    if not cargo_display or str(cargo_display).lower() == 'nan':
+                        cargo_display = 'Professor'
+                    st.markdown(f"**{prof['nome']}** — {cargo_display}")
                 with col2:
                     if st.button("✏️", key=f"edit_prof_{prof['id']}"):
                         st.session_state.editando_prof = prof["id"]
@@ -3783,8 +3830,12 @@ elif menu == "🎨 Eletiva":
     df_eletiva = montar_dataframe_eletiva(professora_sel, df_alunos, ELETIVAS)
     
     total = len(df_eletiva)
-    encontrados = len(df_eletiva[df_eletiva["Status"] == "Encontrado"])
-    nao_encontrados = len(df_eletiva[df_eletiva["Status"] == "Não encontrado"])
+    if not df_eletiva.empty and "Status" in df_eletiva.columns:
+        encontrados = len(df_eletiva[df_eletiva["Status"] == "Encontrado"])
+        nao_encontrados = len(df_eletiva[df_eletiva["Status"] == "Não encontrado"])
+    else:
+        encontrados = 0
+        nao_encontrados = 0
 
     col1, col2, col3 = st.columns(3)
     with col1:
