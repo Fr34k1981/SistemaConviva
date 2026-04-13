@@ -2876,8 +2876,8 @@ elif menu == "👥 Lista de Alunos":
                         with col2:
                             if st.button("❌ Cancelar", key="cancel_excluir_aluno_tab3"):
                                 del st.session_state.confirmar_exclusao_aluno
-                                st.rerun()
-                                # ======================================================
+                                st.rerun()   # ======================================================
+# ======================================================
 # PÁGINA 📝 REGISTRAR OCORRÊNCIA (COMPLETA E CORRIGIDA)
 # ======================================================
 
@@ -3016,32 +3016,29 @@ elif menu == "📝 Registrar Ocorrência":
                         "professor": prof,
                     }
                     
-elif menu == "📝 Registrar Ocorrência":
-    st.header("📝 Nova Ocorrência")
-    # ... código ...
-    
-    if st.button("💾 Salvar Ocorrência(s)", type="primary"):
-        if not prof or not relato.strip():
-            st.error("❌ Preencha professor e relato.")
-        else:
-            salvas = 0
-            duplicadas = 0
+                    if salvar_ocorrencia(nova):
+                        salvas += 1
+                        if st.session_state.backup_manager:
+                            st.session_state.backup_manager.criar_backup()
             
-            for turma in turmas_sel:                    # ← 12 espaços
-                for aluno in alunos_selecionados:       # ← 16 espaços
-                    # ... código ...
-                    if salvar_ocorrencia(nova):         # ← 20 espaços
-                        salvas += 1                     # ← 24 espaços
-            
-            if salvas > 0:                              # ← 12 espaços (MESMO NÍVEL DO for)
+            if salvas > 0:
                 st.session_state.ocorrencia_salva_sucesso = True
-                # ... gamificação ...
+                show_toast(f"{salvas} ocorrência(s) registrada(s)!", "success")
+                
+                st.session_state.registros_ocorrencias += salvas
+                
+                if st.session_state.registros_ocorrencias >= 1:
+                    verificar_conquista("primeiro_registro")
+                if st.session_state.registros_ocorrencias >= 10:
+                    verificar_conquista("10_ocorrencias")
+                if st.session_state.registros_ocorrencias >= 50:
+                    verificar_conquista("50_ocorrencias")
             
-            if duplicadas > 0:                          # ← 12 espaços
-                st.warning(...)
+            if duplicadas > 0:
+                st.warning(f"⚠️ {duplicadas} ocorrência(s) duplicada(s) ignorada(s).")
             
-            carregar_ocorrencias.clear()                # ← 12 espaços
-            st.rerun()                                  # ← 12 espaços
+            carregar_ocorrencias.clear()
+            st.rerun()                                # ← 12 espaços
             # ======================================================
 # PÁGINA 📋 HISTÓRICO DE OCORRÊNCIAS (COMPLETA)
 # ======================================================
