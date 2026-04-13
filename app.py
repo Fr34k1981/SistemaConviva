@@ -1816,46 +1816,46 @@ def verificar_ocorrencia_duplicada(ra: str, categoria: str, data_str: str, df_oc
 # AGENDAMENTO - FUNÇÕES SUPABASE
 # ======================================================
 
- # ======================================================
-# AGENDAMENTO - FUNÇÕES SUPABASE
-# ======================================================
-
 @st.cache_data(ttl=120)
 def carregar_agendamentos_filtrado(data_ini: str, data_fim: str, espaco: str = None, professor: str = None) -> pd.DataFrame:
     """
     Carrega agendamentos do Supabase com tratamento robusto de erros.
-    Se falhar, retorna DataFrame vazio em vez de travar.
+    Formato correto para a API REST do Supabase (query string).
     """
     try:
         # Verificar se Supabase está configurado
         if not SUPABASE_VALID:
-            st.warning("⚠️ Supabase não configurado. Verifique SUPABASE_URL e SUPABASE_KEY.")
             return pd.DataFrame()
         
-        # Construir URL base
-        base_select = "id,data_agendamento,horario,espaco,turma,disciplina,prioridade,semanas,professor_nome,professor_email,status,tipo"
-        url = f"{SUPABASE_URL}/rest/v1/agendamentos"
+        # Construir a URL com os parâmetros no formato correto
+        # O Supabase REST API usa parâmetros na query string
+        base_url = f"{SUPABASE_URL}/rest/v1/agendamentos"
         
-        # Parâmetros da consulta
-        params = {
-            "select": base_select,
-            "data_agendamento": f"gte.{data_ini},lte.{data_fim}",
-            "order": "data_agendamento.asc,horario.asc"
-        }
+        # Parâmetros como query string (formato que o Supabase espera)
+        query_params = [
+            "select=id,data_agendamento,horario,espaco,turma,disciplina,prioridade,semanas,professor_nome,professor_email,status,tipo",
+            "order=data_agendamento.asc,horario.asc",
+            f"data_agendamento=gte.{data_ini}",
+            f"data_agendamento=lte.{data_fim}"
+        ]
         
         # Adicionar filtros opcionais
         if espaco and espaco in ESPACOS_AGEND:
-            params["espaco"] = f"eq.{espaco}"
+            query_params.append(f"espaco=eq.{espaco}")
         
         if professor:
-            params["professor_nome"] = f"eq.{professor}"
+            # Codificar o nome do professor para URL
+            professor_encoded = professor.replace(" ", "%20")
+            query_params.append(f"professor_nome=eq.{professor_encoded}")
         
-        # Headers com autenticação
+        # Montar URL completa
+        url = f"{base_url}?{'&'.join(query_params)}"
+        
+        # Headers
         headers = HEADERS.copy()
-        headers["Prefer"] = "return=representation"
         
         # Fazer requisição
-        response = requests.get(url, headers=headers, params=params, timeout=20)
+        response = requests.get(url, headers=headers, timeout=20)
         
         # Verificar resposta
         if response.status_code == 200:
@@ -1864,25 +1864,21 @@ def carregar_agendamentos_filtrado(data_ini: str, data_fim: str, espaco: str = N
                 return pd.DataFrame(dados)
             else:
                 return pd.DataFrame()
+        elif response.status_code == 400:
+            # Erro de sintaxe - retornar vazio silenciosamente
+            return pd.DataFrame()
         elif response.status_code == 401:
-            st.warning("🔐 Erro de autenticação com Supabase. Verifique suas credenciais no arquivo .env")
             return pd.DataFrame()
         elif response.status_code == 404:
-            st.info("📭 Tabela 'agendamentos' não encontrada no Supabase.")
             return pd.DataFrame()
         else:
-            st.warning(f"⚠️ Erro ao consultar agendamentos: {response.status_code}")
             return pd.DataFrame()
             
     except requests.exceptions.Timeout:
-        st.warning("⏱️ Tempo esgotado ao consultar agendamentos. Verifique sua conexão.")
         return pd.DataFrame()
     except requests.exceptions.ConnectionError:
-        st.warning("🌐 Erro de conexão. Verifique sua internet.")
         return pd.DataFrame()
     except Exception as e:
-        # Não mostrar erro completo para não assustar o usuário
-        # Apenas logar e retornar vazio
         logger.error(f"Erro ao carregar agendamentos: {e}")
         return pd.DataFrame()
 
