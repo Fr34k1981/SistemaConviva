@@ -3336,14 +3336,14 @@ elif menu == "📋 Gerenciar Turmas":
 elif menu == "📝 Registrar Ocorrência":
     st.header("📝 Nova Ocorrência")
 
-    # Limpeza de estado de sucesso anterior
+    # Limpa mensagem de sucesso anterior
     if st.session_state.ocorrencia_salva_sucesso:
         st.markdown('<div class="success-box">✅ Ocorrência(s) registrada(s) com sucesso!</div>', unsafe_allow_html=True)
         st.session_state.ocorrencia_salva_sucesso = False
         st.session_state.salvando_ocorrencia = False
 
     # ------------------------------------------------------------
-    # 1. CARREGAMENTO FORÇADO DOS DADOS DE ALUNOS E PROFESSORES
+    # 1. CARREGAR DADOS ATUALIZADOS DO BANCO
     # ------------------------------------------------------------
     with st.spinner("⏳ Carregando alunos e professores..."):
         try:
@@ -3354,12 +3354,213 @@ elif menu == "📝 Registrar Ocorrência":
             st.stop()
 
     if df_alunos_temp.empty:
-        st.warning("⚠️ Cadastre ou importe alunos antes de registrar ocorrências.")
+        st.warning("⚠️ Nenhum aluno cadastrado. Importe ou cadastre alunos primeiro.")
         st.stop()
 
     if df_professores_temp.empty:
-        st.warning("⚠️ Cadastre professores antes de registrar ocorrências.")
+        st.warning("⚠️ Nenhum professor cadastrado. Cadastre professores primeiro.")
         st.stop()
+
+    # Garantir que as colunas essenciais existam
+    if "nome" not in df_alunos_temp.columns or "turma" not in df_alunos_temp.columns:
+        st.error("❌ As colunas 'nome' e 'turma' são obrigatórias na tabela de alunos.")
+        st.stop()
+
+    # ------------------------------------------------------------
+    # 2. FILTRO DE ALUNOS ATIVOS (COM FALLBACK)
+    # ------------------------------------------------------------
+    if "situacao" in df_alunos_temp.columns:
+        # Normalizar a coluna situação
+        df_alunos_temp["situacao_norm"] = df_alunos_temp["situacao"].astype(str).str.strip().str.title()
+        ativos = df_alunos_temp[df_alunos_temp["situacao_norm"] == "Ativo"]
+        if not ativos.empty:
+            df_alunos_temp = ativos
+        else:
+            st.info("ℹ️ Nenhum aluno ativo encontrado. Exibindo todos os alunos.")
+
+    # ------------------------------------------------------------
+    # 3. SELEÇÃO DE TURMA(S)
+    # ------------------------------------------------------------
+    turmas_disponiveis = sorted(df_alunos_temp["turma"].dropna().unique().tolist())
+    if not turmas_disponiveis:
+        st.error("❌ Nenhuma turma encontrada nos dados.")
+        st.stop()
+
+    turmas_sel = st.multiselect(
+        "🏫 Turma(s) *",
+        turmas_disponiveis,
+        default=[turmas_disponiveis[0]] if turmas_disponiveis else [],
+        key="turmas_sel",
+        help="Selecione uma ou mais turmas"
+    )
+
+    if not turmas_sel:
+        st.warning("⚠️ Selecione ao menos uma turma.")
+        st.stop()
+
+    # Filtrar alunos das turmas escolhidas
+    alunos_turma = df_alunos_temp[df_alunos_temp["turma"].isin(turmas_sel)].copy()
+    if alunos_turma.empty:
+        st.error("❌ Nenhum aluno encontrado nas turmas selecionadas.")
+        st.stop()
+
+    lista_alunos = sorted(alunos_turma["nome"].dropna().unique().tolist())
+    if not lista_alunos:
+        st.error("❌ Nenhum nome de aluno disponível nas turmas selecionadas.")
+        st.stop()
+
+    # ------------------------------------------------------------
+    # 4. SELEÇÃO DE ESTUDANTES (ÚNICO OU MÚLTIPLOS)
+    # ------------------------------------------------------------
+    st.markdown("### 👥 Estudantes Envolvidos")
+    modo_multiplo = st.checkbox("Registrar para múltiplos estudantes", key="modo_multiplo")
+
+    if modo_multiplo:
+        alunos_selecionados = st.multiselect(
+            "Selecione os estudantes *",
+            lista_alunos,
+            key="alunos_multiplos",
+            help="Você pode selecionar vários alunos para uma única ocorrência"
+        )
+    else:
+        aluno_unico = st.selectbox(
+            "Selecione o estudante *",
+            [""] + lista_alunos,
+            key="aluno_unico",
+            help="Selecione o aluno envolvido na ocorrência"
+        )
+        alunos_selecionados = [aluno_unico] if aluno_unico else []
+
+    if not alunos_selecionados:
+        st.warning("⚠️ Selecione ao menos um estudante.")
+        st.stop()
+
+    # ------------------------------------------------------------
+    # 5. DATA, HORA E PROFESSOR
+    # ------------------------------------------------------------
+    tz_sp = pytz.timezone("America/Sao_Paulo")
+    agora = datetime.now(tz_sp)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        data_fato = st.date_input("📅 Data do fato", value=agora.date(), key="data_fato")
+    with col2:
+        hora_fato = st.time_input("⏰ Hora do fato", value=agora.time(), key="hora_fato")
+
+    data_str = f"{data_fato.strftime('%d/%m/%Y')} {hora_fato.strftime('%H:%M')}"
+
+    prof = st.selectbox("Professor 👨‍🏫", df_professores_temp["nome"].tolist(), key="professor_sel")
+
+    # ------------------------------------------------------------
+    # 6. INFRAÇÃO (PROTOCOLO 179)
+    # ------------------------------------------------------------
+    st.markdown("---")
+    st.subheader("📋 Infração (Protocolo 179)")
+
+    busca = st.text_input("🔍 Buscar infração", placeholder="Ex: celular, bullying, atraso...", key="busca_infracao")
+
+    if busca:
+        grupos_filtrados = buscar_infracao_fuzzy(busca, PROTOCOLO_179)
+        if grupos_filtrados:
+            grupo = st.selectbox("Grupo", list(grupos_filtrados.keys()), key="grupo_infracao")
+            infracoes = grupos_filtrados[grupo]
+        else:
+            st.warning("⚠️ Nenhuma infração encontrada. Mostrando todas.")
+            grupo = st.selectbox("Grupo", list(PROTOCOLO_179.keys()), key="grupo_infracao")
+            infracoes = PROTOCOLO_179[grupo]
+    else:
+        grupo = st.selectbox("Grupo", list(PROTOCOLO_179.keys()), key="grupo_infracao")
+        infracoes = PROTOCOLO_179[grupo]
+
+    infracao_principal = st.selectbox("Infração", list(infracoes.keys()), key="infracao_principal")
+    dados_infracao = infracoes[infracao_principal]
+    gravidade_sugerida = dados_infracao["gravidade"]
+    encaminhamento_sugerido = dados_infracao["encaminhamento"]
+
+    st.markdown(f'<span class="badge badge-primary" style="font-size: 1rem; padding: 0.5rem 1.5rem;">🎯 {infracao_principal}</span>', unsafe_allow_html=True)
+
+    cor_gravidade = CORES_GRAVIDADE.get(gravidade_sugerida, "#9E9E9E")
+    st.markdown(f"""
+    <div class="protocolo-info">
+        <b>📋 Protocolo 179 - Preenchimento Automático</b><br><br>
+        <b>Infração:</b> {infracao_principal}<br>
+        <b>Gravidade sugerida:</b> <span style="color:{cor_gravidade};font-weight:bold">{gravidade_sugerida}</span><br><br>
+        <b>Encaminhamentos sugeridos:</b><br>
+        {encaminhamento_sugerido.replace(chr(10), '<br>')}
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("### ⚖️ Gravidade")
+    gravidade = st.selectbox("Gravidade", ["Leve", "Média", "Grave", "Gravíssima"],
+                            index=["Leve", "Média", "Grave", "Gravíssima"].index(gravidade_sugerida) if gravidade_sugerida in ["Leve", "Média", "Grave", "Gravíssima"] else 0,
+                            key="gravidade_sel")
+
+    if gravidade != gravidade_sugerida:
+        st.warning(f"⚠️ Gravidade alterada de {gravidade_sugerida} para {gravidade}.")
+
+    encam = st.text_area("🔀 Encaminhamentos", value=encaminhamento_sugerido, height=140, key="encaminhamento")
+    relato = st.text_area("📝 Relato dos fatos", height=160, placeholder="Descreva os fatos de forma clara e objetiva...", key="relato")
+
+    st.markdown("---")
+
+    # ------------------------------------------------------------
+    # 7. SALVAR OCORRÊNCIA(S)
+    # ------------------------------------------------------------
+    if st.button("💾 Salvar Ocorrência(s)", type="primary"):
+        if not prof or not relato.strip():
+            st.error("❌ Preencha professor e relato.")
+        else:
+            salvas = 0
+            duplicadas = 0
+
+            for turma in turmas_sel:
+                for aluno in alunos_selecionados:
+                    # Localizar o RA do aluno na turma correta
+                    registro = df_alunos_temp[(df_alunos_temp["nome"] == aluno) & (df_alunos_temp["turma"] == turma)]
+                    if registro.empty:
+                        continue
+
+                    ra = registro["ra"].values[0] if "ra" in registro.columns else ""
+
+                    if verificar_ocorrencia_duplicada(ra, infracao_principal, data_str, df_ocorrencias):
+                        duplicadas += 1
+                        continue
+
+                    nova = {
+                        "data": data_str,
+                        "aluno": aluno,
+                        "ra": ra,
+                        "turma": turma,
+                        "categoria": infracao_principal,
+                        "gravidade": gravidade,
+                        "relato": relato,
+                        "encaminhamento": encam,
+                        "professor": prof,
+                    }
+
+                    if salvar_ocorrencia(nova):
+                        salvas += 1
+                        if st.session_state.backup_manager:
+                            st.session_state.backup_manager.criar_backup()
+
+            if salvas > 0:
+                st.session_state.ocorrencia_salva_sucesso = True
+                show_toast(f"{salvas} ocorrência(s) registrada(s)!", "success")
+
+                # ⭐ Atualizar gamificação
+                st.session_state.registros_ocorrencias += salvas
+                if st.session_state.registros_ocorrencias >= 1:
+                    verificar_conquista("primeiro_registro")
+                if st.session_state.registros_ocorrencias >= 10:
+                    verificar_conquista("10_ocorrencias")
+                if st.session_state.registros_ocorrencias >= 50:
+                    verificar_conquista("50_ocorrencias")
+
+            if duplicadas > 0:
+                st.warning(f"⚠️ {duplicadas} ocorrência(s) duplicada(s) ignorada(s).")
+
+            carregar_ocorrencias.clear()
+            st.rerun()
 
     # ------------------------------------------------------------
     # 2. MAPEAMENTO DINÂMICO DE COLUNAS (NOME, TURMA, RA, SITUAÇÃO)
