@@ -125,68 +125,73 @@ html, body, [class*="css"] {
 }
 
 /* ============================================ */
-/* ========== CORREÇÃO DE TOOLTIPS E SIDEBAR ========== */
+/* ========== TOOLTIPS — ESCONDER APENAS TOOLTIPS REAIS ========== */
 /* ============================================ */
 
-/* Esconde tooltips nativos do Streamlit */
-[data-testid="stTooltipHoverTarget"] {
+[data-testid="stTooltipHoverTarget"],
+[data-baseweb="tooltip"],
+[role="tooltip"],
+.stTooltip, #stTooltip {
     display: none !important;
-}
-[role="tooltip"] {
-    display: none !important;
-}
-[data-baseweb="tooltip"] {
-    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
 }
 
-/* Remove pseudo-elementos decorativos dos botões do menu */
+/* Remove decorações dos botões do sidebar */
 [data-testid="stSidebar"] button::after,
 [data-testid="stSidebar"] button::before {
     display: none !important;
     content: none !important;
 }
 
-/* Esconde o texto fantasma que aparece nos botões do sidebar
-   (são spans com posicionamento absolute usados para acessibilidade/tooltip) */
-[data-testid="stSidebar"] button > span[style*="position"],
-[data-testid="stSidebar"] button > div[style*="position: absolute"],
-[data-testid="stSidebar"] button > div[style*="position:absolute"] {
-    display: none !important;
-}
-
 /* ============================================ */
-/* DROPDOWNS — garantir visibilidade total     */
+/* DROPDOWNS / SELECTBOX / MULTISELECT          */
+/* Streamlit renderiza como portal em body      */
+/* NUNCA esconder com position:absolute global  */
 /* ============================================ */
 
-/* O Streamlit renderiza os dropdowns como portais fora do sidebar,
-   então NÃO limitamos position:absolute globalmente */
-[data-baseweb="popover"] {
+/* Garante que popover do baseweb seja sempre visível */
+[data-baseweb="popover"],
+[data-baseweb="popover"] *,
+[data-baseweb="menu"],
+[data-baseweb="menu"] * {
     visibility: visible !important;
     opacity: 1 !important;
-    display: block !important;
-    z-index: 9999 !important;
+    pointer-events: auto !important;
 }
-[data-baseweb="menu"] {
+
+/* Garante visibilidade do conteúdo das listas */
+[role="listbox"],
+[role="listbox"] *,
+[role="option"],
+[role="option"] * {
     visibility: visible !important;
     opacity: 1 !important;
-    display: block !important;
+    display: revert !important;
+    color: inherit !important;
 }
-[role="listbox"] {
-    visibility: visible !important;
-    opacity: 1 !important;
-    display: block !important;
-}
-[role="option"] {
-    visibility: visible !important;
-    opacity: 1 !important;
-    display: flex !important;
-}
-/* Multiselect dropdown list items */
-[data-baseweb="select"] ul,
-[data-baseweb="select"] li {
+
+/* Itens do multiselect e selectbox */
+[data-baseweb="select"] [role="option"],
+[data-baseweb="select"] [role="option"] span,
+[data-baseweb="select"] li,
+[data-baseweb="select"] ul {
     display: block !important;
     visibility: visible !important;
     opacity: 1 !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+    color: #1e293b !important;
+}
+
+/* Texto dentro dos itens do dropdown */
+[role="option"] div,
+[role="option"] span,
+[data-baseweb="menu"] div,
+[data-baseweb="menu"] span {
+    visibility: visible !important;
+    opacity: 1 !important;
+    color: #1e293b !important;
 }
 
 /* ============================================ */
@@ -556,27 +561,25 @@ div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button span {
     max-width: 100% !important;
 }
 
-/* Esconde spans de acessibilidade/aria que aparecem como texto fantasma */
-div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button > span[style],
-div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button > div[style*="position"],
-[data-testid="stSidebar"] button > span[aria-hidden],
-[data-testid="stSidebar"] button > span.css-hide,
+/* Esconde spans extras dentro dos botões do sidebar (texto fantasma / aria) */
+[data-testid="stSidebar"] button p,
+[data-testid="stSidebar"] button > span + span,
 [data-testid="stSidebar"] [data-testid="stBaseButton-secondary"] > span:not(:first-child),
 [data-testid="stSidebar"] [data-testid="stBaseButton-primary"] > span:not(:first-child) {
     display: none !important;
     width: 0 !important;
     height: 0 !important;
     overflow: hidden !important;
-    position: absolute !important;
-    left: -9999px !important;
+    font-size: 0 !important;
+    opacity: 0 !important;
 }
 
-/* Clip do sidebar para não vazar texto */
-[data-testid="stSidebar"] > div:first-child {
-    overflow-x: hidden !important;
-}
-section[data-testid="stSidebar"] {
-    overflow-x: hidden !important;
+/* Clip do sidebar para não vazar nada */
+section[data-testid="stSidebar"],
+[data-testid="stSidebar"] > div:first-child,
+[data-testid="stSidebar"] > div {
+    overflow: hidden !important;
+    clip-path: inset(0 0 0 0) !important;
 }
 
 div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button:hover {
@@ -2066,36 +2069,57 @@ st.components.v1.html("""
     'use strict';
     
     function exterminarTooltips() {
-        const seletores = [
+        // Seletores EXATOS para tooltips - evitar [class*=] que mata dropdowns
+        const seletoresExatos = [
             '[data-testid="stTooltipHoverTarget"]',
-            '[class*="tooltip"]',
-            '[class*="Tooltip"]',
             '[role="tooltip"]',
+            '[data-baseweb="tooltip"]',
             '.stTooltip',
-            '#stTooltip',
-            '[data-baseweb="tooltip"]'
+            '#stTooltip'
         ];
-        
-        seletores.forEach(sel => {
+        seletoresExatos.forEach(sel => {
             document.querySelectorAll(sel).forEach(el => el.remove());
         });
         
+        // Remove atributos de tooltip dos botões do sidebar
         document.querySelectorAll('[data-testid="stSidebar"] button').forEach(btn => {
             btn.removeAttribute('title');
-            btn.removeAttribute('aria-label');
             btn.removeAttribute('data-tooltip');
             btn.removeAttribute('aria-describedby');
         });
+        
+        // Corrige texto fantasma: spans fora dos limites do sidebar
+        document.querySelectorAll('[data-testid="stSidebar"] button').forEach(btn => {
+            const btnRect = btn.getBoundingClientRect();
+            btn.querySelectorAll('span').forEach(span => {
+                const rect = span.getBoundingClientRect();
+                if (rect.width > 0 && (rect.left < btnRect.left - 5 || rect.right > btnRect.right + 5)) {
+                    span.style.cssText += 'display:none!important;width:0!important;overflow:hidden!important;';
+                }
+            });
+        });
+        
+        // NUNCA remover divs position:absolute - isso mata os dropdowns!
     }
     
     exterminarTooltips();
-    setInterval(exterminarTooltips, 300);
+    setInterval(exterminarTooltips, 500);
     
-    const observer = new MutationObserver(exterminarTooltips);
+    const observer = new MutationObserver(function(mutations) {
+        // Só executa se não houver dropdowns abertos
+        const dropdownAberto = document.querySelector('[data-baseweb="popover"]') ||
+                               document.querySelector('[role="listbox"]');
+        if (!dropdownAberto) exterminarTooltips();
+    });
     observer.observe(document.body, { childList: true, subtree: true });
     
-    document.addEventListener('mouseover', exterminarTooltips, true);
-})();
+    document.addEventListener('mouseover', function(e) {
+        // Só roda se não estiver interagindo com dropdown
+        if (!e.target.closest('[data-baseweb="popover"]') && 
+            !e.target.closest('[role="listbox"]')) {
+            exterminarTooltips();
+        }
+    }, true);
 </script>
 """, height=0)
 # ======================================================
