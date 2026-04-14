@@ -1,0 +1,25 @@
+[theme]
+primaryColor = "#667eea"
+backgroundColor = "#f8f9fa"
+secondaryBackgroundColor = "#e0e0e0"
+textColor = "#31333f"
+font = "sans serif"
+
+[client]
+showErrorDetails = false
+showSidebarNavigation = false
+toolbarMode = "viewer"
+
+[server]
+headless = true
+runOnSave = true
+port = 8501
+maxUploadSize = 200
+enableXsrfProtection = true
+
+[logger]
+level = "warning"
+
+[magic]
+# Desabilitar magic commands para melhor performance
+enabled = false
