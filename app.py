@@ -356,15 +356,15 @@ button {
 /* ============================================ */
 .main-header {
     background:
-        radial-gradient(circle at top right, rgba(255,255,255,0.55), transparent 32%),
-        linear-gradient(120deg, #ffe0f3 0%, #ffecc8 24%, #d9f8ff 52%, #e8dbff 78%, #ffd9ef 100%);
-    padding: 2.6rem 2.6rem;
-    border-radius: 30px;
+        radial-gradient(circle at top right, rgba(255,255,255,0.7), transparent 36%),
+        linear-gradient(120deg, #fff7fc 0%, #fffaf2 38%, #f6fbff 72%, #faf5ff 100%);
+    padding: 2.2rem 2.2rem;
+    border-radius: 24px;
     color: #241b4d;
-    text-align: left;
+    text-align: center;
     margin-bottom: 2rem;
-    border: 1.5px solid rgba(167,139,250,0.35);
-    box-shadow: 0 20px 38px rgba(76,29,149,0.10), 0 0 0 1px rgba(255,255,255,0.40) inset;
+    border: 1.5px solid rgba(196,181,253,0.35);
+    box-shadow: 0 14px 26px rgba(76,29,149,0.08), 0 0 0 1px rgba(255,255,255,0.55) inset;
     position: relative;
     overflow: hidden;
     animation: fadeInUp 0.6s cubic-bezier(.16,1,.3,1) both;
@@ -401,8 +401,15 @@ button {
     background-image:
         radial-gradient(circle at 20% 50%, rgba(124,58,237,0.10) 1px, transparent 1px),
         radial-gradient(circle at 80% 20%, rgba(236,72,153,0.10) 1px, transparent 1px);
-    background-size: 40px 40px;
+    background-size: 46px 46px;
     pointer-events: none;
+}
+
+.school-header-inner {
+    position: relative;
+    z-index: 1;
+    max-width: 940px;
+    margin: 0 auto;
 }
 
 .school-name {
@@ -410,34 +417,28 @@ button {
     font-size: clamp(1.8rem, 2.6vw, 2.45rem);
     font-weight: 900;
     letter-spacing: -0.03em;
-    margin-bottom: 0.4rem;
-    position: relative;
-    z-index: 1;
+    margin-bottom: 0.45rem;
     color: #31215f;
-    line-height: 1.15;
+    line-height: 1.2;
     text-shadow: 0 1px 0 rgba(255,255,255,0.7);
     white-space: normal !important;
 }
 
 .school-subtitle {
-    font-size: 1rem;
+    font-size: 0.98rem;
     font-weight: 700;
     opacity: 1;
-    margin-bottom: 1.25rem;
-    position: relative;
-    z-index: 1;
+    margin-bottom: 1rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: #5b3d9b;
+    color: #6d28d9;
 }
 
 .school-info-chips {
     display: flex;
-    justify-content: flex-start;
-    gap: 1rem;
+    justify-content: center;
+    gap: 0.7rem;
     flex-wrap: wrap;
-    position: relative;
-    z-index: 1;
 }
 
 .school-chip {
@@ -447,12 +448,17 @@ button {
     background: rgba(255,255,255,0.62);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(124,58,237,0.22);
-    border-radius: var(--r-full);
-    padding: 0.45rem 0.95rem;
-    font-size: 0.82rem;
+    border-radius: 999px;
+    padding: 0.5rem 0.9rem;
+    font-size: 0.8rem;
     font-weight: 700;
     color: #3f2d77;
-    white-space: nowrap;
+    white-space: normal;
+}
+
+.school-chip-address {
+    width: min(100%, 820px);
+    justify-content: center;
 }
 
 /* ============================================ */
@@ -1455,6 +1461,7 @@ div[data-testid="stForm"]:hover {
 @media (max-width: 768px) {
     .main-header { padding: 1.5rem 1rem; }
     .school-name  { font-size: 1.7rem; }
+    .school-subtitle { letter-spacing: 0.05em; }
     .metric-value { font-size: 2rem; }
     .metric-card  { padding: 1.1rem 0.75rem; }
     .metric-label { font-size: 0.7rem; }
@@ -3111,12 +3118,14 @@ if menu == "🏠 Dashboard":
     st.markdown(f"""
     <div class="main-header animate-fade-in">
         <div class="pattern"></div>
-        <div class="school-name">🏫 {ESCOLA_NOME}</div>
-        <div class="school-subtitle">{ESCOLA_SUBTITULO}</div>
-        <div class="school-info-chips">
-            <span class="school-chip">📍 {ESCOLA_ENDERECO}</span>
-            <span class="school-chip">📞 {ESCOLA_TELEFONE}</span>
-            <span class="school-chip">✉️ {ESCOLA_EMAIL}</span>
+        <div class="school-header-inner">
+            <div class="school-name">🏫 {ESCOLA_NOME}</div>
+            <div class="school-subtitle">{ESCOLA_SUBTITULO}</div>
+            <div class="school-info-chips">
+                <span class="school-chip school-chip-address">📍 {ESCOLA_ENDERECO}</span>
+                <span class="school-chip">📞 {ESCOLA_TELEFONE}</span>
+                <span class="school-chip">✉️ {ESCOLA_EMAIL}</span>
+            </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
