@@ -3,11 +3,9 @@
 # ======================================================
 import streamlit as st
 import pandas as pd
-import openpyxl
 import plotly.express as px
-import plotly.graph_objects as go
 import random
-from datetime import datetime, timedelta, time
+from datetime import datetime, timedelta
 from io import BytesIO
 from difflib import SequenceMatcher
 from xml.etree import ElementTree as ET
@@ -18,8 +16,6 @@ import zipfile
 import pytz
 import unicodedata
 from dotenv import load_dotenv
-import json
-import tempfile
 
 # ======================================================
 # REPORTLAB (PDF)
@@ -28,11 +24,11 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.platypus import (
     SimpleDocTemplate, Table, TableStyle, Paragraph, 
-    Spacer, Image, PageBreak
+    Spacer, Image
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.lib.enums import TA_CENTER
 
 # ======================================================
 # IMPORTS LOCAIS
@@ -53,7 +49,7 @@ except ImportError:
 
 try:
     from src.error_handler import (
-        com_tratamento_erro, com_retry, com_validacao,
+        com_tratamento_erro, com_retry,
         ErroConexaoDB, ErroValidacao, ErroCarregamentoDados,
         ErroOperacaoDB, Validadores, logger
     )
@@ -5517,8 +5513,6 @@ elif menu == "💾 Backups":
 elif menu == "📅 Agendamento de Espaços":
     page_header("📅 Agendamento de Espaços", "Reserve sala de informática, carrinhos, tablets e sala de leitura", "#2563eb")
     
-    from reportlab.lib.pagesizes import A4, landscape
-    import json
     
     # ======================================================
     # FUNÇÕES AUXILIARES DO AGENDAMENTO
