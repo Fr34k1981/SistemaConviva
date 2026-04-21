@@ -6257,55 +6257,86 @@ elif menu == "📅 Agendamento de Espaços":
                 if submitted:
                     if not all([professor, turma, disciplina, prioridade, espaco, horario1]):
                         st.error("⚠️ Preencha todos os campos obrigatórios")
+                        show_toast_agend("Preencha os campos obrigatórios.", "warning")
                     else:
                         horarios = [h for h in [horario1, horario2] if h]
-                        sucessos = 0
-                        
-                        for h in horarios:
-                            conf = verificar_conflito_api(data.strftime("%Y-%m-%d"), h, espaco)
-                            if not conf:
-                                ok, _ = salvar_agendamento_api({
-                                    "data_agendamento": data.strftime("%Y-%m-%d"),
-                                    "horario": h,
-                                    "espaco": espaco,
-                                    "turma": turma,
-                                    "disciplina": disciplina,
-                                    "prioridade": prioridade,
-                                    "professor_nome": professor,
-                                    "status": "ATIVO",
-                                    "tipo": "DATA_ESPECIFICA"
-                                })
-                                if ok:
-                                    sucessos += 1
-                        
-                        if sucessos > 0:
-                            st.success(f"✅ {sucessos} agendamento(s) confirmado(s)!")
-                            registrar_log("CRIAR_AGENDAMENTO", professor, f"{data.strftime('%d/%m/%Y')} - {espaco} - {horarios}")
-                            show_toast_agend(f"{sucessos} agendamento(s) criado(s)!", "success")
-                            st.balloons()
-                            carregar_agendamentos_filtrado.clear()
-                            
-                            # ⭐ ATUALIZAR GAMIFICAÇÃO ⭐
-                            st.session_state.agendamentos_criados += sucessos
-                            
-                            # Verificar conquista de agendamento
-                            if st.session_state.agendamentos_criados >= 5:
-                                verificar_conquista("agendamento_perfeito")
-                            
-                            if salvar_como_template and nome_template:
-                                config = {
-                                    "turma": turma,
-                                    "disciplina": disciplina,
-                                    "prioridade": prioridade,
-                                    "espaco": espaco,
-                                    "horarios": horarios
-                                }
-                                salvar_template(professor, nome_template, config)
-                                st.success(f"✅ Template '{nome_template}' salvo!")
-                            
-                            st.rerun()
+                        # Evita tentativa duplicada na mesma submissão (ex.: 1ª e 2ª aulas iguais)
+                        horarios = list(dict.fromkeys(horarios))
+                        if not horarios:
+                            st.error("⚠️ Selecione ao menos um horário válido.")
+                            show_toast_agend("Selecione um horário válido.", "warning")
                         else:
-                            st.error("❌ Não foi possível criar o agendamento.")
+                            professor_email = ""
+                            if not df_prof_agend.empty and "email" in df_prof_agend.columns:
+                                linha_prof = df_prof_agend[df_prof_agend["nome"] == professor]
+                                if not linha_prof.empty:
+                                    professor_email = str(linha_prof.iloc[0].get("email", "") or "").strip()
+
+                            sucessos = 0
+                            conflitos = 0
+                            falhas = 0
+                            detalhes_falha = []
+                            
+                            for h in horarios:
+                                conf = verificar_conflito_api(data.strftime("%Y-%m-%d"), h, espaco)
+                                if conf:
+                                    conflitos += 1
+                                else:
+                                    ok, msg = salvar_agendamento_api({
+                                        "data_agendamento": data.strftime("%Y-%m-%d"),
+                                        "horario": h,
+                                        "espaco": espaco,
+                                        "turma": turma,
+                                        "disciplina": disciplina,
+                                        "prioridade": prioridade,
+                                        "professor_nome": professor,
+                                        "professor_email": professor_email,
+                                        "status": "ATIVO",
+                                        "tipo": "DATA_ESPECIFICA"
+                                    })
+                                    if ok:
+                                        sucessos += 1
+                                    else:
+                                        falhas += 1
+                                        detalhes_falha.append(f"{h}: {msg}")
+                            
+                            if sucessos > 0:
+                                st.success(f"✅ {sucessos} agendamento(s) confirmado(s)!")
+                                registrar_log("CRIAR_AGENDAMENTO", professor, f"{data.strftime('%d/%m/%Y')} - {espaco} - {horarios}")
+                                show_toast_agend(f"{sucessos} agendamento(s) criado(s)!", "success")
+                                st.balloons()
+                                carregar_agendamentos_filtrado.clear()
+                                
+                                # ⭐ ATUALIZAR GAMIFICAÇÃO ⭐
+                                st.session_state.agendamentos_criados += sucessos
+                                
+                                # Verificar conquista de agendamento
+                                if st.session_state.agendamentos_criados >= 5:
+                                    verificar_conquista("agendamento_perfeito")
+                                
+                                if salvar_como_template and nome_template:
+                                    config = {
+                                        "turma": turma,
+                                        "disciplina": disciplina,
+                                        "prioridade": prioridade,
+                                        "espaco": espaco,
+                                        "horarios": horarios
+                                    }
+                                    salvar_template(professor, nome_template, config)
+                                    st.success(f"✅ Template '{nome_template}' salvo!")
+                                
+                                st.rerun()
+                            elif conflitos > 0 and falhas == 0:
+                                st.error(f"❌ Não foi possível criar: {conflitos} horário(s) já ocupado(s) para este espaço/data.")
+                                show_toast_agend("Horário já ocupado no espaço selecionado.", "error")
+                            elif falhas > 0:
+                                st.error("❌ Falha ao salvar no banco de dados.")
+                                if detalhes_falha:
+                                    st.caption("Detalhes: " + " | ".join(detalhes_falha[:3]))
+                                show_toast_agend("Erro ao salvar agendamento.", "error")
+                            else:
+                                st.error("❌ Não foi possível criar o agendamento.")
+                                show_toast_agend("Não foi possível criar o agendamento.", "error")
         
         else:
             st.info("💡 **Agendamento Fixo Semanal** - Use a aba '🗓️ Grade Semanal' para configurar horários fixos!")
