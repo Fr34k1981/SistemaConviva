@@ -1843,6 +1843,20 @@ def normalizar_texto(valor: str) -> str:
     texto = "".join(c for c in texto if not unicodedata.combining(c))
     return " ".join(texto.split())
 
+def serie_compativel_turma(serie_eletiva: str, turma_sistema: str) -> bool:
+    """Verifica se uma série da eletiva (ex.: 6A) combina com turma do sistema (ex.: 6º Ano A)."""
+    serie_norm = normalizar_texto(str(serie_eletiva or ""))
+    turma_norm = normalizar_texto(str(turma_sistema or ""))
+    if not serie_norm:
+        return True
+    letras = "".join(ch for ch in serie_norm if ch.isalpha())
+    numeros = "".join(ch for ch in serie_norm if ch.isdigit())
+    if numeros and numeros not in turma_norm:
+        return False
+    if letras and letras not in turma_norm:
+        return False
+    return True
+
 def gerar_chave_segura(valor: str) -> str:
     """Gera uma chave segura para uso em session_state"""
     texto = normalizar_texto(valor)
@@ -2437,20 +2451,6 @@ def montar_dataframe_eletiva(nome_professora: str, df_alunos: pd.DataFrame, elet
     else:
         alunos_db["turma_norm"] = ""
 
-    def _serie_compativel(serie_eletiva: str, turma_sistema: str) -> bool:
-        serie_norm = normalizar_texto(str(serie_eletiva or ""))
-        turma_norm = normalizar_texto(str(turma_sistema or ""))
-        if not serie_norm:
-            return True
-        # Ex.: "6A" deve combinar com "6º Ano A"
-        letras = "".join(ch for ch in serie_norm if ch.isalpha())
-        numeros = "".join(ch for ch in serie_norm if ch.isdigit())
-        if numeros and numeros not in turma_norm:
-            return False
-        if letras and letras not in turma_norm:
-            return False
-        return True
-
     for item in eletivas_dict.get(nome_professora, []):
         nome_original = item.get("nome", "")
         serie_original = item.get("serie", "")
@@ -2468,7 +2468,7 @@ def montar_dataframe_eletiva(nome_professora: str, df_alunos: pd.DataFrame, elet
         if melhor_match is None and nome_norm_excel:
             exatos = alunos_db[alunos_db["nome_norm"] == nome_norm_excel]
             if not exatos.empty:
-                exatos_serie = exatos[exatos["turma_norm"].apply(lambda t: _serie_compativel(serie_original, t))]
+                exatos_serie = exatos[exatos["turma_norm"].apply(lambda t: serie_compativel_turma(serie_original, t))]
                 melhor_match = (exatos_serie.iloc[0] if not exatos_serie.empty else exatos.iloc[0])
 
         # 3) Fuzzy apenas como fallback, com regra de primeiro nome + série
@@ -2481,7 +2481,7 @@ def montar_dataframe_eletiva(nome_professora: str, df_alunos: pd.DataFrame, elet
                     continue
                 if primeiro_nome and not nome_sis.startswith(primeiro_nome):
                     continue
-                if not _serie_compativel(serie_original, aluno.get("turma_norm", "")):
+                if not serie_compativel_turma(serie_original, aluno.get("turma_norm", "")):
                     continue
                 score = SequenceMatcher(None, nome_norm_excel, nome_sis).ratio()
                 if score > melhor_score:
@@ -2536,7 +2536,7 @@ def _adicionar_logo(elementos: list):
 # PDF — ELETIVA
 # ======================================================
 
-def gerar_pdf_eletiva(nome_professora: str, df_eletiva: pd.DataFrame) -> BytesIO:
+def gerar_pdf_eletiva(contexto: str, df_eletiva: pd.DataFrame) -> BytesIO:
     buffer = BytesIO()
     doc = _criar_documento_pdf(buffer)
     estilos = getSampleStyleSheet()
@@ -2546,7 +2546,7 @@ def gerar_pdf_eletiva(nome_professora: str, df_eletiva: pd.DataFrame) -> BytesIO
     titulo_style = ParagraphStyle('TituloEletiva', parent=estilos['Heading1'], fontSize=14, alignment=TA_CENTER, spaceAfter=0.5*cm, textColor=colors.HexColor("#4A90E2"))
     elementos.append(Paragraph(f"LISTA DE ELETIVA", titulo_style))
     elementos.append(Spacer(1, 0.3*cm))
-    elementos.append(Paragraph(f"<b>Professora:</b> {nome_professora}", estilos['Normal']))
+    elementos.append(Paragraph(f"<b>Filtro:</b> {contexto}", estilos['Normal']))
     elementos.append(Paragraph(f"<b>Total de estudantes:</b> {len(df_eletiva)}", estilos['Normal']))
     elementos.append(Spacer(1, 0.5*cm))
     
@@ -5274,15 +5274,105 @@ elif menu == "🎨 Eletiva":
 
     st.markdown("---")
     st.subheader("🖨️ Imprimir Lista da Eletiva")
-    
-    if st.button("📄 Gerar PDF", type="primary"):
-        pdf = gerar_pdf_eletiva(professora_sel, df_eletiva)
-        st.download_button(
-            "📥 Baixar PDF",
-            data=pdf,
-            file_name=f"Eletiva_{professora_sel}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-            mime="application/pdf"
+    modo_impressao = st.radio(
+        "Tipo de impressão",
+        ["Por Professor(a)", "Por Turma"],
+        horizontal=True,
+        key="eletiva_modo_impressao"
+    )
+
+    if modo_impressao == "Por Professor(a)":
+        prof_impressao = st.selectbox(
+            "Professor(a) para imprimir",
+            sorted(ELETIVAS.keys()),
+            index=sorted(ELETIVAS.keys()).index(professora_sel) if professora_sel in sorted(ELETIVAS.keys()) else 0,
+            key="eletiva_prof_impressao"
         )
+        df_imp = montar_dataframe_eletiva(prof_impressao, df_alunos, ELETIVAS)
+        if st.button("📄 Gerar PDF por Professor(a)", type="primary", key="btn_pdf_eletiva_prof"):
+            if df_imp.empty:
+                st.warning("Não há estudantes para imprimir nesse professor(a).")
+            else:
+                pdf = gerar_pdf_eletiva(f"Professor(a): {prof_impressao}", df_imp)
+                st.download_button(
+                    "📥 Baixar PDF",
+                    data=pdf,
+                    file_name=f"Eletiva_Professor_{gerar_chave_segura(prof_impressao)}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                    mime="application/pdf",
+                    key="download_pdf_eletiva_prof"
+                )
+    else:
+        frames = []
+        for prof in sorted(ELETIVAS.keys()):
+            df_tmp = montar_dataframe_eletiva(prof, df_alunos, ELETIVAS)
+            if not df_tmp.empty:
+                frames.append(df_tmp)
+        df_geral_eletivas = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+        turmas_eletiva = sorted([t for t in df_geral_eletivas.get("Série", pd.Series(dtype=str)).dropna().astype(str).str.strip().unique().tolist() if t])
+        if not turmas_eletiva:
+            st.info("Não há turmas/séries de eletiva para imprimir.")
+        else:
+            turma_impressao = st.selectbox("Turma/Série da Eletiva", turmas_eletiva, key="eletiva_turma_impressao")
+            df_imp = df_geral_eletivas[df_geral_eletivas["Série"].astype(str).str.strip() == str(turma_impressao).strip()].copy()
+            if st.button("📄 Gerar PDF por Turma", type="primary", key="btn_pdf_eletiva_turma"):
+                if df_imp.empty:
+                    st.warning("Não há estudantes para imprimir nessa turma.")
+                else:
+                    pdf = gerar_pdf_eletiva(f"Turma/Série: {turma_impressao}", df_imp)
+                    st.download_button(
+                        "📥 Baixar PDF",
+                        data=pdf,
+                        file_name=f"Eletiva_Turma_{gerar_chave_segura(turma_impressao)}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                        mime="application/pdf",
+                        key="download_pdf_eletiva_turma"
+                    )
+
+    st.markdown("---")
+    st.subheader("🔎 Buscar Não Localizados Por Turmas")
+    st.caption("Selecione as turmas do sistema para pesquisar estudantes da eletiva que ainda não foram localizados.")
+    if df_alunos.empty or "nome" not in df_alunos.columns:
+        st.info("Não há base de alunos para pesquisa.")
+    elif "turma" not in df_alunos.columns:
+        st.info("A base de alunos não possui coluna de turma para pesquisa.")
+    else:
+        turmas_base = sorted([t for t in df_alunos["turma"].dropna().astype(str).str.strip().unique().tolist() if t])
+        turmas_pesquisa = st.multiselect(
+            "Turmas para pesquisar",
+            turmas_base,
+            default=turmas_base,
+            key="eletiva_turmas_pesquisa_nao_localizados"
+        )
+        if turmas_pesquisa:
+            base_turmas = df_alunos[df_alunos["turma"].astype(str).isin(turmas_pesquisa)].copy()
+            base_turmas["nome_norm"] = base_turmas["nome"].astype(str).apply(normalizar_texto)
+            base_turmas["turma_norm"] = base_turmas["turma"].astype(str).apply(normalizar_texto)
+            pendentes = []
+            for _, linha in df_eletiva.iterrows():
+                nome_eletiva = str(linha.get("Nome", "")).strip()
+                serie_eletiva = str(linha.get("Série", "")).strip()
+                if not nome_eletiva:
+                    continue
+                nome_norm = normalizar_texto(nome_eletiva)
+                candidatos_nome = base_turmas[base_turmas["nome_norm"] == nome_norm]
+                encontrados_compativeis = candidatos_nome[
+                    candidatos_nome["turma_norm"].apply(lambda t: serie_compativel_turma(serie_eletiva, t))
+                ]
+                if encontrados_compativeis.empty:
+                    pendentes.append({
+                        "Professor(a)": linha.get("Professor(a)", ""),
+                        "Nome": nome_eletiva,
+                        "Série": serie_eletiva,
+                        "Status": "Não localizado nas turmas selecionadas"
+                    })
+
+            df_pendentes = pd.DataFrame(pendentes)
+            st.metric("Não localizados nas turmas selecionadas", len(df_pendentes))
+            if df_pendentes.empty:
+                st.success("Todos os estudantes da eletiva foram localizados nas turmas selecionadas.")
+            else:
+                st.dataframe(df_pendentes, use_container_width=True, hide_index=True)
+        else:
+            st.info("Selecione pelo menos uma turma para pesquisar.")
 
     if alunos_raw:
         st.markdown("---")
