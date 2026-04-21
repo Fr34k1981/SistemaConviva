@@ -5517,15 +5517,15 @@ elif menu == "🎨 Eletiva":
         elif feedback_eletiva.get("tipo") == "warning":
             st.warning(feedback_eletiva.get("msg", ""))
 
-        serie_padrao = st.text_input("Turma padr?o (opcional)", key="eletiva_serie_padrao", placeholder="Ex: 6? Ano A")
+        serie_padrao = st.text_input("Turma padrao (opcional)", key="eletiva_serie_padrao", placeholder="Ex: 6o Ano A")
         lista_colada = st.text_area(
             "Cole a lista (1 estudante por linha). Opcional: Nome;Turma",
             key="eletiva_lista_colada",
             height=160,
-            placeholder="Maria Silva; 7? A\nJo?o Santos; 8? B\nAna Souza"
+            placeholder="Maria Silva; 7A\nJoao Santos; 8B\nAna Souza"
         )
 
-        if st.button("? Registrar Lista Colada", key="eletiva_btn_add_colada", type="primary"):
+        if st.button("Registrar Lista Colada", key="eletiva_btn_add_colada", type="primary"):
             try:
                 novos = []
                 for linha in lista_colada.splitlines():
@@ -5534,21 +5534,21 @@ elif menu == "🎨 Eletiva":
                         novos.append(item)
                 qtd = _adicionar_estudantes_eletiva(novos, origem="lista_colada")
                 if qtd > 0:
-                    msg = f"? {qtd} estudante(s) adicionados via lista."
+                    msg = f"Sucesso: {qtd} estudante(s) adicionados via lista."
                     st.session_state["eletiva_feedback"] = {"tipo": "success", "msg": msg}
                     st.success(msg)
                 else:
-                    msg = "Nenhum item v?lido novo foi encontrado na lista."
+                    msg = "Nenhum item valido novo foi encontrado na lista."
                     st.session_state["eletiva_feedback"] = {"tipo": "warning", "msg": msg}
                     st.warning(msg)
             except Exception as e:
-                msg = f"? Erro ao registrar lista: {e}"
+                msg = f"Erro ao registrar lista: {e}"
                 st.session_state["eletiva_feedback"] = {"tipo": "error", "msg": msg}
                 st.error(msg)
 
-        if st.button("?? Salvar Agora no Supabase", key="eletiva_salvar_agora_colar", use_container_width=True):
+        if st.button("Salvar Agora no Supabase", key="eletiva_salvar_agora_colar", use_container_width=True):
             if not SUPABASE_VALID:
-                msg = "? Conex?o com Supabase indispon?vel. Verifique URL/KEY e tente novamente."
+                msg = "Erro: conexao com Supabase indisponivel. Verifique URL/KEY e tente novamente."
                 st.session_state["eletiva_feedback"] = {"tipo": "error", "msg": msg}
                 st.error(msg)
             else:
@@ -5570,11 +5570,11 @@ elif menu == "🎨 Eletiva":
                         _supabase_request("POST", "eletivas", json=registros_prof)
 
                     st.session_state.FONTE_ELETIVAS = "supabase"
-                    msg = f"? Salvamento conclu?do para {professora_sel}: {len(registros_prof)} estudante(s) gravado(s) no Supabase."
+                    msg = f"Salvamento concluido para {professora_sel}: {len(registros_prof)} estudante(s) gravado(s) no Supabase."
                     st.session_state["eletiva_feedback"] = {"tipo": "success", "msg": msg}
                     st.success(msg)
                 except Exception as e:
-                    msg = f"? Erro ao salvar no Supabase: {e}"
+                    msg = f"Erro ao salvar no Supabase: {e}"
                     st.session_state["eletiva_feedback"] = {"tipo": "error", "msg": msg}
                     st.error(msg)
 
@@ -5701,25 +5701,62 @@ elif menu == "🎨 Eletiva":
     )
 
     if modo_impressao == "Por Professor(a)":
+        professoras_lista = sorted(ELETIVAS.keys())
         prof_impressao = st.selectbox(
             "Professor(a) para imprimir",
-            sorted(ELETIVAS.keys()),
-            index=sorted(ELETIVAS.keys()).index(professora_sel) if professora_sel in sorted(ELETIVAS.keys()) else 0,
+            professoras_lista,
+            index=professoras_lista.index(professora_sel) if professora_sel in professoras_lista else 0,
             key="eletiva_prof_impressao"
         )
         df_imp = montar_dataframe_eletiva(prof_impressao, df_alunos, ELETIVAS)
-        if st.button("📄 Gerar PDF por Professor(a)", type="primary", key="btn_pdf_eletiva_prof"):
+        if st.button("Gerar PDF por Professor(a)", type="primary", key="btn_pdf_eletiva_prof"):
             if df_imp.empty:
-                st.warning("Não há estudantes para imprimir nesse professor(a).")
+                st.warning("Nao ha estudantes para imprimir nesse professor(a).")
             else:
                 pdf = gerar_pdf_eletiva(f"Professor(a): {prof_impressao}", df_imp)
                 st.download_button(
-                    "📥 Baixar PDF",
+                    "Baixar PDF",
                     data=pdf,
                     file_name=f"Eletiva_Professor_{gerar_chave_segura(prof_impressao)}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
                     mime="application/pdf",
                     key="download_pdf_eletiva_prof"
                 )
+
+        st.markdown("### Imprimir varias professoras")
+        professoras_sel = st.multiselect(
+            "Selecione as professoras para imprimir",
+            professoras_lista,
+            default=[prof_impressao] if prof_impressao else [],
+            key="eletiva_professoras_mult"
+        )
+
+        if st.button("Imprimir Professoras Selecionadas", key="btn_zip_eletiva_prof_mult"):
+            if not professoras_sel:
+                st.warning("Selecione ao menos uma professora.")
+            else:
+                zip_buffer = BytesIO()
+                total_pdfs = 0
+                with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+                    for prof_sel in professoras_sel:
+                        df_prof = montar_dataframe_eletiva(prof_sel, df_alunos, ELETIVAS)
+                        if df_prof.empty:
+                            continue
+                        pdf_prof = gerar_pdf_eletiva(f"Professor(a): {prof_sel}", df_prof)
+                        zip_file.writestr(f"Eletiva_Professor_{gerar_chave_segura(prof_sel)}.pdf", pdf_prof.getvalue())
+                        total_pdfs += 1
+
+                if total_pdfs == 0:
+                    st.warning("Nenhum PDF foi gerado para as professoras selecionadas.")
+                else:
+                    zip_buffer.seek(0)
+                    st.download_button(
+                        "Baixar ZIP de Professoras",
+                        data=zip_buffer,
+                        file_name=f"Eletiva_Professoras_{datetime.now().strftime('%Y%m%d_%H%M')}.zip",
+                        mime="application/zip",
+                        key="download_zip_eletiva_professoras"
+                    )
+
     else:
         frames = []
         for prof in sorted(ELETIVAS.keys()):
@@ -5727,26 +5764,68 @@ elif menu == "🎨 Eletiva":
             if not df_tmp.empty:
                 frames.append(df_tmp)
         df_geral_eletivas = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
-        turmas_eletiva = sorted([t for t in df_geral_eletivas.get("Turma", pd.Series(dtype=str)).dropna().astype(str).str.strip().unique().tolist() if t])
+        turmas_eletiva = sorted([
+            t for t in df_geral_eletivas.get("Turma", pd.Series(dtype=str)).dropna().astype(str).str.strip().unique().tolist() if t
+        ])
         if not turmas_eletiva:
-            st.info("Não há turmas de eletiva para imprimir.")
+            st.info("Nao ha turmas de eletiva para imprimir.")
         else:
             turma_impressao = st.selectbox("Turma da Eletiva", turmas_eletiva, key="eletiva_turma_impressao")
-            df_imp = df_geral_eletivas[df_geral_eletivas["Turma"].astype(str).str.strip() == str(turma_impressao).strip()].copy()
-            if st.button("📄 Gerar PDF por Turma", type="primary", key="btn_pdf_eletiva_turma"):
+            df_imp = df_geral_eletivas[
+                df_geral_eletivas["Turma"].astype(str).str.strip() == str(turma_impressao).strip()
+            ].copy()
+            if st.button("Gerar PDF por Turma", type="primary", key="btn_pdf_eletiva_turma"):
                 if df_imp.empty:
-                    st.warning("Não há estudantes para imprimir nessa turma.")
+                    st.warning("Nao ha estudantes para imprimir nessa turma.")
                 else:
                     pdf = gerar_pdf_eletiva(f"Turma: {turma_impressao}", df_imp)
                     st.download_button(
-                        "📥 Baixar PDF",
+                        "Baixar PDF",
                         data=pdf,
                         file_name=f"Eletiva_Turma_{gerar_chave_segura(turma_impressao)}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
                         mime="application/pdf",
                         key="download_pdf_eletiva_turma"
                     )
 
+            st.markdown("### Imprimir varias turmas")
+            turmas_sel = st.multiselect(
+                "Selecione as turmas para imprimir",
+                turmas_eletiva,
+                default=[turma_impressao] if turma_impressao else [],
+                key="eletiva_turmas_mult"
+            )
+
+            if st.button("Imprimir Turmas Selecionadas", key="btn_zip_eletiva_turma_mult"):
+                if not turmas_sel:
+                    st.warning("Selecione ao menos uma turma.")
+                else:
+                    zip_buffer = BytesIO()
+                    total_pdfs = 0
+                    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+                        for turma_sel in turmas_sel:
+                            df_turma = df_geral_eletivas[
+                                df_geral_eletivas["Turma"].astype(str).str.strip() == str(turma_sel).strip()
+                            ].copy()
+                            if df_turma.empty:
+                                continue
+                            pdf_turma = gerar_pdf_eletiva(f"Turma: {turma_sel}", df_turma)
+                            zip_file.writestr(f"Eletiva_Turma_{gerar_chave_segura(turma_sel)}.pdf", pdf_turma.getvalue())
+                            total_pdfs += 1
+
+                    if total_pdfs == 0:
+                        st.warning("Nenhum PDF foi gerado para as turmas selecionadas.")
+                    else:
+                        zip_buffer.seek(0)
+                        st.download_button(
+                            "Baixar ZIP de Turmas",
+                            data=zip_buffer,
+                            file_name=f"Eletiva_Turmas_{datetime.now().strftime('%Y%m%d_%H%M')}.zip",
+                            mime="application/zip",
+                            key="download_zip_eletiva_turmas"
+                        )
+
     st.markdown("---")
+
     st.subheader("🔎 Estudantes Sem Professor Na Eletiva")
     st.caption("Selecione turmas do sistema para identificar alunos que ainda não estão vinculados a nenhum professor de eletiva.")
     if df_alunos.empty or "nome" not in df_alunos.columns:
