@@ -147,51 +147,51 @@ h1, h2, h3, h4, h5, h6 {
 /* ============================================ */
 :root {
     /* Cores primárias — azul educacional */
-    --primary:        #2563eb;
-    --primary-light:  #3b82f6;
-    --primary-xlight: #eff6ff;
-    --primary-dark:   #1d4ed8;
+    --primary:        #d946ef;
+    --primary-light:  #f472b6;
+    --primary-xlight: #fdf2ff;
+    --primary-dark:   #a21caf;
 
     /* Acento verde sucesso */
-    --success:        #059669;
+    --success:        #10b981;
     --success-light:  #d1fae5;
 
     /* Acento âmbar aviso */
-    --warning:        #d97706;
-    --warning-light:  #fef3c7;
+    --warning:        #f59e0b;
+    --warning-light:  #fef9c3;
 
     /* Vermelho perigo */
-    --danger:         #dc2626;
-    --danger-light:   #fee2e2;
+    --danger:         #f43f5e;
+    --danger-light:   #ffe4e6;
 
     /* Info ciano */
-    --info:           #0891b2;
-    --info-light:     #e0f2fe;
+    --info:           #06b6d4;
+    --info-light:     #cffafe;
 
     /* Roxo destaque */
-    --purple:         #7c3aed;
+    --purple:         #8b5cf6;
     --purple-light:   #ede9fe;
 
     /* Neutros */
-    --dark:           #0f172a;
-    --dark-mid:       #1e293b;
-    --gray-dark:      #334155;
-    --gray:           #64748b;
-    --gray-light:     #94a3b8;
-    --border:         #e2e8f0;
-    --border-light:   #f1f5f9;
-    --bg:             #f8fafc;
+    --dark:           #2b2140;
+    --dark-mid:       #3f2d63;
+    --gray-dark:      #54467a;
+    --gray:           #7b6ea3;
+    --gray-light:     #a79aca;
+    --border:         #edd7ff;
+    --border-light:   #f8ecff;
+    --bg:             #fff8ff;
     --white:          #ffffff;
 
     /* Gradientes */
-    --grad-primary:   linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #3b82f6 100%);
-    --grad-teal:      linear-gradient(135deg, #0891b2 0%, #06b6d4 100%);
-    --grad-emerald:   linear-gradient(135deg, #059669 0%, #10b981 100%);
-    --grad-amber:     linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
-    --grad-danger:    linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
-    --grad-purple:    linear-gradient(135deg, #6d28d9 0%, #7c3aed 100%);
-    --grad-school:    linear-gradient(135deg, #1d4ed8 0%, #0891b2 60%, #059669 100%);
-    --grad-warm:      linear-gradient(135deg, #f97316 0%, #ef4444 50%, #ec4899 100%);
+    --grad-primary:   linear-gradient(120deg, #ff7fd1 0%, #ffd67f 23%, #97f7f0 46%, #9cc7ff 70%, #d8a0ff 100%);
+    --grad-teal:      linear-gradient(135deg, #38bdf8 0%, #22d3ee 100%);
+    --grad-emerald:   linear-gradient(135deg, #34d399 0%, #10b981 100%);
+    --grad-amber:     linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    --grad-danger:    linear-gradient(135deg, #fb7185 0%, #f43f5e 100%);
+    --grad-purple:    linear-gradient(135deg, #a78bfa 0%, #d946ef 100%);
+    --grad-school:    linear-gradient(120deg, #ff95d6 0%, #ffd67f 28%, #9ce7ff 55%, #b39bff 82%, #ff9ee2 100%);
+    --grad-warm:      linear-gradient(120deg, #fdba74 0%, #fda4af 50%, #f9a8d4 100%);
 
     /* Sombras */
     --shadow-xs:  0 1px 2px rgba(15,23,42,0.06);
@@ -200,8 +200,8 @@ h1, h2, h3, h4, h5, h6 {
     --shadow-lg:  0 8px 24px rgba(15,23,42,0.12);
     --shadow-xl:  0 16px 40px rgba(15,23,42,0.14);
     --shadow-2xl: 0 24px 64px rgba(15,23,42,0.18);
-    --shadow-blue: 0 8px 24px rgba(37,99,235,0.25);
-    --shadow-green: 0 8px 24px rgba(5,150,105,0.25);
+    --shadow-blue: 0 8px 24px rgba(168,85,247,0.30);
+    --shadow-green: 0 8px 24px rgba(45,212,191,0.28);
 
     /* Raios */
     --r-xs:  4px;
@@ -259,9 +259,10 @@ h1, h2, h3, h4, h5, h6 {
 /* ============================================ */
 .stApp {
     background:
-        radial-gradient(circle at top left, rgba(59,130,246,0.10), transparent 28%),
-        radial-gradient(circle at bottom right, rgba(16,185,129,0.10), transparent 24%),
-        linear-gradient(180deg, #f5f9ff 0%, #f8fbff 46%, #f5fbf7 100%) !important;
+        radial-gradient(circle at 8% 6%, rgba(244,114,182,0.28), transparent 34%),
+        radial-gradient(circle at 86% 10%, rgba(147,197,253,0.24), transparent 30%),
+        radial-gradient(circle at 80% 85%, rgba(45,212,191,0.22), transparent 28%),
+        linear-gradient(135deg, #fff7fb 0%, #fffaf0 26%, #f3fcff 50%, #f6f2ff 76%, #fff8fd 100%) !important;
     color: var(--dark) !important;
 }
 
@@ -285,9 +286,9 @@ footer { visibility: hidden; }
 /* ============================================ */
 section[data-testid="stSidebar"] {
     background:
-        linear-gradient(180deg, rgba(15,23,42,0.96) 0%, rgba(30,41,59,0.98) 100%) !important;
+        linear-gradient(180deg, rgba(74,40,126,0.94) 0%, rgba(99,58,156,0.95) 45%, rgba(56,111,181,0.92) 100%) !important;
     border-right: none !important;
-    box-shadow: 16px 0 40px rgba(15,23,42,0.18) !important;
+    box-shadow: 16px 0 40px rgba(77,42,136,0.28) !important;
     min-width: 320px !important;
     max-width: 320px !important;
 }
@@ -497,7 +498,7 @@ button {
 .main-header {
     background:
         radial-gradient(circle at top right, rgba(255,255,255,0.16), transparent 24%),
-        linear-gradient(135deg, #0f172a 0%, #1d4ed8 55%, #0f766e 100%);
+        linear-gradient(120deg, #7c3aed 0%, #d946ef 35%, #22d3ee 68%, #f9a8d4 100%);
     padding: 2.6rem 2.6rem;
     border-radius: 30px;
     color: white;
@@ -975,6 +976,74 @@ button {
     color: #0f172a !important;
     -webkit-text-fill-color: #0f172a !important;
     opacity: 1 !important;
+}
+
+/* ============================================ */
+/* ========== UNICORN INPUT OVERRIDE ========== */
+/* ============================================ */
+.stTextInput > div > div,
+.stTextArea > div > div,
+.stNumberInput > div > div,
+.stDateInput > div > div,
+.stTimeInput > div > div,
+[data-baseweb="select"] > div:first-child {
+    border-radius: 18px !important;
+    border: 2px solid transparent !important;
+    background:
+        linear-gradient(rgba(255,255,255,0.97), rgba(255,255,255,0.97)) padding-box,
+        linear-gradient(120deg, #ff93d4 0%, #ffd67a 25%, #9df3ff 50%, #b6a2ff 75%, #ff98df 100%) border-box !important;
+    box-shadow: 0 10px 26px rgba(110,62,160,0.11) !important;
+    transition: transform 0.18s ease, box-shadow 0.22s ease !important;
+}
+
+.stTextInput > div > div:focus-within,
+.stTextArea > div > div:focus-within,
+.stNumberInput > div > div:focus-within,
+.stDateInput > div > div:focus-within,
+.stTimeInput > div > div:focus-within,
+[data-baseweb="select"] > div:first-child:focus-within {
+    box-shadow: 0 0 0 3px rgba(217,70,239,0.16), 0 14px 30px rgba(168,85,247,0.18) !important;
+    transform: translateY(-1px) !important;
+}
+
+.stTextInput input,
+.stTextArea textarea,
+.stNumberInput input,
+.stDateInput input,
+.stTimeInput input,
+[data-baseweb="input"] input,
+[data-baseweb="base-input"] input {
+    font-family: 'Inter', sans-serif !important;
+    font-size: 0.96rem !important;
+    color: #241a3d !important;
+    -webkit-text-fill-color: #241a3d !important;
+    background: transparent !important;
+    caret-color: #a21caf !important;
+    padding: 0.72rem 0.95rem !important;
+}
+
+.stTextInput input::placeholder,
+.stTextArea textarea::placeholder,
+.stNumberInput input::placeholder,
+.stDateInput input::placeholder,
+.stTimeInput input::placeholder,
+[data-baseweb="input"] input::placeholder {
+    color: #7f6aa8 !important;
+    opacity: 0.95 !important;
+}
+
+.stTextArea textarea {
+    min-height: 130px !important;
+}
+
+[data-baseweb="select"] span,
+[data-baseweb="select"] div,
+[data-baseweb="select"] input,
+[data-baseweb="select"] p {
+    color: #241a3d !important;
+    -webkit-text-fill-color: #241a3d !important;
+    opacity: 1 !important;
+    visibility: visible !important;
 }
 
 /* Ocultar indicador "Running..." / modo de espera do Streamlit */
