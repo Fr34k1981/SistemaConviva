@@ -411,8 +411,8 @@ section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div[data-t
 [role="option"] * {
     visibility: visible !important;
     opacity: 1 !important;
-    color: #0f172a !important;
-    -webkit-text-fill-color: #0f172a !important;
+    color: #241a3d !important;
+    -webkit-text-fill-color: #241a3d !important;
     background-clip: unset !important;
     -webkit-background-clip: unset !important;
     text-shadow: none !important;
@@ -443,17 +443,17 @@ section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div[data-t
 /* Item hover */
 [data-baseweb="menu"] [role="option"]:hover,
 [role="listbox"] [role="option"]:hover {
-    background: #eff6ff !important;
-    color: #1d4ed8 !important;
-    -webkit-text-fill-color: #1d4ed8 !important;
+    background: #f5edff !important;
+    color: #4c1d95 !important;
+    -webkit-text-fill-color: #4c1d95 !important;
 }
 
 /* Item selecionado */
 [data-baseweb="menu"] [aria-selected="true"],
 [role="option"][aria-selected="true"] {
-    background: #eff6ff !important;
-    color: #1d4ed8 !important;
-    -webkit-text-fill-color: #1d4ed8 !important;
+    background: #f0e7ff !important;
+    color: #4c1d95 !important;
+    -webkit-text-fill-color: #4c1d95 !important;
     font-weight: 600 !important;
 }
 
@@ -464,6 +464,25 @@ section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div[data-t
     background: #ffffff !important;
     border: 1px solid #d8b4fe !important;
     box-shadow: 0 14px 28px rgba(124,58,237,0.16) !important;
+    border-radius: 16px !important;
+    padding: 6px !important;
+}
+
+/* Opcoes como caixas visiveis */
+[role="option"] {
+    background: #ffffff !important;
+    border: 1px solid #ead7ff !important;
+    border-radius: 12px !important;
+    min-height: 42px !important;
+    margin: 4px 2px !important;
+    padding: 8px 10px !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+[role="option"][aria-selected="true"] {
+    border-color: #c084fc !important;
+    box-shadow: 0 0 0 1px rgba(192,132,252,0.28) inset !important;
 }
 
 [role="option"],
@@ -1107,6 +1126,29 @@ button {
     -webkit-text-fill-color: #241a3d !important;
     opacity: 1 !important;
     visibility: visible !important;
+}
+
+/* Caixas para seletores sem dropdown */
+.stRadio > div[role="radiogroup"] > label,
+.stCheckbox > label {
+    background: #ffffff !important;
+    border: 1px solid #e2ccff !important;
+    border-radius: 12px !important;
+    padding: 0.5rem 0.65rem !important;
+    margin: 0.22rem 0 !important;
+    box-shadow: 0 4px 10px rgba(124,58,237,0.08) !important;
+}
+
+.stRadio > div[role="radiogroup"] > label:hover,
+.stCheckbox > label:hover {
+    border-color: #c084fc !important;
+    box-shadow: 0 6px 14px rgba(124,58,237,0.12) !important;
+}
+
+.stRadio > div[role="radiogroup"] > label span,
+.stCheckbox > label span {
+    color: #2b2150 !important;
+    -webkit-text-fill-color: #2b2150 !important;
 }
 
 /* Ocultar indicador "Running..." / modo de espera do Streamlit */
@@ -3073,6 +3115,20 @@ st.components.v1.html("""
             el.style.setProperty('background', '#ffffff', 'important');
             el.style.setProperty('border-color', '#d8b4fe', 'important');
         });
+
+        // opcoes sempre em formato de caixa legivel
+        document.querySelectorAll('[role="option"]').forEach(el => {
+            el.style.setProperty('background', '#ffffff', 'important');
+            el.style.setProperty('border', '1px solid #ead7ff', 'important');
+            el.style.setProperty('border-radius', '12px', 'important');
+            el.style.setProperty('min-height', '42px', 'important');
+            el.style.setProperty('margin', '4px 2px', 'important');
+            el.style.setProperty('padding', '8px 10px', 'important');
+            el.style.setProperty('display', 'flex', 'important');
+            el.style.setProperty('align-items', 'center', 'important');
+            el.style.setProperty('color', '#241a3d', 'important');
+            el.style.setProperty('-webkit-text-fill-color', '#241a3d', 'important');
+        });
     }
     
     function limparTooltips() {
@@ -4225,9 +4281,60 @@ elif menu == "📝 Registrar Ocorrência":
         hora_fato = st.time_input("⏰ Hora do fato", value=agora.time(), key="hora_fato")
 
     data_str = f"{data_fato.strftime('%d/%m/%Y')} {hora_fato.strftime('%H:%M')}"
+
+    def _slug_key(txt):
+        return re.sub(r"[^a-zA-Z0-9_]", "_", str(txt))[:80]
+
+    def seletor_caixas_unico(label, opcoes, key, default_idx=0, horizontal=False):
+        if not opcoes:
+            return None
+        if key not in st.session_state or st.session_state[key] not in opcoes:
+            st.session_state[key] = opcoes[min(default_idx, len(opcoes) - 1)]
+        return st.radio(label, opcoes, index=opcoes.index(st.session_state[key]), key=key, horizontal=horizontal)
+
+    def seletor_caixas_multiplo(label, opcoes, key, default=None, cols=3, busca=True):
+        st.markdown(f"**{label}**")
+        if key not in st.session_state or not isinstance(st.session_state[key], list):
+            st.session_state[key] = list(default or [])
+
+        filtro = ""
+        if busca:
+            filtro = st.text_input(f"Buscar em {label.lower()}", key=f"{key}_busca", placeholder="Digite para filtrar")
+
+        opcoes_filtradas = opcoes
+        if filtro:
+            termo = filtro.strip().lower()
+            opcoes_filtradas = [o for o in opcoes if termo in str(o).lower()]
+
+        if not opcoes_filtradas:
+            st.caption("Nenhuma opcao encontrada para o filtro.")
+            return st.session_state[key]
+
+        selecionadas = set(st.session_state[key])
+        grid = st.columns(cols)
+        for i, opcao in enumerate(opcoes_filtradas):
+            ck_key = f"{key}_ck_{_slug_key(opcao)}"
+            if ck_key not in st.session_state:
+                st.session_state[ck_key] = opcao in selecionadas
+            with grid[i % cols]:
+                marcado = st.checkbox(str(opcao), key=ck_key)
+            if marcado:
+                selecionadas.add(opcao)
+            else:
+                selecionadas.discard(opcao)
+
+        st.session_state[key] = [o for o in opcoes if o in selecionadas]
+        return st.session_state[key]
     
     turmas_disponiveis = sorted(df_alunos["turma"].unique().tolist())
-    turmas_sel = st.multiselect("🏫 Turma(s)", turmas_disponiveis, default=[turmas_disponiveis[0]] if turmas_disponiveis else [], key="turmas_sel")
+    turmas_sel = seletor_caixas_multiplo(
+        "🏫 Turma(s)",
+        turmas_disponiveis,
+        key="turmas_sel_caixas",
+        default=[turmas_disponiveis[0]] if turmas_disponiveis else [],
+        cols=3,
+        busca=False
+    )
 
     if not turmas_sel:
         st.warning("⚠️ Selecione ao menos uma turma.")
@@ -4248,17 +4355,26 @@ elif menu == "📝 Registrar Ocorrência":
     """, unsafe_allow_html=True)
     modo_multiplo = st.checkbox("Registrar para múltiplos estudantes", key="modo_multiplo")
 
+    alunos_opcoes = alunos_turma["nome"].dropna().astype(str).tolist()
     if modo_multiplo:
-        alunos_selecionados = st.multiselect("Selecione os estudantes", alunos_turma["nome"].tolist(), key="alunos_multiplos")
+        alunos_selecionados = seletor_caixas_multiplo(
+            "Selecione os estudantes",
+            alunos_opcoes,
+            key="alunos_multiplos_caixas",
+            default=[],
+            cols=2,
+            busca=True
+        )
     else:
-        aluno_unico = st.selectbox("Aluno", alunos_turma["nome"].tolist(), key="aluno_unico")
+        aluno_unico = seletor_caixas_unico("Aluno", alunos_opcoes, key="aluno_unico_caixas", default_idx=0)
         alunos_selecionados = [aluno_unico] if aluno_unico else []
 
     if not alunos_selecionados:
         st.warning("⚠️ Selecione ao menos um estudante.")
         st.stop()
 
-    prof = st.selectbox("Professor 👨‍🏫", df_professores["nome"].tolist(), key="professor_sel")
+    profs_opcoes = sorted(df_professores["nome"].dropna().astype(str).tolist())
+    prof = seletor_caixas_unico("Professor 👨‍🏫", profs_opcoes, key="professor_sel_caixas", default_idx=0)
 
     st.markdown("""
     <div class="form-panel">
@@ -4282,17 +4398,17 @@ elif menu == "📝 Registrar Ocorrência":
     if busca:
         grupos_filtrados = buscar_infracao_fuzzy(busca, PROTOCOLO_179)
         if grupos_filtrados:
-            grupo = st.selectbox("Grupo", list(grupos_filtrados.keys()), key="grupo_infracao")
+            grupo = seletor_caixas_unico("Grupo", list(grupos_filtrados.keys()), key="grupo_infracao_caixas")
             infracoes = grupos_filtrados[grupo]
         else:
             st.warning("⚠️ Nenhuma infração encontrada. Mostrando todas.")
-            grupo = st.selectbox("Grupo", list(PROTOCOLO_179.keys()), key="grupo_infracao")
+            grupo = seletor_caixas_unico("Grupo", list(PROTOCOLO_179.keys()), key="grupo_infracao_caixas")
             infracoes = PROTOCOLO_179[grupo]
     else:
-        grupo = st.selectbox("Grupo", list(PROTOCOLO_179.keys()), key="grupo_infracao")
+        grupo = seletor_caixas_unico("Grupo", list(PROTOCOLO_179.keys()), key="grupo_infracao_caixas")
         infracoes = PROTOCOLO_179[grupo]
 
-    infracao_principal = st.selectbox("Infração", list(infracoes.keys()), key="infracao_principal")
+    infracao_principal = seletor_caixas_unico("Infração", list(infracoes.keys()), key="infracao_principal_caixas")
     dados_infracao = infracoes[infracao_principal]
     gravidade_sugerida = dados_infracao["gravidade"]
     encaminhamento_sugerido = dados_infracao["encaminhamento"]
@@ -4353,9 +4469,14 @@ elif menu == "📝 Registrar Ocorrência":
         <span style="font-family:'Nunito',sans-serif;font-weight:700;font-size:1rem;color:#0f172a;">⚖️ Gravidade da Ocorrência</span>
     </div>
     """, unsafe_allow_html=True)
-    gravidade = st.selectbox("Gravidade", ["Leve", "Média", "Grave", "Gravíssima"], 
-                            index=["Leve", "Média", "Grave", "Gravíssima"].index(gravidade_sugerida) if gravidade_sugerida in ["Leve", "Média", "Grave", "Gravíssima"] else 0,
-                            key="gravidade_sel")
+    grav_idx = ["Leve", "Média", "Grave", "Gravíssima"].index(gravidade_sugerida) if gravidade_sugerida in ["Leve", "Média", "Grave", "Gravíssima"] else 0
+    gravidade = seletor_caixas_unico(
+        "Gravidade",
+        ["Leve", "Média", "Grave", "Gravíssima"],
+        key="gravidade_sel_caixas",
+        default_idx=grav_idx,
+        horizontal=True
+    )
 
     if gravidade != gravidade_sugerida:
         st.warning(f"⚠️ Gravidade alterada de {gravidade_sugerida} para {gravidade}.")
