@@ -848,6 +848,58 @@ button, [data-testid="stFileUploaderDropzone"] * {
     box-shadow: 0 0 0 3px rgba(37,99,235,0.12) !important;
 }
 
+/* CORREÇÃO: texto visível dentro do selectbox (valor selecionado) */
+[data-baseweb="select"] [data-testid="stMarkdownContainer"] p,
+[data-baseweb="select"] span,
+[data-baseweb="select"] div[class*="placeholder"],
+[data-baseweb="select"] div[class*="singleValue"],
+[data-baseweb="select"] div[class*="value"],
+[data-baseweb="select"] > div > div > div,
+[data-baseweb="select"] > div > div {
+    color: var(--gray-dark) !important;
+    -webkit-text-fill-color: var(--gray-dark) !important;
+    opacity: 1 !important;
+}
+
+/* Opções do dropdown (lista aberta) */
+[data-baseweb="menu"] li,
+[data-baseweb="menu"] [role="option"],
+[role="listbox"] li,
+[role="option"] {
+    color: var(--gray-dark) !important;
+    -webkit-text-fill-color: var(--gray-dark) !important;
+}
+
+/* Opção destacada/selecionada na lista */
+[data-baseweb="menu"] [aria-selected="true"],
+[role="option"][aria-selected="true"] {
+    background: var(--primary-xlight) !important;
+    color: var(--primary-dark) !important;
+    -webkit-text-fill-color: var(--primary-dark) !important;
+    font-weight: 600 !important;
+}
+
+/* Ocultar indicador "Running..." / modo de espera do Streamlit */
+[data-testid="stStatusWidget"],
+[data-testid="stStatusWidget"] *,
+.stStatusWidget,
+header [data-testid="stDecoration"],
+div[class*="StatusWidget"],
+div[class*="statusWidget"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* Também oculta o spinner global de topo da página */
+div[data-testid="stToolbar"] [data-testid="stStatusWidget"],
+.st-emotion-cache-ue6h4q,
+[class*="AppRunningIcon"],
+[class*="appRunningIcon"] {
+    display: none !important;
+}
+
 /* Labels */
 .stTextInput label,
 .stTextArea label,
@@ -2488,6 +2540,13 @@ st.components.v1.html("""
             span.style.removeProperty('width');
             span.style.removeProperty('height');
             span.style.removeProperty('overflow');
+        });
+
+        // CORREÇÃO: garante que o texto dentro dos selectboxes fica sempre visível
+        document.querySelectorAll('[data-baseweb="select"] div, [data-baseweb="select"] span').forEach(el => {
+            el.style.setProperty('color', '#1e293b', 'important');
+            el.style.setProperty('-webkit-text-fill-color', '#1e293b', 'important');
+            el.style.setProperty('opacity', '1', 'important');
         });
     }
     
