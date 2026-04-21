@@ -913,7 +913,7 @@ def montar_dataframe_eletiva(nome_professora: str, df_alunos: pd.DataFrame, elet
 ELETIVAS_EXCEL = carregar_eletivas_do_excel(ELETIVAS_ARQUIVO, fallback=ELETIVAS)
 
 ======================================================
-PDF — UTILITÁRIOS
+#PDF — UTILITÁRIOS
 ======================================================
 def _criar_documento_pdf(buffer: BytesIO) -> SimpleDocTemplate:
     return SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1*cm, leftMargin=1*cm, topMargin=1.5*cm, bottomMargin=1.5*cm)
