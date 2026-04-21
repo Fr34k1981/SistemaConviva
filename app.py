@@ -3145,17 +3145,37 @@ if menu == "🏠 Dashboard":
     """, unsafe_allow_html=True)
 
     # ── Métricas Principais ───────────────────────────────────
-    total_alunos      = len(df_alunos) if not df_alunos.empty else 0
     total_ocorrencias = len(df_ocorrencias) if not df_ocorrencias.empty else 0
     total_professores = len(df_professores) if not df_professores.empty else 0
 
-    if not df_alunos.empty and "situacao" in df_alunos.columns:
-        df_alunos["situacao_norm"]  = df_alunos["situacao"].str.strip().str.title()
-        total_ativos      = len(df_alunos[df_alunos["situacao_norm"] == "Ativo"])
-        total_transferidos = len(df_alunos[df_alunos["situacao_norm"] == "Transferido"])
-    else:
-        total_ativos      = total_alunos
-        total_transferidos = 0
+    # Validação de status para considerar somente alunos ativos nas métricas
+    total_ativos = 0
+    total_transferidos = 0
+    total_remanejados = 0
+    total_inativos = 0
+    total_outros_status = 0
+    status_brutos = {}
+    if not df_alunos.empty:
+        if "situacao" in df_alunos.columns:
+            situacoes_raw = df_alunos["situacao"].fillna("").astype(str).str.strip()
+        else:
+            situacoes_raw = pd.Series(["Ativo"] * len(df_alunos))
+
+        for s in situacoes_raw:
+            status_brutos[s if s else "(vazio)"] = status_brutos.get(s if s else "(vazio)", 0) + 1
+            s_norm = normalizar_texto(s)
+            if any(k in s_norm for k in ["TRANSFER", "BAIXA"]):
+                total_transferidos += 1
+            elif any(k in s_norm for k in ["REMANEJ", "REALOC", "RELOC"]):
+                total_remanejados += 1
+            elif any(k in s_norm for k in ["INATIV", "DESLIG", "CANCEL", "EVADI", "ABANDON"]):
+                total_inativos += 1
+            elif "ATIVO" in s_norm:
+                total_ativos += 1
+            elif not s_norm:
+                total_outros_status += 1
+            else:
+                total_outros_status += 1
 
     gravissimas = (
         len(df_ocorrencias[df_ocorrencias["gravidade"] == "Gravíssima"])
@@ -3181,13 +3201,26 @@ if menu == "🏠 Dashboard":
     </div>
     """, unsafe_allow_html=True)
 
+    with st.expander("🔎 Verificação de Situação dos Estudantes", expanded=False):
+        st.info("As métricas usam apenas estudantes com situação ativa. Transferidos, remanejados/realocados e inativos ficam fora do total ativo.")
+        col_v1, col_v2, col_v3, col_v4 = st.columns(4)
+        col_v1.metric("Ativos", total_ativos)
+        col_v2.metric("Transferidos", total_transferidos)
+        col_v3.metric("Remanej./Realoc.", total_remanejados)
+        col_v4.metric("Inativos/Outros", total_inativos + total_outros_status)
+        if status_brutos:
+            df_status = pd.DataFrame(
+                [{"Situação Original": k, "Quantidade": v} for k, v in sorted(status_brutos.items(), key=lambda x: (-x[1], x[0]))]
+            )
+            st.dataframe(df_status, use_container_width=True, hide_index=True)
+
     col1, col2, col3, col4, col5 = st.columns(5)
 
     cards_data = [
-        (col1, "linear-gradient(135deg,#1d4ed8 0%,#2563eb 100%)", "👥", total_alunos, "Total de Alunos", f"{total_ativos} ativos", "0"),
+        (col1, "linear-gradient(135deg,#1d4ed8 0%,#2563eb 100%)", "✅", total_ativos, "Alunos Ativos", "somente ativos", "0"),
         (col2, "linear-gradient(135deg,#dc2626 0%,#ef4444 100%)", "⚠️", total_ocorrencias, "Ocorrências", f"{gravissimas} gravíssimas", "0.08s"),
         (col3, "linear-gradient(135deg,#0891b2 0%,#06b6d4 100%)", "👨‍🏫", total_professores, "Professores", "cadastrados", "0.16s"),
-        (col4, "linear-gradient(135deg,#059669 0%,#10b981 100%)", "✅", total_ativos, "Alunos Ativos", "frequentando", "0.24s"),
+        (col4, "linear-gradient(135deg,#f59e0b 0%,#f97316 100%)", "↔️", total_remanejados, "Remanej./Realoc.", "fora do ativo", "0.24s"),
         (col5, "linear-gradient(135deg,#7c3aed 0%,#8b5cf6 100%)", "🔄", total_transferidos, "Transferidos", "este ano", "0.32s"),
     ]
 
