@@ -4908,6 +4908,20 @@ elif menu == "🎨 Eletiva":
             return None
         nome = bruto
         serie = str(serie_padrao or "").strip()
+
+        # Formato escolar colado com TAB:
+        # Turma | RA | Nome | Situação | ...
+        if "\t" in bruto:
+            partes_tab = [p.strip() for p in bruto.split("\t")]
+            if len(partes_tab) >= 3:
+                possivel_serie = partes_tab[0]
+                possivel_nome = partes_tab[2]
+                if possivel_nome:
+                    nome = possivel_nome
+                if possivel_serie:
+                    serie = possivel_serie
+                return {"nome": nome, "serie": serie}
+
         for sep in [";", "\t", "|", " - ", " – ", ","]:
             if sep in bruto:
                 partes = [p.strip() for p in bruto.split(sep, 1)]
