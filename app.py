@@ -3101,17 +3101,21 @@ if SUPABASE_VALID:
         df_eletivas_supabase = pd.DataFrame()
 
 if st.session_state.ELETIVAS is None:
-    if not df_eletivas_supabase.empty:
-        st.session_state.ELETIVAS = converter_eletivas_supabase_para_dict(df_eletivas_supabase)
+    if SUPABASE_VALID:
+        if not df_eletivas_supabase.empty:
+            st.session_state.ELETIVAS = converter_eletivas_supabase_para_dict(df_eletivas_supabase)
+        else:
+            # Base oficial: Supabase (inicia vazio quando não há registros)
+            st.session_state.ELETIVAS = {k: [] for k in ELETIVAS.keys()}
         st.session_state.FONTE_ELETIVAS = "supabase"
     else:
-        st.session_state.ELETIVAS = ELETIVAS_EXCEL
-        st.session_state.FONTE_ELETIVAS = "excel"
+        st.session_state.ELETIVAS = {k: [] for k in ELETIVAS.keys()}
+        st.session_state.FONTE_ELETIVAS = "indisponivel"
 else:
-    if not df_eletivas_supabase.empty:
+    if SUPABASE_VALID:
         st.session_state.FONTE_ELETIVAS = "supabase"
     else:
-        st.session_state.FONTE_ELETIVAS = "excel"
+        st.session_state.FONTE_ELETIVAS = "indisponivel"
 
 ELETIVAS = st.session_state.ELETIVAS
 FONTE_ELETIVAS = st.session_state.FONTE_ELETIVAS
@@ -5320,24 +5324,34 @@ elif menu == "🎨 Eletiva":
     """, unsafe_allow_html=True)
 
     if FONTE_ELETIVAS == "supabase":
-        st.success("✅ Eletivas carregadas do Supabase.")
+        st.success("✅ Base oficial ativa: Supabase.")
     else:
-        st.warning("⚠️ Eletivas carregadas da planilha Excel.")
+        st.error("❌ Supabase indisponível no momento. Verifique conexão/credenciais.")
 
-    if os.path.exists(ELETIVAS_ARQUIVO):
-        with st.expander("☁️ Sincronizar com Supabase", expanded=False):
-            st.info("💡 Este processo apaga as eletivas atuais do Supabase e grava novamente os dados do Excel.")
-            if st.button("🔄 Substituir Eletivas no Supabase", type="primary"):
-                registros = converter_eletivas_para_registros(ELETIVAS_EXCEL, origem="planilha")
+    if SUPABASE_VALID:
+        col_sync1, col_sync2 = st.columns([1, 1])
+        with col_sync1:
+            if st.button("🔄 Recarregar Eletivas do Supabase", key="reload_eletivas_supabase", use_container_width=True):
                 try:
-                    _supabase_request("DELETE", "eletivas?id=not.is.null")
-                    _supabase_request("POST", "eletivas", json=registros)
-                    st.session_state.ELETIVAS = ELETIVAS_EXCEL
+                    df_refresh = _supabase_get_dataframe("eletivas?select=*", "recarregar eletivas")
+                    st.session_state.ELETIVAS = converter_eletivas_supabase_para_dict(df_refresh) if not df_refresh.empty else {k: [] for k in ELETIVAS.keys()}
                     st.session_state.FONTE_ELETIVAS = "supabase"
-                    st.success("✅ Eletivas sincronizadas com sucesso!")
+                    st.success("✅ Eletivas recarregadas do Supabase.")
                     st.rerun()
                 except Exception as e:
-                    st.error(f"❌ Erro ao sincronizar: {e}")
+                    st.error(f"❌ Erro ao recarregar: {e}")
+        with col_sync2:
+            if st.button("💾 Forçar Salvar Estado Atual no Supabase", key="persistir_eletivas_supabase", use_container_width=True):
+                try:
+                    registros = converter_eletivas_para_registros(ELETIVAS, origem="sessao_manual")
+                    _supabase_request("DELETE", "eletivas?id=not.is.null")
+                    if registros:
+                        _supabase_request("POST", "eletivas", json=registros)
+                    st.session_state.FONTE_ELETIVAS = "supabase"
+                    st.success("✅ Estado atual persistido no Supabase.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Erro ao persistir: {e}")
 
     st.markdown("---")
     st.subheader("📊 Professoras de Eletiva")
@@ -5422,7 +5436,7 @@ elif menu == "🎨 Eletiva":
         ELETIVAS[professora_sel] = existentes
         st.session_state.ELETIVAS = ELETIVAS
 
-        if FONTE_ELETIVAS == "supabase":
+        if SUPABASE_VALID:
             registros = [
                 {
                     "professora": professora_sel,
@@ -5433,6 +5447,7 @@ elif menu == "🎨 Eletiva":
                 for item in inseridos
             ]
             _supabase_request("POST", "eletivas", json=registros)
+            st.session_state.FONTE_ELETIVAS = "supabase"
 
         return len(inseridos)
 
@@ -5781,7 +5796,7 @@ elif menu == "🎨 Eletiva":
                     try:
                         ELETIVAS[professora_sel][idx_sel] = {"nome": novo_nome, "serie": nova_serie}
                         st.session_state.ELETIVAS = ELETIVAS
-                        if FONTE_ELETIVAS == "supabase":
+                        if SUPABASE_VALID:
                             _apagar_registro_supabase_eletiva(professora_sel, nome_antigo, serie_antiga)
                             _supabase_request("POST", "eletivas", json=[{
                                 "professora": professora_sel,
@@ -5789,6 +5804,7 @@ elif menu == "🎨 Eletiva":
                                 "serie": nova_serie,
                                 "origem": "edicao_manual"
                             }])
+                            st.session_state.FONTE_ELETIVAS = "supabase"
                         st.success("✅ Estudante atualizado com sucesso.")
                         st.rerun()
                     except Exception as e:
@@ -5803,12 +5819,13 @@ elif menu == "🎨 Eletiva":
                     try:
                         removido = ELETIVAS[professora_sel].pop(idx_sel)
                         st.session_state.ELETIVAS = ELETIVAS
-                        if FONTE_ELETIVAS == "supabase":
+                        if SUPABASE_VALID:
                             _apagar_registro_supabase_eletiva(
                                 professora_sel,
                                 str(removido.get("nome", "")),
                                 str(removido.get("serie", ""))
                             )
+                            st.session_state.FONTE_ELETIVAS = "supabase"
                         st.success("✅ Estudante excluído com sucesso.")
                         st.rerun()
                     except Exception as e:
@@ -5827,9 +5844,10 @@ elif menu == "🎨 Eletiva":
                 try:
                     ELETIVAS[professora_sel] = []
                     st.session_state.ELETIVAS = ELETIVAS
-                    if FONTE_ELETIVAS == "supabase":
+                    if SUPABASE_VALID:
                         prof_q = requests.utils.quote(str(professora_sel), safe="")
                         _supabase_request("DELETE", f"eletivas?professora=eq.{prof_q}")
+                        st.session_state.FONTE_ELETIVAS = "supabase"
                     st.success("✅ Todos os estudantes da eletiva foram excluídos.")
                     st.rerun()
                 except Exception as e:
