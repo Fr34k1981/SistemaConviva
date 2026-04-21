@@ -136,51 +136,51 @@ h1, h2, h3, h4, h5, h6 {
 /* ============================================ */
 :root {
     /* Cores primárias — azul educacional */
-    --primary:        #2563eb;
-    --primary-light:  #3b82f6;
-    --primary-xlight: #eff6ff;
-    --primary-dark:   #1d4ed8;
+    --primary:        #d946ef;
+    --primary-light:  #f472b6;
+    --primary-xlight: #fdf2ff;
+    --primary-dark:   #a21caf;
 
     /* Acento verde sucesso */
-    --success:        #059669;
+    --success:        #10b981;
     --success-light:  #d1fae5;
 
     /* Acento âmbar aviso */
-    --warning:        #d97706;
-    --warning-light:  #fef3c7;
+    --warning:        #f59e0b;
+    --warning-light:  #fef9c3;
 
     /* Vermelho perigo */
-    --danger:         #dc2626;
-    --danger-light:   #fee2e2;
+    --danger:         #f43f5e;
+    --danger-light:   #ffe4e6;
 
     /* Info ciano */
-    --info:           #0891b2;
-    --info-light:     #e0f2fe;
+    --info:           #06b6d4;
+    --info-light:     #cffafe;
 
     /* Roxo destaque */
-    --purple:         #7c3aed;
+    --purple:         #8b5cf6;
     --purple-light:   #ede9fe;
 
     /* Neutros */
-    --dark:           #0f172a;
-    --dark-mid:       #1e293b;
-    --gray-dark:      #334155;
-    --gray:           #64748b;
-    --gray-light:     #94a3b8;
-    --border:         #e2e8f0;
-    --border-light:   #f1f5f9;
-    --bg:             #f8fafc;
+    --dark:           #2b2140;
+    --dark-mid:       #3f2d63;
+    --gray-dark:      #54467a;
+    --gray:           #7b6ea3;
+    --gray-light:     #a79aca;
+    --border:         #edd7ff;
+    --border-light:   #f8ecff;
+    --bg:             #fff8ff;
     --white:          #ffffff;
 
     /* Gradientes */
-    --grad-primary:   linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #3b82f6 100%);
-    --grad-teal:      linear-gradient(135deg, #0891b2 0%, #06b6d4 100%);
-    --grad-emerald:   linear-gradient(135deg, #059669 0%, #10b981 100%);
-    --grad-amber:     linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
-    --grad-danger:    linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
-    --grad-purple:    linear-gradient(135deg, #6d28d9 0%, #7c3aed 100%);
-    --grad-school:    linear-gradient(135deg, #1d4ed8 0%, #0891b2 60%, #059669 100%);
-    --grad-warm:      linear-gradient(135deg, #f97316 0%, #ef4444 50%, #ec4899 100%);
+    --grad-primary:   linear-gradient(120deg, #ff7fd1 0%, #ffd67f 23%, #97f7f0 46%, #9cc7ff 70%, #d8a0ff 100%);
+    --grad-teal:      linear-gradient(135deg, #38bdf8 0%, #22d3ee 100%);
+    --grad-emerald:   linear-gradient(135deg, #34d399 0%, #10b981 100%);
+    --grad-amber:     linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    --grad-danger:    linear-gradient(135deg, #fb7185 0%, #f43f5e 100%);
+    --grad-purple:    linear-gradient(135deg, #a78bfa 0%, #d946ef 100%);
+    --grad-school:    linear-gradient(120deg, #ff95d6 0%, #ffd67f 28%, #9ce7ff 55%, #b39bff 82%, #ff9ee2 100%);
+    --grad-warm:      linear-gradient(120deg, #fdba74 0%, #fda4af 50%, #f9a8d4 100%);
 
     /* Sombras */
     --shadow-xs:  0 1px 2px rgba(15,23,42,0.06);
@@ -189,8 +189,8 @@ h1, h2, h3, h4, h5, h6 {
     --shadow-lg:  0 8px 24px rgba(15,23,42,0.12);
     --shadow-xl:  0 16px 40px rgba(15,23,42,0.14);
     --shadow-2xl: 0 24px 64px rgba(15,23,42,0.18);
-    --shadow-blue: 0 8px 24px rgba(37,99,235,0.25);
-    --shadow-green: 0 8px 24px rgba(5,150,105,0.25);
+    --shadow-blue: 0 8px 24px rgba(168,85,247,0.30);
+    --shadow-green: 0 8px 24px rgba(45,212,191,0.28);
 
     /* Raios */
     --r-xs:  4px;
@@ -248,9 +248,10 @@ h1, h2, h3, h4, h5, h6 {
 /* ============================================ */
 .stApp {
     background:
-        radial-gradient(circle at top left, rgba(59,130,246,0.10), transparent 28%),
-        radial-gradient(circle at bottom right, rgba(16,185,129,0.10), transparent 24%),
-        linear-gradient(180deg, #f5f9ff 0%, #f8fbff 46%, #f5fbf7 100%) !important;
+        radial-gradient(circle at 8% 6%, rgba(244,114,182,0.28), transparent 34%),
+        radial-gradient(circle at 86% 10%, rgba(147,197,253,0.24), transparent 30%),
+        radial-gradient(circle at 80% 85%, rgba(45,212,191,0.22), transparent 28%),
+        linear-gradient(135deg, #fff7fb 0%, #fffaf0 26%, #f3fcff 50%, #f6f2ff 76%, #fff8fd 100%) !important;
     color: var(--dark) !important;
 }
 
@@ -4114,60 +4115,20 @@ elif menu == "📝 Registrar Ocorrência":
 
     busca = st.text_input("🔍 Buscar infração", placeholder="Ex: celular, bullying, atraso...", key="busca_infracao")
 
-    # Modelo 4: expander por categoria + botões (sem perder opções)
-    grupos_match = {}
     if busca:
-        grupos_match = buscar_infracao_fuzzy(busca, PROTOCOLO_179)
-        if not grupos_match:
-            st.info("Busca sem correspondência exata. Todas as opções seguem disponíveis abaixo.")
+        grupos_filtrados = buscar_infracao_fuzzy(busca, PROTOCOLO_179)
+        if grupos_filtrados:
+            grupo = st.selectbox("Grupo", list(grupos_filtrados.keys()), key="grupo_infracao")
+            infracoes = grupos_filtrados[grupo]
+        else:
+            st.warning("⚠️ Nenhuma infração encontrada. Mostrando todas.")
+            grupo = st.selectbox("Grupo", list(PROTOCOLO_179.keys()), key="grupo_infracao")
+            infracoes = PROTOCOLO_179[grupo]
+    else:
+        grupo = st.selectbox("Grupo", list(PROTOCOLO_179.keys()), key="grupo_infracao")
+        infracoes = PROTOCOLO_179[grupo]
 
-    grupos_todos = list(PROTOCOLO_179.keys())
-    grupos_prioritarios = list(grupos_match.keys()) if grupos_match else []
-    grupos_restantes = [g for g in grupos_todos if g not in grupos_prioritarios]
-    grupos_ordenados = grupos_prioritarios + grupos_restantes
-
-    if "grupo_infracao_exp" not in st.session_state or st.session_state["grupo_infracao_exp"] not in PROTOCOLO_179:
-        st.session_state["grupo_infracao_exp"] = grupos_ordenados[0]
-
-    if "infracao_principal_exp" not in st.session_state:
-        st.session_state["infracao_principal_exp"] = list(PROTOCOLO_179[st.session_state["grupo_infracao_exp"]].keys())[0]
-
-    st.caption("Selecione a infração clicando nos botões dentro das categorias.")
-
-    for grupo_nome in grupos_ordenados:
-        infracoes_grupo = PROTOCOLO_179[grupo_nome]
-        expanded = (grupo_nome == st.session_state["grupo_infracao_exp"])
-        prioridade = " — resultado da busca" if grupo_nome in grupos_prioritarios else ""
-        with st.expander(f"{grupo_nome} ({len(infracoes_grupo)} opções){prioridade}", expanded=expanded):
-            opcoes_infracao = list(infracoes_grupo.keys())
-            colunas_infracao = st.columns(2)
-            for i, nome_infracao in enumerate(opcoes_infracao):
-                selecionada = (
-                    grupo_nome == st.session_state["grupo_infracao_exp"] and
-                    nome_infracao == st.session_state["infracao_principal_exp"]
-                )
-                rotulo = f"✅ {nome_infracao}" if selecionada else nome_infracao
-                with colunas_infracao[i % 2]:
-                    if st.button(
-                        rotulo,
-                        key=f"infr_btn_{grupo_nome}_{nome_infracao}_{i}",
-                        use_container_width=True,
-                        type="primary" if selecionada else "secondary"
-                    ):
-                        st.session_state["grupo_infracao_exp"] = grupo_nome
-                        st.session_state["infracao_principal_exp"] = nome_infracao
-                        st.rerun()
-
-    grupo = st.session_state["grupo_infracao_exp"]
-    if grupo not in PROTOCOLO_179:
-        grupo = grupos_todos[0]
-        st.session_state["grupo_infracao_exp"] = grupo
-
-    infracoes = PROTOCOLO_179[grupo]
-    infracao_principal = st.session_state["infracao_principal_exp"]
-    if infracao_principal not in infracoes:
-        infracao_principal = list(infracoes.keys())[0]
-        st.session_state["infracao_principal_exp"] = infracao_principal
+    infracao_principal = st.selectbox("Infração", list(infracoes.keys()), key="infracao_principal")
     dados_infracao = infracoes[infracao_principal]
     gravidade_sugerida = dados_infracao["gravidade"]
     encaminhamento_sugerido = dados_infracao["encaminhamento"]
