@@ -2542,17 +2542,22 @@ def verificar_ocorrencia_duplicada(ra: str, categoria: str, data_str: str, df_oc
 @st.cache_data(ttl=120)
 def carregar_agendamentos_filtrado(data_ini: str, data_fim: str, espaco: str = None, professor: str = None) -> pd.DataFrame:
     try:
-        base = "/rest/v1/agendamentos?select=id,data_agendamento,horario,espaco,turma,disciplina,prioridade,semanas,professor_nome,professor_email,status&order=data_agendamento.asc,horario.asc"
-        filtros = f"&data_agendamento=gte.{data_ini}&data_agendamento=lte.{data_fim}"
-        
+        path = "/rest/v1/agendamentos"
+        # requests não permite chave duplicada no dict; montar como lista de tuplas
+        params_list = [
+            ("select", "id,data_agendamento,horario,espaco,turma,disciplina,prioridade,semanas,professor_nome,professor_email,status"),
+            ("order", "data_agendamento.asc,horario.asc"),
+            ("data_agendamento", f"gte.{data_ini}"),
+            ("data_agendamento", f"lte.{data_fim}"),
+        ]
+
         if espaco and espaco in ESPACOS_AGEND:
-            filtros += f"&espaco=eq.{espaco}"
-        
+            params_list.append(("espaco", f"eq.{espaco}"))
+
         if professor:
-            professor_encoded = professor.replace(" ", "%20")
-            filtros += f'&professor_nome=eq."{professor_encoded}"'
-        
-        rows = _rest_get_agend(base + filtros)
+            params_list.append(("professor_nome", f"eq.{professor}"))
+
+        rows = _rest_get_agend(path, params=params_list)
         return pd.DataFrame(rows) if rows else pd.DataFrame()
         
     except Exception as e:
