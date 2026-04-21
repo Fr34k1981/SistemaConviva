@@ -2542,7 +2542,7 @@ def verificar_ocorrencia_duplicada(ra: str, categoria: str, data_str: str, df_oc
 @st.cache_data(ttl=120)
 def carregar_agendamentos_filtrado(data_ini: str, data_fim: str, espaco: str = None, professor: str = None) -> pd.DataFrame:
     try:
-        base = "/rest/v1/agendamentos?select=id,data_agendamento,horario,espaco,turma,disciplina,prioridade,semanas,professor_nome,professor_email,status,tipo&order=data_agendamento.asc,horario.asc"
+        base = "/rest/v1/agendamentos?select=id,data_agendamento,horario,espaco,turma,disciplina,prioridade,semanas,professor_nome,professor_email,status&order=data_agendamento.asc,horario.asc"
         filtros = f"&data_agendamento=gte.{data_ini}&data_agendamento=lte.{data_fim}"
         
         if espaco and espaco in ESPACOS_AGEND:
@@ -2568,6 +2568,11 @@ def _rest_get_agend(path: str, params: dict = None, timeout: int = 20):
 def salvar_agendamento_api(dados: dict):
     url = f"{SUPABASE_URL}/rest/v1/agendamentos"
     r = requests.post(url, json=dados, headers=HEADERS, timeout=20)
+    # Compatibilidade: algumas bases não possuem a coluna 'tipo'
+    if r.status_code >= 400 and "tipo" in str(dados).lower() and "'tipo' column" in r.text:
+        dados_retry = dict(dados)
+        dados_retry.pop("tipo", None)
+        r = requests.post(url, json=dados_retry, headers=HEADERS, timeout=20)
     if r.status_code not in (200, 201):
         return False, f"{r.status_code} - {r.text}"
     return True, r.json()
@@ -6288,12 +6293,11 @@ elif menu == "📅 Agendamento de Espaços":
                                         "espaco": espaco,
                                         "turma": turma,
                                         "disciplina": disciplina,
-                                        "prioridade": prioridade,
-                                        "professor_nome": professor,
-                                        "professor_email": professor_email,
-                                        "status": "ATIVO",
-                                        "tipo": "DATA_ESPECIFICA"
-                                    })
+                                    "prioridade": prioridade,
+                                    "professor_nome": professor,
+                                    "professor_email": professor_email,
+                                    "status": "ATIVO"
+                                })
                                     if ok:
                                         sucessos += 1
                                     else:
@@ -6624,8 +6628,7 @@ elif menu == "📅 Agendamento de Espaços":
                                                 "disciplina": config["disciplina"],
                                                 "prioridade": "NORMAL",
                                                 "professor_nome": professor_grade,
-                                                "status": "ATIVO",
-                                                "tipo": "FIXO"
+                                                "status": "ATIVO"
                                             })
                                             if ok:
                                                 total_criados += 1
