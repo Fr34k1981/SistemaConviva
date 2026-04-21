@@ -264,14 +264,13 @@ section[data-testid="stSidebar"] {
 
 section[data-testid="stSidebar"] > div:first-child {
     background: var(--dark-mid) !important;
-    overflow: hidden !important;
-    clip-path: inset(0 0 0 0) !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
 }
 
 section[data-testid="stSidebar"],
 [data-testid="stSidebar"] > div {
-    overflow: hidden !important;
-    clip-path: inset(0 0 0 0) !important;
+    overflow-x: hidden !important;
 }
 
 section[data-testid="stSidebar"] .stMarkdown h2 {
@@ -296,41 +295,46 @@ div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button {
     border-radius: var(--r-md) !important;
     padding: 0.7rem 1rem !important;
     text-align: left !important;
-    font-size: 0.9rem !important;
+    font-size: 0.875rem !important;
     font-weight: 500 !important;
     color: #94a3b8 !important;
     width: 100% !important;
     transition: all 0.2s ease !important;
     box-shadow: none !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 0.6rem !important;
+    min-height: 42px;
+    position: relative;
+    justify-content: flex-start !important;
+}
+
+/* TODOS os spans dentro de botões do sidebar ficam visíveis */
+[data-testid="stSidebar"] button span,
+[data-testid="stSidebar"] button p {
+    color: inherit !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: inline !important;
+    font-size: inherit !important;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
-    min-height: 42px;
-    position: relative;
 }
 
 div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button span {
-    overflow: hidden !important;
+    overflow: visible !important;
     text-overflow: ellipsis !important;
     white-space: nowrap !important;
-    display: block !important;
+    display: inline !important;
     max-width: 100% !important;
+    color: inherit !important;
+    font-size: inherit !important;
+    opacity: 1 !important;
+    visibility: visible !important;
 }
 
-/* Esconde spans extras / texto fantasma */
-[data-testid="stSidebar"] button p,
-[data-testid="stSidebar"] button > span + span,
-[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"] > span:not(:first-child),
-[data-testid="stSidebar"] [data-testid="stBaseButton-primary"] > span:not(:first-child) {
+/* Esconde APENAS tooltips reais — NÃO esconde spans de texto dos botões */
+[data-testid="stTooltipContent"],
+[data-testid="stTooltipHoverTarget"] {
     display: none !important;
-    width: 0 !important;
-    height: 0 !important;
-    overflow: hidden !important;
-    font-size: 0 !important;
-    opacity: 0 !important;
 }
 
 div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button:hover {
@@ -352,13 +356,7 @@ div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button[kind="
     box-shadow: 0 6px 16px rgba(37,99,235,0.4) !important;
 }
 
-/* ============================================ */
-/* ========== TOOLTIPS — OCULTAR ========== */
-/* ============================================ */
-[data-testid="stTooltipHoverTarget"] {
-    display: none !important;
-}
-
+/* Dropdowns sempre visíveis */
 [data-baseweb="menu"] div,
 [data-baseweb="menu"] span {
     visibility: visible !important;
@@ -2460,58 +2458,51 @@ st.components.v1.html("""
 (function() {
     'use strict';
     
-    function exterminarTooltips() {
-        // Seletores EXATOS para tooltips - evitar [class*=] que mata dropdowns
-        const seletoresExatos = [
+    function limparTooltips() {
+        // Remove APENAS elementos de tooltip reais — nunca toca em botões/spans de menu
+        const seletores = [
             '[data-testid="stTooltipHoverTarget"]',
+            '[data-testid="stTooltipContent"]',
             '[role="tooltip"]',
-            '[data-baseweb="tooltip"]',
-            '.stTooltip',
-            '#stTooltip'
+            '[data-baseweb="tooltip"]'
         ];
-        seletoresExatos.forEach(sel => {
-            document.querySelectorAll(sel).forEach(el => el.remove());
-        });
-        
-        // Remove atributos de tooltip dos botões do sidebar
-        document.querySelectorAll('[data-testid="stSidebar"] button').forEach(btn => {
-            btn.removeAttribute('title');
-            btn.removeAttribute('data-tooltip');
-            btn.removeAttribute('aria-describedby');
-        });
-        
-        // Corrige texto fantasma: spans fora dos limites do sidebar
-        document.querySelectorAll('[data-testid="stSidebar"] button').forEach(btn => {
-            const btnRect = btn.getBoundingClientRect();
-            btn.querySelectorAll('span').forEach(span => {
-                const rect = span.getBoundingClientRect();
-                if (rect.width > 0 && (rect.left < btnRect.left - 5 || rect.right > btnRect.right + 5)) {
-                    span.style.cssText += 'display:none!important;width:0!important;overflow:hidden!important;';
-                }
+        seletores.forEach(sel => {
+            document.querySelectorAll(sel).forEach(el => {
+                // Garante que não é filho de botão (que seria o texto do botão)
+                if (!el.closest('button')) el.remove();
             });
         });
         
-        // NUNCA remover divs position:absolute - isso mata os dropdowns!
+        // Remove apenas atributos title dos botões do sidebar (previne tooltips nativos)
+        document.querySelectorAll('[data-testid="stSidebar"] button').forEach(btn => {
+            btn.removeAttribute('title');
+            btn.removeAttribute('data-tooltip');
+        });
+        
+        // Garante que todos os spans dentro de botões do sidebar ficam visíveis
+        document.querySelectorAll('[data-testid="stSidebar"] button span').forEach(span => {
+            span.style.removeProperty('display');
+            span.style.removeProperty('visibility');
+            span.style.removeProperty('opacity');
+            span.style.removeProperty('font-size');
+            span.style.removeProperty('width');
+            span.style.removeProperty('height');
+            span.style.removeProperty('overflow');
+        });
     }
     
-    exterminarTooltips();
-    setInterval(exterminarTooltips, 500);
+    // Executa após carregamento e periodicamente
+    setTimeout(limparTooltips, 300);
+    setTimeout(limparTooltips, 800);
+    setInterval(limparTooltips, 2000);
     
-    const observer = new MutationObserver(function(mutations) {
-        // Só executa se não houver dropdowns abertos
+    const observer = new MutationObserver(function() {
         const dropdownAberto = document.querySelector('[data-baseweb="popover"]') ||
                                document.querySelector('[role="listbox"]');
-        if (!dropdownAberto) exterminarTooltips();
+        if (!dropdownAberto) limparTooltips();
     });
     observer.observe(document.body, { childList: true, subtree: true });
-    
-    document.addEventListener('mouseover', function(e) {
-        // Só roda se não estiver interagindo com dropdown
-        if (!e.target.closest('[data-baseweb="popover"]') && 
-            !e.target.closest('[role="listbox"]')) {
-            exterminarTooltips();
-        }
-    }, true);
+})();
 </script>
 """, height=0)
 # ======================================================
@@ -2654,6 +2645,155 @@ if menu == "🏠 Dashboard":
         &nbsp;·&nbsp; 🗓️ Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
     </div>
     """, unsafe_allow_html=True)
+
+    # ── Gráficos e Top 10 no Dashboard ───────────────────────
+    if not df_ocorrencias.empty:
+        st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
+        st.markdown("""
+        <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
+            <div style="width:4px; height:22px; background:linear-gradient(180deg,#dc2626,#f97316); border-radius:4px;"></div>
+            <h3 style="margin:0; font-family:'Nunito',sans-serif; font-size:1.1rem; color:#0f172a;">Análise de Ocorrências</h3>
+        </div>
+        """, unsafe_allow_html=True)
+
+        col_g1, col_g2 = st.columns(2)
+
+        with col_g1:
+            # Gráfico por gravidade (donut)
+            contagem_grav = df_ocorrencias["gravidade"].value_counts() if "gravidade" in df_ocorrencias.columns else pd.Series()
+            if not contagem_grav.empty:
+                st.markdown("<div style='font-weight:600;color:#334155;font-size:0.9rem;margin-bottom:0.5rem;'>⚖️ Ocorrências por Gravidade</div>", unsafe_allow_html=True)
+                fig_grav_dash = px.pie(
+                    values=contagem_grav.values,
+                    names=contagem_grav.index,
+                    color_discrete_sequence=['#10b981','#f59e0b','#f97316','#dc2626'],
+                    hole=0.5
+                )
+                fig_grav_dash.update_traces(textfont_size=12, textfont_family='Inter, sans-serif')
+                fig_grav_dash.update_layout(
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    font=dict(family='Inter, sans-serif', size=12, color='#334155'),
+                    margin=dict(t=10, b=10, l=0, r=0),
+                    legend=dict(font=dict(size=11), orientation='h', y=-0.15),
+                    height=280,
+                )
+                st.plotly_chart(fig_grav_dash, use_container_width=True)
+
+        with col_g2:
+            # Gráfico por categoria (top 6)
+            contagem_cat = df_ocorrencias["categoria"].value_counts().head(6) if "categoria" in df_ocorrencias.columns else pd.Series()
+            if not contagem_cat.empty:
+                st.markdown("<div style='font-weight:600;color:#334155;font-size:0.9rem;margin-bottom:0.5rem;'>📋 Top Infrações Registradas</div>", unsafe_allow_html=True)
+                fig_cat_dash = px.bar(
+                    x=contagem_cat.values,
+                    y=contagem_cat.index,
+                    orientation='h',
+                    color=contagem_cat.values,
+                    color_continuous_scale=[[0,'#93c5fd'],[0.5,'#2563eb'],[1,'#1d4ed8']],
+                )
+                fig_cat_dash.update_layout(
+                    showlegend=False,
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    font=dict(family='Inter, sans-serif', size=11, color='#334155'),
+                    margin=dict(t=10, b=10, l=0, r=10),
+                    xaxis=dict(gridcolor='#e2e8f0', title='Quantidade'),
+                    yaxis=dict(gridcolor='rgba(0,0,0,0)', title=''),
+                    coloraxis_showscale=False,
+                    height=280,
+                )
+                fig_cat_dash.update_traces(marker_line_width=0)
+                st.plotly_chart(fig_cat_dash, use_container_width=True)
+
+        # Evolução temporal (últimos 30 dias)
+        df_ocorrencias_temp = df_ocorrencias.copy()
+        df_ocorrencias_temp["data_dt"] = pd.to_datetime(df_ocorrencias_temp["data"], format="%d/%m/%Y %H:%M", errors="coerce")
+        df_recente = df_ocorrencias_temp[df_ocorrencias_temp["data_dt"] >= datetime.now() - timedelta(days=30)]
+        if not df_recente.empty:
+            st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
+            st.markdown("<div style='font-weight:600;color:#334155;font-size:0.9rem;margin-bottom:0.5rem;'>📈 Evolução — Últimos 30 dias</div>", unsafe_allow_html=True)
+            evolucao = df_recente.groupby(df_recente["data_dt"].dt.date).size().reset_index(name="Quantidade")
+            evolucao.columns = ["Data", "Quantidade"]
+            fig_linha = px.area(evolucao, x="Data", y="Quantidade")
+            fig_linha.update_traces(
+                line_color="#2563eb", line_width=2.5,
+                fillcolor="rgba(37,99,235,0.1)",
+                marker=dict(size=5, color="#2563eb"),
+            )
+            fig_linha.update_layout(
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(family='Inter, sans-serif', size=11, color='#334155'),
+                margin=dict(t=10, b=10, l=0, r=0),
+                xaxis=dict(gridcolor='#e2e8f0', linecolor='#e2e8f0'),
+                yaxis=dict(gridcolor='#e2e8f0', linecolor='#e2e8f0', title='Ocorrências'),
+                height=220,
+            )
+            st.plotly_chart(fig_linha, use_container_width=True)
+
+        st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
+
+        # ── Top 10 Alunos ─────────────────────────────────────
+        st.markdown("""
+        <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
+            <div style="width:4px; height:22px; background:linear-gradient(180deg,#7c3aed,#8b5cf6); border-radius:4px;"></div>
+            <h3 style="margin:0; font-family:'Nunito',sans-serif; font-size:1.1rem; color:#0f172a;">🏆 Top 10 — Alunos com Mais Ocorrências</h3>
+        </div>
+        """, unsafe_allow_html=True)
+
+        top10 = df_ocorrencias["aluno"].value_counts().head(10).reset_index()
+        top10.columns = ["Aluno", "Ocorrências"]
+
+        # Merge with turma info
+        if not df_alunos.empty and "turma" in df_alunos.columns:
+            top10 = top10.merge(
+                df_alunos[["nome","turma"]].rename(columns={"nome":"Aluno"}),
+                on="Aluno", how="left"
+            )
+            top10["Turma"] = top10.get("turma", "—").fillna("—")
+        else:
+            top10["Turma"] = "—"
+
+        # Styled ranking cards
+        medalhas = ["🥇","🥈","🥉","4️⃣","5️⃣","6️⃣","7️⃣","8️⃣","9️⃣","🔟"]
+        cores_rank = ["#dc2626","#d97706","#f59e0b","#64748b","#64748b","#64748b","#64748b","#64748b","#64748b","#64748b"]
+        max_occ = top10["Ocorrências"].max() if not top10.empty else 1
+
+        for idx, row in top10.iterrows():
+            pct = int((row["Ocorrências"] / max_occ) * 100)
+            cor = cores_rank[idx] if idx < len(cores_rank) else "#64748b"
+            medalha = medalhas[idx] if idx < len(medalhas) else f"{idx+1}."
+            turma_label = row.get("Turma","—") or "—"
+            st.markdown(f"""
+            <div style="
+                display:flex; align-items:center; gap:1rem;
+                background:white; border-radius:12px;
+                border:1.5px solid #e2e8f0; padding:0.75rem 1rem;
+                margin-bottom:0.4rem;
+                box-shadow:0 1px 4px rgba(15,23,42,0.05);
+            ">
+                <div style="font-size:1.3rem; width:28px; text-align:center; flex-shrink:0;">{medalha}</div>
+                <div style="flex:1; min-width:0;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.3rem;">
+                        <div style="font-weight:600; color:#0f172a; font-size:0.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{row['Aluno']}</div>
+                        <div style="display:flex; align-items:center; gap:0.5rem; flex-shrink:0; margin-left:0.5rem;">
+                            <span style="background:#f1f5f9; color:#64748b; border-radius:6px; padding:0.15rem 0.5rem; font-size:0.72rem; font-weight:600;">{turma_label}</span>
+                            <span style="background:{cor}18; color:{cor}; border:1.5px solid {cor}40; border-radius:8px; padding:0.2rem 0.6rem; font-size:0.82rem; font-weight:700;">{int(row['Ocorrências'])}</span>
+                        </div>
+                    </div>
+                    <div style="height:5px; background:#f1f5f9; border-radius:99px; overflow:hidden;">
+                        <div style="width:{pct}%; height:5px; background:{cor}; border-radius:99px; transition:width 0.4s;"></div>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <div style="text-align:center; padding:2rem; color:#94a3b8; background:white; border-radius:16px; border:1.5px dashed #e2e8f0; margin-top:1rem;">
+            📊 Nenhuma ocorrência registrada ainda.<br>
+            <span style="font-size:0.85rem;">Os gráficos aparecerão aqui após o primeiro registro.</span>
+        </div>
+        """, unsafe_allow_html=True)
     # ======================================================
 # PÁGINA 👨‍👩‍👧 PORTAL DO RESPONSÁVEL (COMPLETA)
 # ======================================================
