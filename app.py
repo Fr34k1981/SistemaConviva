@@ -585,7 +585,7 @@ button {
 /* ========== CARDS DE MÉTRICAS ========== */
 /* ============================================ */
 .metric-card {
-    border-radius: var(--r-2xl);
+    border-radius: 26px;
     padding: 1.5rem 1.25rem;
     text-align: center;
     transition: all 0.3s cubic-bezier(.16,1,.3,1);
@@ -597,6 +597,8 @@ button {
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    border: 1px solid rgba(255,255,255,0.14);
+    backdrop-filter: blur(10px);
 }
 
 .metric-card::before {
@@ -609,8 +611,9 @@ button {
 }
 
 .metric-card:hover {
-    transform: translateY(-6px);
+    transform: translateY(-7px) scale(1.01);
     filter: brightness(1.05);
+    box-shadow: 0 22px 40px rgba(15,23,42,0.20) !important;
 }
 
 .metric-icon {
@@ -1313,26 +1316,263 @@ div[data-testid="stForm"]:hover {
 /* ========== QUICK ACTION CARDS ========== */
 /* ============================================ */
 .quick-action-card {
-    background: var(--white);
-    border: 1.5px solid var(--border);
-    border-radius: var(--r-xl);
+    background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.98));
+    border: 1px solid rgba(148,163,184,0.20);
+    border-radius: 24px;
     padding: 1.25rem;
     text-align: center;
     transition: all 0.3s cubic-bezier(.16,1,.3,1);
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 12px 28px rgba(15,23,42,0.08);
     cursor: pointer;
 }
 
 .quick-action-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-blue);
-    border-color: #93c5fd;
+    transform: translateY(-5px);
+    box-shadow: 0 18px 36px rgba(37,99,235,0.14);
+    border-color: rgba(96,165,250,0.55);
 }
 
 .quick-action-icon {
     font-size: 2rem;
     margin-bottom: 0.5rem;
     display: block;
+}
+
+/* ============================================ */
+/* ========== PAGE BANNER ========== */
+/* ============================================ */
+.page-banner {
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 1.4rem;
+    padding: 1.35rem 1.45rem;
+    border-radius: 24px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(248,250,252,0.98) 100%);
+    border: 1px solid rgba(148,163,184,0.20);
+    box-shadow: 0 16px 34px rgba(15,23,42,0.08);
+}
+
+.page-banner::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 6px;
+    background: var(--banner-accent, #2563eb);
+}
+
+.page-banner::after {
+    content: '';
+    position: absolute;
+    top: -45px;
+    right: -30px;
+    width: 150px;
+    height: 150px;
+    border-radius: 999px;
+    background: radial-gradient(circle, rgba(37,99,235,0.10), transparent 70%);
+}
+
+.page-banner-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.page-banner-icon {
+    width: 58px;
+    height: 58px;
+    border-radius: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--banner-accent, #2563eb), rgba(15,23,42,0.92));
+    color: white;
+    font-size: 1.5rem;
+    box-shadow: 0 12px 24px rgba(15,23,42,0.14);
+    flex-shrink: 0;
+}
+
+.page-banner-copy {
+    min-width: 0;
+}
+
+.page-banner-kicker {
+    color: var(--banner-accent, #2563eb);
+    font-size: 0.74rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.page-banner-title {
+    font-family: 'Nunito', sans-serif !important;
+    color: var(--dark);
+    font-size: 1.55rem;
+    font-weight: 900;
+    line-height: 1.15;
+    margin: 0.18rem 0 0.2rem 0;
+}
+
+.page-banner-subtitle {
+    color: var(--gray);
+    font-size: 0.95rem;
+    margin: 0;
+}
+
+/* ============================================ */
+/* ========== SECTION HEADERS ========== */
+/* ============================================ */
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0.4rem 0 0.95rem 0;
+}
+
+.section-header-bar {
+    width: 5px;
+    height: 24px;
+    border-radius: 999px;
+    background: var(--section-accent, linear-gradient(180deg,#2563eb,#0891b2));
+    flex-shrink: 0;
+}
+
+.section-header-copy {
+    min-width: 0;
+}
+
+.section-header-title {
+    margin: 0;
+    font-family: 'Nunito', sans-serif;
+    font-size: 1.12rem;
+    font-weight: 900;
+    color: #0f172a;
+    line-height: 1.15;
+}
+
+.section-header-subtitle {
+    margin: 0.15rem 0 0 0;
+    color: #64748b;
+    font-size: 0.84rem;
+}
+
+/* ============================================ */
+/* ========== DASHBOARD CALLOUTS ========== */
+/* ============================================ */
+.dashboard-callout {
+    position: relative;
+    overflow: hidden;
+    margin: 0.25rem 0 1rem 0;
+    padding: 1rem 1.1rem;
+    border-radius: 22px;
+    background: linear-gradient(135deg, rgba(219,234,254,0.82), rgba(236,253,245,0.92));
+    border: 1px solid rgba(147,197,253,0.45);
+    box-shadow: 0 14px 30px rgba(15,23,42,0.06);
+}
+
+.dashboard-callout::after {
+    content: '';
+    position: absolute;
+    top: -26px;
+    right: -18px;
+    width: 110px;
+    height: 110px;
+    border-radius: 999px;
+    background: radial-gradient(circle, rgba(37,99,235,0.12), transparent 70%);
+}
+
+.dashboard-callout-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.dashboard-callout-title {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+.dashboard-callout-text {
+    margin: 0.2rem 0 0 0;
+    color: #334155;
+    font-size: 0.88rem;
+}
+
+.dashboard-callout-badge {
+    flex-shrink: 0;
+    padding: 0.48rem 0.8rem;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.78);
+    border: 1px solid rgba(148,163,184,0.22);
+    color: #1d4ed8;
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+/* ============================================ */
+/* ========== FORM PANELS ========== */
+/* ============================================ */
+.form-panel {
+    margin: 0.2rem 0 1rem 0;
+    padding: 1rem 1.1rem;
+    border-radius: 24px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.97), rgba(248,250,252,0.98));
+    border: 1px solid rgba(148,163,184,0.20);
+    box-shadow: 0 16px 30px rgba(15,23,42,0.07);
+}
+
+.form-panel-title {
+    margin: 0;
+    font-family: 'Nunito', sans-serif;
+    font-size: 1.02rem;
+    font-weight: 900;
+    color: #0f172a;
+}
+
+.form-panel-subtitle {
+    margin: 0.18rem 0 0 0;
+    color: #64748b;
+    font-size: 0.86rem;
+}
+
+/* ============================================ */
+/* ========== DATAFRAME PREMIUM ========== */
+/* ============================================ */
+[data-testid="stDataFrame"] {
+    border-radius: 22px !important;
+    overflow: hidden !important;
+    border: 1px solid rgba(148,163,184,0.20) !important;
+    box-shadow: 0 16px 32px rgba(15,23,42,0.08) !important;
+    background: rgba(255,255,255,0.96) !important;
+}
+
+[data-testid="stDataFrame"] [role="grid"] {
+    border-radius: 22px !important;
+}
+
+[data-testid="stDataFrame"] [role="columnheader"] {
+    background: linear-gradient(180deg, #eff6ff 0%, #e0f2fe 100%) !important;
+    color: #0f172a !important;
+    font-weight: 800 !important;
+    border-bottom: 1px solid rgba(148,163,184,0.20) !important;
+}
+
+[data-testid="stDataFrame"] [role="gridcell"] {
+    background: rgba(255,255,255,0.96) !important;
+    color: #0f172a !important;
+    border-color: rgba(226,232,240,0.75) !important;
+}
+
+[data-testid="stDataFrame"] [role="row"]:hover [role="gridcell"] {
+    background: #f8fbff !important;
 }
 
 /* ============================================ */
@@ -1344,6 +1584,12 @@ div[data-testid="stForm"]:hover {
     .metric-value { font-size: 2rem; }
     .metric-card  { padding: 1.1rem 0.75rem; }
     .metric-label { font-size: 0.7rem; }
+    .page-banner-content {
+        align-items: flex-start;
+    }
+    .page-banner-title {
+        font-size: 1.25rem;
+    }
     .main .block-container {
         padding-left: 1rem !important;
         padding-right: 1rem !important;
@@ -1376,7 +1622,17 @@ ESCOLA_LOGO = os.path.join("assets", "images", "eliane_dantas.png")
 # ======================================================
 
 st.sidebar.markdown("""
-<div style="padding: 1.5rem 1rem 1rem 1rem; text-align: center;">
+<div style="
+    position: relative;
+    padding: 1.2rem 1rem 1rem 1rem;
+    margin: 0.2rem 0.2rem 0.9rem 0.2rem;
+    border-radius: 28px;
+    background: linear-gradient(165deg, rgba(37,99,235,0.22) 0%, rgba(15,23,42,0.18) 100%);
+    border: 1px solid rgba(148,163,184,0.18);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 18px 36px rgba(15,23,42,0.18);
+    overflow: hidden;
+    text-align: center;
+">
     <div style="
         display: inline-flex; align-items: center; justify-content: center;
         width: 56px; height: 56px;
@@ -1386,27 +1642,62 @@ st.sidebar.markdown("""
         font-size: 1.6rem;
         margin-bottom: 0.75rem;
     ">🏫</div>
+    <div style="
+        color:#e2e8f0;
+        font-size:0.72rem;
+        font-weight:700;
+        letter-spacing:0.18em;
+        text-transform:uppercase;
+        margin-bottom:0.35rem;
+    ">Plataforma Escolar</div>
     <h2 style="
         font-family: 'Nunito', sans-serif;
         color: white;
         font-weight: 900;
-        font-size: 1.35rem;
-        margin: 0 0 0.2rem 0;
-        letter-spacing: -0.02em;
+        font-size: 2rem;
+        line-height: 1.05;
+        margin: 0 0 0.25rem 0;
+        letter-spacing: -0.03em;
     ">Conviva 179</h2>
     <p style="
-        color: #64748b;
-        font-size: 0.75rem;
-        margin: 0;
-        font-weight: 500;
+        color: #bfdbfe;
+        font-size: 0.82rem;
+        margin: 0 0 0.9rem 0;
+        font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 0.1em;
+        letter-spacing: 0.08em;
     ">E.E. Profª Eliane</p>
 </div>
 <div style="height: 1px; background: linear-gradient(90deg, transparent, #334155, transparent); margin: 0 1rem 0.5rem 1rem;"></div>
 """, unsafe_allow_html=True)
 
 # Inicializar página atual se não existir
+st.sidebar.markdown("""
+<div style="
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:0.75rem;
+    margin:0.1rem 0.35rem 0.95rem 0.35rem;
+    padding:0.8rem 0.95rem;
+    border-radius:18px;
+    background:rgba(255,255,255,0.08);
+    border:1px solid rgba(255,255,255,0.08);
+">
+    <div>
+        <div style="color:#93c5fd;font-size:0.68rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;">Ambiente</div>
+        <div style="color:#ffffff;font-size:0.95rem;font-weight:700;">Gestão Escolar</div>
+    </div>
+    <div style="
+        width:40px;height:40px;border-radius:14px;
+        display:flex;align-items:center;justify-content:center;
+        background:linear-gradient(135deg,#2563eb,#0f766e);
+        color:white;font-size:1.1rem;
+        box-shadow:0 10px 18px rgba(37,99,235,0.25);
+    ">✦</div>
+</div>
+""", unsafe_allow_html=True)
+
 if 'pagina_atual' not in st.session_state:
     st.session_state.pagina_atual = "🏠 Dashboard"
 
@@ -1656,24 +1947,19 @@ def show_toast(message: str, type: str = "success", duration: int = 3000):
 
 def page_header(titulo: str, subtitulo: str = "", cor: str = "#2563eb"):
     """Renderiza um cabeçalho de página moderno e consistente"""
-    sub_html = f'''<div style="color:#64748b;font-size:0.9rem;margin-top:0.25rem;">{subtitulo}</div>''' if subtitulo else ""
+    partes = titulo.split(maxsplit=1)
+    icone = partes[0] if partes else "📌"
+    titulo_texto = partes[1] if len(partes) > 1 else titulo
+    sub_html = f'<p class="page-banner-subtitle">{subtitulo}</p>' if subtitulo else ""
     st.markdown(f"""
-    <div style="
-        display:flex; align-items:center; gap:1rem;
-        background:white; border-radius:16px;
-        padding:1.1rem 1.5rem; margin-bottom:1.5rem;
-        border:1.5px solid #e2e8f0;
-        box-shadow:0 2px 8px rgba(15,23,42,0.06);
-        border-left:5px solid {cor};
-    ">
-        <div style="font-size:1.75rem; line-height:1;">{titulo.split()[0]}</div>
-        <div>
-            <div style="
-                font-family:'Nunito',sans-serif;
-                font-size:1.4rem; font-weight:800;
-                color:#0f172a; line-height:1.2;
-            ">{ ' '.join(titulo.split()[1:]) }</div>
-            {sub_html}
+    <div class="page-banner" style="--banner-accent:{cor};">
+        <div class="page-banner-content">
+            <div class="page-banner-icon">{icone}</div>
+            <div class="page-banner-copy">
+                <div class="page-banner-kicker">Painel</div>
+                <div class="page-banner-title">{titulo_texto}</div>
+                {sub_html}
+            </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -2773,6 +3059,18 @@ if menu == "🏠 Dashboard":
     </div>
     """, unsafe_allow_html=True)
 
+    st.markdown(f"""
+    <div class="dashboard-callout animate-fade-in">
+        <div class="dashboard-callout-content">
+            <div>
+                <p class="dashboard-callout-title">Panorama do dia letivo</p>
+                <p class="dashboard-callout-text">Acompanhe alunos, ocorrencias e equipe em um painel mais claro e rapido para consulta.</p>
+            </div>
+            <div class="dashboard-callout-badge">{datetime.now().strftime('%d/%m/%Y')}</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
     col1, col2, col3, col4, col5 = st.columns(5)
 
     cards_data = [
@@ -2804,6 +3102,16 @@ if menu == "🏠 Dashboard":
     <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
         <div style="width:4px; height:22px; background:linear-gradient(180deg,#059669,#10b981); border-radius:4px;"></div>
         <h3 style="margin:0; font-family:'Nunito',sans-serif; font-size:1.1rem; color:#0f172a;">Ações Rápidas</h3>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class="section-header">
+        <div class="section-header-bar" style="--section-accent:linear-gradient(180deg,#059669,#10b981);"></div>
+        <div class="section-header-copy">
+            <h3 class="section-header-title">Acoes Rapidas</h3>
+            <p class="section-header-subtitle">Atalhos para as tarefas mais usadas no sistema.</p>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -2848,6 +3156,16 @@ if menu == "🏠 Dashboard":
         <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
             <div style="width:4px; height:22px; background:linear-gradient(180deg,#dc2626,#f97316); border-radius:4px;"></div>
             <h3 style="margin:0; font-family:'Nunito',sans-serif; font-size:1.1rem; color:#0f172a;">Análise de Ocorrências</h3>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("""
+        <div class="section-header">
+            <div class="section-header-bar" style="--section-accent:linear-gradient(180deg,#dc2626,#f97316);"></div>
+            <div class="section-header-copy">
+                <h3 class="section-header-title">Analise de Ocorrencias</h3>
+                <p class="section-header-subtitle">Resumo visual das categorias, gravidades e reincidencias.</p>
+            </div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -3777,6 +4095,13 @@ elif menu == "📝 Registrar Ocorrência":
 
     prof = st.selectbox("Professor 👨‍🏫", df_professores["nome"].tolist(), key="professor_sel")
 
+    st.markdown("""
+    <div class="form-panel">
+        <p class="form-panel-title">Etapas do registro</p>
+        <p class="form-panel-subtitle">Revise envolvidos, classificacao, gravidade, relato e encaminhamentos antes de salvar a ocorrencia.</p>
+    </div>
+    """, unsafe_allow_html=True)
+
     st.markdown("---")
     st.markdown("""
     <div style="display:flex;align-items:center;gap:0.5rem;margin:1.25rem 0 0.75rem 0;padding-bottom:0.5rem;border-bottom:2px solid #e2e8f0;position:relative;">
@@ -3962,6 +4287,13 @@ elif menu == "📋 Histórico de Ocorrências":
         df_view = df_view[df_view["gravidade"] == filtro_gravidade]
     if filtro_categoria != "Todas":
         df_view = df_view[df_view["categoria"] == filtro_categoria]
+
+    st.markdown("""
+    <div class="form-panel">
+        <p class="form-panel-title">Filtros e consulta</p>
+        <p class="form-panel-subtitle">Use os filtros acima para localizar registros com mais rapidez e manter a revisão organizada.</p>
+    </div>
+    """, unsafe_allow_html=True)
 
     st.markdown(f"""
     <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;flex-wrap:wrap;">
