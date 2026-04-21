@@ -383,23 +383,7 @@ section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div[data-t
     box-shadow: 0 18px 34px rgba(37,99,235,0.34) !important;
 }
 
-/* ============================================ */
-/* ====== SELECTBOX SIMPLES E ESTAVEL ======== */
-/* ============================================ */
-[data-baseweb="select"] > div:first-child {
-    background: #ffffff !important;
-    border: 1px solid #d9e2f0 !important;
-    border-radius: 12px !important;
-}
-
-[data-baseweb="select"] [role="combobox"],
-[data-baseweb="select"] input,
-[data-baseweb="select"] span,
-[data-baseweb="select"] div,
-[data-baseweb="select"] p {
-    color: #0f172a !important;
-    -webkit-text-fill-color: #0f172a !important;
-}
+/* Estilo antigo de select removido para evitar conflito */
 
 /* ============================================ */
 /* ========== TIPOGRAFIA ========== */
@@ -889,39 +873,39 @@ button {
     line-height: 1.6 !important;
 }
 
-/* Selectbox */
+/* Menu suspenso novo (do zero, simples e estável) */
 [data-baseweb="select"] > div:first-child {
-    border-radius: 18px !important;
-    border: 1px solid rgba(148,163,184,0.30) !important;
-    background: rgba(255,255,255,0.96) !important;
-    font-size: 0.96rem !important;
-    transition: all 0.2s !important;
-    box-shadow: 0 10px 22px rgba(15,23,42,0.05) !important;
-    min-height: 52px !important;
-    padding-left: 0.25rem !important;
-    padding-right: 0.25rem !important;
+    border-radius: 12px !important;
+    border: 1px solid #d9e2f0 !important;
+    background: #ffffff !important;
+    min-height: 44px !important;
+    box-shadow: none !important;
 }
 
 [data-baseweb="select"] > div:first-child:focus-within {
-    border-color: var(--primary) !important;
-    box-shadow: 0 0 0 3px rgba(37,99,235,0.12) !important;
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 2px rgba(59,130,246,0.14) !important;
 }
 
-/* Valor selecionado visÃ­vel no campo fechado */
-[data-baseweb="select"] span,
-[data-baseweb="select"] div {
-    color: #0f172a !important;
-    -webkit-text-fill-color: #0f172a !important;
-    background-clip: unset !important;
-    -webkit-background-clip: unset !important;
-    opacity: 1 !important;
-}
-
+[data-baseweb="select"] [role="combobox"],
 [data-baseweb="select"] input,
-[data-baseweb="select"] p {
+[data-baseweb="select"] [aria-live],
+[data-baseweb="select"] [aria-live] * {
     color: #0f172a !important;
     -webkit-text-fill-color: #0f172a !important;
     opacity: 1 !important;
+}
+
+[data-baseweb="menu"],
+[role="listbox"] {
+    background: #ffffff !important;
+    border: 1px solid #d9e2f0 !important;
+    border-radius: 10px !important;
+}
+
+[role="option"] {
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
 }
 
 /* Ocultar indicador "Running..." / modo de espera do Streamlit */
