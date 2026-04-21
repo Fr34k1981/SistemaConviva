@@ -5245,6 +5245,27 @@ elif menu == "🎨 Eletiva":
                         st.rerun()
                     except Exception as e:
                         st.error(f"Erro ao excluir estudante: {e}")
+
+        st.markdown("---")
+        st.subheader("🧹 Limpeza em Massa")
+        confirmar_excluir_todos = st.checkbox(
+            f"Confirmo excluir todos os estudantes da professora {professora_sel}",
+            key=f"confirmar_excluir_todos_{gerar_chave_segura(professora_sel)}"
+        )
+        if st.button("🗑️ Excluir Todos os Alunos da Eletiva", type="secondary", key="btn_excluir_todos_eletiva"):
+            if not confirmar_excluir_todos:
+                st.warning("Marque a confirmação para excluir todos.")
+            else:
+                try:
+                    ELETIVAS[professora_sel] = []
+                    st.session_state.ELETIVAS = ELETIVAS
+                    if FONTE_ELETIVAS == "supabase":
+                        prof_q = requests.utils.quote(str(professora_sel), safe="")
+                        _supabase_request("DELETE", f"eletivas?professora=eq.{prof_q}")
+                    st.success("✅ Todos os estudantes da eletiva foram excluídos.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Erro ao excluir todos os estudantes: {e}")
                 # ======================================================
 # PÁGINA 🏫 MAPA DA SALA (COMPLETA)
 # ======================================================
