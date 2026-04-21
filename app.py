@@ -375,6 +375,29 @@ div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button[kind="
     -webkit-text-fill-color: #0f172a !important;
     background-clip: unset !important;
     -webkit-background-clip: unset !important;
+    text-shadow: none !important;
+}
+
+[data-baseweb="popover"] input,
+[data-baseweb="popover"] button,
+[data-baseweb="popover"] li,
+[data-baseweb="popover"] p,
+[data-baseweb="menu"] input,
+[data-baseweb="menu"] button,
+[data-baseweb="menu"] li,
+[data-baseweb="menu"] p,
+[role="listbox"] input,
+[role="listbox"] button,
+[role="listbox"] li,
+[role="listbox"] p,
+[role="option"] input,
+[role="option"] button,
+[role="option"] li,
+[role="option"] p {
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
+    opacity: 1 !important;
+    visibility: visible !important;
 }
 
 /* Item hover */
@@ -607,6 +630,7 @@ button, [data-testid="stFileUploaderDropzone"] * {
     transition: all 0.3s cubic-bezier(.16,1,.3,1);
     position: relative;
     overflow: hidden;
+    color: var(--dark);
 }
 
 .card::before {
@@ -641,6 +665,14 @@ button, [data-testid="stFileUploaderDropzone"] * {
     align-items: center;
     gap: 0.5rem;
     white-space: normal !important;
+}
+
+.card b,
+.card span,
+.card div,
+.card p {
+    color: var(--dark) !important;
+    -webkit-text-fill-color: var(--dark) !important;
 }
 
 .card-value {
@@ -885,6 +917,13 @@ button, [data-testid="stFileUploaderDropzone"] * {
     -webkit-text-fill-color: #0f172a !important;
     background-clip: unset !important;
     -webkit-background-clip: unset !important;
+    opacity: 1 !important;
+}
+
+[data-baseweb="select"] input,
+[data-baseweb="select"] p {
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
     opacity: 1 !important;
 }
 
@@ -2518,6 +2557,28 @@ st.components.v1.html("""
 <script>
 (function() {
     'use strict';
+
+    function corrigirTextoSelects() {
+        const seletoresTexto = [
+            '[data-baseweb="select"] *',
+            '[data-baseweb="popover"] *',
+            '[data-baseweb="menu"] *',
+            '[role="listbox"] *',
+            '[role="option"] *'
+        ];
+
+        seletoresTexto.forEach(sel => {
+            document.querySelectorAll(sel).forEach(el => {
+                el.style.setProperty('color', '#0f172a', 'important');
+                el.style.setProperty('-webkit-text-fill-color', '#0f172a', 'important');
+                el.style.setProperty('opacity', '1', 'important');
+                el.style.setProperty('visibility', 'visible', 'important');
+                el.style.setProperty('-webkit-background-clip', 'unset', 'important');
+                el.style.setProperty('background-clip', 'unset', 'important');
+                el.style.setProperty('text-shadow', 'none', 'important');
+            });
+        });
+    }
     
     function limparTooltips() {
         // Remove APENAS elementos de tooltip reais — nunca toca em botões/spans de menu
@@ -2552,6 +2613,7 @@ st.components.v1.html("""
         });
 
         // CORREÇÃO: garante que o texto dentro dos selectboxes fica sempre visível
+        corrigirTextoSelects();
         document.querySelectorAll('[data-baseweb="select"] div, [data-baseweb="select"] span').forEach(el => {
             el.style.setProperty('color', '#0f172a', 'important');
             el.style.setProperty('-webkit-text-fill-color', '#0f172a', 'important');
@@ -2585,6 +2647,7 @@ st.components.v1.html("""
     setInterval(limparTooltips, 2000);
     
     const observer = new MutationObserver(function() {
+        corrigirTextoSelects();
         const dropdownAberto = document.querySelector('[data-baseweb="popover"]') ||
                                document.querySelector('[role="listbox"]');
         if (!dropdownAberto) limparTooltips();
