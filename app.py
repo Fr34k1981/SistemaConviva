@@ -97,7 +97,7 @@ if SUPABASE_VALID:
 # CONFIGURAÇÃO STREAMLIT
 # ======================================================
 st.set_page_config(
-    page_title="Sistema Conviva 179 - E.E. Profª Eliane",
+    page_title="Sistema Conviva 179 - ELIANE APARECIDA DANTAS DA SILVA PROFESSORA - PEI",
     layout="wide",
     page_icon="🏫",
     initial_sidebar_state="expanded"
@@ -1480,11 +1480,11 @@ div[data-testid="stForm"]:hover {
 # ======================================================
 # DADOS DA ESCOLA
 # ======================================================
-ESCOLA_NOME = "E.E. Profª Eliane"
-ESCOLA_SUBTITULO = "Sistema Conviva 179"
-ESCOLA_ENDERECO = "R. Valter Souza Costa, 147 - Jardim Primavera, Ferraz de Vasconcelos - SP"
+ESCOLA_NOME = "ELIANE APARECIDA DANTAS DA SILVA PROFESSORA - PEI"
+ESCOLA_SUBTITULO = "Escola dos Sonhos • Escola Estadual"
+ESCOLA_ENDERECO = "VALTER DE SOUZA COSTA, 147 - RUA JARDIM PRIMAVERA - Ferraz de Vasconcelos - São Paulo"
 ESCOLA_CEP = "CEP: 08535-310"
-ESCOLA_TELEFONE = "(11) 4675-1855"
+ESCOLA_TELEFONE = "(11) 4675-3400"
 ESCOLA_EMAIL = "e918623@educacao.sp.gov.br"
 ESCOLA_LOGO = os.path.join("assets", "images", "eliane_dantas.png")
 
@@ -1492,7 +1492,7 @@ ESCOLA_LOGO = os.path.join("assets", "images", "eliane_dantas.png")
 # MENU LATERAL PREMIUM (SEM RADIO BUTTONS)
 # ======================================================
 
-st.sidebar.markdown("""
+st.sidebar.markdown(f"""
 <div style="
     position: relative;
     padding: 1.2rem 1rem 1rem 1rem;
@@ -1529,7 +1529,7 @@ st.sidebar.markdown("""
         line-height: 1.05;
         margin: 0 0 0.25rem 0;
         letter-spacing: -0.03em;
-    ">Conviva 179</h2>
+    ">{ESCOLA_SUBTITULO}</h2>
     <p style="
         color: #bfdbfe;
         font-size: 0.82rem;
@@ -1537,7 +1537,7 @@ st.sidebar.markdown("""
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.08em;
-    ">E.E. Profª Eliane</p>
+    ">{ESCOLA_NOME}</p>
 </div>
 <div style="height: 1px; background: linear-gradient(90deg, transparent, #334155, transparent); margin: 0 1rem 0.5rem 1rem;"></div>
 """, unsafe_allow_html=True)
@@ -1574,21 +1574,21 @@ if 'pagina_atual' not in st.session_state:
 
 # Lista de itens do menu com ícones
 menu_items = [
-    {"nome": "Dashboard", "icone": "🏠"},
-    {"nome": "Portal do Responsável", "icone": "👨‍👩‍👧"},
-    {"nome": "Importar Alunos", "icone": "📥"},
-    {"nome": "Gerenciar Turmas", "icone": "📋"},
-    {"nome": "Lista de Alunos", "icone": "👥"},
     {"nome": "Registrar Ocorrência", "icone": "📝"},
     {"nome": "Histórico de Ocorrências", "icone": "📋"},
     {"nome": "Comunicado aos Pais", "icone": "📄"},
-    {"nome": "Gráficos e Indicadores", "icone": "📊"},
-    {"nome": "Imprimir PDF", "icone": "🖨️"},
+    {"nome": "Lista de Alunos", "icone": "👥"},
+    {"nome": "Importar Alunos", "icone": "📥"},
+    {"nome": "Gerenciar Turmas", "icone": "📋"},
     {"nome": "Cadastrar Professores", "icone": "👨‍🏫"},
     {"nome": "Cadastrar Assinaturas", "icone": "👤"},
     {"nome": "Eletiva", "icone": "🎨"},
+    {"nome": "Dashboard", "icone": "🏠"},
+    {"nome": "Gráficos e Indicadores", "icone": "📊"},
+    {"nome": "Imprimir PDF", "icone": "🖨️"},
     {"nome": "Mapa da Sala", "icone": "🏫"},
     {"nome": "Agendamento de Espaços", "icone": "📅"},
+    {"nome": "Portal do Responsável", "icone": "👨‍👩‍👧"},
     {"nome": "Backups", "icone": "💾"},
 ]
 
@@ -1707,14 +1707,59 @@ CORES_INFRACOES = {
     "Agressão Verbal / Conflito Verbal": "#FFE66D",
     "Ameaça": "#C0B020",
     "Bullying": "#4ECDC4",
+    "Cyberbullying": "#45B7D1",
     "Racismo": "#9B59B6",
     "Homofobia": "#E91E63",
+    "Transfobia": "#D4537E",
+    "Gordofobia": "#FFA726",
+    "Xenofobia": "#0C703E",
+    "Capacitismo (Discriminação por Deficiência)": "#BA68C8",
+    "Misoginia / Violência de Gênero": "#167E91",
+    "Assédio Moral": "#F06292",
+    "Assédio Sexual": "#861C9B",
+    "Importunação Sexual / Estupro": "#880E4F",
+    "Apologia ao Nazismo": "#4A148C",
+    "Posse de Arma de Fogo / Simulacro": "#D32F2F",
+    "Posse de Arma Branca": "#B71C1C",
+    "Posse de Arma de Brinquedo": "#FFCDD2",
+    "Ameaça de Ataque Ativo": "#47187C",
+    "Ataque Ativo Concretizado": "#880E4F",
+    "Invasão": "#F44336",
+    "Ocupação de Unidade Escolar": "#FF5722",
+    "Roubo": "#FF7043",
     "Furto": "#FFB74D",
     "Dano ao Patrimônio / Vandalismo": "#FFA726",
     "Posse de Celular / Dispositivo Eletrônico": "#4DB6AC",
+    "Consumo de Álcool e Tabaco": "#81C784",
+    "Consumo de Cigarro Eletrônico": "#66BB6A",
     "Consumo de Substâncias Ilícitas": "#2E7D32",
+    "Comercialização de Álcool e Tabaco": "#388E3C",
+    "Envolvimento com Tráfico de Drogas": "#1B5E20",
     "Indisciplina": "#64B5F6",
+    "Evasão Escolar / Infrequência": "#42A5F5",
+    "Sinais de Automutilação": "#5C6BC0",
+    "Sinais de Isolamento Social": "#7986CB",
+    "Sinais de Alterações Emocionais": "#9FA8DA",
+    "Tentativa de Suicídio": "#3949AB",
+    "Suicídio Concretizado": "#1A237E",
+    "Mal Súbito": "#FFD54F",
+    "Óbito": "#424242",
+    "Crimes Cibernéticos": "#00BCD4",
+    "Fake News / Disseminação de Informações Falsas": "#26C6DA",
+    "Violência Doméstica / Maus Tratos": "#D81B60",
+    "Vulnerabilidade Familiar / Negligência": "#EC407A",
+    "Alerta de Desaparecimento": "#C2185B",
+    "Sequestro": "#880E4F",
+    "Homicídio / Homicídio Tentado": "#212121",
+    "Feminicídio": "#880E4F",
+    "Incitamento a Atos Infracionais": "#5D4037",
+    "Acidentes e Eventos Inesperados": "#FFB300",
+    "Atos Obscenos / Atos Libidinosos": "#F06292",
+    "Uso Inadequado de Dispositivos Eletrônicos": "#4DD0E1",
+    "Saída não autorizada": "#FF9800",
+    "Ausência não justificada / Cabular aula": "#FF9800",
     "Chegar atrasado": "#FFB74D",
+    "Copiar atividades / Colar em avaliações": "#FFA726",
     "Falsificar assinatura de responsáveis": "#EF5350"
 }
 
@@ -1749,6 +1794,10 @@ PROTOCOLO_179 = {
             "gravidade": "Leve",
             "encaminhamento": "✅ Programa de Mediação de Conflitos\n✅ Acompanhamento pedagógico\n✅ Notificar famílias\n✅ Registrar em ata\n✅ Acompanhamento psicológico"
         },
+        "Cyberbullying": {
+            "gravidade": "Grave",
+            "encaminhamento": "✅ Registrar evidências digitais\n✅ Notificar famílias\n✅ Acionar Orientação Educacional\n✅ Conselho Tutelar (se menor)\n✅ B.O. recomendado"
+        },
         "Racismo": {
             "gravidade": "Gravíssima",
             "encaminhamento": "⚖️ CRIME INAFIANÇÁVEL (Lei 7.716/89)\n✅ B.O. OBRIGATÓRIO\n✅ Conselho Tutelar\n✅ Notificar famílias\n✅ Diretoria de Ensino\n✅ Medidas disciplinares cabíveis"
@@ -1756,6 +1805,42 @@ PROTOCOLO_179 = {
         "Homofobia": {
             "gravidade": "Gravíssima",
             "encaminhamento": "⚖️ CRIME (equiparado ao racismo - STF)\n✅ B.O. OBRIGATÓRIO\n✅ Conselho Tutelar\n✅ Notificar famílias\n✅ Diretoria de Ensino\n✅ Medidas disciplinares cabíveis"
+        },
+        "Transfobia": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "⚖️ CRIME (equiparado ao racismo - STF)\n✅ B.O. OBRIGATÓRIO\n✅ Conselho Tutelar\n✅ Notificar famílias\n✅ Diretoria de Ensino"
+        },
+        "Gordofobia": {
+            "gravidade": "Média",
+            "encaminhamento": "✅ Mediação pedagógica\n✅ Registrar em ata\n✅ Notificar famílias\n✅ Acompanhamento da equipe escolar"
+        },
+        "Xenofobia": {
+            "gravidade": "Grave",
+            "encaminhamento": "✅ Registrar em ata circunstanciada\n✅ Notificar famílias\n✅ Acionar rede de proteção\n✅ B.O. recomendado"
+        },
+        "Capacitismo (Discriminação por Deficiência)": {
+            "gravidade": "Grave",
+            "encaminhamento": "✅ Registrar em ata\n✅ Notificar famílias\n✅ Acionar equipe de inclusão\n✅ Medidas pedagógicas e disciplinares"
+        },
+        "Misoginia / Violência de Gênero": {
+            "gravidade": "Grave",
+            "encaminhamento": "✅ Registrar em ata circunstanciada\n✅ Notificar famílias\n✅ Acionar rede de proteção\n✅ B.O. recomendado"
+        },
+        "Assédio Moral": {
+            "gravidade": "Média",
+            "encaminhamento": "✅ Registrar em ata\n✅ Escuta qualificada\n✅ Notificar famílias\n✅ Acompanhamento pedagógico"
+        },
+        "Assédio Sexual": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "🚨 Acionar rede de proteção\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ B.O. OBRIGATÓRIO\n✅ Preservar evidências"
+        },
+        "Importunação Sexual / Estupro": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "🚨 Acionar PM (190) e SAMU (192)\n✅ Conselho Tutelar\n✅ B.O. OBRIGATÓRIO\n✅ Hospital de referência\n✅ Rede de proteção"
+        },
+        "Apologia ao Nazismo": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "⚖️ CRIME (Lei 7.716/89)\n✅ B.O. OBRIGATÓRIO\n✅ Conselho Tutelar\n✅ Diretoria de Ensino\n✅ Medidas disciplinares"
         },
     },
     "🔫 Armas e Segurança": {
@@ -1767,15 +1852,65 @@ PROTOCOLO_179 = {
             "gravidade": "Gravíssima",
             "encaminhamento": "🚨 ACIONAR PM (190)\n✅ Isolar área\n✅ B.O. OBRIGATÓRIO\n✅ Conselho Tutelar\n✅ Afastamento imediato"
         },
+        "Posse de Arma de Brinquedo": {
+            "gravidade": "Grave",
+            "encaminhamento": "✅ Isolar área\n✅ Registrar em ata\n✅ Notificar famílias\n✅ Conselho Tutelar (se necessário)"
+        },
+        "Ameaça de Ataque Ativo": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "🚨 ACIONAR PM (190)\n✅ Plano de contingência\n✅ Isolar área\n✅ B.O. OBRIGATÓRIO\n✅ Rede de proteção"
+        },
+        "Ataque Ativo Concretizado": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "🚨 EMERGÊNCIA MÁXIMA (190/192)\n✅ Evacuação e isolamento\n✅ B.O. OBRIGATÓRIO\n✅ Conselho Tutelar\n✅ Rede de proteção"
+        },
+        "Invasão": {
+            "gravidade": "Grave",
+            "encaminhamento": "✅ Acionar segurança/PM\n✅ Isolar área\n✅ Registrar em ata\n✅ B.O. recomendado"
+        },
+        "Ocupação de Unidade Escolar": {
+            "gravidade": "Grave",
+            "encaminhamento": "✅ Acionar gestão e DE\n✅ Registro em ata\n✅ Notificar famílias\n✅ B.O. quando aplicável"
+        },
+    },
+    "🛡️ Patrimônio e Segurança Escolar": {
+        "Roubo": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "✅ B.O. OBRIGATÓRIO\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ Registrar em ata circunstanciada"
+        },
+        "Furto": {
+            "gravidade": "Grave",
+            "encaminhamento": "✅ Registrar em ata\n✅ Notificar famílias\n✅ B.O. recomendado\n✅ Medidas disciplinares cabíveis"
+        },
+        "Dano ao Patrimônio / Vandalismo": {
+            "gravidade": "Média",
+            "encaminhamento": "✅ Registrar em ata\n✅ Notificar famílias\n✅ Reparação educativa\n✅ Medidas disciplinares"
+        }
     },
     "💊 Drogas e Substâncias": {
         "Posse de Celular / Dispositivo Eletrônico": {
             "gravidade": "Leve",
             "encaminhamento": "✅ Retirar dispositivo (conforme regimento)\n✅ Notificar famílias\n✅ Registrar em ata\n✅ Devolver aos responsáveis"
         },
+        "Consumo de Álcool e Tabaco": {
+            "gravidade": "Média",
+            "encaminhamento": "✅ Notificar famílias\n✅ Registrar em ata\n✅ Orientação Educacional\n✅ Encaminhamento à rede de apoio"
+        },
+        "Consumo de Cigarro Eletrônico": {
+            "gravidade": "Média",
+            "encaminhamento": "✅ Registrar em ata\n✅ Notificar famílias\n✅ Orientação Educacional\n✅ Acompanhamento pedagógico"
+        },
         "Consumo de Substâncias Ilícitas": {
             "gravidade": "Grave",
             "encaminhamento": "✅ SAMU (192) se houver emergência\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ B.O. recomendado\n✅ CAPS/CREAS\n✅ Acompanhamento especializado"
+        },
+        "Comercialização de Álcool e Tabaco": {
+            "gravidade": "Grave",
+            "encaminhamento": "✅ Registrar em ata circunstanciada\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ B.O. recomendado"
+        },
+        "Envolvimento com Tráfico de Drogas": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "🚨 ACIONAR PM (190)\n✅ Conselho Tutelar\n✅ B.O. OBRIGATÓRIO\n✅ Notificar famílias\n✅ Rede de proteção"
         },
     },
     "🧠 Saúde Mental e Comportamento": {
@@ -1783,15 +1918,107 @@ PROTOCOLO_179 = {
             "gravidade": "Leve",
             "encaminhamento": "✅ Mediação pedagógica\n✅ Registrar em ata\n✅ Notificar famílias\n✅ Conselho de Classe\n✅ Acompanhamento pedagógico"
         },
+        "Evasão Escolar / Infrequência": {
+            "gravidade": "Média",
+            "encaminhamento": "✅ Busca ativa\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ Rede de proteção"
+        },
+        "Sinais de Automutilação": {
+            "gravidade": "Grave",
+            "encaminhamento": "🚨 Acionamento imediato da rede de proteção\n✅ Notificar famílias\n✅ CAPS\n✅ Conselho Tutelar"
+        },
+        "Sinais de Isolamento Social": {
+            "gravidade": "Média",
+            "encaminhamento": "✅ Escuta qualificada\n✅ Notificar famílias\n✅ Acompanhamento psicológico\n✅ Plano de acolhimento"
+        },
+        "Sinais de Alterações Emocionais": {
+            "gravidade": "Média",
+            "encaminhamento": "✅ Escuta e acolhimento\n✅ Notificar famílias\n✅ Encaminhar para acompanhamento especializado"
+        },
         "Tentativa de Suicídio": {
             "gravidade": "Gravíssima",
             "encaminhamento": "🚨 SAMU (192) IMEDIATO\n✅ Hospital de referência\n✅ Notificar famílias URGENTE\n✅ Conselho Tutelar\n✅ CAPS\n✅ Rede de proteção\n✅ Pós-venção"
         },
+        "Suicídio Concretizado": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "🚨 Acionar autoridades e rede de emergência\n✅ Protocolo de crise\n✅ Apoio psicossocial à comunidade\n✅ Comunicação oficial orientada"
+        },
+        "Mal Súbito": {
+            "gravidade": "Grave",
+            "encaminhamento": "🚨 SAMU (192)\n✅ Notificar famílias\n✅ Registrar em ata\n✅ Encaminhamento médico"
+        },
+        "Óbito": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "🚨 Acionar autoridades competentes\n✅ Notificar famílias\n✅ Registro formal\n✅ Apoio psicossocial"
+        },
+    },
+    "🌐 Crimes e Riscos Digitais": {
+        "Crimes Cibernéticos": {
+            "gravidade": "Grave",
+            "encaminhamento": "✅ Preservar evidências\n✅ Notificar famílias\n✅ B.O. recomendado\n✅ Orientação de segurança digital"
+        },
+        "Fake News / Disseminação de Informações Falsas": {
+            "gravidade": "Média",
+            "encaminhamento": "✅ Registrar em ata\n✅ Orientação pedagógica\n✅ Notificar famílias\n✅ Reforço de educação midiática"
+        },
+        "Uso Inadequado de Dispositivos Eletrônicos": {
+            "gravidade": "Leve",
+            "encaminhamento": "✅ Registrar em ata\n✅ Notificar famílias\n✅ Aplicar regimento interno"
+        }
+    },
+    "🏠 Proteção Social e Familiar": {
+        "Violência Doméstica / Maus Tratos": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "✅ Conselho Tutelar\n✅ Notificação compulsória (quando cabível)\n✅ Rede de proteção\n✅ Registro em ata circunstanciada"
+        },
+        "Vulnerabilidade Familiar / Negligência": {
+            "gravidade": "Grave",
+            "encaminhamento": "✅ Conselho Tutelar\n✅ CRAS/CREAS\n✅ Notificar famílias\n✅ Plano de acompanhamento"
+        },
+        "Alerta de Desaparecimento": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "🚨 ACIONAR PM (190)\n✅ Conselho Tutelar\n✅ Notificar famílias\n✅ Registro oficial imediato"
+        },
+        "Sequestro": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "🚨 ACIONAR PM (190) IMEDIATO\n✅ Conselho Tutelar\n✅ Notificar famílias\n✅ B.O. OBRIGATÓRIO"
+        },
+        "Homicídio / Homicídio Tentado": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "🚨 ACIONAR PM (190) e SAMU (192)\n✅ B.O. OBRIGATÓRIO\n✅ Rede de proteção\n✅ Apoio psicossocial"
+        },
+        "Feminicídio": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "🚨 ACIONAR PM (190)\n✅ B.O. OBRIGATÓRIO\n✅ Rede de proteção\n✅ Apoio psicossocial"
+        },
+        "Incitamento a Atos Infracionais": {
+            "gravidade": "Grave",
+            "encaminhamento": "✅ Registrar em ata circunstanciada\n✅ Notificar famílias\n✅ Conselho Tutelar\n✅ B.O. recomendado"
+        },
+        "Acidentes e Eventos Inesperados": {
+            "gravidade": "Média",
+            "encaminhamento": "✅ Primeiros socorros\n✅ Notificar famílias\n✅ Registrar em ata\n✅ Encaminhamento médico quando necessário"
+        },
+        "Atos Obscenos / Atos Libidinosos": {
+            "gravidade": "Gravíssima",
+            "encaminhamento": "✅ Conselho Tutelar\n✅ Notificar famílias\n✅ B.O. OBRIGATÓRIO\n✅ Rede de proteção"
+        },
     },
     "⚠️ Infrações Acadêmicas e de Pontualidade": {
+        "Saída não autorizada": {
+            "gravidade": "Média",
+            "encaminhamento": "✅ Registrar em ata\n✅ Notificar famílias\n✅ Reforçar protocolo de segurança\n✅ Orientação Educacional"
+        },
+        "Ausência não justificada / Cabular aula": {
+            "gravidade": "Média",
+            "encaminhamento": "✅ Registrar em ata\n✅ Notificar famílias\n✅ Busca ativa\n✅ Orientação Educacional"
+        },
         "Chegar atrasado": {
             "gravidade": "Leve",
             "encaminhamento": "✅ Registrar em ata\n✅ Conversar com o aluno\n✅ Notificar famílias (se recorrente)\n✅ Verificar motivo dos atrasos\n✅ Orientação Educacional"
+        },
+        "Copiar atividades / Colar em avaliações": {
+            "gravidade": "Média",
+            "encaminhamento": "✅ Registrar em ata\n✅ Revisão pedagógica\n✅ Notificar famílias\n✅ Medidas previstas no regimento"
         },
         "Falsificar assinatura de responsáveis": {
             "gravidade": "Grave",
@@ -1909,6 +2136,10 @@ def buscar_infracao_fuzzy(busca: str, protocolo: dict) -> dict:
         "ARMA": ["ARMA", "FACA", "CANIVETE"],
         "AMEACA": ["AMEACA", "INTIMIDAR"],
         "DISCRIMINACAO": ["RACISMO", "HOMOFOBIA", "PRECONCEITO", "DISCRIMINACAO"],
+        "SAIDA": ["SAIDA", "SAIR", "FUGIR", "EVADIR", "CABULAR", "AUSENCIA"],
+        "FALSIFICAR": ["FALSIFICAR", "ASSINATURA", "COLAR", "COPIAR"],
+        "SUICIDIO": ["SUICIDIO", "AUTOMUTILACAO", "EMOCIONAL", "ISOLAMENTO"],
+        "DIGITAL": ["CYBER", "CIBERNETICO", "FAKE NEWS", "ONLINE"],
     }
     for grupo, infracoes in protocolo.items():
         encontradas = {}
@@ -2599,7 +2830,7 @@ def gerar_pdf_eletiva(contexto: str, df_eletiva: pd.DataFrame) -> BytesIO:
     estilo_rodape = ParagraphStyle('Rodape', parent=estilos['Normal'], fontSize=7, alignment=TA_CENTER, textColor=colors.grey)
     elementos.append(Paragraph("_" * 75, estilos['Normal']))
     elementos.append(Paragraph(f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}", estilo_rodape))
-    elementos.append(Paragraph(f"Sistema Conviva 179 - E.E. Profª Eliane", estilo_rodape))
+    elementos.append(Paragraph(f"Sistema Conviva 179 - {ESCOLA_NOME}", estilo_rodape))
     doc.build(elementos)
     buffer.seek(0)
     return buffer
@@ -3987,10 +4218,28 @@ elif menu == "📝 Registrar Ocorrência":
         grupo = st.selectbox("Grupo", list(PROTOCOLO_179.keys()), key="grupo_infracao")
         infracoes = PROTOCOLO_179[grupo]
 
-    infracao_principal = st.selectbox("Infração", list(infracoes.keys()), key="infracao_principal")
-    dados_infracao = infracoes[infracao_principal]
-    gravidade_sugerida = dados_infracao["gravidade"]
-    encaminhamento_sugerido = dados_infracao["encaminhamento"]
+    infracao_principal = st.selectbox("Infração principal", list(infracoes.keys()), key="infracao_principal")
+    outras_infracoes = st.multiselect(
+        "Infrações adicionais (opcional)",
+        [i for i in infracoes.keys() if i != infracao_principal],
+        key="infracoes_adicionais"
+    )
+    infracoes_selecionadas = [infracao_principal] + [i for i in outras_infracoes if i != infracao_principal]
+
+    ordem_gravidade = {"Leve": 1, "Média": 2, "Grave": 3, "Gravíssima": 4}
+    dados_infracoes_sel = [infracoes[i] for i in infracoes_selecionadas]
+    gravidade_sugerida = max(
+        [d.get("gravidade", "Leve") for d in dados_infracoes_sel],
+        key=lambda g: ordem_gravidade.get(g, 1)
+    )
+
+    linhas_encam = []
+    for d in dados_infracoes_sel:
+        for linha in str(d.get("encaminhamento", "")).splitlines():
+            ln = linha.strip()
+            if ln and ln not in linhas_encam:
+                linhas_encam.append(ln)
+    encaminhamento_sugerido = "\n".join(linhas_encam)
 
     cor_badge = CORES_GRAVIDADE.get(gravidade_sugerida, "#2563eb")
     st.markdown(f"""
@@ -4003,7 +4252,7 @@ elif menu == "📝 Registrar Ocorrência":
         margin:0.5rem 0;
     ">
         <span style="font-size:1.1rem;">🎯</span>
-        <span style="font-family:'Nunito',sans-serif;font-weight:700;font-size:1rem;color:{cor_badge};">{infracao_principal}</span>
+        <span style="font-family:'Nunito',sans-serif;font-weight:700;font-size:1rem;color:{cor_badge};">{' + '.join(infracoes_selecionadas)}</span>
     </div>
     """, unsafe_allow_html=True)
 
@@ -4025,7 +4274,7 @@ elif menu == "📝 Registrar Ocorrência":
         <div style="display:flex; gap:1.5rem; flex-wrap:wrap; margin-bottom:0.75rem;">
             <div>
                 <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:0.2rem;">Infração</div>
-                <div style="font-weight:600;color:#0f172a;">{infracao_principal}</div>
+                <div style="font-weight:600;color:#0f172a;">{', '.join(infracoes_selecionadas)}</div>
             </div>
             <div>
                 <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:0.2rem;">Gravidade sugerida</div>
@@ -4063,9 +4312,11 @@ elif menu == "📝 Registrar Ocorrência":
     if st.button("💾 Salvar Ocorrência(s)", type="primary"):
         if not prof or not relato.strip():
             st.error("❌ Preencha professor e relato.")
+            show_toast("Preencha professor e relato para salvar.", "warning")
         else:
             salvas = 0
             duplicadas = 0
+            falhas = 0
             
             for turma in turmas_sel:
                 for aluno in alunos_selecionados:
@@ -4074,31 +4325,35 @@ elif menu == "📝 Registrar Ocorrência":
                         continue
                     
                     ra = registro["ra"].values[0]
-                    
-                    if verificar_ocorrencia_duplicada(ra, infracao_principal, data_str, df_ocorrencias):
-                        duplicadas += 1
-                        continue
-                    
-                    nova = {
-                        "data": data_str,
-                        "aluno": aluno,
-                        "ra": ra,
-                        "turma": turma,
-                        "categoria": infracao_principal,
-                        "gravidade": gravidade,
-                        "relato": relato,
-                        "encaminhamento": encam,
-                        "professor": prof,
-                    }
-                    
-                    if salvar_ocorrencia(nova):
-                        salvas += 1
-                        if st.session_state.backup_manager:
-                            st.session_state.backup_manager.criar_backup()
+
+                    for infracao_item in infracoes_selecionadas:
+                        if verificar_ocorrencia_duplicada(ra, infracao_item, data_str, df_ocorrencias):
+                            duplicadas += 1
+                            continue
+
+                        nova = {
+                            "data": data_str,
+                            "aluno": aluno,
+                            "ra": ra,
+                            "turma": turma,
+                            "categoria": infracao_item,
+                            "gravidade": gravidade,
+                            "relato": relato,
+                            "encaminhamento": encam,
+                            "professor": prof,
+                        }
+
+                        if salvar_ocorrencia(nova):
+                            salvas += 1
+                            if st.session_state.backup_manager:
+                                st.session_state.backup_manager.criar_backup()
+                        else:
+                            falhas += 1
             
             if salvas > 0:
                 st.session_state.ocorrencia_salva_sucesso = True
                 show_toast(f"{salvas} ocorrência(s) registrada(s)!", "success")
+                st.success(f"✅ Ação concluída: {salvas} ocorrência(s) salva(s) com sucesso.")
                 
                 st.session_state.registros_ocorrencias += salvas
                 
@@ -4111,6 +4366,13 @@ elif menu == "📝 Registrar Ocorrência":
             
             if duplicadas > 0:
                 st.warning(f"⚠️ {duplicadas} ocorrência(s) duplicada(s) ignorada(s).")
+                show_toast(f"{duplicadas} duplicada(s) ignorada(s).", "warning")
+            if falhas > 0:
+                st.error(f"❌ {falhas} ocorrência(s) falharam no salvamento.")
+                show_toast(f"{falhas} ocorrência(s) não foram salvas.", "error")
+            if salvas == 0 and duplicadas == 0 and falhas == 0:
+                st.info("ℹ️ Nenhuma ocorrência foi salva (verifique filtros e seleção).")
+                show_toast("Nenhum registro foi criado.", "warning")
             
             carregar_ocorrencias.clear()
             st.rerun()                                # ← 12 espaços
@@ -4187,10 +4449,12 @@ elif menu == "📋 Histórico de Ocorrências":
             if st.button("🗑️ Excluir Ocorrência", type="secondary"):
                 if senha != SENHA_EXCLUSAO:
                     st.error("❌ Senha incorreta!")
+                    show_toast("Senha incorreta para exclusão.", "error")
                 else:
                     sucesso = excluir_ocorrencia(id_excluir)
                     if sucesso:
                         st.session_state.mensagem_exclusao = f"✅ Ocorrência {id_excluir} excluída com sucesso!"
+                        show_toast(f"Ocorrência {id_excluir} excluída.", "success")
                         carregar_ocorrencias.clear()
                         st.rerun()
 
@@ -4227,6 +4491,7 @@ elif menu == "📋 Histórico de Ocorrências":
                 })
                 if sucesso:
                     st.success("✅ Ocorrência atualizada com sucesso!")
+                    show_toast("Ocorrência atualizada com sucesso.", "success")
                     carregar_ocorrencias.clear()
                     st.session_state.editando_id = None
                     st.session_state.dados_edicao = None
