@@ -37,12 +37,46 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT
 # ======================================================
 # IMPORTS LOCAIS
 # ======================================================
-from src.backup_manager import BackupManager, render_backup_page
-from src.error_handler import (
-    com_tratamento_erro, com_retry, com_validacao,
-    ErroConexaoDB, ErroValidacao, ErroCarregamentoDados,
-    ErroOperacaoDB, Validadores, logger
-)
+try:
+    from src.backup_manager import BackupManager, render_backup_page
+except ImportError:
+    BackupManager = None
+    def render_backup_page():
+        st.info("⚠️ Módulo de backup não disponível")
+
+try:
+    from src.error_handler import (
+        com_tratamento_erro, com_retry, com_validacao,
+        ErroConexaoDB, ErroValidacao, ErroCarregamentoDados,
+        ErroOperacaoDB, Validadores, logger
+    )
+except ImportError:
+    def com_tratamento_erro(func):
+        return func
+    def com_retry(tentativas=2):
+        def decorator(func):
+            return func
+        return decorator
+    def com_validacao(func):
+        return func
+    class ErroConexaoDB(Exception):
+        pass
+    class ErroValidacao(Exception):
+        pass
+    class ErroCarregamentoDados(Exception):
+        def __init__(self, acao, detalhes):
+            super().__init__(f"Erro ao {acao}: {detalhes}")
+    class ErroOperacaoDB(Exception):
+        def __init__(self, acao, detalhes):
+            super().__init__(f"Erro ao {acao}: {detalhes}")
+    class Validadores:
+        @staticmethod
+        def validar_nao_vazio(valor, campo):
+            if not valor or not str(valor).strip():
+                return False, f"{campo} não pode ser vazio"
+            return True, ""
+    import logging
+    logger = logging.getLogger(__name__)
 
 # ======================================================
 # VARIÁVEIS DE AMBIENTE
@@ -72,254 +106,405 @@ st.set_page_config(
     page_icon="🏫",
     initial_sidebar_state="expanded"
 )
-
 # ======================================================
-# CSS PREMIUM COMPLETO - CORRIGIDO (SEM QUEBRAR DROPDOWNS)
+# CSS PREMIUM EDUCACIONAL — DESIGN MODERNO E PROFISSIONAL
 # ======================================================
 st.markdown("""
 <style>
 /* ============================================ */
-/* ========== RESET E FONTES NATIVAS ========== */
+/* ========== GOOGLE FONTS IMPORT ========== */
 /* ============================================ */
-* {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap');
+
+/* ============================================ */
+/* ========== RESET GLOBAL ========== */
+/* ============================================ */
+*, *::before, *::after {
+    box-sizing: border-box;
 }
 
 html, body, [class*="css"] {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
-}
-
-/* ============================================ */
-/* ========== VARIÁVEIS DE CORES ========== */
-/* ============================================ */
-:root {
-    --primary: #6366f1;
-    --primary-light: #818cf8;
-    --primary-dark: #4f46e5;
-    --secondary: #ec4899;
-    --success: #10b981;
-    --warning: #f59e0b;
-    --danger: #ef4444;
-    --info: #06b6d4;
-    --dark: #1e293b;
-    --gray: #64748b;
-    --light: #f8fafc;
-    --border: #e2e8f0;
-    
-    --gradient-primary: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%);
-    --gradient-success: linear-gradient(135deg, #10b981 0%, #34d399 100%);
-    --gradient-warning: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
-    --gradient-danger: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
-    
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1);
-    --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
-    
-    --radius-sm: 0.375rem;
-    --radius-md: 0.5rem;
-    --radius-lg: 0.75rem;
-    --radius-xl: 1rem;
-    --radius-2xl: 1.5rem;
-    --radius-3xl: 2rem;
-}
-
-/* ============================================ */
-/* ========== CORREÇÃO: NÃO ESCONDER DROPDOWNS ========== */
-/* ============================================ */
-[data-baseweb="popover"],
-[data-baseweb="popover"] *,
-[data-baseweb="menu"],
-[data-baseweb="menu"] *,
-[role="listbox"],
-[role="listbox"] *,
-[role="option"],
-[role="option"] * {
-    visibility: visible !important;
-    opacity: 1 !important;
-    pointer-events: auto !important;
-    display: block !important;
-}
-
-/* ============================================ */
-/* ========== CORREÇÃO DE QUEBRA DE TEXTO ========== */
-/* ============================================ */
-h1, h2, h3, h4, h5, h6, p, span, div, label, li, a, .stMarkdown, .stText, .stCaption {
-    white-space: normal !important;
-    word-wrap: break-word !important;
-    word-break: break-word !important;
-    overflow-wrap: break-word !important;
-    line-height: 1.5 !important;
-}
-
-/* Botões devem manter texto em linha única */
-button, [data-testid="stFileUploaderDropzone"] * {
-    white-space: nowrap !important;
-    word-break: normal !important;
-    overflow-wrap: normal !important;
-}
-
-/* Botões do menu lateral podem quebrar linha */
-[data-testid="stSidebar"] button {
-    white-space: normal !important;
-    text-align: left !important;
-    justify-content: flex-start !important;
+    font-family: 'Inter', 'Segoe UI', sans-serif !important;
 }
 
 h1, h2, h3, h4, h5, h6 {
-    font-weight: 700 !important;
-    letter-spacing: -0.02em !important;
-    color: var(--dark) !important;
-    margin-bottom: 1rem !important;
+    font-family: 'Nunito', sans-serif !important;
 }
 
-h1 { font-size: 2rem !important; }
-h2 { font-size: 1.6rem !important; }
-h3 { font-size: 1.3rem !important; }
-h4 { font-size: 1.1rem !important; }
+/* ============================================ */
+/* ========== VARIÁVEIS DE DESIGN ========== */
+/* ============================================ */
+:root {
+    /* Cores primárias — azul educacional */
+    --primary:        #2563eb;
+    --primary-light:  #3b82f6;
+    --primary-xlight: #eff6ff;
+    --primary-dark:   #1d4ed8;
+
+    /* Acento verde sucesso */
+    --success:        #059669;
+    --success-light:  #d1fae5;
+
+    /* Acento âmbar aviso */
+    --warning:        #d97706;
+    --warning-light:  #fef3c7;
+
+    /* Vermelho perigo */
+    --danger:         #dc2626;
+    --danger-light:   #fee2e2;
+
+    /* Info ciano */
+    --info:           #0891b2;
+    --info-light:     #e0f2fe;
+
+    /* Roxo destaque */
+    --purple:         #7c3aed;
+    --purple-light:   #ede9fe;
+
+    /* Neutros */
+    --dark:           #0f172a;
+    --dark-mid:       #1e293b;
+    --gray-dark:      #334155;
+    --gray:           #64748b;
+    --gray-light:     #94a3b8;
+    --border:         #e2e8f0;
+    --border-light:   #f1f5f9;
+    --bg:             #f8fafc;
+    --white:          #ffffff;
+
+    /* Gradientes */
+    --grad-primary:   linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #3b82f6 100%);
+    --grad-teal:      linear-gradient(135deg, #0891b2 0%, #06b6d4 100%);
+    --grad-emerald:   linear-gradient(135deg, #059669 0%, #10b981 100%);
+    --grad-amber:     linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+    --grad-danger:    linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+    --grad-purple:    linear-gradient(135deg, #6d28d9 0%, #7c3aed 100%);
+    --grad-school:    linear-gradient(135deg, #1d4ed8 0%, #0891b2 60%, #059669 100%);
+    --grad-warm:      linear-gradient(135deg, #f97316 0%, #ef4444 50%, #ec4899 100%);
+
+    /* Sombras */
+    --shadow-xs:  0 1px 2px rgba(15,23,42,0.06);
+    --shadow-sm:  0 2px 4px rgba(15,23,42,0.08);
+    --shadow-md:  0 4px 12px rgba(15,23,42,0.10);
+    --shadow-lg:  0 8px 24px rgba(15,23,42,0.12);
+    --shadow-xl:  0 16px 40px rgba(15,23,42,0.14);
+    --shadow-2xl: 0 24px 64px rgba(15,23,42,0.18);
+    --shadow-blue: 0 8px 24px rgba(37,99,235,0.25);
+    --shadow-green: 0 8px 24px rgba(5,150,105,0.25);
+
+    /* Raios */
+    --r-xs:  4px;
+    --r-sm:  8px;
+    --r-md:  12px;
+    --r-lg:  16px;
+    --r-xl:  20px;
+    --r-2xl: 24px;
+    --r-3xl: 32px;
+    --r-full: 9999px;
+}
 
 /* ============================================ */
 /* ========== ANIMAÇÕES ========== */
 /* ============================================ */
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeInLeft {
+    from { opacity: 0; transform: translateX(-16px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to   { opacity: 1; transform: scale(1); }
+}
+@keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(37,99,235,0.3); }
+    50%       { box-shadow: 0 0 0 8px rgba(37,99,235,0); }
+}
+@keyframes shimmer {
+    0%   { background-position: -200% center; }
+    100% { background-position: 200% center; }
+}
+@keyframes floatDot {
+    0%, 100% { transform: translateY(0); }
+    50%       { transform: translateY(-6px); }
 }
 
-@keyframes slideIn {
-    from { transform: translateX(-20px); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-}
+.animate-fade-in   { animation: fadeInUp 0.5s cubic-bezier(.16,1,.3,1) both; }
+.animate-slide-in  { animation: fadeInLeft 0.4s cubic-bezier(.16,1,.3,1) both; }
+.animate-scale-in  { animation: scaleIn 0.35s cubic-bezier(.16,1,.3,1) both; }
 
-@keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.8; transform: scale(1.02); }
-}
+/* ============================================ */
+/* ========== SCROLLBAR PERSONALIZADA ========== */
+/* ============================================ */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--border-light); border-radius: var(--r-full); }
+::-webkit-scrollbar-thumb { background: linear-gradient(180deg, var(--primary-light), var(--purple)); border-radius: var(--r-full); }
+::-webkit-scrollbar-thumb:hover { background: var(--primary); }
 
-.animate-fade-in { animation: fadeIn 0.5s ease-out; }
-.animate-slide-in { animation: slideIn 0.4s ease-out; }
-</style>
-""", unsafe_allow_html=True)
-
-# ======================================================
-# CSS PREMIUM - PARTE 2 (CORRIGIDO)
-# ======================================================
-st.markdown("""
-<style>
 /* ============================================ */
 /* ========== LAYOUT PRINCIPAL ========== */
 /* ============================================ */
+.stApp {
+    background: linear-gradient(160deg, #f0f4ff 0%, #f8fafc 40%, #f0fdf4 100%) !important;
+}
+
+footer { visibility: hidden; }
+#MainMenu { visibility: hidden; }
+
+/* ============================================ */
+/* ========== SIDEBAR PREMIUM ========== */
+/* ============================================ */
+section[data-testid="stSidebar"] {
+    background: var(--dark-mid) !important;
+    border-right: none !important;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.15) !important;
+}
+
+section[data-testid="stSidebar"] > div:first-child {
+    background: var(--dark-mid) !important;
+    overflow: hidden !important;
+    clip-path: inset(0 0 0 0) !important;
+}
+
+section[data-testid="stSidebar"],
+[data-testid="stSidebar"] > div {
+    overflow: hidden !important;
+    clip-path: inset(0 0 0 0) !important;
+}
+
+section[data-testid="stSidebar"] .stMarkdown h2 {
+    color: white !important;
+}
+
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] span:not(button span) {
+    color: #94a3b8 !important;
+}
+
+/* ============================================ */
+/* ========== BOTÕES MENU LATERAL ========== */
+/* ============================================ */
+div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] {
+    margin: 0.15rem 0 !important;
+}
+
+div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button {
+    background: transparent !important;
+    border: none !important;
+    border-radius: var(--r-md) !important;
+    padding: 0.7rem 1rem !important;
+    text-align: left !important;
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+    color: #94a3b8 !important;
+    width: 100% !important;
+    transition: all 0.2s ease !important;
+    box-shadow: none !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.6rem !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    min-height: 42px;
+    position: relative;
+}
+
+div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button span {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    display: block !important;
+    max-width: 100% !important;
+}
+
+/* Esconde spans extras / texto fantasma */
+[data-testid="stSidebar"] button p,
+[data-testid="stSidebar"] button > span + span,
+[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"] > span:not(:first-child),
+[data-testid="stSidebar"] [data-testid="stBaseButton-primary"] > span:not(:first-child) {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    font-size: 0 !important;
+    opacity: 0 !important;
+}
+
+div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button:hover {
+    background: rgba(255,255,255,0.08) !important;
+    color: white !important;
+    transform: translateX(3px) !important;
+}
+
+/* Botão ativo (primary) no sidebar */
+div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button[kind="primary"] {
+    background: linear-gradient(135deg, rgba(37,99,235,0.9), rgba(8,145,178,0.8)) !important;
+    color: white !important;
+    box-shadow: 0 4px 12px rgba(37,99,235,0.3) !important;
+    border-left: 3px solid #60a5fa !important;
+}
+
+div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button[kind="primary"]:hover {
+    transform: translateX(0) !important;
+    box-shadow: 0 6px 16px rgba(37,99,235,0.4) !important;
+}
+
+/* ============================================ */
+/* ========== TOOLTIPS — OCULTAR ========== */
+/* ============================================ */
+[data-testid="stTooltipHoverTarget"] {
+    display: none !important;
+}
+
+[data-baseweb="menu"] div,
+[data-baseweb="menu"] span {
+    visibility: visible !important;
+    opacity: 1 !important;
+    color: var(--dark) !important;
+}
+
+/* ============================================ */
+/* ========== TIPOGRAFIA ========== */
+/* ============================================ */
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Nunito', sans-serif !important;
+    font-weight: 700 !important;
+    color: var(--dark) !important;
+    letter-spacing: -0.02em !important;
+    margin-bottom: 0.75rem !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+}
+
+h1 { font-size: 1.9rem !important; }
+h2 { font-size: 1.55rem !important; }
+h3 { font-size: 1.25rem !important; }
+h4 { font-size: 1.05rem !important; }
+
+p, span, div, label, li {
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+    line-height: 1.6 !important;
+}
+
+button, [data-testid="stFileUploaderDropzone"] * {
+    white-space: nowrap !important;
+}
+[data-testid="stSidebar"] button {
+    white-space: normal !important;
+}
+
+/* ============================================ */
+/* ========== HEADER DA ESCOLA ========== */
+/* ============================================ */
 .main-header {
-    background: var(--gradient-primary);
-    padding: 2.5rem 2rem;
-    border-radius: var(--radius-3xl);
+    background: var(--grad-school);
+    padding: 2.5rem 2.5rem;
+    border-radius: var(--r-3xl);
     color: white;
     text-align: center;
     margin-bottom: 2rem;
-    box-shadow: var(--shadow-2xl);
+    box-shadow: var(--shadow-2xl), 0 0 0 1px rgba(255,255,255,0.1) inset;
     position: relative;
     overflow: hidden;
+    animation: fadeInUp 0.6s cubic-bezier(.16,1,.3,1) both;
 }
 
 .main-header::before {
     content: '';
     position: absolute;
-    top: -50%;
+    top: -60%;
     right: -10%;
-    width: 400px;
-    height: 400px;
-    background: rgba(255, 255, 255, 0.08);
+    width: 500px;
+    height: 500px;
+    background: rgba(255,255,255,0.06);
     border-radius: 50%;
-    animation: pulse 4s infinite;
+    pointer-events: none;
 }
 
 .main-header::after {
     content: '';
     position: absolute;
-    bottom: -30%;
-    left: -5%;
-    width: 300px;
-    height: 300px;
-    background: rgba(255, 255, 255, 0.05);
+    bottom: -40%;
+    left: -8%;
+    width: 350px;
+    height: 350px;
+    background: rgba(255,255,255,0.04);
     border-radius: 50%;
-    animation: pulse 5s infinite reverse;
+    pointer-events: none;
+}
+
+/* Pattern decorativo */
+.main-header .pattern {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-image:
+        radial-gradient(circle at 20% 50%, rgba(255,255,255,0.05) 1px, transparent 1px),
+        radial-gradient(circle at 80% 20%, rgba(255,255,255,0.05) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
 }
 
 .school-name {
-    font-size: 2.5rem;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    margin-bottom: 0.5rem;
+    font-family: 'Nunito', sans-serif !important;
+    font-size: 2.4rem;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    margin-bottom: 0.4rem;
     position: relative;
     z-index: 1;
-    text-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    text-shadow: 0 2px 16px rgba(0,0,0,0.15);
     white-space: normal !important;
-    word-break: break-word;
 }
 
 .school-subtitle {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     font-weight: 500;
-    opacity: 0.95;
-    margin-bottom: 1rem;
+    opacity: 0.9;
+    margin-bottom: 1.25rem;
+    position: relative;
+    z-index: 1;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.school-info-chips {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
     position: relative;
     z-index: 1;
 }
 
-/* ============================================ */
-/* ========== CARDS MODERNOS ========== */
-/* ============================================ */
-.card {
-    background: white;
-    padding: 1.5rem;
-    border-radius: var(--radius-2xl);
-    border: 1.5px solid var(--border);
-    margin: 0.75rem 0;
-    box-shadow: var(--shadow-sm);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    overflow: hidden;
-}
-
-.card:hover {
-    box-shadow: var(--shadow-xl);
-    transform: translateY(-3px);
-    border-color: var(--primary-light);
-}
-
-.card-title {
-    font-weight: 700;
-    color: var(--dark);
-    font-size: 1.125rem;
-    margin-bottom: 0.75rem;
-    display: flex;
+.school-chip {
+    display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
-    white-space: normal !important;
-    word-break: break-word;
-}
-
-.card-value {
-    font-size: 2rem;
-    font-weight: 800;
-    background: var(--gradient-primary);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    line-height: 1.2;
+    gap: 0.4rem;
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: var(--r-full);
+    padding: 0.35rem 0.9rem;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: white;
+    white-space: nowrap;
 }
 
 /* ============================================ */
-/* ========== MÉTRICAS COLORIDAS ========== */
+/* ========== CARDS DE MÉTRICAS ========== */
 /* ============================================ */
 .metric-card {
-    padding: 1.75rem 1rem;
-    border-radius: var(--radius-2xl);
+    border-radius: var(--r-2xl);
+    padding: 1.5rem 1.25rem;
     text-align: center;
-    box-shadow: var(--shadow-lg);
-    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-    border: 1.5px solid var(--border);
+    transition: all 0.3s cubic-bezier(.16,1,.3,1);
     position: relative;
     overflow: hidden;
     color: white;
@@ -327,445 +512,712 @@ st.markdown("""
     display: flex;
     flex-direction: column;
     justify-content: center;
+    align-items: center;
+}
+
+.metric-card::before {
+    content: '';
+    position: absolute;
+    top: -30px; right: -30px;
+    width: 100px; height: 100px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 50%;
 }
 
 .metric-card:hover {
-    box-shadow: var(--shadow-2xl);
-    transform: translateY(-5px);
+    transform: translateY(-6px);
+    filter: brightness(1.05);
+}
+
+.metric-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    position: relative;
+    z-index: 1;
 }
 
 .metric-value {
-    font-size: 2.5rem;
-    font-weight: 800;
-    line-height: 1.2;
-    text-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    white-space: nowrap;
+    font-family: 'Nunito', sans-serif !important;
+    font-size: 2.6rem;
+    font-weight: 900;
+    line-height: 1;
+    position: relative;
+    z-index: 1;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .metric-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    margin-top: 0.4rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    opacity: 0.85;
+    position: relative;
+    z-index: 1;
+    white-space: normal !important;
+}
+
+.metric-sub {
+    font-size: 0.75rem;
+    margin-top: 0.35rem;
+    opacity: 0.75;
+    position: relative;
+    z-index: 1;
+}
+
+/* ============================================ */
+/* ========== CARDS GENÉRICOS ========== */
+/* ============================================ */
+.card {
+    background: var(--white);
+    padding: 1.5rem;
+    border-radius: var(--r-2xl);
+    border: 1.5px solid var(--border);
+    margin: 0.6rem 0;
+    box-shadow: var(--shadow-xs);
+    transition: all 0.3s cubic-bezier(.16,1,.3,1);
+    position: relative;
+    overflow: hidden;
+}
+
+.card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px;
+    height: 100%;
+    background: var(--grad-primary);
+    border-radius: 0 0 0 var(--r-2xl);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.card:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+    border-color: #bfdbfe;
+}
+
+.card:hover::before {
+    opacity: 1;
+}
+
+.card-title {
+    font-family: 'Nunito', sans-serif !important;
+    font-weight: 700;
+    color: var(--dark);
+    font-size: 1.05rem;
+    margin-bottom: 0.6rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    white-space: normal !important;
+}
+
+.card-value {
+    font-family: 'Nunito', sans-serif !important;
+    font-size: 2rem;
+    font-weight: 900;
+    background: var(--grad-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.2;
+}
+
+/* ============================================ */
+/* ========== BADGES ========== */
+/* ============================================ */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 0.85rem;
+    border-radius: var(--r-full);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+}
+
+.badge-primary   { background: var(--primary-xlight); color: var(--primary-dark); border: 1.5px solid #bfdbfe; }
+.badge-success   { background: var(--success-light); color: #065f46; border: 1.5px solid #a7f3d0; }
+.badge-warning   { background: var(--warning-light); color: #92400e; border: 1.5px solid #fde68a; }
+.badge-danger    { background: var(--danger-light); color: #991b1b; border: 1.5px solid #fca5a5; }
+.badge-info      { background: var(--info-light); color: #0c4a6e; border: 1.5px solid #7dd3fc; }
+.badge-purple    { background: var(--purple-light); color: #4c1d95; border: 1.5px solid #c4b5fd; }
+.badge-dark      { background: var(--grad-primary); color: white; border: none; }
+
+/* Gravidade badges grandes */
+.badge-gravidade {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 1.25rem;
+    border-radius: var(--r-full);
     font-size: 0.9rem;
-    font-weight: 500;
-    margin-top: 0.5rem;
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    opacity: 0.9;
+}
+
+/* ============================================ */
+/* ========== CAIXAS DE MENSAGEM ========== */
+/* ============================================ */
+.success-box {
+    background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+    border: 1.5px solid #86efac;
+    border-left: 4px solid var(--success);
+    border-radius: var(--r-xl);
+    padding: 1.1rem 1.25rem;
+    margin: 1rem 0;
+    color: #14532d;
+    font-weight: 500;
+    box-shadow: var(--shadow-sm);
+    animation: fadeInUp 0.35s ease both;
+}
+
+.warning-box {
+    background: linear-gradient(135deg, #fffbeb, #fef9c3);
+    border: 1.5px solid #fde047;
+    border-left: 4px solid var(--warning);
+    border-radius: var(--r-xl);
+    padding: 1.1rem 1.25rem;
+    margin: 1rem 0;
+    color: #78350f;
+    font-weight: 500;
+    box-shadow: var(--shadow-sm);
+    animation: fadeInUp 0.35s ease both;
+}
+
+.error-box {
+    background: linear-gradient(135deg, #fff1f2, #fee2e2);
+    border: 1.5px solid #fca5a5;
+    border-left: 4px solid var(--danger);
+    border-radius: var(--r-xl);
+    padding: 1.1rem 1.25rem;
+    margin: 1rem 0;
+    color: #7f1d1d;
+    font-weight: 500;
+    box-shadow: var(--shadow-sm);
+    animation: fadeInUp 0.35s ease both;
+}
+
+.info-box {
+    background: linear-gradient(135deg, #eff6ff, #dbeafe);
+    border: 1.5px solid #93c5fd;
+    border-left: 4px solid var(--primary);
+    border-radius: var(--r-xl);
+    padding: 1.1rem 1.25rem;
+    margin: 1rem 0;
+    color: #1e3a8a;
+    font-weight: 500;
+    box-shadow: var(--shadow-sm);
+    animation: fadeInUp 0.35s ease both;
+}
+
+.stAlert {
+    border-radius: var(--r-lg) !important;
+    border-left-width: 4px !important;
+    box-shadow: var(--shadow-sm) !important;
+    animation: fadeInUp 0.3s ease both !important;
     white-space: normal !important;
-    word-break: break-word;
+}
+
+/* ============================================ */
+/* ========== PROTOCOLO INFO BOX ========== */
+/* ============================================ */
+.protocolo-info {
+    background: linear-gradient(135deg, #f0f4ff, #e8f0fe);
+    border: 1.5px solid #c7d7fd;
+    border-left: 5px solid var(--primary);
+    border-radius: var(--r-xl);
+    padding: 1.25rem 1.5rem;
+    margin: 1rem 0;
+    color: var(--dark-mid);
+    box-shadow: var(--shadow-md);
+    font-size: 0.95rem;
+    line-height: 1.7;
+}
+
+.protocolo-info b {
+    color: var(--primary-dark);
 }
 
 /* ============================================ */
 /* ========== BOTÕES PREMIUM ========== */
 /* ============================================ */
 .stButton > button {
-    border-radius: var(--radius-xl) !important;
+    border-radius: var(--r-lg) !important;
+    font-family: 'Inter', sans-serif !important;
     font-weight: 600 !important;
-    transition: all 0.3s ease !important;
-    border: none !important;
-    padding: 0.625rem 1.25rem !important;
-    font-size: 0.95rem !important;
+    font-size: 0.875rem !important;
     letter-spacing: 0.01em !important;
+    transition: all 0.25s cubic-bezier(.16,1,.3,1) !important;
+    border: none !important;
+    padding: 0.6rem 1.2rem !important;
+    min-height: 40px !important;
+    white-space: normal !important;
     position: relative;
     overflow: hidden;
-    white-space: normal !important;
-    word-wrap: break-word !important;
-    min-height: 44px;
+}
+
+.stButton > button::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0);
+    transition: background 0.2s;
+}
+
+.stButton > button:hover::after {
+    background: rgba(255,255,255,0.12);
 }
 
 .stButton > button[kind="primary"] {
-    background: var(--gradient-primary) !important;
+    background: var(--grad-primary) !important;
     color: white !important;
-    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3) !important;
+    box-shadow: 0 4px 12px rgba(37,99,235,0.3) !important;
 }
 
 .stButton > button[kind="primary"]:hover {
-    box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4) !important;
-    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(37,99,235,0.4) !important;
+    transform: translateY(-2px) !important;
+}
+
+.stButton > button[kind="primary"]:active {
+    transform: translateY(0) !important;
+    box-shadow: 0 2px 8px rgba(37,99,235,0.3) !important;
 }
 
 .stButton > button[kind="secondary"] {
-    background: white !important;
-    color: var(--dark) !important;
+    background: var(--white) !important;
+    color: var(--gray-dark) !important;
     border: 1.5px solid var(--border) !important;
+    box-shadow: var(--shadow-xs) !important;
 }
 
 .stButton > button[kind="secondary"]:hover {
-    background: var(--light) !important;
-    border-color: var(--primary) !important;
-    transform: translateY(-1px);
+    background: var(--primary-xlight) !important;
+    border-color: var(--primary-light) !important;
+    color: var(--primary) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: var(--shadow-sm) !important;
 }
 
 /* ============================================ */
 /* ========== INPUTS MODERNOS ========== */
 /* ============================================ */
 .stTextInput > div > div > input,
-.stTextArea > div > div > textarea,
-.stSelectbox > div > div > select,
-.stMultiSelect > div > div > div {
-    border-radius: var(--radius-xl) !important;
+.stTextArea > div > div > textarea {
+    border-radius: var(--r-lg) !important;
     border: 1.5px solid var(--border) !important;
-    transition: all 0.3s !important;
-    padding: 0.625rem 1rem !important;
-    font-size: 0.95rem !important;
-    background: white !important;
-    line-height: 1.5 !important;
+    font-family: 'Inter', sans-serif !important;
+    font-size: 0.9rem !important;
+    background: var(--white) !important;
+    color: var(--dark) !important;
+    transition: all 0.2s !important;
+    padding: 0.6rem 0.9rem !important;
+    box-shadow: var(--shadow-xs) !important;
 }
 
 .stTextInput > div > div > input:focus,
-.stTextArea > div > div > textarea:focus,
-.stSelectbox > div > div > select:focus {
+.stTextArea > div > div > textarea:focus {
     border-color: var(--primary) !important;
-    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1) !important;
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.12) !important;
     outline: none !important;
 }
 
 .stTextArea textarea {
-    min-height: 120px !important;
+    min-height: 110px !important;
+    line-height: 1.6 !important;
+}
+
+/* Selectbox */
+[data-baseweb="select"] > div:first-child {
+    border-radius: var(--r-lg) !important;
+    border: 1.5px solid var(--border) !important;
+    background: var(--white) !important;
+    font-size: 0.9rem !important;
+    transition: all 0.2s !important;
+    box-shadow: var(--shadow-xs) !important;
+}
+
+[data-baseweb="select"] > div:first-child:focus-within {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.12) !important;
+}
+
+/* Labels */
+.stTextInput label,
+.stTextArea label,
+.stSelectbox label,
+.stMultiSelect label,
+.stDateInput label,
+.stTimeInput label,
+.stSlider label,
+.stCheckbox label,
+.stRadio label {
+    font-family: 'Inter', sans-serif !important;
+    font-size: 0.82rem !important;
+    font-weight: 600 !important;
+    color: var(--gray-dark) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    margin-bottom: 0.25rem !important;
 }
 
 /* ============================================ */
-/* ========== TABS ESTILIZADAS ========== */
+/* ========== TABS ========== */
 /* ============================================ */
 .stTabs [data-baseweb="tab-list"] {
-    gap: 0.5rem;
-    background: var(--light);
-    padding: 0.5rem;
-    border-radius: var(--radius-2xl);
+    gap: 0.35rem;
+    background: var(--border-light);
+    padding: 0.45rem;
+    border-radius: var(--r-xl);
     border: 1.5px solid var(--border);
     flex-wrap: wrap;
 }
 
 .stTabs [data-baseweb="tab"] {
-    border-radius: var(--radius-xl) !important;
-    padding: 0.625rem 1.25rem !important;
+    border-radius: var(--r-lg) !important;
+    padding: 0.55rem 1.1rem !important;
+    font-family: 'Inter', sans-serif !important;
+    font-size: 0.875rem !important;
     font-weight: 500 !important;
     color: var(--gray) !important;
-    transition: all 0.3s !important;
+    transition: all 0.2s !important;
     border: none !important;
     background: transparent !important;
     white-space: nowrap !important;
-    flex-shrink: 0;
 }
 
 .stTabs [data-baseweb="tab"]:hover {
-    background: white !important;
+    background: var(--white) !important;
     color: var(--primary) !important;
 }
 
 .stTabs [aria-selected="true"] {
-    background: white !important;
-    color: var(--primary) !important;
-    font-weight: 600 !important;
+    background: var(--white) !important;
+    color: var(--primary-dark) !important;
+    font-weight: 700 !important;
     box-shadow: var(--shadow-md) !important;
-}
-
-/* ============================================ */
-/* ========== SIDEBAR PREMIUM ========== */
-/* ============================================ */
-section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-    border-right: 1.5px solid var(--border);
-    box-shadow: var(--shadow-xl);
-}
-
-section[data-testid="stSidebar"] .stMarkdown h2 {
-    font-size: 1.2rem;
-    font-weight: 700;
-    color: var(--dark);
-    margin-bottom: 1rem;
-    padding: 0 0.5rem;
-}
-
-/* ============================================ */
-/* ========== BOTÕES DO MENU LATERAL - CORRIGIDO ========== */
-/* ============================================ */
-div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] {
-    margin: 0.2rem 0 !important;
-}
-
-div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button {
-    background: transparent !important;
-    border: none !important;
-    border-radius: 12px !important;
-    padding: 0.75rem 1rem !important;
-    text-align: left !important;
-    font-size: 0.95rem !important;
-    font-weight: 500 !important;
-    color: var(--gray) !important;
-    width: 100% !important;
-    transition: all 0.25s ease !important;
-    box-shadow: none !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 0.75rem !important;
-    white-space: normal !important;
-    overflow: visible !important;
-    min-height: 44px;
-}
-
-div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button:hover {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(236, 72, 153, 0.05)) !important;
-    color: var(--primary) !important;
-    transform: translateX(4px) !important;
-}
-
-div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button[kind="primary"] {
-    background: var(--gradient-primary) !important;
-    color: white !important;
-    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3) !important;
+    border-bottom: 2px solid var(--primary) !important;
 }
 
 /* ============================================ */
 /* ========== DATAFRAME PREMIUM ========== */
 /* ============================================ */
 [data-testid="stDataFrame"] {
-    border-radius: var(--radius-2xl) !important;
+    border-radius: var(--r-xl) !important;
     overflow: hidden !important;
     border: 1.5px solid var(--border) !important;
     box-shadow: var(--shadow-md) !important;
 }
 
 [data-testid="stDataFrame"] th {
-    background: var(--gradient-primary) !important;
+    background: linear-gradient(135deg, #1d4ed8, #2563eb) !important;
     color: white !important;
-    font-weight: 600 !important;
-    padding: 0.75rem 1rem !important;
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 700 !important;
+    font-size: 0.8rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    padding: 0.7rem 1rem !important;
     white-space: nowrap !important;
 }
 
 [data-testid="stDataFrame"] td {
-    padding: 0.5rem 1rem !important;
-    border-bottom: 1px solid var(--border) !important;
+    padding: 0.55rem 1rem !important;
+    border-bottom: 1px solid var(--border-light) !important;
+    font-size: 0.875rem !important;
+    color: var(--gray-dark) !important;
     white-space: normal !important;
-    word-break: break-word;
+}
+
+[data-testid="stDataFrame"] tr:nth-child(even) td {
+    background: #fafbff !important;
 }
 
 [data-testid="stDataFrame"] tr:hover td {
-    background: linear-gradient(135deg, #f0f4ff, #ffffff) !important;
+    background: var(--primary-xlight) !important;
+    color: var(--primary-dark) !important;
 }
 
 /* ============================================ */
-/* ========== ALERTAS E MENSAGENS ========== */
-/* ============================================ */
-.success-box, .warning-box, .error-box, .info-box {
-    border-radius: var(--radius-2xl) !important;
-    padding: 1.25rem !important;
-    margin: 1.25rem 0 !important;
-    font-weight: 500 !important;
-    box-shadow: var(--shadow-md) !important;
-    animation: slideIn 0.4s ease-out !important;
-    white-space: normal !important;
-    word-break: break-word;
-}
-
-.success-box {
-    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
-    border: 1.5px solid var(--success);
-    color: #065f46;
-}
-
-.warning-box {
-    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
-    border: 1.5px solid var(--warning);
-    color: #92400e;
-}
-
-.error-box {
-    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
-    border: 1.5px solid var(--danger);
-    color: #991b1b;
-}
-
-.info-box {
-    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-    border: 1.5px solid var(--primary);
-    color: #1e40af;
-}
-
-.stAlert {
-    border-radius: 16px !important;
-    border-left-width: 5px !important;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
-    animation: slideIn 0.3s ease-out !important;
-    white-space: normal !important;
-    word-break: break-word;
-}
-
-/* ============================================ */
-/* ========== EXPANDER MODERNO ========== */
+/* ========== EXPANDER ========== */
 /* ============================================ */
 div[data-testid="stExpander"] {
-    border-radius: 16px !important;
+    border-radius: var(--r-xl) !important;
     border: 1.5px solid var(--border) !important;
-    background: white !important;
-    box-shadow: var(--shadow-sm) !important;
-    margin: 0.75rem 0 !important;
-    transition: all 0.3s ease !important;
+    background: var(--white) !important;
+    box-shadow: var(--shadow-xs) !important;
+    margin: 0.6rem 0 !important;
+    transition: all 0.25s ease !important;
+    overflow: hidden;
 }
 
 div[data-testid="stExpander"]:hover {
-    box-shadow: 0 6px 16px rgba(99, 102, 241, 0.12) !important;
-    border-color: var(--primary) !important;
+    box-shadow: var(--shadow-md) !important;
+    border-color: #93c5fd !important;
 }
 
 .streamlit-expanderHeader {
-    border-radius: 16px !important;
-    background: linear-gradient(135deg, #fafbfc, #ffffff) !important;
+    border-radius: var(--r-xl) !important;
+    background: linear-gradient(135deg, #fafbff, var(--white)) !important;
+    font-family: 'Inter', sans-serif !important;
     font-weight: 600 !important;
-    color: var(--dark) !important;
-    padding: 0.75rem 1.25rem !important;
-    white-space: normal !important;
-    word-break: break-word;
+    color: var(--dark-mid) !important;
+    padding: 0.8rem 1.25rem !important;
 }
 
 .streamlit-expanderHeader:hover {
-    background: linear-gradient(135deg, #f0f4ff, #ffffff) !important;
+    background: var(--primary-xlight) !important;
+    color: var(--primary-dark) !important;
 }
 
 /* ============================================ */
-/* ========== FORMULÁRIOS PREMIUM ========== */
+/* ========== FORMULÁRIOS ========== */
 /* ============================================ */
 div[data-testid="stForm"] {
-    background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%) !important;
-    border-radius: 20px !important;
+    background: linear-gradient(135deg, #fafbff, var(--white)) !important;
+    border-radius: var(--r-2xl) !important;
     padding: 1.75rem !important;
     border: 1.5px solid var(--border) !important;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.06) !important;
-    margin: 1.5rem 0 !important;
+    box-shadow: var(--shadow-md) !important;
+    margin: 1.25rem 0 !important;
+    transition: all 0.25s !important;
 }
 
 div[data-testid="stForm"]:hover {
-    border-color: var(--primary) !important;
-    box-shadow: 0 12px 28px rgba(99, 102, 241, 0.12) !important;
-}
-
-/* ============================================ */
-/* ========== BADGES COLORIDOS ========== */
-/* ============================================ */
-.badge {
-    display: inline-block;
-    padding: 0.35rem 0.85rem;
-    border-radius: 9999px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    white-space: nowrap;
-}
-
-.badge-success { background: linear-gradient(135deg, #d1fae5, #a7f3d0); color: #065f46; }
-.badge-warning { background: linear-gradient(135deg, #fef3c7, #fde68a); color: #92400e; }
-.badge-danger { background: linear-gradient(135deg, #fee2e2, #fecaca); color: #991b1b; }
-.badge-info { background: linear-gradient(135deg, #dbeafe, #bfdbfe); color: #1e40af; }
-.badge-primary { background: var(--gradient-primary); color: white; }
-
-/* ============================================ */
-/* ========== SCROLLBAR PREMIUM ========== */
-/* ============================================ */
-::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-::-webkit-scrollbar-track {
-    background: var(--light);
-    border-radius: 10px;
-}
-
-::-webkit-scrollbar-thumb {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    border-radius: 10px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(135deg, #4f46e5, #7c3aed);
-}
-
-/* ============================================ */
-/* ========== PROGRESS BAR ========== */
-/* ============================================ */
-.stProgress > div > div > div {
-    background: var(--gradient-primary) !important;
-    border-radius: 9999px !important;
+    border-color: #93c5fd !important;
+    box-shadow: var(--shadow-blue) !important;
 }
 
 /* ============================================ */
 /* ========== MÉTRICAS STREAMLIT ========== */
 /* ============================================ */
 [data-testid="metric-container"] {
-    background: white;
+    background: var(--white);
     border: 1.5px solid var(--border);
-    border-radius: var(--radius-xl);
-    padding: 1rem;
+    border-radius: var(--r-xl);
+    padding: 1.1rem;
     box-shadow: var(--shadow-sm);
-    transition: all 0.3s;
+    transition: all 0.25s;
 }
 
 [data-testid="metric-container"]:hover {
     box-shadow: var(--shadow-md);
-    border-color: var(--primary);
+    border-color: #93c5fd;
+    transform: translateY(-2px);
 }
 
-[data-testid="metric-container"] label {
+[data-testid="metric-container"] [data-testid="stMetricLabel"] label {
+    font-size: 0.78rem !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.06em !important;
+    color: var(--gray) !important;
     white-space: normal !important;
-    word-break: break-word;
+}
+
+[data-testid="metric-container"] [data-testid="stMetricValue"] {
+    font-family: 'Nunito', sans-serif !important;
+    font-size: 1.9rem !important;
+    font-weight: 800 !important;
+    color: var(--dark) !important;
 }
 
 /* ============================================ */
-/* ========== FOOTER ========== */
+/* ========== PROGRESS BAR ========== */
 /* ============================================ */
-footer { visibility: hidden; }
-#MainMenu { visibility: hidden; }
+.stProgress > div > div > div {
+    background: var(--grad-primary) !important;
+    border-radius: var(--r-full) !important;
+}
+.stProgress > div > div {
+    background: var(--border-light) !important;
+    border-radius: var(--r-full) !important;
+}
 
 /* ============================================ */
-/* ========== UTILITÁRIOS ========== */
+/* ========== SECTION TITLES ========== */
+/* ============================================ */
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 1.5rem 0 1rem 0;
+    padding-bottom: 0.6rem;
+    border-bottom: 2px solid var(--border);
+    position: relative;
+}
+
+.section-title::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 60px;
+    height: 2px;
+    background: var(--grad-primary);
+    border-radius: var(--r-full);
+}
+
+.section-title h3 {
+    margin: 0 !important;
+    font-size: 1.1rem !important;
+    color: var(--dark-mid) !important;
+}
+
+/* ============================================ */
+/* ========== MAPA DA SALA ========== */
+/* ============================================ */
+.sala-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 20px 0;
+    padding: 24px;
+    background: linear-gradient(135deg, #f0f4ff, #f8fafc);
+    border-radius: var(--r-2xl);
+    border: 1.5px solid var(--border);
+    box-shadow: var(--shadow-md);
+}
+
+.fileira-row {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.assento-card {
+    width: 74px;
+    height: 52px;
+    border: 2px solid var(--border);
+    border-radius: var(--r-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    text-align: center;
+    background: var(--white);
+    transition: all 0.2s;
+    padding: 3px;
+    word-break: break-word;
+    cursor: default;
+    box-shadow: var(--shadow-xs);
+}
+
+.assento-card.ocupado {
+    background: var(--grad-primary);
+    color: white;
+    border-color: var(--primary);
+    box-shadow: 0 4px 8px rgba(37,99,235,0.25);
+}
+
+.assento-card.vazio {
+    background: var(--white);
+    color: var(--gray-light);
+    border-style: dashed;
+}
+
+.lousa {
+    width: 100%;
+    max-width: 320px;
+    height: 38px;
+    background: linear-gradient(135deg, #0f172a, #1e293b);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800;
+    font-size: 0.85rem;
+    letter-spacing: 0.1em;
+    border-radius: var(--r-md);
+    margin: 12px auto;
+    box-shadow: var(--shadow-md);
+}
+
+/* ============================================ */
+/* ========== GLASS EFFECT ========== */
 /* ============================================ */
 .glass-effect {
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 1.5px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255,255,255,0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1.5px solid rgba(255,255,255,0.4);
 }
 
+/* ============================================ */
+/* ========== GRADIENT TEXT ========== */
+/* ============================================ */
 .gradient-text {
-    background: var(--gradient-primary);
+    background: var(--grad-primary);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    font-weight: 800;
+    font-family: 'Nunito', sans-serif !important;
+    font-weight: 900;
+}
+
+.gradient-text-warm {
+    background: var(--grad-warm);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-family: 'Nunito', sans-serif !important;
+    font-weight: 900;
+}
+
+/* ============================================ */
+/* ========== QUICK ACTION CARDS ========== */
+/* ============================================ */
+.quick-action-card {
+    background: var(--white);
+    border: 1.5px solid var(--border);
+    border-radius: var(--r-xl);
+    padding: 1.25rem;
+    text-align: center;
+    transition: all 0.3s cubic-bezier(.16,1,.3,1);
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+}
+
+.quick-action-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-blue);
+    border-color: #93c5fd;
+}
+
+.quick-action-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    display: block;
 }
 
 /* ============================================ */
 /* ========== RESPONSIVO ========== */
 /* ============================================ */
 @media (max-width: 768px) {
-    .main-header {
-        padding: 1.5rem 1rem;
-    }
-    
-    .school-name {
-        font-size: 1.8rem;
-    }
-    
-    .metric-value {
-        font-size: 2rem;
-    }
-    
-    .metric-card {
-        padding: 1.25rem 0.75rem;
-    }
-    
-    .metric-label {
-        font-size: 0.75rem;
-    }
-    
+    .main-header { padding: 1.5rem 1rem; }
+    .school-name  { font-size: 1.7rem; }
+    .metric-value { font-size: 2rem; }
+    .metric-card  { padding: 1.1rem 0.75rem; }
+    .metric-label { font-size: 0.7rem; }
     .stTabs [data-baseweb="tab"] {
-        padding: 0.5rem 0.75rem !important;
-        font-size: 0.8rem !important;
+        padding: 0.45rem 0.7rem !important;
+        font-size: 0.78rem !important;
     }
+    .school-info-chips { display: none; }
 }
 </style>
 """, unsafe_allow_html=True)
-
 # ======================================================
 # DADOS DA ESCOLA
 # ======================================================
@@ -778,61 +1230,50 @@ ESCOLA_EMAIL = "e918623@educacao.sp.gov.br"
 ESCOLA_LOGO = os.path.join("assets", "images", "eliane_dantas.png")
 
 # ======================================================
-# MENU LATERAL PREMIUM (CORRIGIDO - SEM TEXTO FANTASMA)
+# MENU LATERAL PREMIUM (SEM RADIO BUTTONS)
 # ======================================================
 
 st.sidebar.markdown("""
-<div style="text-align: center; padding: 1.5rem 0.5rem;">
-    <h2 style="background: linear-gradient(135deg, #6366f1, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800; font-size: 1.8rem; margin: 0;">🏫 Conviva 179</h2>
-    <p style="color: #64748b; font-size: 0.85rem; margin-top: 0.25rem;">Gestão Escolar Inteligente</p>
+<div style="padding: 1.5rem 1rem 1rem 1rem; text-align: center;">
+    <div style="
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 56px; height: 56px;
+        background: linear-gradient(135deg, #1d4ed8, #0891b2);
+        border-radius: 16px;
+        box-shadow: 0 8px 20px rgba(37,99,235,0.4);
+        font-size: 1.6rem;
+        margin-bottom: 0.75rem;
+    ">🏫</div>
+    <h2 style="
+        font-family: 'Nunito', sans-serif;
+        color: white;
+        font-weight: 900;
+        font-size: 1.35rem;
+        margin: 0 0 0.2rem 0;
+        letter-spacing: -0.02em;
+    ">Conviva 179</h2>
+    <p style="
+        color: #64748b;
+        font-size: 0.75rem;
+        margin: 0;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+    ">E.E. Profª Eliane</p>
 </div>
+<div style="height: 1px; background: linear-gradient(90deg, transparent, #334155, transparent); margin: 0 1rem 0.5rem 1rem;"></div>
 """, unsafe_allow_html=True)
-
-st.sidebar.markdown("---")
 
 # Inicializar página atual se não existir
 if 'pagina_atual' not in st.session_state:
     st.session_state.pagina_atual = "🏠 Dashboard"
 
-# CORREÇÃO: Não esconder spans - apenas estilizar normalmente
-st.sidebar.markdown("""
-<style>
-div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] {
-    margin: 0.25rem 0;
-}
 
-div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button {
-    background: transparent !important;
-    border: none !important;
-    border-radius: 12px !important;
-    padding: 0.85rem 1rem !important;
-    text-align: left !important;
-    font-size: 0.95rem !important;
-    font-weight: 500 !important;
-    color: #475569 !important;
-    width: 100% !important;
-    transition: all 0.3s ease !important;
-    box-shadow: none !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 0.75rem !important;
-}
-
-div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button:hover {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(236, 72, 153, 0.1)) !important;
-    color: #6366f1 !important;
-    transform: translateX(5px) !important;
-}
-
-/* CORREÇÃO: NÃO esconder spans dos botões */
-[data-testid="stSidebar"] button span {
-    display: inline-block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    white-space: normal !important;
-}
-</style>
-""", unsafe_allow_html=True)
+# ======================================================
+# INICIALIZAR SESSION STATE IMEDIATAMENTE
+# ======================================================
+if 'pagina_atual' not in st.session_state:
+    st.session_state.pagina_atual = "🏠 Dashboard"
 
 # Lista de itens do menu com ícones
 menu_items = [
@@ -869,27 +1310,26 @@ for item in menu_items:
         st.session_state.pagina_atual = nome_completo
         st.rerun()
 
-# CORREÇÃO: Atualizar a variável menu corretamente
+# Atualizar a variável menu
 menu = st.session_state.pagina_atual
 
 st.sidebar.markdown("---")
 
 # Informações do sistema
 st.sidebar.markdown(f"""
-<div style="padding: 1rem; background: linear-gradient(135deg, #f8fafc, #e2e8f0); border-radius: 12px; margin-top: 1rem;">
-    <p style="margin: 0; font-size: 0.8rem; color: #64748b; text-align: center;">
-        <b>🕐 {datetime.now().strftime('%d/%m/%Y')}</b><br>
-        <span style="font-size: 0.75rem;">{datetime.now().strftime('%H:%M')}</span>
+<div style="
+    padding: 0.85rem 1rem;
+    background: rgba(255,255,255,0.05);
+    border-radius: 12px;
+    margin: 0.5rem 0.5rem 0 0.5rem;
+    border: 1px solid rgba(255,255,255,0.08);
+">
+    <p style="margin: 0; font-size: 0.78rem; color: #64748b; text-align: center; line-height: 1.6;">
+        <span style="color: #94a3b8; font-weight: 600;">🕐 {datetime.now().strftime('%d/%m/%Y')}</span><br>
+        <span style="font-size: 0.72rem; color: #475569;">{datetime.now().strftime('%H:%M')} — v10.0 Premium</span>
     </p>
 </div>
 """, unsafe_allow_html=True)
-
-st.sidebar.markdown("""
-<div style="text-align: center; margin-top: 1rem;">
-    <p style="font-size: 0.7rem; color: #94a3b8;">v10.0 Premium</p>
-</div>
-""", unsafe_allow_html=True)
-
 # ======================================================
 # ELETIVAS — ARQUIVO DE IMPORTAÇÃO
 # ======================================================
@@ -1062,7 +1502,6 @@ PROTOCOLO_179 = {
         },
     },
 }
-
 # ======================================================
 # FUNÇÕES UTILITÁRIAS PREMIUM
 # ======================================================
@@ -1071,6 +1510,32 @@ def show_toast(message: str, type: str = "success", duration: int = 3000):
     """Mostra notificação toast estilizada"""
     icon = "✅" if type == "success" else "❌" if type == "error" else "⚠️" if type == "warning" else "ℹ️"
     st.toast(f"{icon} {message}")
+
+
+def page_header(titulo: str, subtitulo: str = "", cor: str = "#2563eb"):
+    """Renderiza um cabeçalho de página moderno e consistente"""
+    sub_html = f'''<div style="color:#64748b;font-size:0.9rem;margin-top:0.25rem;">{subtitulo}</div>''' if subtitulo else ""
+    st.markdown(f"""
+    <div style="
+        display:flex; align-items:center; gap:1rem;
+        background:white; border-radius:16px;
+        padding:1.1rem 1.5rem; margin-bottom:1.5rem;
+        border:1.5px solid #e2e8f0;
+        box-shadow:0 2px 8px rgba(15,23,42,0.06);
+        border-left:5px solid {cor};
+    ">
+        <div style="font-size:1.75rem; line-height:1;">{titulo.split()[0]}</div>
+        <div>
+            <div style="
+                font-family:'Nunito',sans-serif;
+                font-size:1.4rem; font-weight:800;
+                color:#0f172a; line-height:1.2;
+            ">{ ' '.join(titulo.split()[1:]) }</div>
+            {sub_html}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
 
 def info_message(message: str, type: str = "info"):
     """Mostra mensagem estilizada"""
@@ -1187,9 +1652,8 @@ def exibir_notificacoes_sidebar():
                 """, unsafe_allow_html=True)
     else:
         with st.sidebar.expander("🔔 Notificações", expanded=False):
-            st.success("✅ Nenhuma notificação pendente")
-
-# ======================================================
+            st.markdown("<div style='text-align:center;padding:0.5rem 0;font-size:0.8rem;color:#475569;'>✅ Sistema sem alertas pendentes</div>", unsafe_allow_html=True)
+            # ======================================================
 # SISTEMA DE GAMIFICAÇÃO
 # ======================================================
 
@@ -1217,7 +1681,7 @@ def inicializar_gamificacao():
 
 def adicionar_pontos(pontos: int, motivo: str = ""):
     """Adiciona pontos ao usuário"""
-    st.session_state.pontos_usuario += pontos
+    st.session_state.pontos_usuario += pontos  # ✅ CORRIGIDO
     recalcular_nivel()
     if motivo:
         st.toast(f"+{pontos} pontos! {motivo}", icon="🌟")
@@ -1254,27 +1718,26 @@ def verificar_conquista(conquista_id: str):
 def exibir_gamificacao_sidebar():
     """Exibe o widget de gamificação no sidebar"""
     inicializar_gamificacao()
-    with st.sidebar.expander(f"🏆 Nível {st.session_state.nivel_usuario} - {get_nivel_nome(st.session_state.nivel_usuario)}", expanded=False):
+    with st.sidebar.expander(f"🏆 Nível {st.session_state.nivel_usuario} — {get_nivel_nome(st.session_state.nivel_usuario)}", expanded=False):
         pontos = st.session_state.pontos_usuario
         progresso = (pontos % 100) if pontos > 0 else 0
         st.markdown(f"""
-        <div style="text-align: center; margin: 0.5rem 0;">
-            <div style="font-size: 2rem;">{get_nivel_nome(st.session_state.nivel_usuario).split()[1]}</div>
-            <div style="font-size: 1.5rem; font-weight: 700;">{pontos} pts</div>
-            <div style="margin-top: 0.5rem; height: 8px; background: #e2e8f0; border-radius: 4px;">
-                <div style="width: {progresso}%; height: 8px; background: linear-gradient(135deg, #6366f1, #ec4899); border-radius: 4px;"></div>
+        <div style="text-align:center; padding:0.5rem 0;">
+            <div style="font-size:2.2rem; margin-bottom:0.25rem;">{get_nivel_nome(st.session_state.nivel_usuario).split()[0]}</div>
+            <div style="font-family:'Nunito',sans-serif; font-size:1.6rem; font-weight:900; color:white;">{pontos} <span style="font-size:0.9rem;font-weight:500;color:#94a3b8;">pts</span></div>
+            <div style="margin:0.6rem 0; height:6px; background:rgba(255,255,255,0.1); border-radius:99px; overflow:hidden;">
+                <div style="width:{progresso}%; height:6px; background:linear-gradient(90deg,#2563eb,#0891b2); border-radius:99px; transition:width 0.5s;"></div>
             </div>
-            <div style="font-size: 0.7rem; color: #64748b; margin-top: 0.25rem;">{progresso}/100 para próximo nível</div>
+            <div style="font-size:0.7rem; color:#475569;">{progresso}/100 para próximo nível</div>
         </div>
         """, unsafe_allow_html=True)
-        st.markdown("**🏅 Conquistas:**")
         if st.session_state.conquistas_usuario:
             for c_id in st.session_state.conquistas_usuario[:5]:
                 if c_id in CONQUISTAS:
                     c = CONQUISTAS[c_id]
-                    st.markdown(f"{c['icone']} {c['nome']}")
+                    st.markdown(f"<div style='font-size:0.78rem;color:#94a3b8;padding:0.15rem 0;'>{c['icone']} {c['nome']}</div>", unsafe_allow_html=True)
         else:
-            st.caption("Continue usando o sistema para ganhar conquistas!")
+            st.markdown("<div style='font-size:0.75rem;color:#475569;text-align:center;'>🎯 Registre ocorrências para ganhar conquistas!</div>", unsafe_allow_html=True)
 
 # ======================================================
 # ASSISTENTE VIRTUAL
@@ -1302,18 +1765,14 @@ def assistente_virtual(pergunta: str) -> str:
 def exibir_assistente_sidebar():
     """Exibe o assistente virtual no sidebar"""
     with st.sidebar.expander("🤖 Assistente Virtual", expanded=False):
-        st.markdown("**Como posso ajudar?**")
-        pergunta = st.text_input("Digite sua dúvida:", placeholder="Ex: Como registrar ocorrência?", key="assistente_input")
+        st.markdown("<div style='color:#94a3b8;font-size:0.8rem;margin-bottom:0.5rem;'>Como posso ajudar?</div>", unsafe_allow_html=True)
+        pergunta = st.text_input("", placeholder="Ex: Como registrar ocorrência?", key="assistente_input", label_visibility="collapsed")
         if pergunta:
             resposta = assistente_virtual(pergunta)
-            st.info(resposta)
-        st.markdown("---")
-        st.caption("💡 Dicas rápidas:")
-        st.caption("• Use a busca inteligente nas ocorrências")
-        st.caption("• Agendamentos fixos na Grade Semanal")
-        st.caption("• Exporte relatórios em PDF ou Excel")
-
-# ======================================================
+            st.markdown(f"<div style='background:rgba(37,99,235,0.1);border-left:3px solid #2563eb;border-radius:8px;padding:0.6rem 0.8rem;font-size:0.8rem;color:#93c5fd;margin:0.4rem 0;'>{resposta}</div>", unsafe_allow_html=True)
+        st.markdown("<div style='height:1px;background:rgba(255,255,255,0.06);margin:0.6rem 0;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:0.72rem;color:#475569;line-height:1.8;'>💡 Busca inteligente nas ocorrências<br>📅 Agendamentos fixos na Grade Semanal<br>📥 Exporte relatórios em PDF ou Excel</div>", unsafe_allow_html=True)
+        # ======================================================
 # SUPABASE — FUNÇÕES BASE
 # ======================================================
 
@@ -1350,8 +1809,7 @@ def _supabase_mutation(method: str, path: str, data, acao: str) -> bool:
         raise
     except Exception as e:
         raise ErroOperacaoDB(acao, str(e))
-
-# ======================================================
+    # ======================================================
 # ALUNOS
 # ======================================================
 
@@ -1521,7 +1979,6 @@ def verificar_ocorrencia_duplicada(ra: str, categoria: str, data_str: str, df_oc
         return False
     duplicadas = df_ocorrencias[(df_ocorrencias["ra"] == ra) & (df_ocorrencias["categoria"] == categoria) & (df_ocorrencias["data"] == data_str)]
     return not duplicadas.empty
-
 # ======================================================
 # AGENDAMENTO - FUNÇÕES SUPABASE
 # ======================================================
@@ -1595,7 +2052,6 @@ def prof_upsert_agend(nome: str, email: str, status: str = "ATIVO"):
     headers_upsert["Prefer"] = "resolution=merge-duplicates,return=representation"
     r = requests.post(url, json=payload, headers=headers_upsert, timeout=20)
     return r.status_code in (200, 201), r.json() if r.status_code in (200, 201) else None
-
 # ======================================================
 # ELETIVAS — IMPORTAÇÃO EXCEL
 # ======================================================
@@ -1716,7 +2172,6 @@ def montar_dataframe_eletiva(nome_professora: str, df_alunos: pd.DataFrame, elet
     return pd.DataFrame(registros)
 
 ELETIVAS_EXCEL = carregar_eletivas_do_excel(ELETIVAS_ARQUIVO, fallback=ELETIVAS)
-
 # ======================================================
 # PDF — UTILITÁRIOS
 # ======================================================
@@ -1763,7 +2218,7 @@ def gerar_pdf_eletiva(nome_professora: str, df_eletiva: pd.DataFrame) -> BytesIO
             str(row.get("Status", ""))[:15]
         ])
     
-    tabela = Table([cabecalho] + linhas, colWidths=[7*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2.5*cm], repeatRows=1)
+    tabela = Table(cabecalho + linhas, colWidths=[7*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2.5*cm], repeatRows=1)
     tabela.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#4A90E2")), ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'), ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
@@ -1850,7 +2305,6 @@ def gerar_pdf_comunicado(aluno_data: dict, ocorrencia_data: dict, medidas_aplica
     doc.build(elementos)
     buffer.seek(0)
     return buffer
-
 # ======================================================
 # SESSION STATE — INICIALIZAÇÃO (CORRIGIDO)
 # ======================================================
@@ -1924,7 +2378,6 @@ def _init_session_state():
 
 # Inicializa o estado da sessão
 _init_session_state()
-
 # ======================================================
 # BACKUP AUTOMÁTICO (CORRIGIDO)
 # ======================================================
@@ -1937,11 +2390,10 @@ if not st.session_state.backup_realizado:
         st.session_state.backup_manager.criar_backup()
         st.session_state.backup_manager.limpar_backups_antigos(dias_retencao=30)
         st.session_state.backup_realizado = True
-        verificar_conquista("backup_realizado")
+        verificar_conquista("backup_realizado")  # ⭐ Conquista por fazer backup
     except Exception as e:
         logger.error(f"Erro ao executar backup automático: {e}")
-
-# ======================================================
+        # ======================================================
 # CARREGAMENTO INICIAL DE DADOS
 # ======================================================
 
@@ -2000,9 +2452,8 @@ else:
 
 ELETIVAS = st.session_state.ELETIVAS
 FONTE_ELETIVAS = st.session_state.FONTE_ELETIVAS
-
 # ======================================================
-# REMOÇÃO DEFINITIVA DE TOOLTIPS (JAVASCRIPT CORRIGIDO - SEM QUEBRAR DROPDOWNS)
+# REMOÇÃO DEFINITIVA DE TOOLTIPS (JAVASCRIPT CORRIGIDO)
 # ======================================================
 st.components.v1.html("""
 <script>
@@ -2010,7 +2461,7 @@ st.components.v1.html("""
     'use strict';
     
     function exterminarTooltips() {
-        // Seletores EXATOS para tooltips - NUNCA remover dropdowns
+        // Seletores EXATOS para tooltips - evitar [class*=] que mata dropdowns
         const seletoresExatos = [
             '[data-testid="stTooltipHoverTarget"]',
             '[role="tooltip"]',
@@ -2028,6 +2479,19 @@ st.components.v1.html("""
             btn.removeAttribute('data-tooltip');
             btn.removeAttribute('aria-describedby');
         });
+        
+        // Corrige texto fantasma: spans fora dos limites do sidebar
+        document.querySelectorAll('[data-testid="stSidebar"] button').forEach(btn => {
+            const btnRect = btn.getBoundingClientRect();
+            btn.querySelectorAll('span').forEach(span => {
+                const rect = span.getBoundingClientRect();
+                if (rect.width > 0 && (rect.left < btnRect.left - 5 || rect.right > btnRect.right + 5)) {
+                    span.style.cssText += 'display:none!important;width:0!important;overflow:hidden!important;';
+                }
+            });
+        });
+        
+        // NUNCA remover divs position:absolute - isso mata os dropdowns!
     }
     
     exterminarTooltips();
@@ -2050,110 +2514,113 @@ st.components.v1.html("""
     }, true);
 </script>
 """, height=0)
-
 # ======================================================
 exibir_notificacoes_sidebar()
 exibir_gamificacao_sidebar()
 exibir_assistente_sidebar()
-
 # ======================================================
 # PÁGINA 🏠 DASHBOARD - COMPLETO E COLORIDO
 # ======================================================
 
 if menu == "🏠 Dashboard":
-    # Header Premium
+    # ── Header Premium da Escola ──────────────────────────────
     st.markdown(f"""
     <div class="main-header animate-fade-in">
+        <div class="pattern"></div>
         <div class="school-name">🏫 {ESCOLA_NOME}</div>
         <div class="school-subtitle">{ESCOLA_SUBTITULO}</div>
-        <div style="margin-top: 1.5rem; display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap;">
-            <span style="display: flex; align-items: center; gap: 0.5rem;">📍 {ESCOLA_ENDERECO}</span>
-            <span style="display: flex; align-items: center; gap: 0.5rem;">📞 {ESCOLA_TELEFONE}</span>
-            <span style="display: flex; align-items: center; gap: 0.5rem;">✉️ {ESCOLA_EMAIL}</span>
+        <div class="school-info-chips">
+            <span class="school-chip">📍 {ESCOLA_ENDERECO}</span>
+            <span class="school-chip">📞 {ESCOLA_TELEFONE}</span>
+            <span class="school-chip">✉️ {ESCOLA_EMAIL}</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
-    
-    # Cards de boas-vindas
-    st.markdown("""
-    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem;">
-        <div style="font-size: 2.5rem;">👋</div>
+
+    # ── Boas-vindas ───────────────────────────────────────────
+    hora_atual = datetime.now().hour
+    saudacao = "🌅 Bom dia" if hora_atual < 12 else ("☀️ Boa tarde" if hora_atual < 18 else "🌙 Boa noite")
+    st.markdown(f"""
+    <div style="
+        display: flex; align-items: center; gap: 1rem;
+        background: white; border-radius: 16px; padding: 1.25rem 1.5rem;
+        border: 1.5px solid #e2e8f0; box-shadow: 0 2px 8px rgba(15,23,42,0.06);
+        margin-bottom: 1.75rem;
+    ">
+        <div style="font-size: 2.5rem; line-height:1;">👋</div>
         <div>
-            <h2 style="margin: 0; background: linear-gradient(135deg, #1e293b, #475569); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Bem-vindo ao Sistema Conviva 179!</h2>
-            <p style="margin: 0; color: #64748b; font-size: 1.1rem;">Gerencie ocorrências, alunos e agendamentos de forma inteligente.</p>
+            <div style="
+                font-family: 'Nunito', sans-serif;
+                font-size: 1.3rem; font-weight: 800;
+                color: #0f172a; margin-bottom: 0.15rem;
+            ">{saudacao}! Bem-vindo ao Sistema Conviva 179</div>
+            <div style="color: #64748b; font-size: 0.9rem;">
+                Gerencie ocorrências, alunos e agendamentos de forma inteligente.
+                &nbsp;·&nbsp; <b style="color: #2563eb;">{datetime.now().strftime('%A, %d de %B de %Y')}</b>
+            </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
-    
-    # Métricas Principais
-    total_alunos = len(df_alunos) if not df_alunos.empty else 0
+
+    # ── Métricas Principais ───────────────────────────────────
+    total_alunos      = len(df_alunos) if not df_alunos.empty else 0
     total_ocorrencias = len(df_ocorrencias) if not df_ocorrencias.empty else 0
     total_professores = len(df_professores) if not df_professores.empty else 0
-    
+
     if not df_alunos.empty and "situacao" in df_alunos.columns:
-        df_alunos["situacao_norm"] = df_alunos["situacao"].str.strip().str.title()
-        total_ativos = len(df_alunos[df_alunos["situacao_norm"] == "Ativo"])
+        df_alunos["situacao_norm"]  = df_alunos["situacao"].str.strip().str.title()
+        total_ativos      = len(df_alunos[df_alunos["situacao_norm"] == "Ativo"])
         total_transferidos = len(df_alunos[df_alunos["situacao_norm"] == "Transferido"])
     else:
-        total_ativos = total_alunos
+        total_ativos      = total_alunos
         total_transferidos = 0
-    
-    st.markdown("### 📊 Visão Geral")
-    
+
+    gravissimas = (
+        len(df_ocorrencias[df_ocorrencias["gravidade"] == "Gravíssima"])
+        if not df_ocorrencias.empty and "gravidade" in df_ocorrencias.columns else 0
+    )
+
+    st.markdown("""
+    <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
+        <div style="width:4px; height:22px; background:linear-gradient(180deg,#1d4ed8,#0891b2); border-radius:4px;"></div>
+        <h3 style="margin:0; font-family:'Nunito',sans-serif; font-size:1.1rem; color:#0f172a;">Visão Geral do Sistema</h3>
+    </div>
+    """, unsafe_allow_html=True)
+
     col1, col2, col3, col4, col5 = st.columns(5)
-    
-    with col1:
-        st.markdown(f"""
-        <div class="metric-card animate-fade-in" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-            <div style="font-size: 2rem; margin-bottom: 0.5rem;">👥</div>
-            <div class="metric-value" style="color: white !important;">{total_alunos}</div>
-            <div class="metric-label" style="color: rgba(255,255,255,0.9) !important;">Total de Alunos</div>
-            <div style="margin-top: 0.5rem; color: #d1fae5; font-size: 0.85rem;">{total_ativos} ativos</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        gravissimas = len(df_ocorrencias[df_ocorrencias["gravidade"] == "Gravíssima"]) if not df_ocorrencias.empty and "gravidade" in df_ocorrencias.columns else 0
-        st.markdown(f"""
-        <div class="metric-card animate-fade-in" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); animation-delay: 0.1s;">
-            <div style="font-size: 2rem; margin-bottom: 0.5rem;">⚠️</div>
-            <div class="metric-value" style="color: white !important;">{total_ocorrencias}</div>
-            <div class="metric-label" style="color: rgba(255,255,255,0.9) !important;">Ocorrências</div>
-            <div style="margin-top: 0.5rem; color: #fee2e2; font-size: 0.85rem;">{gravissimas} gravíssimas</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown(f"""
-        <div class="metric-card animate-fade-in" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); animation-delay: 0.2s;">
-            <div style="font-size: 2rem; margin-bottom: 0.5rem;">👨‍🏫</div>
-            <div class="metric-value" style="color: white !important;">{total_professores}</div>
-            <div class="metric-label" style="color: rgba(255,255,255,0.9) !important;">Professores</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col4:
-        st.markdown(f"""
-        <div class="metric-card animate-fade-in" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); animation-delay: 0.3s;">
-            <div style="font-size: 2rem; margin-bottom: 0.5rem;">✅</div>
-            <div class="metric-value" style="color: white !important;">{total_ativos}</div>
-            <div class="metric-label" style="color: rgba(255,255,255,0.9) !important;">Alunos Ativos</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col5:
-        st.markdown(f"""
-        <div class="metric-card animate-fade-in" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); animation-delay: 0.4s;">
-            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔄</div>
-            <div class="metric-value" style="color: white !important;">{total_transferidos}</div>
-            <div class="metric-label" style="color: rgba(255,255,255,0.9) !important;">Transferidos</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # Ações Rápidas
-    st.markdown("---")
-    st.markdown("### ⚡ Ações Rápidas")
-    
+
+    cards_data = [
+        (col1, "linear-gradient(135deg,#1d4ed8 0%,#2563eb 100%)", "👥", total_alunos, "Total de Alunos", f"{total_ativos} ativos", "0"),
+        (col2, "linear-gradient(135deg,#dc2626 0%,#ef4444 100%)", "⚠️", total_ocorrencias, "Ocorrências", f"{gravissimas} gravíssimas", "0.08s"),
+        (col3, "linear-gradient(135deg,#0891b2 0%,#06b6d4 100%)", "👨‍🏫", total_professores, "Professores", "cadastrados", "0.16s"),
+        (col4, "linear-gradient(135deg,#059669 0%,#10b981 100%)", "✅", total_ativos, "Alunos Ativos", "frequentando", "0.24s"),
+        (col5, "linear-gradient(135deg,#7c3aed 0%,#8b5cf6 100%)", "🔄", total_transferidos, "Transferidos", "este ano", "0.32s"),
+    ]
+
+    for col, grad, icon, value, label, sub, delay in cards_data:
+        with col:
+            st.markdown(f"""
+            <div class="metric-card animate-fade-in" style="
+                background: {grad};
+                box-shadow: 0 8px 20px rgba(0,0,0,0.18);
+                animation-delay: {delay};
+            ">
+                <div class="metric-icon">{icon}</div>
+                <div class="metric-value">{value}</div>
+                <div class="metric-label">{label}</div>
+                <div class="metric-sub">{sub}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    # ── Ações Rápidas ─────────────────────────────────────────
+    st.markdown("<div style='height:1.5rem'></div>", unsafe_allow_html=True)
+    st.markdown("""
+    <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
+        <div style="width:4px; height:22px; background:linear-gradient(180deg,#059669,#10b981); border-radius:4px;"></div>
+        <h3 style="margin:0; font-family:'Nunito',sans-serif; font-size:1.1rem; color:#0f172a;">Ações Rápidas</h3>
+    </div>
+    """, unsafe_allow_html=True)
+
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         if st.button("📝 Nova Ocorrência", use_container_width=True, type="primary", key="quick_ocorrencia"):
@@ -2171,21 +2638,43 @@ if menu == "🏠 Dashboard":
         if st.button("📊 Relatórios", use_container_width=True, key="quick_relatorios"):
             st.session_state.pagina_atual = "📊 Gráficos e Indicadores"
             st.rerun()
-    
-    st.markdown("---")
-    st.info(f"📌 Fonte das eletivas: **{FONTE_ELETIVAS.upper()}** | 🗓️ Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}")
 
-# ======================================================
+    st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
+    st.markdown(f"""
+    <div style="
+        background: linear-gradient(135deg, #eff6ff, #f0fdf4);
+        border: 1.5px solid #bfdbfe;
+        border-radius: 12px;
+        padding: 0.75rem 1.25rem;
+        font-size: 0.85rem;
+        color: #1e40af;
+        display: flex; align-items: center; gap: 0.5rem;
+    ">
+        📌 Fonte das eletivas: <b>{FONTE_ELETIVAS.upper()}</b>
+        &nbsp;·&nbsp; 🗓️ Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
+    </div>
+    """, unsafe_allow_html=True)
+    # ======================================================
 # PÁGINA 👨‍👩‍👧 PORTAL DO RESPONSÁVEL (COMPLETA)
 # ======================================================
 
 elif menu == "👨‍👩‍👧 Portal do Responsável":
-    st.header("👨‍👩‍👧 Portal do Responsável")
+    page_header("👨‍👩‍👧 Portal do Responsável", "Acesso seguro para pais e responsáveis", "#7c3aed")
     
     st.markdown("""
-    <div class="info-box animate-fade-in">
-        <h4 style="margin: 0 0 0.5rem 0;">🔐 Acesso Restrito</h4>
-        <p style="margin: 0;">Digite o RA do aluno e a senha para acessar as informações.</p>
+    <div style="
+        background:linear-gradient(135deg,#f5f3ff,#ede9fe);
+        border:1.5px solid #c4b5fd; border-left:5px solid #7c3aed;
+        border-radius:16px; padding:1.25rem 1.5rem; margin-bottom:1.5rem;
+        box-shadow:0 4px 12px rgba(124,58,237,0.08);
+    ">
+        <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.35rem;">
+            <span style="font-size:1.2rem;">🔐</span>
+            <b style="font-family:'Nunito',sans-serif;font-size:1rem;color:#4c1d95;">Acesso Restrito ao Responsável</b>
+        </div>
+        <p style="margin:0;color:#6d28d9;font-size:0.9rem;">
+            Digite o RA do aluno e a senha para acessar o histórico de ocorrências e informações.
+        </p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -2241,23 +2730,42 @@ elif menu == "👨‍👩‍👧 Portal do Responsável":
                     
                     st.markdown("---")
                     st.caption("Em caso de dúvidas, entre em contato com a secretaria da escola.")
-
-# ======================================================
+                    # ======================================================
 # PÁGINA 📥 IMPORTAR ALUNOS (COMPLETA)
 # ======================================================
 
 elif menu == "📥 Importar Alunos":
-    st.header("📥 Importar Alunos por Turma")
+    page_header("📥 Importar Alunos por Turma", "Importe alunos a partir de arquivos CSV da SEDUC", "#0891b2")
     
     st.markdown("""
-    <div class="info-box animate-fade-in">
-        <h4 style="margin: 0 0 0.5rem 0;">💡 Como importar:</h4>
-        <ol style="margin: 0; padding-left: 1.5rem;">
-            <li>Digite o nome da turma (Ex: 6º Ano A, 1º Ano D)</li>
-            <li>Selecione o arquivo CSV da SEDUC</li>
-            <li>O sistema identificará automaticamente as colunas</li>
-            <li>Clique em Importar Alunos</li>
-        </ol>
+    <div style="
+        background:linear-gradient(135deg,#f0fdf4,#dcfce7);
+        border:1.5px solid #86efac; border-left:5px solid #059669;
+        border-radius:16px; padding:1.25rem 1.5rem; margin-bottom:1.5rem;
+        box-shadow:0 4px 12px rgba(5,150,105,0.08);
+    ">
+        <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.6rem;">
+            <span style="font-size:1.1rem;">💡</span>
+            <b style="font-family:'Nunito',sans-serif;font-size:1rem;color:#065f46;">Como importar alunos</b>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;">
+            <div style="display:flex;align-items:center;gap:0.5rem;color:#14532d;font-size:0.875rem;">
+                <span style="background:#059669;color:white;border-radius:99px;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;flex-shrink:0;">1</span>
+                Digite o nome da turma (Ex: 6º Ano A)
+            </div>
+            <div style="display:flex;align-items:center;gap:0.5rem;color:#14532d;font-size:0.875rem;">
+                <span style="background:#059669;color:white;border-radius:99px;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;flex-shrink:0;">2</span>
+                Selecione o arquivo CSV da SEDUC
+            </div>
+            <div style="display:flex;align-items:center;gap:0.5rem;color:#14532d;font-size:0.875rem;">
+                <span style="background:#059669;color:white;border-radius:99px;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;flex-shrink:0;">3</span>
+                O sistema identifica as colunas automaticamente
+            </div>
+            <div style="display:flex;align-items:center;gap:0.5rem;color:#14532d;font-size:0.875rem;">
+                <span style="background:#059669;color:white;border-radius:99px;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;flex-shrink:0;">4</span>
+                Clique em 🚀 Importar Alunos
+            </div>
+        </div>
     </div>
     """, unsafe_allow_html=True)
     
@@ -2416,7 +2924,22 @@ elif menu == "📥 Importar Alunos":
                     status.empty()
                     
                     if novos + atualizados > 0:
-                        st.success(f"✅ Importação concluída com sucesso!")
+                        st.markdown(f"""
+                        <div style="
+                            background:linear-gradient(135deg,#f0fdf4,#dcfce7);
+                            border:1.5px solid #86efac; border-left:5px solid #059669;
+                            border-radius:16px; padding:1.1rem 1.5rem; margin:0.75rem 0;
+                            box-shadow:0 4px 12px rgba(5,150,105,0.1);
+                        ">
+                            <div style="display:flex;align-items:center;gap:0.5rem;">
+                                <span style="font-size:1.2rem;">🎉</span>
+                                <div>
+                                    <div style="font-family:'Nunito',sans-serif;font-weight:800;color:#065f46;font-size:1rem;">Importação concluída com sucesso!</div>
+                                    <div style="color:#15803d;font-size:0.85rem;">{novos} novos · {atualizados} atualizados</div>
+                                </div>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
                         st.balloons()
                     
                     col1, col2, col3, col4 = st.columns(4)
@@ -2435,25 +2958,36 @@ elif menu == "📥 Importar Alunos":
         st.info("📁 Selecione um arquivo CSV para começar.")
     
     st.markdown("---")
-    st.subheader("📊 Turmas cadastradas")
+    st.markdown("""
+    <div style="display:flex;align-items:center;gap:0.5rem;margin:1rem 0 0.5rem 0;padding-bottom:0.5rem;border-bottom:2px solid #e2e8f0;position:relative;">
+        <div style="position:absolute;bottom:-2px;left:0;width:45px;height:2px;background:linear-gradient(90deg,#059669,transparent);border-radius:4px;"></div>
+        <span>📊</span>
+        <h3 style="margin:0;font-family:'Nunito',sans-serif;font-size:1rem;color:#0f172a;">Turmas cadastradas no Sistema</h3>
+    </div>
+    """, unsafe_allow_html=True)
     if not df_alunos.empty:
         resumo = df_alunos.groupby('turma').size().reset_index(name='Total')
         resumo.columns = ['Turma', 'Total de Alunos']
         st.dataframe(resumo.sort_values('Turma'), use_container_width=True, hide_index=True)
     else:
         st.info("Nenhuma turma cadastrada ainda.")
-
-# ======================================================
+        # ======================================================
 # PÁGINA 📋 GERENCIAR TURMAS (COMPLETA)
 # ======================================================
 
 elif menu == "📋 Gerenciar Turmas":
-    st.header("📋 Gerenciar Turmas")
+    page_header("📋 Gerenciar Turmas", "Visualize, edite e exclua turmas cadastradas", "#059669")
 
     if df_alunos.empty:
         st.info("📭 Nenhuma turma cadastrada. Use '📥 Importar Alunos' para começar.")
     else:
-        st.subheader("📊 Resumo das Turmas")
+        st.markdown("""
+        <div style="display:flex;align-items:center;gap:0.5rem;margin:0.5rem 0 0.75rem 0;padding-bottom:0.5rem;border-bottom:2px solid #e2e8f0;position:relative;">
+            <div style="position:absolute;bottom:-2px;left:0;width:45px;height:2px;background:linear-gradient(90deg,#059669,transparent);border-radius:4px;"></div>
+            <span>📊</span>
+            <h3 style="margin:0;font-family:'Nunito',sans-serif;font-size:1rem;color:#0f172a;">Resumo das Turmas</h3>
+        </div>
+        """, unsafe_allow_html=True)
         turmas_info = df_alunos.groupby("turma").agg(total_alunos=("ra", "count")).reset_index().sort_values("turma")
 
         for _, row in turmas_info.iterrows():
@@ -2461,9 +2995,18 @@ elif menu == "📋 Gerenciar Turmas":
                 col1, col2, col3, col4, col5 = st.columns([3, 1, 1, 1, 1])
                 with col1:
                     st.markdown(f"""
-                    <div class="card">
-                        <div class="card-title">🏫 {row['turma']}</div>
-                        <div class="card-value">{row['total_alunos']} alunos</div>
+                    <div style="
+                        background:white; border:1.5px solid #e2e8f0;
+                        border-radius:14px; padding:1rem 1.25rem;
+                        box-shadow:0 2px 6px rgba(15,23,42,0.06);
+                        display:flex; align-items:center; gap:0.75rem;
+                        border-left:4px solid #2563eb;
+                    ">
+                        <div style="font-size:1.4rem;">🏫</div>
+                        <div>
+                            <div style="font-family:'Nunito',sans-serif;font-weight:700;font-size:1rem;color:#0f172a;">{row['turma']}</div>
+                            <div style="font-size:0.78rem;color:#64748b;font-weight:500;">{row['total_alunos']} alunos cadastrados</div>
+                        </div>
                     </div>
                     """, unsafe_allow_html=True)
                 with col2:
@@ -2525,9 +3068,14 @@ elif menu == "📋 Gerenciar Turmas":
             st.subheader(f"🔄 Substituir Turma {turma}")
             
             st.markdown("""
-            <div class="info-box">
-                <h4 style="margin: 0 0 0.5rem 0;">💡 Instruções:</h4>
-                <p style="margin: 0;">Envie o arquivo CSV da SEDUC para substituir todos os alunos desta turma.</p>
+            <div style="
+                background:linear-gradient(135deg,#eff6ff,#dbeafe);
+                border:1.5px solid #93c5fd; border-left:5px solid #2563eb;
+                border-radius:14px; padding:1rem 1.25rem; margin-bottom:1rem;
+            ">
+                <div style="color:#1e40af;font-size:0.875rem;">
+                    📁 Envie o arquivo CSV da SEDUC para substituir <b>todos os alunos</b> desta turma. Esta ação não pode ser desfeita.
+                </div>
             </div>
             """, unsafe_allow_html=True)
             
@@ -2618,13 +3166,12 @@ elif menu == "📋 Gerenciar Turmas":
                 if st.button("❌ Cancelar"):
                     st.session_state.turma_para_deletar = None
                     st.rerun()
-
-# ======================================================
+                    # ======================================================
 # PÁGINA 👥 LISTA DE ALUNOS (COM FILTRO ATIVO/TODOS)
 # ======================================================
 
 elif menu == "👥 Lista de Alunos":
-    st.header("👥 Gerenciar Alunos")
+    page_header("👥 Gerenciar Alunos", "Cadastro, edição e exclusão de estudantes", "#2563eb")
     
     tab1, tab2, tab3 = st.tabs(["📋 Listar Alunos", "➕ Cadastrar Aluno", "✏️ Editar/Excluir"])
     
@@ -2829,14 +3376,13 @@ elif menu == "👥 Lista de Alunos":
                         with col2:
                             if st.button("❌ Cancelar", key="cancel_excluir_aluno_tab3"):
                                 del st.session_state.confirmar_exclusao_aluno
-                                st.rerun()
-
+                                st.rerun()   # ======================================================
 # ======================================================
 # PÁGINA 📝 REGISTRAR OCORRÊNCIA (COMPLETA E CORRIGIDA)
 # ======================================================
 
 elif menu == "📝 Registrar Ocorrência":
-    st.header("📝 Nova Ocorrência")
+    page_header("📝 Registrar Ocorrência", "Protocolo 179 — Preenchimento assistido por IA", "#dc2626")
 
     if st.session_state.ocorrencia_salva_sucesso:
         st.markdown('<div class="success-box">✅ Ocorrência(s) registrada(s) com sucesso!</div>', unsafe_allow_html=True)
@@ -2875,7 +3421,13 @@ elif menu == "📝 Registrar Ocorrência":
         alunos_turma["situacao_norm"] = alunos_turma["situacao"].str.strip().str.title()
         alunos_turma = alunos_turma[alunos_turma["situacao_norm"] == "Ativo"]
 
-    st.markdown("### 👥 Estudantes Envolvidos")
+    st.markdown("""
+    <div style="display:flex;align-items:center;gap:0.5rem;margin:1.25rem 0 0.75rem 0;padding-bottom:0.5rem;border-bottom:2px solid #e2e8f0;position:relative;">
+        <div style="position:absolute;bottom:-2px;left:0;width:45px;height:2px;background:linear-gradient(90deg,#2563eb,transparent);border-radius:4px;"></div>
+        <span style="font-size:1rem;">👥</span>
+        <h3 style="margin:0;font-family:'Nunito',sans-serif;font-size:1rem;color:#0f172a;">Estudantes Envolvidos</h3>
+    </div>
+    """, unsafe_allow_html=True)
     modo_multiplo = st.checkbox("Registrar para múltiplos estudantes", key="modo_multiplo")
 
     if modo_multiplo:
@@ -2891,7 +3443,14 @@ elif menu == "📝 Registrar Ocorrência":
     prof = st.selectbox("Professor 👨‍🏫", df_professores["nome"].tolist(), key="professor_sel")
 
     st.markdown("---")
-    st.subheader("📋 Infração (Protocolo 179)")
+    st.markdown("""
+    <div style="display:flex;align-items:center;gap:0.5rem;margin:1.25rem 0 0.75rem 0;padding-bottom:0.5rem;border-bottom:2px solid #e2e8f0;position:relative;">
+        <div style="position:absolute;bottom:-2px;left:0;width:45px;height:2px;background:linear-gradient(90deg,#dc2626,transparent);border-radius:4px;"></div>
+        <span style="font-size:1rem;">📋</span>
+        <h3 style="margin:0;font-family:'Nunito',sans-serif;font-size:1rem;color:#0f172a;">Infração — Protocolo 179</h3>
+        <span style="background:#fee2e2;color:#dc2626;border-radius:6px;padding:0.15rem 0.5rem;font-size:0.7rem;font-weight:700;margin-left:auto;">PREENCHIMENTO ASSISTIDO</span>
+    </div>
+    """, unsafe_allow_html=True)
 
     busca = st.text_input("🔍 Buscar infração", placeholder="Ex: celular, bullying, atraso...", key="busca_infracao")
 
@@ -2913,20 +3472,62 @@ elif menu == "📝 Registrar Ocorrência":
     gravidade_sugerida = dados_infracao["gravidade"]
     encaminhamento_sugerido = dados_infracao["encaminhamento"]
 
-    st.markdown(f'<span class="badge badge-primary" style="font-size: 1rem; padding: 0.5rem 1.5rem;">🎯 {infracao_principal}</span>', unsafe_allow_html=True)
-
-    cor_gravidade = CORES_GRAVIDADE.get(gravidade_sugerida, "#9E9E9E")
+    cor_badge = CORES_GRAVIDADE.get(gravidade_sugerida, "#2563eb")
     st.markdown(f"""
-    <div class="protocolo-info">
-        <b>📋 Protocolo 179 - Preenchimento Automático</b><br><br>
-        <b>Infração:</b> {infracao_principal}<br>
-        <b>Gravidade sugerida:</b> <span style="color:{cor_gravidade};font-weight:bold">{gravidade_sugerida}</span><br><br>
-        <b>Encaminhamentos sugeridos:</b><br>
-        {encaminhamento_sugerido.replace(chr(10), '<br>')}
+    <div style="
+        display:inline-flex; align-items:center; gap:0.6rem;
+        background:linear-gradient(135deg,{cor_badge}15,{cor_badge}08);
+        border:1.5px solid {cor_badge}40;
+        border-left:4px solid {cor_badge};
+        border-radius:12px; padding:0.6rem 1.25rem;
+        margin:0.5rem 0;
+    ">
+        <span style="font-size:1.1rem;">🎯</span>
+        <span style="font-family:'Nunito',sans-serif;font-weight:700;font-size:1rem;color:{cor_badge};">{infracao_principal}</span>
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("### ⚖️ Gravidade")
+    cor_gravidade = CORES_GRAVIDADE.get(gravidade_sugerida, "#9E9E9E")
+    _cor_grav_map = {"Leve": "#059669", "Média": "#d97706", "Grave": "#f97316", "Gravíssima": "#dc2626"}
+    _cor_g = _cor_grav_map.get(gravidade_sugerida, "#2563eb")
+    _encam_html = encaminhamento_sugerido.replace(chr(10), '<br>').replace("✅","<span style=\'color:#059669;\'>✅</span>").replace("⚖️","<span style=\'color:#7c3aed;\'>⚖️</span>").replace("🚨","<span style=\'color:#dc2626;\'>🚨</span>")
+    st.markdown(f"""
+    <div style="
+        background:linear-gradient(135deg,#f0f4ff,#fafbff);
+        border:1.5px solid #c7d7fd; border-left:5px solid #2563eb;
+        border-radius:16px; padding:1.25rem 1.5rem; margin:1rem 0;
+        box-shadow:0 4px 12px rgba(37,99,235,0.08);
+    ">
+        <div style="display:flex; align-items:center; gap:0.6rem; margin-bottom:0.75rem;">
+            <span style="font-size:1.1rem;">📋</span>
+            <b style="font-family:'Nunito',sans-serif;font-size:1rem;color:#1d4ed8;">Protocolo 179 — Preenchimento Automático</b>
+        </div>
+        <div style="display:flex; gap:1.5rem; flex-wrap:wrap; margin-bottom:0.75rem;">
+            <div>
+                <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:0.2rem;">Infração</div>
+                <div style="font-weight:600;color:#0f172a;">{infracao_principal}</div>
+            </div>
+            <div>
+                <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:0.2rem;">Gravidade sugerida</div>
+                <span style="
+                    display:inline-block; padding:0.25rem 0.85rem;
+                    background:{_cor_g}18; border:1.5px solid {_cor_g}50;
+                    border-radius:99px; font-size:0.82rem; font-weight:700;
+                    color:{_cor_g};
+                ">{gravidade_sugerida}</span>
+            </div>
+        </div>
+        <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:0.4rem;">Encaminhamentos sugeridos</div>
+        <div style="color:#334155; font-size:0.9rem; line-height:1.7;">{_encam_html}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div style="display:flex;align-items:center;gap:0.5rem;margin:1rem 0 0.5rem 0;">
+        <div style="width:4px;height:18px;background:linear-gradient(180deg,#d97706,#f59e0b);border-radius:4px;"></div>
+        <span style="font-family:'Nunito',sans-serif;font-weight:700;font-size:1rem;color:#0f172a;">⚖️ Gravidade da Ocorrência</span>
+    </div>
+    """, unsafe_allow_html=True)
     gravidade = st.selectbox("Gravidade", ["Leve", "Média", "Grave", "Gravíssima"], 
                             index=["Leve", "Média", "Grave", "Gravíssima"].index(gravidade_sugerida) if gravidade_sugerida in ["Leve", "Média", "Grave", "Gravíssima"] else 0,
                             key="gravidade_sel")
@@ -2992,14 +3593,13 @@ elif menu == "📝 Registrar Ocorrência":
                 st.warning(f"⚠️ {duplicadas} ocorrência(s) duplicada(s) ignorada(s).")
             
             carregar_ocorrencias.clear()
-            st.rerun()
-
-# ======================================================
+            st.rerun()                                # ← 12 espaços
+            # ======================================================
 # PÁGINA 📋 HISTÓRICO DE OCORRÊNCIAS (COMPLETA)
 # ======================================================
 
 elif menu == "📋 Histórico de Ocorrências":
-    st.header("📋 Histórico de Ocorrências")
+    page_header("📋 Histórico de Ocorrências", "Consulte, edite e exclua registros de ocorrências", "#d97706")
 
     if "mensagem_exclusao" in st.session_state:
         st.success(st.session_state.mensagem_exclusao)
@@ -3028,11 +3628,23 @@ elif menu == "📋 Histórico de Ocorrências":
     if filtro_categoria != "Todas":
         df_view = df_view[df_view["categoria"] == filtro_categoria]
 
-    st.markdown(f"**Total de ocorrências:** {len(df_view)}")
+    st.markdown(f"""
+    <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;flex-wrap:wrap;">
+        <div style="background:linear-gradient(135deg,#1d4ed8,#2563eb);color:white;border-radius:10px;padding:0.4rem 1rem;font-weight:700;font-size:0.9rem;">
+            📊 {len(df_view)} ocorrências encontradas
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     st.dataframe(df_view, use_container_width=True, hide_index=True)
 
     st.markdown("---")
-    st.subheader("🛠️ Ações")
+    st.markdown("""
+    <div style="display:flex;align-items:center;gap:0.5rem;margin:1.25rem 0 0.75rem 0;padding-bottom:0.5rem;border-bottom:2px solid #e2e8f0;position:relative;">
+        <div style="position:absolute;bottom:-2px;left:0;width:45px;height:2px;background:linear-gradient(90deg,#d97706,transparent);border-radius:4px;"></div>
+        <span>🛠️</span>
+        <h3 style="margin:0;font-family:'Nunito',sans-serif;font-size:1rem;color:#0f172a;">Ações — Editar / Excluir</h3>
+    </div>
+    """, unsafe_allow_html=True)
     col_excluir, col_editar = st.columns(2)
 
     with col_excluir:
@@ -3097,18 +3709,24 @@ elif menu == "📋 Histórico de Ocorrências":
                 st.session_state.editando_id = None
                 st.session_state.dados_edicao = None
                 st.rerun()
-
-# ======================================================
+                # ======================================================
 # PÁGINA 📄 COMUNICADO AOS PAIS (COMPLETA)
 # ======================================================
 
 elif menu == "📄 Comunicado aos Pais":
-    st.header("📄 Comunicado aos Pais / Responsáveis")
+    page_header("📄 Comunicado aos Pais", "Gere comunicados individuais ou em lote para os responsáveis", "#7c3aed")
     
     st.markdown("""
-    <div class="info-box animate-fade-in">
-        <h4 style="margin: 0 0 0.5rem 0;">💡 Informações</h4>
-        <p style="margin: 0;">Gere comunicados individuais ou em lote para envio aos responsáveis.</p>
+    <div style="
+        background:linear-gradient(135deg,#faf5ff,#ede9fe);
+        border:1.5px solid #c4b5fd; border-left:5px solid #7c3aed;
+        border-radius:16px; padding:1.1rem 1.5rem; margin-bottom:1.25rem;
+        box-shadow:0 4px 12px rgba(124,58,237,0.08);
+    ">
+        <div style="display:flex;align-items:center;gap:0.5rem;">
+            <span>📄</span>
+            <span style="color:#4c1d95;font-size:0.875rem;">Gere comunicados individuais ou em lote (ZIP) para envio aos pais e responsáveis.</span>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -3279,13 +3897,12 @@ elif menu == "📄 Comunicado aos Pais":
                 mime="application/zip"
             )
             st.success("✅ Comunicados em lote gerados com sucesso!")
-
-# ======================================================
+            # ======================================================
 # PÁGINA 📊 GRÁFICOS E INDICADORES (COMPLETA)
 # ======================================================
 
 elif menu == "📊 Gráficos e Indicadores":
-    st.header("📊 Gráficos e Indicadores")
+    page_header("📊 Gráficos e Indicadores", "Análise visual das ocorrências e indicadores escolares", "#0891b2")
 
     if df_ocorrencias.empty:
         st.info("📭 Nenhuma ocorrência registrada.")
@@ -3324,15 +3941,28 @@ elif menu == "📊 Gráficos e Indicadores":
         df_filtro = df_filtro[df_filtro["gravidade"] == filtro_gravidade]
 
     # Métricas
+    _tot  = len(df_filtro)
+    _grav = len(df_filtro[df_filtro["gravidade"] == "Gravíssima"]) if not df_filtro.empty and "gravidade" in df_filtro.columns else 0
+    _grv  = len(df_filtro[df_filtro["gravidade"] == "Grave"])      if not df_filtro.empty and "gravidade" in df_filtro.columns else 0
+    _turm = df_filtro["turma"].nunique() if not df_filtro.empty else 0
+
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric("Total", len(df_filtro))
+        st.markdown(f'''<div class="metric-card animate-fade-in" style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);box-shadow:0 8px 20px rgba(37,99,235,0.25);">
+            <div class="metric-icon">📊</div><div class="metric-value">{_tot}</div>
+            <div class="metric-label">Total de Ocorrências</div></div>''', unsafe_allow_html=True)
     with col2:
-        st.metric("Gravíssimas", len(df_filtro[df_filtro["gravidade"] == "Gravíssima"]))
+        st.markdown(f'''<div class="metric-card animate-fade-in" style="background:linear-gradient(135deg,#dc2626,#ef4444);box-shadow:0 8px 20px rgba(220,38,38,0.25);animation-delay:0.08s;">
+            <div class="metric-icon">🚨</div><div class="metric-value">{_grav}</div>
+            <div class="metric-label">Gravíssimas</div></div>''', unsafe_allow_html=True)
     with col3:
-        st.metric("Graves", len(df_filtro[df_filtro["gravidade"] == "Grave"]))
+        st.markdown(f'''<div class="metric-card animate-fade-in" style="background:linear-gradient(135deg,#d97706,#f59e0b);box-shadow:0 8px 20px rgba(217,119,6,0.25);animation-delay:0.16s;">
+            <div class="metric-icon">⚠️</div><div class="metric-value">{_grv}</div>
+            <div class="metric-label">Graves</div></div>''', unsafe_allow_html=True)
     with col4:
-        st.metric("Turmas Afetadas", df_filtro["turma"].nunique())
+        st.markdown(f'''<div class="metric-card animate-fade-in" style="background:linear-gradient(135deg,#059669,#10b981);box-shadow:0 8px 20px rgba(5,150,105,0.25);animation-delay:0.24s;">
+            <div class="metric-icon">🏫</div><div class="metric-value">{_turm}</div>
+            <div class="metric-label">Turmas Afetadas</div></div>''', unsafe_allow_html=True)
 
     st.markdown("---")
 
@@ -3346,7 +3976,15 @@ elif menu == "📊 Gráficos e Indicadores":
             fig_cat = px.bar(x=contagem_cat.values, y=contagem_cat.index, orientation='h',
                              labels={'x': 'Quantidade', 'y': 'Categoria'},
                              color=contagem_cat.values, color_continuous_scale='Blues')
-            fig_cat.update_layout(showlegend=False)
+            fig_cat.update_layout(
+                showlegend=False,
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(family='Inter, sans-serif', size=12, color='#334155'),
+                margin=dict(t=10, b=10, l=0, r=0),
+                xaxis=dict(gridcolor='#e2e8f0', linecolor='#e2e8f0'),
+                yaxis=dict(gridcolor='#e2e8f0', linecolor='#e2e8f0'),
+            )
             st.plotly_chart(fig_cat, use_container_width=True)
         else:
             st.info("Dados insuficientes")
@@ -3357,7 +3995,14 @@ elif menu == "📊 Gráficos e Indicadores":
         if not contagem_grav.empty:
             fig_grav = px.pie(values=contagem_grav.values, names=contagem_grav.index,
                               color_discrete_sequence=['#10b981', '#f59e0b', '#f97316', '#ef4444'],
-                              hole=0.4)
+                              hole=0.45)
+            fig_grav.update_traces(textfont_size=13, textfont_family='Inter, sans-serif')
+            fig_grav.update_layout(
+                paper_bgcolor='rgba(0,0,0,0)',
+                font=dict(family='Inter, sans-serif', size=12, color='#334155'),
+                margin=dict(t=10, b=10, l=0, r=0),
+                legend=dict(font=dict(size=11)),
+            )
             st.plotly_chart(fig_grav, use_container_width=True)
         else:
             st.info("Dados insuficientes")
@@ -3369,7 +4014,19 @@ elif menu == "📊 Gráficos e Indicadores":
     
     if not evolucao.empty:
         fig_line = px.line(evolucao, x="data_apenas", y="Quantidade", markers=True)
-        fig_line.update_traces(line_color="#6366f1")
+        fig_line.update_traces(
+            line_color="#2563eb",
+            line_width=2.5,
+            marker=dict(size=7, color="#2563eb", line=dict(width=2, color="white")),
+        )
+        fig_line.update_layout(
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            font=dict(family='Inter, sans-serif', size=12, color='#334155'),
+            margin=dict(t=10, b=10, l=0, r=0),
+            xaxis=dict(gridcolor='#e2e8f0', linecolor='#e2e8f0'),
+            yaxis=dict(gridcolor='#e2e8f0', linecolor='#e2e8f0'),
+        )
         st.plotly_chart(fig_line, use_container_width=True)
     else:
         st.info("Dados insuficientes para evolução temporal")
@@ -3382,7 +4039,15 @@ elif menu == "📊 Gráficos e Indicadores":
         fig_turmas = px.bar(x=top_turmas.values, y=top_turmas.index, orientation='h',
                             labels={'x': 'Quantidade', 'y': 'Turma'},
                             color=top_turmas.values, color_continuous_scale='Greens')
-        fig_turmas.update_layout(showlegend=False)
+        fig_turmas.update_layout(
+            showlegend=False,
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            font=dict(family='Inter, sans-serif', size=12, color='#334155'),
+            margin=dict(t=10, b=10, l=0, r=0),
+            xaxis=dict(gridcolor='#e2e8f0'),
+            yaxis=dict(gridcolor='#e2e8f0'),
+        )
         st.plotly_chart(fig_turmas, use_container_width=True)
     else:
         st.info("Dados insuficientes")
@@ -3395,7 +4060,15 @@ elif menu == "📊 Gráficos e Indicadores":
         fig_alunos = px.bar(x=top_alunos.values, y=top_alunos.index, orientation='h',
                             labels={'x': 'Quantidade', 'y': 'Aluno'},
                             color=top_alunos.values, color_continuous_scale='Reds')
-        fig_alunos.update_layout(showlegend=False)
+        fig_alunos.update_layout(
+            showlegend=False,
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            font=dict(family='Inter, sans-serif', size=12, color='#334155'),
+            margin=dict(t=10, b=10, l=0, r=0),
+            xaxis=dict(gridcolor='#e2e8f0'),
+            yaxis=dict(gridcolor='#e2e8f0'),
+        )
         st.plotly_chart(fig_alunos, use_container_width=True)
     else:
         st.info("Dados insuficientes")
@@ -3404,13 +4077,12 @@ elif menu == "📊 Gráficos e Indicadores":
     st.markdown("---")
     csv = df_filtro.drop(columns=["data_dt", "data_apenas"], errors="ignore").to_csv(index=False, sep=";", encoding="utf-8-sig")
     st.download_button("📥 Baixar CSV", data=csv, file_name=f"ocorrencias_{datetime.now().strftime('%Y%m%d')}.csv", mime="text/csv")
-
-# ======================================================
+    # ======================================================
 # PÁGINA 🖨️ IMPRIMIR PDF (COMPLETA)
 # ======================================================
 
 elif menu == "🖨️ Imprimir PDF":
-    st.header("🖨️ Gerar PDFs de Ocorrências")
+    page_header("🖨️ Gerar PDFs de Ocorrências", "Exporte relatórios em PDF ou em lote (ZIP)", "#334155")
 
     if df_ocorrencias.empty:
         st.info("📭 Nenhuma ocorrência registrada.")
@@ -3500,13 +4172,12 @@ elif menu == "🖨️ Imprimir PDF":
             file_name=f"Ocorrencia_{occ_ind['id']}.pdf",
             mime="application/pdf"
         )
-
-# ======================================================
+        # ======================================================
 # PÁGINA 👨‍🏫 CADASTRAR PROFESSORES (COMPLETA)
 # ======================================================
 
 elif menu == "👨‍🏫 Cadastrar Professores":
-    st.header("👨‍🏫 Cadastrar Professores")
+    page_header("👨‍🏫 Cadastrar Professores", "Gerencie o cadastro de professores e coordenadores", "#059669")
 
     if st.session_state.professor_salvo_sucesso:
         st.markdown(f"""
@@ -3595,7 +4266,13 @@ elif menu == "👨‍🏫 Cadastrar Professores":
                         st.rerun()
 
     st.markdown("---")
-    st.subheader("📋 Professores Cadastrados")
+    st.markdown("""
+    <div style="display:flex;align-items:center;gap:0.5rem;margin:1rem 0 0.5rem 0;padding-bottom:0.5rem;border-bottom:2px solid #e2e8f0;position:relative;">
+        <div style="position:absolute;bottom:-2px;left:0;width:45px;height:2px;background:linear-gradient(90deg,#059669,transparent);border-radius:4px;"></div>
+        <span>📋</span>
+        <h3 style="margin:0;font-family:'Nunito',sans-serif;font-size:1rem;color:#0f172a;">Professores Cadastrados</h3>
+    </div>
+    """, unsafe_allow_html=True)
     
     if not df_professores.empty:
         for _, prof in df_professores.iterrows():
@@ -3605,7 +4282,12 @@ elif menu == "👨‍🏫 Cadastrar Professores":
                     cargo_display = prof.get('cargo', 'Professor')
                     if not cargo_display or str(cargo_display).lower() == 'nan':
                         cargo_display = 'Professor'
-                    st.markdown(f"**{prof['nome']}** — {cargo_display}")
+                    _cargo_cor = {"Diretor":"#1d4ed8","Diretora":"#1d4ed8","Vice-Diretor":"#0891b2","Vice-Diretora":"#0891b2","Coordenador":"#059669","Coordenadora":"#059669"}.get(cargo_display, "#64748b")
+                    st.markdown(f"""<div style="display:flex;align-items:center;gap:0.6rem;padding:0.35rem 0;">
+                        <div style="width:32px;height:32px;background:linear-gradient(135deg,{_cargo_cor}20,{_cargo_cor}10);border:1.5px solid {_cargo_cor}30;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:0.9rem;">👤</div>
+                        <div><div style="font-weight:600;color:#0f172a;font-size:0.9rem;">{prof['nome']}</div>
+                        <div style="font-size:0.75rem;color:{_cargo_cor};font-weight:600;">{cargo_display}</div></div>
+                    </div>""", unsafe_allow_html=True)
                 with col2:
                     if st.button("✏️", key=f"edit_prof_{prof['id']}"):
                         st.session_state.editando_prof = prof["id"]
@@ -3634,13 +4316,12 @@ elif menu == "👨‍🏫 Cadastrar Professores":
                     st.rerun()
     else:
         st.info("📭 Nenhum professor cadastrado.")
-
-# ======================================================
+        # ======================================================
 # PÁGINA 👤 CADASTRAR ASSINATURAS (COMPLETA)
 # ======================================================
 
 elif menu == "👤 Cadastrar Assinaturas":
-    st.header("👤 Cadastrar Assinaturas")
+    page_header("👤 Cadastrar Assinaturas", "Registre os responsáveis pelas assinaturas oficiais", "#0891b2")
 
     if st.session_state.responsavel_salvo_sucesso:
         st.markdown(f"""
@@ -3694,7 +4375,13 @@ elif menu == "👤 Cadastrar Assinaturas":
                     st.rerun()
 
     st.markdown("---")
-    st.subheader("📋 Responsáveis Cadastrados")
+    st.markdown("""
+    <div style="display:flex;align-items:center;gap:0.5rem;margin:1rem 0 0.5rem 0;padding-bottom:0.5rem;border-bottom:2px solid #e2e8f0;position:relative;">
+        <div style="position:absolute;bottom:-2px;left:0;width:45px;height:2px;background:linear-gradient(90deg,#0891b2,transparent);border-radius:4px;"></div>
+        <span>📋</span>
+        <h3 style="margin:0;font-family:'Nunito',sans-serif;font-size:1rem;color:#0f172a;">Responsáveis Cadastrados</h3>
+    </div>
+    """, unsafe_allow_html=True)
     
     if not df_responsaveis.empty:
         for cargo in ["Diretor", "Diretora", "Vice-Diretor", "Vice-Diretora", "Coordenador", "Coordenadora"]:
@@ -3702,11 +4389,17 @@ elif menu == "👤 Cadastrar Assinaturas":
             if grupo.empty:
                 continue
             
-            st.markdown(f"### 📌 {cargo}")
+            _cor_carg = {"Diretor":"#1d4ed8","Diretora":"#1d4ed8","Vice-Diretor":"#0891b2","Vice-Diretora":"#0891b2","Coordenador":"#059669","Coordenadora":"#059669"}.get(cargo,"#64748b")
+            st.markdown(f"""<div style="display:flex;align-items:center;gap:0.5rem;margin:1rem 0 0.5rem 0;padding-bottom:0.4rem;border-bottom:1.5px solid #e2e8f0;">
+                <span style="background:{_cor_carg};color:white;border-radius:6px;padding:0.2rem 0.5rem;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;">{cargo}</span>
+            </div>""", unsafe_allow_html=True)
             for _, resp in grupo.iterrows():
                 col1, col2, col3 = st.columns([6, 1, 1])
                 with col1:
-                    st.markdown(f"• {resp['nome']}")
+                    st.markdown(f"""<div style="display:flex;align-items:center;gap:0.5rem;padding:0.2rem 0;">
+                        <span style="color:#2563eb;">👤</span>
+                        <span style="font-weight:500;color:#0f172a;font-size:0.9rem;">{resp['nome']}</span>
+                    </div>""", unsafe_allow_html=True)
                 with col2:
                     if st.button("✏️", key=f"edit_resp_{resp['id']}"):
                         st.session_state.editando_resp = resp["id"]
@@ -3735,18 +4428,24 @@ elif menu == "👤 Cadastrar Assinaturas":
                     st.rerun()
     else:
         st.info("📭 Nenhum responsável cadastrado.")
-
-# ======================================================
+        # ======================================================
 # PÁGINA 🎨 ELETIVA (COMPLETA)
 # ======================================================
 
 elif menu == "🎨 Eletiva":
-    st.header("🎨 Eletivas")
+    page_header("🎨 Eletivas", "Consulte e gerencie os estudantes por professora de eletiva", "#7c3aed")
     
     st.markdown("""
-    <div class="info-box animate-fade-in">
-        <h4 style="margin: 0 0 0.5rem 0;">💡 Informações</h4>
-        <p style="margin: 0;">Consulte os estudantes por professora da eletiva e verifique quem já foi localizado no sistema.</p>
+    <div style="
+        background:linear-gradient(135deg,#f5f3ff,#ede9fe);
+        border:1.5px solid #c4b5fd; border-left:5px solid #7c3aed;
+        border-radius:16px; padding:1.1rem 1.5rem; margin-bottom:1.25rem;
+        box-shadow:0 4px 12px rgba(124,58,237,0.08);
+    ">
+        <div style="display:flex;align-items:center;gap:0.5rem;">
+            <span>🎨</span>
+            <span style="color:#4c1d95;font-size:0.875rem;">Consulte os estudantes por professora da eletiva e verifique quem já foi localizado no sistema.</span>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -3866,18 +4565,24 @@ elif menu == "🎨 Eletiva":
                 
                 st.success(f"✅ {len(selecionados)} estudante(s) removido(s).")
                 st.rerun()
-
-# ======================================================
+                # ======================================================
 # PÁGINA 🏫 MAPA DA SALA (COMPLETA)
 # ======================================================
 
 elif menu == "🏫 Mapa da Sala":
-    st.header("🏫 Mapa da Sala de Aula")
+    page_header("🏫 Mapa da Sala de Aula", "Organize assentos e distribua alunos visualmente", "#059669")
     
     st.markdown("""
-    <div class="info-box animate-fade-in">
-        <h4 style="margin: 0 0 0.5rem 0;">💡 Informações</h4>
-        <p style="margin: 0;">Organize os assentos da sala e distribua os alunos manualmente ou de forma automática.</p>
+    <div style="
+        background:linear-gradient(135deg,#f0fdf4,#dcfce7);
+        border:1.5px solid #86efac; border-left:5px solid #059669;
+        border-radius:16px; padding:1.1rem 1.5rem; margin-bottom:1.25rem;
+        box-shadow:0 4px 12px rgba(5,150,105,0.08);
+    ">
+        <div style="display:flex;align-items:center;gap:0.5rem;">
+            <span>🏫</span>
+            <span style="color:#065f46;font-size:0.875rem;">Organize os assentos da sala e distribua os alunos manualmente ou de forma automática.</span>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -4105,31 +4810,128 @@ elif menu == "🏫 Mapa da Sala":
     with col4:
         if st.button("💾 Salvar Layout", use_container_width=True, type="secondary"):
             st.success("✅ Layout salvo com sucesso!")
-
-# ======================================================
+            # ======================================================
 # PÁGINA 💾 BACKUPS (COMPLETA)
 # ======================================================
 
 elif menu == "💾 Backups":
     render_backup_page()
-
-# ======================================================
-# PÁGINA 📅 AGENDAMENTO DE ESPAÇOS - VERSÃO RESUMIDA (SEM AS 9 TABS PARA EVITAR TAMANHO EXCESSIVO)
+    # ======================================================
+# PÁGINA 📅 AGENDAMENTO DE ESPAÇOS (VERSÃO PREMIUM COMPLETA)
 # ======================================================
 
 elif menu == "📅 Agendamento de Espaços":
-    st.header("📅 Agendamento de Espaços e Equipamentos")
-    st.info("💡 A funcionalidade completa de Agendamento está disponível no código original. Por questões de tamanho, apresentamos aqui a versão simplificada.")
+    page_header("📅 Agendamento de Espaços", "Reserve sala de informática, carrinhos, tablets e sala de leitura", "#2563eb")
     
-    # Importa as funções do agendamento do código original
     from reportlab.lib.pagesizes import A4, landscape
     import json
     
-    # Inicialização
+    # ======================================================
+    # FUNÇÕES AUXILIARES DO AGENDAMENTO
+    # ======================================================
+    
+    def show_toast_agend(message: str, type: str = "success"):
+        icon = "✅" if type == "success" else "❌" if type == "error" else "⚠️" if type == "warning" else "ℹ️"
+        st.toast(f"{icon} {message}")
+    
+    def get_disponibilidade_espaco(espaco, data, horario):
+        try:
+            df_agend = carregar_agendamentos_filtrado(data, data, espaco=espaco)
+            agendamentos_horario = df_agend[df_agend['horario'] == horario] if not df_agend.empty else pd.DataFrame()
+            total = len(agendamentos_horario)
+            
+            if total == 0:
+                return "🟢", "Disponível", "#10b981"
+            elif total == 1:
+                return "🟡", "Parcialmente ocupado", "#f59e0b"
+            else:
+                return "🔴", "Totalmente ocupado", "#ef4444"
+        except:
+            return "⚪", "Não verificado", "#9ca3af"
+    
+    def salvar_template(professor, nome_template, configuracao):
+        template_key = f"template_{professor.replace(' ', '_')}_{nome_template}"
+        st.session_state[template_key] = {
+            "config": configuracao,
+            "data_criacao": datetime.now().strftime("%d/%m/%Y %H:%M")
+        }
+        
+        lista_key = f"templates_{professor.replace(' ', '_')}"
+        if lista_key not in st.session_state:
+            st.session_state[lista_key] = []
+        if nome_template not in st.session_state[lista_key]:
+            st.session_state[lista_key].append(nome_template)
+        
+        return True
+    
+    def carregar_templates(professor):
+        lista_key = f"templates_{professor.replace(' ', '_')}"
+        return st.session_state.get(lista_key, [])
+    
+    def aplicar_template(professor, nome_template, grade_key):
+        template_key = f"template_{professor.replace(' ', '_')}_{nome_template}"
+        if template_key in st.session_state:
+            config = st.session_state[template_key]["config"]
+            for key, value in config.items():
+                st.session_state[grade_key][key] = value
+            return True
+        return False
+    
+    def registrar_log(acao, usuario, detalhes=""):
+        if 'logs_agendamento' not in st.session_state:
+            st.session_state.logs_agendamento = []
+        
+        log = {
+            "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+            "acao": acao,
+            "usuario": usuario,
+            "detalhes": detalhes
+        }
+        st.session_state.logs_agendamento.insert(0, log)
+        
+        if len(st.session_state.logs_agendamento) > 100:
+            st.session_state.logs_agendamento = st.session_state.logs_agendamento[:100]
+    
+    def exportar_para_excel(df, nome_arquivo):
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name='Agendamentos', index=False)
+            worksheet = writer.sheets['Agendamentos']
+            
+            for column in worksheet.columns:
+                max_length = 0
+                column_letter = column[0].column_letter
+                for cell in column:
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(str(cell.value))
+                    except:
+                        pass
+                adjusted_width = min(max_length + 2, 50)
+                worksheet.column_dimensions[column_letter].width = adjusted_width
+            
+            from openpyxl.styles import Font, PatternFill
+            header_font = Font(bold=True, color="FFFFFF")
+            header_fill = PatternFill(start_color="4A90E2", end_color="4A90E2", fill_type="solid")
+            
+            for cell in worksheet[1]:
+                cell.font = header_font
+                cell.fill = header_fill
+        
+        output.seek(0)
+        return output
+    
+    # ======================================================
+    # INICIALIZAÇÃO
+    # ======================================================
+    
     if 'gestao_logado' not in st.session_state:
         st.session_state.gestao_logado = False
     
-    # Abas do sistema de agendamento
+    if 'logs_agendamento' not in st.session_state:
+        st.session_state.logs_agendamento = []
+    
+    # Tabs do sistema de agendamento
     tabs_agend = st.tabs([
         "✨ Agendar", 
         "📋 Meus Agendamentos", 
@@ -4143,7 +4945,7 @@ elif menu == "📅 Agendamento de Espaços":
     ])
     
     # ======================================================
-    # ABA 1: AGENDAR
+    # ABA 1: AGENDAR (COM TEMPLATES)
     # ======================================================
     with tabs_agend[0]:
         st.subheader("📅 Agendamento Rápido")
@@ -4151,15 +4953,31 @@ elif menu == "📅 Agendamento de Espaços":
         df_prof_agend = prof_list_agend()
         lista_nomes = sorted(df_prof_agend["nome"].dropna().tolist()) if not df_prof_agend.empty else []
         
+        # Templates rápidos
+        if lista_nomes:
+            with st.expander("📂 Templates Salvos", expanded=False):
+                professor_temp = st.selectbox("Professor:", lista_nomes, key="temp_prof")
+                templates = carregar_templates(professor_temp)
+                if templates:
+                    cols = st.columns([2, 1])
+                    with cols[0]:
+                        template_sel = st.selectbox("Selecione:", templates, key="temp_sel")
+                    with cols[1]:
+                        if st.button("📂 Carregar", use_container_width=True):
+                            st.success(f"✅ Template '{template_sel}' carregado!")
+                            show_toast_agend(f"Template '{template_sel}' carregado com sucesso!", "success")
+                else:
+                    st.info("Nenhum template salvo para este professor")
+        
         tipo_agendamento = st.radio(
             "🔄 Tipo de Agendamento:",
             ["📅 Data específica", "🔁 Fixo Semanal"],
             horizontal=True,
-            key="tipo_agendamento_simplificado"
+            key="tipo_agendamento"
         )
         
         if tipo_agendamento == "📅 Data específica":
-            with st.form("form_agendamento_data_simplificado"):
+            with st.form("form_agendamento_data"):
                 col1, col2 = st.columns(2)
                 with col1:
                     professor = st.selectbox("👨‍🏫 Professor:", [""] + lista_nomes)
@@ -4173,6 +4991,11 @@ elif menu == "📅 Agendamento de Espaços":
                 
                 horario1 = st.selectbox("1ª Aula:", [""] + HORARIOS_AGEND)
                 horario2 = st.selectbox("2ª Aula (opcional):", [""] + HORARIOS_AGEND)
+                
+                salvar_como_template = st.checkbox("💾 Salvar como template para uso futuro")
+                nome_template = ""
+                if salvar_como_template:
+                    nome_template = st.text_input("Nome do template:", placeholder="Ex: Aulas de Matemática")
                 
                 submitted = st.form_submit_button("✅ Confirmar Agendamento", type="primary", use_container_width=True)
                 
@@ -4202,15 +5025,38 @@ elif menu == "📅 Agendamento de Espaços":
                         
                         if sucessos > 0:
                             st.success(f"✅ {sucessos} agendamento(s) confirmado(s)!")
-                            carregar_agendamentos_filtrado.clear()
+                            registrar_log("CRIAR_AGENDAMENTO", professor, f"{data.strftime('%d/%m/%Y')} - {espaco} - {horarios}")
+                            show_toast_agend(f"{sucessos} agendamento(s) criado(s)!", "success")
                             st.balloons()
+                            carregar_agendamentos_filtrado.clear()
+                            
+                            # ⭐ ATUALIZAR GAMIFICAÇÃO ⭐
+                            st.session_state.agendamentos_criados += sucessos
+                            
+                            # Verificar conquista de agendamento
+                            if st.session_state.agendamentos_criados >= 5:
+                                verificar_conquista("agendamento_perfeito")
+                            
+                            if salvar_como_template and nome_template:
+                                config = {
+                                    "turma": turma,
+                                    "disciplina": disciplina,
+                                    "prioridade": prioridade,
+                                    "espaco": espaco,
+                                    "horarios": horarios
+                                }
+                                salvar_template(professor, nome_template, config)
+                                st.success(f"✅ Template '{nome_template}' salvo!")
+                            
                             st.rerun()
                         else:
                             st.error("❌ Não foi possível criar o agendamento.")
+        
         else:
             st.info("💡 **Agendamento Fixo Semanal** - Use a aba '🗓️ Grade Semanal' para configurar horários fixos!")
-    
-    # ======================================================
+            if st.button("➡️ Ir para Grade Semanal", type="primary"):
+                st.rerun()
+                    # ======================================================
     # ABA 2: MEUS AGENDAMENTOS
     # ======================================================
     with tabs_agend[1]:
@@ -4218,16 +5064,16 @@ elif menu == "📅 Agendamento de Espaços":
         
         df_prof_agend = prof_list_agend()
         lista_nomes = sorted(df_prof_agend["nome"].dropna().tolist()) if not df_prof_agend.empty else []
-        professor_sel = st.selectbox("👨‍🏫 Seu Nome:", [""] + lista_nomes, key="prof_meus_agend_simplificado")
+        professor_sel = st.selectbox("👨‍🏫 Seu Nome:", [""] + lista_nomes, key="prof_meus_agend")
         
         col1, col2, col3 = st.columns(3)
         with col1:
-            data_ini = st.date_input("Data início:", datetime.now().date() - timedelta(days=30), key="meus_ini_simplificado")
+            data_ini = st.date_input("Data início:", datetime.now().date() - timedelta(days=30), key="meus_ini")
         with col2:
-            data_fim = st.date_input("Data fim:", datetime.now().date() + timedelta(days=60), key="meus_fim_simplificado")
+            data_fim = st.date_input("Data fim:", datetime.now().date() + timedelta(days=60), key="meus_fim")
         with col3:
             st.markdown("<br>", unsafe_allow_html=True)
-            buscar_btn = st.button("🔍 Buscar", key="btn_buscar_agend_simplificado", type="primary", use_container_width=True)
+            buscar_btn = st.button("🔍 Buscar", key="btn_buscar_agend", type="primary", use_container_width=True)
         
         if buscar_btn:
             if not professor_sel:
@@ -4242,14 +5088,50 @@ elif menu == "📅 Agendamento de Espaços":
                         df = df[df['status'] == 'ATIVO']
                     
                     st.success(f"📊 {len(df)} agendamentos encontrados")
-                    st.dataframe(df, use_container_width=True, hide_index=True)
+                    
+                    df['data_agendamento'] = pd.to_datetime(df['data_agendamento'])
+                    df = df.sort_values(['data_agendamento', 'horario'])
+                    
+                    colunas_exibir = ['data_agendamento', 'horario', 'espaco', 'turma', 'disciplina']
+                    colunas_disponiveis = [c for c in colunas_exibir if c in df.columns]
+                    
+                    df_display = df[colunas_disponiveis].copy()
+                    if 'data_agendamento' in df_display.columns:
+                        df_display['data_agendamento'] = df_display['data_agendamento'].dt.strftime('%d/%m/%Y')
+                    
+                    st.dataframe(df_display, use_container_width=True, hide_index=True)
+                    
+                    # Cancelar agendamento
+                    st.markdown("---")
+                    st.subheader("🛑 Cancelar Agendamento")
+                    id_cancelar = st.selectbox("Selecione o ID para cancelar:", df['id'].tolist(), key="id_cancelar")
+                    
+                    if st.button("🛑 Cancelar Agendamento", type="secondary"):
+                        ok, _ = cancelar_agendamento_api(str(id_cancelar))
+                        if ok:
+                            st.success("✅ Agendamento cancelado!")
+                            carregar_agendamentos_filtrado.clear()
+                            st.rerun()
+                        else:
+                            st.error("❌ Erro ao cancelar")
+                    
+                    # Exportar para Excel
+                    if st.button("📊 Exportar para Excel", key="export_meus"):
+                        excel_data = exportar_para_excel(df_display, "meus_agendamentos")
+                        st.download_button(
+                            "📥 Baixar Excel",
+                            data=excel_data,
+                            file_name=f"agendamentos_{professor_sel}_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        )
     
     # ======================================================
     # ABA 3: GRADE SEMANAL
     # ======================================================
     with tabs_agend[2]:
         st.subheader("🗓️ Grade Semanal - Agendamentos Fixos")
-        st.info("💡 Configure horários fixos e crie agendamentos recorrentes.")
+        
+        st.info("💡 Configure horários fixos • 🟢 Disponível • 🟡 Parcial • 🔴 Ocupado")
         
         df_prof_agend = prof_list_agend()
         lista_nomes = sorted(df_prof_agend["nome"].dropna().tolist()) if not df_prof_agend.empty else []
@@ -4257,9 +5139,36 @@ elif menu == "📅 Agendamento de Espaços":
         if not lista_nomes:
             st.warning("⚠️ Cadastre professores primeiro na aba '👥 Professores'")
         else:
-            professor_grade = st.selectbox("👨‍🏫 Selecione o Professor:", lista_nomes, key="prof_grade_simplificado")
+            professor_grade = st.selectbox("👨‍🏫 Selecione o Professor:", lista_nomes, key="prof_grade")
             
             if professor_grade:
+                # Templates salvos
+                templates = carregar_templates(professor_grade)
+                if templates:
+                    with st.expander("📂 Templates Salvos", expanded=False):
+                        cols = st.columns([2, 1, 1])
+                        with cols[0]:
+                            template_sel = st.selectbox("Selecione:", templates, key="grade_temp_sel")
+                        with cols[1]:
+                            if st.button("📂 Carregar", use_container_width=True):
+                                grade_key = f"grade_{professor_grade.replace(' ', '_').replace('.', '')}"
+                                if grade_key not in st.session_state:
+                                    st.session_state[grade_key] = {}
+                                if aplicar_template(professor_grade, template_sel, grade_key):
+                                    st.success(f"✅ Template '{template_sel}' carregado!")
+                                    show_toast_agend(f"Template '{template_sel}' aplicado!", "success")
+                                    st.rerun()
+                        with cols[2]:
+                            if st.button("🗑️ Excluir", use_container_width=True):
+                                template_key = f"template_{professor_grade.replace(' ', '_')}_{template_sel}"
+                                if template_key in st.session_state:
+                                    del st.session_state[template_key]
+                                    st.session_state[f"templates_{professor_grade.replace(' ', '_')}"].remove(template_sel)
+                                    st.success(f"✅ Template '{template_sel}' excluído!")
+                                    st.rerun()
+                
+                st.markdown("---")
+                
                 horarios_aulas = [
                     "07:00-07:50", "07:50-08:40", "08:40-09:30",
                     "09:50-10:40", "10:40-11:30", "11:30-12:20",
@@ -4278,7 +5187,7 @@ elif menu == "📅 Agendamento de Espaços":
                 
                 data_ref = st.date_input("📅 Data de referência para verificar disponibilidade:", 
                                         value=datetime.now().date() + timedelta(days=7),
-                                        key="data_ref_simplificado")
+                                        key="data_ref")
                 
                 for hora in horarios_aulas:
                     with st.expander(f"🕐 {hora}", expanded=False):
@@ -4294,9 +5203,9 @@ elif menu == "📅 Agendamento de Espaços":
                                 espaco_sel = st.selectbox(
                                     "📍 Espaço",
                                     [""] + ESPACOS_AGEND,
-                                    key=f"esp_{professor_grade}_{dia}_{hora}_simplificado",
+                                    key=f"esp_{professor_grade}_{dia}_{hora}",
                                     index=0 if not valor_atual.get("espaco") else ESPACOS_AGEND.index(valor_atual["espaco"]) + 1 if valor_atual["espaco"] in ESPACOS_AGEND else 0,
-                                    label_visibility="collapsed"
+                                    label_visibility="visible"
                                 )
                                 
                                 if espaco_sel:
@@ -4306,44 +5215,83 @@ elif menu == "📅 Agendamento de Espaços":
                                     turma_sel = st.selectbox(
                                         "🎓 Turma",
                                         [""] + sorted(TURMAS_INTERVALOS_AGEND.keys()),
-                                        key=f"turma_{professor_grade}_{dia}_{hora}_simplificado",
+                                        key=f"turma_{professor_grade}_{dia}_{hora}",
                                         index=0 if not valor_atual.get("turma") else list(TURMAS_INTERVALOS_AGEND.keys()).index(valor_atual["turma"]) + 1 if valor_atual["turma"] in TURMAS_INTERVALOS_AGEND else 0,
-                                        label_visibility="collapsed"
+                                        label_visibility="visible"
                                     )
                                     
                                     disciplina_sel = st.selectbox(
                                         "📚 Disciplina",
                                         [""] + DISCIPLINAS_AGEND,
-                                        key=f"disc_{professor_grade}_{dia}_{hora}_simplificado",
+                                        key=f"disc_{professor_grade}_{dia}_{hora}",
                                         index=0 if not valor_atual.get("disciplina") else DISCIPLINAS_AGEND.index(valor_atual["disciplina"]) + 1 if valor_atual["disciplina"] in DISCIPLINAS_AGEND else 0,
-                                        label_visibility="collapsed"
+                                        label_visibility="visible"
                                     )
+                                    
+                                    if espaco_sel and turma_sel and disciplina_sel:
+                                        st.success(f"✅ Configurado")
                                     
                                     st.session_state[grade_key][key] = {
                                         "espaco": espaco_sel,
                                         "turma": turma_sel if turma_sel else "",
                                         "disciplina": disciplina_sel if disciplina_sel else ""
                                     }
+                                else:
+                                    st.session_state[grade_key][key] = {"espaco": "", "turma": "", "disciplina": ""}
+                
+                st.markdown("---")
+                
+                # Salvar grade como template
+                with st.expander("💾 Salvar Grade como Template", expanded=False):
+                    nome_template_grade = st.text_input("Nome do template:", key="nome_template_grade")
+                    if st.button("💾 Salvar Template da Grade", type="primary"):
+                        if nome_template_grade:
+                            config_completa = {}
+                            for key, value in st.session_state[grade_key].items():
+                                if value.get("espaco") and value.get("turma") and value.get("disciplina"):
+                                    config_completa[key] = value
+                            
+                            if config_completa:
+                                salvar_template(professor_grade, nome_template_grade, config_completa)
+                                st.success(f"✅ Template '{nome_template_grade}' salvo com {len(config_completa)} horários!")
+                                show_toast_agend(f"Template salvo com sucesso!", "success")
+                            else:
+                                st.warning("⚠️ Nenhum horário configurado para salvar")
+                        else:
+                            st.error("❌ Digite um nome para o template")
                 
                 # Período letivo
                 col1, col2 = st.columns(2)
                 with col1:
-                    data_inicio = st.date_input("📅 Data de início:", value=datetime(2026, 2, 1).date(), key="grade_inicio_simplificado")
+                    data_inicio = st.date_input("📅 Data de início:", value=datetime(2026, 2, 1).date(), key="grade_inicio")
                 with col2:
-                    data_fim = st.date_input("📅 Data de término:", value=datetime(2026, 12, 20).date(), key="grade_fim_simplificado")
+                    data_fim = st.date_input("📅 Data de término:", value=datetime(2026, 12, 20).date(), key="grade_fim")
+                
+                frequencia = st.radio(
+                    "🔄 Frequência:",
+                    ["Semanal (toda semana)", "Quinzenal (a cada 15 dias)"],
+                    horizontal=True,
+                    key="freq_grade"
+                )
+                
+                intervalo = 7 if frequencia == "Semanal (toda semana)" else 14
                 
                 if st.button("🚀 CRIAR AGENDAMENTOS FIXOS", type="primary", use_container_width=True):
                     total_criados = 0
                     conflitos = 0
+                    
+                    progress_bar = st.progress(0)
+                    status_text = st.empty()
                     
                     dias_map = {
                         "Segunda-feira": 0, "Terça-feira": 1, "Quarta-feira": 2,
                         "Quinta-feira": 3, "Sexta-feira": 4
                     }
                     
-                    data_atual = data_inicio
-                    while data_atual <= data_fim:
-                        dia_semana_num = data_atual.weekday()
+                    total_potencial = 0
+                    data_temp = data_inicio
+                    while data_temp <= data_fim:
+                        dia_semana_num = data_temp.weekday()
                         dia_semana_nome = None
                         for nome, num in dias_map.items():
                             if num == dia_semana_num:
@@ -4354,36 +5302,119 @@ elif menu == "📅 Agendamento de Espaços":
                             for hora in horarios_aulas:
                                 key = f"{dia_semana_nome}_{hora}"
                                 config = st.session_state[grade_key].get(key, {})
-                                
                                 if config.get("espaco") and config.get("turma") and config.get("disciplina"):
-                                    conf = verificar_conflito_api(data_atual.strftime("%Y-%m-%d"), hora, config["espaco"])
-                                    
-                                    if not conf:
-                                        ok, _ = salvar_agendamento_api({
-                                            "data_agendamento": data_atual.strftime("%Y-%m-%d"),
-                                            "horario": hora,
-                                            "espaco": config["espaco"],
-                                            "turma": config["turma"],
-                                            "disciplina": config["disciplina"],
-                                            "prioridade": "NORMAL",
-                                            "professor_nome": professor_grade,
-                                            "status": "ATIVO",
-                                            "tipo": "FIXO"
-                                        })
-                                        if ok:
-                                            total_criados += 1
-                                    else:
-                                        conflitos += 1
+                                    total_potencial += 1
                         
-                        data_atual += timedelta(days=7)
+                        data_temp += timedelta(days=intervalo)
                     
-                    if total_criados > 0:
-                        st.success(f"✅ {total_criados} agendamentos fixos criados!")
-                        if conflitos > 0:
-                            st.warning(f"⚠️ {conflitos} horários já ocupados")
-                        carregar_agendamentos_filtrado.clear()
+                    if total_potencial == 0:
+                        st.warning("⚠️ Nenhum horário configurado.")
                     else:
-                        st.warning("⚠️ Nenhum agendamento foi criado.")
+                        data_atual = data_inicio
+                        processados = 0
+                        
+                        while data_atual <= data_fim:
+                            dia_semana_num = data_atual.weekday()
+                            dia_semana_nome = None
+                            for nome, num in dias_map.items():
+                                if num == dia_semana_num:
+                                    dia_semana_nome = nome
+                                    break
+                            
+                            if dia_semana_nome:
+                                for hora in horarios_aulas:
+                                    key = f"{dia_semana_nome}_{hora}"
+                                    config = st.session_state[grade_key].get(key, {})
+                                    
+                                    if config.get("espaco") and config.get("turma") and config.get("disciplina"):
+                                        conf = verificar_conflito_api(data_atual.strftime("%Y-%m-%d"), hora, config["espaco"])
+                                        
+                                        if not conf:
+                                            ok, _ = salvar_agendamento_api({
+                                                "data_agendamento": data_atual.strftime("%Y-%m-%d"),
+                                                "horario": hora,
+                                                "espaco": config["espaco"],
+                                                "turma": config["turma"],
+                                                "disciplina": config["disciplina"],
+                                                "prioridade": "NORMAL",
+                                                "professor_nome": professor_grade,
+                                                "status": "ATIVO",
+                                                "tipo": "FIXO"
+                                            })
+                                            if ok:
+                                                total_criados += 1
+                                        else:
+                                            conflitos += 1
+                            
+                            data_atual += timedelta(days=intervalo)
+                            processados += 1
+                            progress_bar.progress(min(processados / (total_potencial / len(horarios_aulas) + 1), 1.0))
+                            status_text.text(f"Criando... {total_criados} agendamentos")
+                        
+                        progress_bar.empty()
+                        status_text.empty()
+                        
+                        if total_criados > 0:
+                            st.success(f"✅ {total_criados} agendamentos fixos criados!")
+                            if conflitos > 0:
+                                st.warning(f"⚠️ {conflitos} horários já ocupados")
+                            
+                            registrar_log("CRIAR_GRADE_FIXA", professor_grade, f"{total_criados} agendamentos - {frequencia}")
+                            show_toast_agend(f"{total_criados} agendamentos fixos criados!", "success")
+                            st.balloons()
+                            carregar_agendamentos_filtrado.clear()
+                        else:
+                            st.warning("⚠️ Nenhum agendamento foi criado.")
+                
+                # Resumo da grade
+                st.markdown("---")
+                st.subheader("📋 Resumo da Grade")
+                
+                resumo_data = []
+                for dia in dias_semana:
+                    for hora in horarios_aulas:
+                        key = f"{dia}_{hora}"
+                        config = st.session_state[grade_key].get(key, {})
+                        if config.get("espaco") and config.get("turma") and config.get("disciplina"):
+                            resumo_data.append({
+                                "Dia": dia[:3],
+                                "Horário": hora,
+                                "Espaço": config["espaco"],
+                                "Turma": config["turma"],
+                                "Disciplina": config["disciplina"]
+                            })
+                
+                if resumo_data:
+                    df_resumo = pd.DataFrame(resumo_data)
+                    st.dataframe(df_resumo, use_container_width=True, hide_index=True)
+                    
+                    if st.button("🖨️ Imprimir Grade", key="btn_imprimir_grade"):
+                        buffer = BytesIO()
+                        doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), leftMargin=1*cm, rightMargin=1*cm)
+                        estilos = getSampleStyleSheet()
+                        
+                        elementos = []
+                        elementos.append(Paragraph(f"GRADE SEMANAL - {professor_grade}", estilos['Heading1']))
+                        elementos.append(Spacer(1, 0.3*cm))
+                        
+                        dados_tabela = [["Dia", "Horário", "Espaço", "Turma", "Disciplina"]]
+                        for item in resumo_data:
+                            dados_tabela.append([item["Dia"], item["Horário"], item["Espaço"], item["Turma"], item["Disciplina"]])
+                        
+                        tabela = Table(dados_tabela, repeatRows=1)
+                        tabela.setStyle(TableStyle([
+                            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#4A90E2")),
+                            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                            ('FONTSIZE', (0, 0), (-1, -1), 9),
+                        ]))
+                        
+                        elementos.append(tabela)
+                        doc.build(elementos)
+                        buffer.seek(0)
+                        
+                        st.download_button("📥 Baixar PDF", data=buffer, file_name=f"grade_{professor_grade}.pdf", mime="application/pdf")
     
     # ======================================================
     # ABA 4: VISUALIZAR POR ESPAÇO
@@ -4393,11 +5424,11 @@ elif menu == "📅 Agendamento de Espaços":
         
         col1, col2, col3 = st.columns([2, 1, 1])
         with col1:
-            espaco_sel = st.selectbox("📍 Espaço:", ESPACOS_AGEND, key="viz_espaco_simplificado")
+            espaco_sel = st.selectbox("📍 Espaço:", ESPACOS_AGEND, key="viz_espaco")
         with col2:
-            data_ini = st.date_input("Data início:", datetime.now().date(), key="viz_ini_simplificado")
+            data_ini = st.date_input("Data início:", datetime.now().date(), key="viz_ini")
         with col3:
-            data_fim = st.date_input("Data fim:", datetime.now().date() + timedelta(days=30), key="viz_fim_simplificado")
+            data_fim = st.date_input("Data fim:", datetime.now().date() + timedelta(days=30), key="viz_fim")
         
         if st.button("🔍 Carregar Agenda", type="primary", use_container_width=True):
             df = carregar_agendamentos_filtrado(data_ini.strftime("%Y-%m-%d"), data_fim.strftime("%Y-%m-%d"), espaco=espaco_sel)
@@ -4409,9 +5440,96 @@ elif menu == "📅 Agendamento de Espaços":
                 st.info(f"📭 Nenhum agendamento para **{espaco_sel}**")
             else:
                 st.success(f"📊 {len(df)} agendamentos encontrados")
-                st.dataframe(df, use_container_width=True, hide_index=True)
-    
-    # ======================================================
+                
+                df['data_agendamento'] = pd.to_datetime(df['data_agendamento'])
+                df = df.sort_values(['data_agendamento', 'horario'])
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Total no período", len(df))
+                with col2:
+                    st.metric("Professores únicos", df['professor_nome'].nunique())
+                with col3:
+                    st.metric("Turmas atendidas", df['turma'].nunique())
+                
+                st.markdown("---")
+                
+                datas_unicas = sorted(df['data_agendamento'].dt.date.unique())
+                
+                for data in datas_unicas:
+                    df_dia = df[df['data_agendamento'].dt.date == data]
+                    dia_semana = data.strftime('%A')
+                    
+                    with st.expander(f"📅 {dia_semana}, {data.strftime('%d/%m/%Y')} - {len(df_dia)} aula(s)", expanded=True):
+                        tabela_dia = []
+                        for _, row in df_dia.iterrows():
+                            tipo_icon = "🔁 FIXO" if row.get('tipo') == 'FIXO' else "📅 DATA"
+                            tabela_dia.append({
+                                "Horário": row['horario'],
+                                "Tipo": tipo_icon,
+                                "Turma": row['turma'],
+                                "Professor": row['professor_nome'],
+                                "Disciplina": row['disciplina']
+                            })
+                        
+                        df_tabela = pd.DataFrame(tabela_dia)
+                        st.dataframe(df_tabela, use_container_width=True, hide_index=True)
+                
+                st.markdown("---")
+                st.subheader("📋 Tabela Completa para Impressão")
+                
+                colunas_exibir = ['data_agendamento', 'horario', 'turma', 'professor_nome', 'disciplina']
+                colunas_disponiveis = [c for c in colunas_exibir if c in df.columns]
+                
+                df_completo = df[colunas_disponiveis].copy()
+                if 'data_agendamento' in df_completo.columns:
+                    df_completo['data_agendamento'] = df_completo['data_agendamento'].dt.strftime('%d/%m/%Y')
+                
+                st.dataframe(df_completo, use_container_width=True, hide_index=True)
+                
+                if st.button("🖨️ IMPRIMIR AGENDA", type="primary", use_container_width=True):
+                    buffer = BytesIO()
+                    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), leftMargin=1*cm, rightMargin=1*cm, topMargin=1*cm, bottomMargin=1*cm)
+                    estilos = getSampleStyleSheet()
+                    
+                    elementos = []
+                    elementos.append(Paragraph(f"AGENDA - {espaco_sel.upper()}", estilos['Heading1']))
+                    elementos.append(Spacer(1, 0.2*cm))
+                    elementos.append(Paragraph(f"Período: {data_ini.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')} | Total: {len(df)} agendamentos", estilos['Normal']))
+                    elementos.append(Spacer(1, 0.3*cm))
+                    
+                    dados_tabela = [["Data", "Horário", "Turma", "Professor", "Disciplina"]]
+                    for _, row in df.iterrows():
+                        data_str = row['data_agendamento'].strftime('%d/%m/%Y')
+                        dados_tabela.append([data_str, row['horario'], row['turma'], row['professor_nome'], row['disciplina']])
+                    
+                    tabela = Table(dados_tabela, repeatRows=1)
+                    tabela.setStyle(TableStyle([
+                        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#4A90E2")),
+                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                        ('FONTSIZE', (0, 0), (-1, -1), 8),
+                        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ]))
+                    
+                    elementos.append(tabela)
+                    elementos.append(Spacer(1, 0.3*cm))
+                    elementos.append(Paragraph(f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}", estilos['Normal']))
+                    
+                    doc.build(elementos)
+                    buffer.seek(0)
+                    
+                    st.download_button(
+                        "📥 Baixar PDF",
+                        data=buffer,
+                        file_name=f"agenda_{espaco_sel.replace(' ', '_')}_{data_ini.strftime('%Y%m%d')}.pdf",
+                        mime="application/pdf"
+                    )
+                    
+                    st.success("✅ PDF gerado com sucesso!")
+                        # ======================================================
     # ABA 5: DASHBOARD DE AGENDAMENTOS
     # ======================================================
     with tabs_agend[4]:
@@ -4419,9 +5537,9 @@ elif menu == "📅 Agendamento de Espaços":
         
         col1, col2 = st.columns(2)
         with col1:
-            data_ini = st.date_input("Data início:", datetime.now().date(), key="dash_ini_simplificado")
+            data_ini = st.date_input("Data início:", datetime.now().date(), key="dash_ini")
         with col2:
-            data_fim = st.date_input("Data fim:", datetime.now().date() + timedelta(days=7), key="dash_fim_simplificado")
+            data_fim = st.date_input("Data fim:", datetime.now().date() + timedelta(days=7), key="dash_fim")
         
         if st.button("📊 Carregar Dashboard", type="primary"):
             df = carregar_agendamentos_filtrado(data_ini.strftime("%Y-%m-%d"), data_fim.strftime("%Y-%m-%d"))
@@ -4432,20 +5550,42 @@ elif menu == "📅 Agendamento de Espaços":
             if df.empty:
                 st.info("📭 Nenhum agendamento no período")
             else:
+                # Métricas
                 col1, col2, col3, col4 = st.columns(4)
                 with col1:
                     st.metric("Total", len(df))
                 with col2:
-                    st.metric("Fixos", len(df[df.get('tipo', '') == 'FIXO']) if 'tipo' in df.columns else 0)
+                    fixos = len(df[df.get('tipo', '') == 'FIXO']) if 'tipo' in df.columns else 0
+                    st.metric("Fixos", fixos)
                 with col3:
-                    st.metric("Data Específica", len(df) - (len(df[df.get('tipo', '') == 'FIXO']) if 'tipo' in df.columns else 0))
+                    st.metric("Data Específica", len(df) - fixos)
                 with col4:
                     st.metric("Espaço mais usado", df['espaco'].mode()[0] if not df['espaco'].mode().empty else "N/A")
                 
-                st.subheader("📊 Uso por Espaço")
-                espaco_counts = df['espaco'].value_counts()
-                fig = px.bar(espaco_counts, x=espaco_counts.index, y=espaco_counts.values,
-                            labels={'x': 'Espaço', 'y': 'Quantidade'}, color=espaco_counts.index)
+                st.markdown("---")
+                
+                # Gráficos
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.subheader("📊 Uso por Espaço")
+                    espaco_counts = df['espaco'].value_counts()
+                    fig = px.bar(espaco_counts, x=espaco_counts.index, y=espaco_counts.values,
+                                labels={'x': 'Espaço', 'y': 'Quantidade'}, color=espaco_counts.index)
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                with col2:
+                    st.subheader("👨‍🏫 Top Professores")
+                    prof_counts = df['professor_nome'].value_counts().head(10)
+                    fig = px.bar(prof_counts, x=prof_counts.index, y=prof_counts.values,
+                                labels={'x': 'Professor', 'y': 'Quantidade'}, color=prof_counts.index)
+                    fig.update_layout(xaxis_tickangle=-45)
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                st.subheader("📅 Agendamentos por Dia")
+                df['data_agendamento'] = pd.to_datetime(df['data_agendamento'])
+                por_dia = df.groupby(df['data_agendamento'].dt.date).size().reset_index(name='Quantidade')
+                por_dia.columns = ['Data', 'Quantidade']
+                fig = px.line(por_dia, x='Data', y='Quantidade', markers=True)
                 st.plotly_chart(fig, use_container_width=True)
     
     # ======================================================
@@ -4457,7 +5597,7 @@ elif menu == "📅 Agendamento de Espaços":
         df_all = prof_list_agend()
         
         with st.expander("➕ Cadastrar Professor", expanded=False):
-            with st.form("form_prof_rapido_simplificado"):
+            with st.form("form_prof_rapido"):
                 c1, c2 = st.columns(2)
                 nome = c1.text_input("Nome *")
                 email = c2.text_input("Email *")
@@ -4466,6 +5606,7 @@ elif menu == "📅 Agendamento de Espaços":
                         ok, _ = prof_upsert_agend(nome, email)
                         if ok:
                             st.success(f"✅ Professor {nome} cadastrado!")
+                            show_toast_agend(f"Professor {nome} cadastrado!", "success")
                             st.rerun()
                         else:
                             st.error("❌ Erro ao cadastrar")
@@ -4485,11 +5626,11 @@ elif menu == "📅 Agendamento de Espaços":
         
         col1, col2 = st.columns(2)
         with col1:
-            data_ini = st.date_input("Data início:", datetime.now().date() - timedelta(days=30), key="rel_ini_simplificado")
+            data_ini = st.date_input("Data início:", datetime.now().date() - timedelta(days=30), key="rel_ini")
         with col2:
-            data_fim = st.date_input("Data fim:", datetime.now().date() + timedelta(days=30), key="rel_fim_simplificado")
+            data_fim = st.date_input("Data fim:", datetime.now().date() + timedelta(days=30), key="rel_fim")
         
-        if st.button("📊 Gerar Relatório", key="btn_rel_simplificado", type="primary"):
+        if st.button("📊 Gerar Relatório", key="btn_rel", type="primary"):
             df = carregar_agendamentos_filtrado(data_ini.strftime("%Y-%m-%d"), data_fim.strftime("%Y-%m-%d"))
             
             if df.empty:
@@ -4498,12 +5639,32 @@ elif menu == "📅 Agendamento de Espaços":
                 if 'status' in df.columns:
                     df = df[df['status'] == 'ATIVO']
                 
-                st.dataframe(df, use_container_width=True, hide_index=True)
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Total", len(df))
+                with col2:
+                    fixos = len(df[df.get('tipo', '') == 'FIXO']) if 'tipo' in df.columns else 0
+                    st.metric("Fixos", fixos)
+                with col3:
+                    st.metric("Data Específica", len(df) - fixos)
+                with col4:
+                    st.metric("Espaço mais usado", df['espaco'].mode()[0] if not df['espaco'].mode().empty else "N/A")
                 
+                st.subheader("📊 Uso por Espaço")
+                espaco_counts = df['espaco'].value_counts()
+                fig = px.bar(espaco_counts, x=espaco_counts.index, y=espaco_counts.values,
+                            labels={'x': 'Espaço', 'y': 'Quantidade'}, color=espaco_counts.index)
+                st.plotly_chart(fig, use_container_width=True)
+                
+                st.subheader("📋 Detalhamento")
+                colunas_exibir = ['data_agendamento', 'horario', 'espaco', 'turma', 'professor_nome', 'disciplina']
+                colunas_disponiveis = [c for c in colunas_exibir if c in df.columns]
+                st.dataframe(df[colunas_disponiveis], use_container_width=True, hide_index=True)
+                
+                # Exportar
                 csv = df.to_csv(index=False, encoding='utf-8-sig')
                 st.download_button("📥 Baixar CSV", data=csv, file_name=f"relatorio_agendamentos_{datetime.now().strftime('%Y%m%d')}.csv", mime="text/csv")
-    
-    # ======================================================
+                    # ======================================================
     # ABA 8: GESTÃO
     # ======================================================
     with tabs_agend[7]:
@@ -4515,6 +5676,7 @@ elif menu == "📅 Agendamento de Espaços":
                 if senha == SENHA_GESTAO_AGEND:
                     st.session_state.gestao_logado = True
                     st.success("✅ Acesso autorizado!")
+                    show_toast_agend("Acesso autorizado!", "success")
                     st.rerun()
                 else:
                     st.error("❌ Senha inválida")
@@ -4527,9 +5689,9 @@ elif menu == "📅 Agendamento de Espaços":
             
             col1, col2 = st.columns(2)
             with col1:
-                data_ini = st.date_input("Início:", datetime.now().date(), key="gest_ini_simplificado")
+                data_ini = st.date_input("Início:", datetime.now().date(), key="gest_ini")
             with col2:
-                data_fim = st.date_input("Fim:", datetime.now().date() + timedelta(days=30), key="gest_fim_simplificado")
+                data_fim = st.date_input("Fim:", datetime.now().date() + timedelta(days=30), key="gest_fim")
             
             if st.button("🔍 Carregar Agendamentos", type="primary"):
                 df = carregar_agendamentos_filtrado(data_ini.strftime("%Y-%m-%d"), data_fim.strftime("%Y-%m-%d"))
@@ -4546,10 +5708,22 @@ elif menu == "📅 Agendamento de Espaços":
                         ok, _ = excluir_agendamento_api(str(id_excluir))
                         if ok:
                             st.success(f"✅ Agendamento {id_excluir} excluído!")
+                            registrar_log("EXCLUIR_AGENDAMENTO", "Gestão", f"ID: {id_excluir}")
+                            show_toast_agend("Agendamento excluído!", "success")
                             carregar_agendamentos_filtrado.clear()
                             st.rerun()
                         else:
                             st.error("❌ Erro ao excluir")
+            
+            st.markdown("---")
+            
+            # Logs de atividades
+            with st.expander("📋 Logs de Atividades", expanded=False):
+                if st.session_state.logs_agendamento:
+                    for log in st.session_state.logs_agendamento[:20]:
+                        st.caption(f"{log['timestamp']} - {log['acao']} - {log['usuario']} - {log['detalhes']}")
+                else:
+                    st.info("Nenhum log registrado")
     
     # ======================================================
     # ABA 9: MANUTENÇÃO
@@ -4564,7 +5738,25 @@ elif menu == "📅 Agendamento de Espaços":
             
             dias = st.number_input("Remover registros anteriores a (dias):", min_value=7, max_value=3650, value=180)
             
+            # Preview do que será excluído
             cutoff = (datetime.now().date() - timedelta(days=int(dias))).strftime("%Y-%m-%d")
+            
+            if st.button("🔍 Visualizar registros a excluir"):
+                try:
+                    url = f"{SUPABASE_URL}/rest/v1/agendamentos?select=id,data_agendamento,espaco,professor_nome,status&status=in.(CANCELADO,EXCLUIDO_GESTAO)&data_agendamento=lt.{cutoff}&limit=50"
+                    r = requests.get(url, headers=HEADERS, timeout=20)
+                    if r.status_code == 200:
+                        dados = r.json()
+                        if dados:
+                            df_preview = pd.DataFrame(dados)
+                            st.warning(f"⚠️ {len(df_preview)} registros serão excluídos (mostrando até 50):")
+                            st.dataframe(df_preview, use_container_width=True, hide_index=True)
+                        else:
+                            st.success("✅ Nenhum registro para excluir!")
+                    else:
+                        st.error("❌ Erro ao consultar registros")
+                except Exception as e:
+                    st.error(f"❌ Erro: {e}")
             
             if st.button("🧹 Executar limpeza agora", type="primary"):
                 try:
@@ -4572,16 +5764,10 @@ elif menu == "📅 Agendamento de Espaços":
                     r = requests.delete(url, headers=HEADERS, timeout=20)
                     if r.status_code in (200, 204):
                         st.success(f"✅ Limpeza concluída! (corte: {cutoff})")
+                        registrar_log("LIMPEZA", "Gestão", f"Excluídos registros anteriores a {cutoff}")
+                        show_toast_agend("Limpeza concluída com sucesso!", "success")
                         carregar_agendamentos_filtrado.clear()
                     else:
                         st.error(f"❌ Erro: {r.status_code}")
                 except Exception as e:
                     st.error(f"❌ Falha: {e}")
-
-# ======================================================
-# FIM DO SISTEMA
-<<<<<<< HEAD
-# ======================================================
-=======
-# ======================================================
->>>>>>> d4f67035edfd9aba973fa3a5155845b286c65db1
