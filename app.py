@@ -247,7 +247,23 @@ h1, h2, h3, h4, h5, h6 {
 /* ========== LAYOUT PRINCIPAL ========== */
 /* ============================================ */
 .stApp {
-    background: linear-gradient(160deg, #f0f4ff 0%, #f8fafc 40%, #f0fdf4 100%) !important;
+    background:
+        radial-gradient(circle at top left, rgba(59,130,246,0.10), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(16,185,129,0.10), transparent 24%),
+        linear-gradient(180deg, #f5f9ff 0%, #f8fbff 46%, #f5fbf7 100%) !important;
+    color: var(--dark) !important;
+}
+
+[data-testid="stAppViewContainer"] {
+    background: transparent !important;
+}
+
+.main .block-container {
+    max-width: 1480px !important;
+    padding-top: 1.4rem !important;
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
+    padding-bottom: 3rem !important;
 }
 
 footer { visibility: hidden; }
@@ -257,20 +273,24 @@ footer { visibility: hidden; }
 /* ========== SIDEBAR PREMIUM ========== */
 /* ============================================ */
 section[data-testid="stSidebar"] {
-    background: var(--dark-mid) !important;
+    background:
+        linear-gradient(180deg, rgba(15,23,42,0.96) 0%, rgba(30,41,59,0.98) 100%) !important;
     border-right: none !important;
-    box-shadow: 4px 0 24px rgba(0,0,0,0.15) !important;
+    box-shadow: 16px 0 40px rgba(15,23,42,0.18) !important;
+    min-width: 320px !important;
+    max-width: 320px !important;
 }
 
 section[data-testid="stSidebar"] > div:first-child {
-    background: var(--dark-mid) !important;
-    overflow-x: hidden !important;
+    background: transparent !important;
+    overflow-x: visible !important;
     overflow-y: auto !important;
+    padding: 0.75rem 0.9rem 1rem 0.9rem !important;
 }
 
 section[data-testid="stSidebar"],
 [data-testid="stSidebar"] > div {
-    overflow-x: hidden !important;
+    overflow-x: visible !important;
 }
 
 section[data-testid="stSidebar"] .stMarkdown h2 {
@@ -285,25 +305,28 @@ section[data-testid="stSidebar"] span:not(button span) {
 /* ============================================ */
 /* ========== BOTÕES MENU LATERAL ========== */
 /* ============================================ */
-div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] {
+section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] {
     margin: 0.15rem 0 !important;
 }
 
-div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button {
-    background: transparent !important;
-    border: none !important;
-    border-radius: var(--r-md) !important;
-    padding: 0.7rem 1rem !important;
+section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button {
+    background: rgba(255,255,255,0.95) !important;
+    border: 1px solid rgba(148,163,184,0.18) !important;
+    border-radius: 18px !important;
+    padding: 0.9rem 1rem !important;
     text-align: left !important;
-    font-size: 0.875rem !important;
-    font-weight: 500 !important;
-    color: #94a3b8 !important;
+    font-size: 1rem !important;
+    font-weight: 700 !important;
+    color: #183153 !important;
     width: 100% !important;
-    transition: all 0.2s ease !important;
-    box-shadow: none !important;
-    min-height: 42px;
+    transition: all 0.22s ease !important;
+    box-shadow: 0 8px 18px rgba(15,23,42,0.10) !important;
+    min-height: 56px;
     position: relative;
     justify-content: flex-start !important;
+    align-items: center !important;
+    white-space: normal !important;
+    overflow: visible !important;
 }
 
 /* TODOS os spans dentro de botões do sidebar ficam visíveis */
@@ -312,18 +335,19 @@ div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button {
     color: inherit !important;
     opacity: 1 !important;
     visibility: visible !important;
-    display: inline !important;
+    display: block !important;
     font-size: inherit !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    line-height: 1.35 !important;
 }
 
-div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button span {
+section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button span {
     overflow: visible !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
-    display: inline !important;
+    text-overflow: clip !important;
+    white-space: normal !important;
+    display: block !important;
     max-width: 100% !important;
     color: inherit !important;
     font-size: inherit !important;
@@ -337,23 +361,25 @@ div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button span {
     display: none !important;
 }
 
-div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button:hover {
-    background: rgba(255,255,255,0.08) !important;
-    color: white !important;
-    transform: translateX(3px) !important;
+section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button:hover {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border-color: rgba(59,130,246,0.35) !important;
+    transform: translateX(4px) translateY(-1px) !important;
+    box-shadow: 0 14px 28px rgba(37,99,235,0.16) !important;
 }
 
 /* Botão ativo (primary) no sidebar */
-div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button[kind="primary"] {
-    background: linear-gradient(135deg, rgba(37,99,235,0.9), rgba(8,145,178,0.8)) !important;
+section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button[kind="primary"] {
+    background: linear-gradient(135deg, #2563eb 0%, #0f766e 100%) !important;
     color: white !important;
-    box-shadow: 0 4px 12px rgba(37,99,235,0.3) !important;
-    border-left: 3px solid #60a5fa !important;
+    box-shadow: 0 16px 30px rgba(37,99,235,0.30) !important;
+    border: 1px solid rgba(255,255,255,0.18) !important;
 }
 
-div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button[kind="primary"]:hover {
-    transform: translateX(0) !important;
-    box-shadow: 0 6px 16px rgba(37,99,235,0.4) !important;
+section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button[kind="primary"]:hover {
+    transform: translateX(2px) !important;
+    box-shadow: 0 18px 34px rgba(37,99,235,0.34) !important;
 }
 
 /* ============================================ */
@@ -443,7 +469,11 @@ p, span, div, label, li {
     line-height: 1.6 !important;
 }
 
-button, [data-testid="stFileUploaderDropzone"] * {
+button {
+    white-space: normal !important;
+}
+
+[data-testid="stFileUploaderDropzone"] * {
     white-space: nowrap !important;
 }
 [data-testid="stSidebar"] button {
@@ -454,13 +484,15 @@ button, [data-testid="stFileUploaderDropzone"] * {
 /* ========== HEADER DA ESCOLA ========== */
 /* ============================================ */
 .main-header {
-    background: var(--grad-school);
-    padding: 2.5rem 2.5rem;
-    border-radius: var(--r-3xl);
+    background:
+        radial-gradient(circle at top right, rgba(255,255,255,0.16), transparent 24%),
+        linear-gradient(135deg, #0f172a 0%, #1d4ed8 55%, #0f766e 100%);
+    padding: 2.6rem 2.6rem;
+    border-radius: 30px;
     color: white;
-    text-align: center;
+    text-align: left;
     margin-bottom: 2rem;
-    box-shadow: var(--shadow-2xl), 0 0 0 1px rgba(255,255,255,0.1) inset;
+    box-shadow: 0 28px 48px rgba(15,23,42,0.16), 0 0 0 1px rgba(255,255,255,0.10) inset;
     position: relative;
     overflow: hidden;
     animation: fadeInUp 0.6s cubic-bezier(.16,1,.3,1) both;
@@ -503,7 +535,7 @@ button, [data-testid="stFileUploaderDropzone"] * {
 
 .school-name {
     font-family: 'Nunito', sans-serif !important;
-    font-size: 2.4rem;
+    font-size: 2.55rem;
     font-weight: 900;
     letter-spacing: -0.03em;
     margin-bottom: 0.4rem;
@@ -514,14 +546,15 @@ button, [data-testid="stFileUploaderDropzone"] * {
 }
 
 .school-subtitle {
-    font-size: 1.1rem;
-    font-weight: 500;
-    opacity: 0.9;
+    font-size: 1rem;
+    font-weight: 700;
+    opacity: 0.92;
     margin-bottom: 1.25rem;
     position: relative;
     z-index: 1;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
+    color: #dbeafe;
 }
 
 .school-info-chips {
@@ -537,13 +570,13 @@ button, [data-testid="stFileUploaderDropzone"] * {
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
-    background: rgba(255,255,255,0.15);
-    backdrop-filter: blur(8px);
-    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.14);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.18);
     border-radius: var(--r-full);
-    padding: 0.35rem 0.9rem;
+    padding: 0.45rem 0.95rem;
     font-size: 0.82rem;
-    font-weight: 500;
+    font-weight: 700;
     color: white;
     white-space: nowrap;
 }
@@ -621,13 +654,13 @@ button, [data-testid="stFileUploaderDropzone"] * {
 /* ========== CARDS GENÉRICOS ========== */
 /* ============================================ */
 .card {
-    background: var(--white);
+    background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.98) 100%);
     padding: 1.5rem;
-    border-radius: var(--r-2xl);
-    border: 1.5px solid var(--border);
-    margin: 0.6rem 0;
-    box-shadow: var(--shadow-xs);
-    transition: all 0.3s cubic-bezier(.16,1,.3,1);
+    border-radius: 26px;
+    border: 1px solid rgba(148,163,184,0.22);
+    margin: 0.75rem 0;
+    box-shadow: 0 14px 32px rgba(15,23,42,0.08);
+    transition: all 0.25s cubic-bezier(.16,1,.3,1);
     position: relative;
     overflow: hidden;
     color: var(--dark);
@@ -646,9 +679,9 @@ button, [data-testid="stFileUploaderDropzone"] * {
 }
 
 .card:hover {
-    box-shadow: var(--shadow-lg);
-    transform: translateY(-2px);
-    border-color: #bfdbfe;
+    box-shadow: 0 18px 38px rgba(37,99,235,0.12);
+    transform: translateY(-3px);
+    border-color: rgba(96,165,250,0.48);
 }
 
 .card:hover::before {
@@ -872,15 +905,15 @@ button, [data-testid="stFileUploaderDropzone"] * {
 /* ============================================ */
 .stTextInput > div > div > input,
 .stTextArea > div > div > textarea {
-    border-radius: var(--r-lg) !important;
-    border: 1.5px solid var(--border) !important;
+    border-radius: 18px !important;
+    border: 1px solid rgba(148,163,184,0.30) !important;
     font-family: 'Inter', sans-serif !important;
-    font-size: 0.9rem !important;
-    background: var(--white) !important;
+    font-size: 0.96rem !important;
+    background: rgba(255,255,255,0.96) !important;
     color: var(--dark) !important;
     transition: all 0.2s !important;
-    padding: 0.6rem 0.9rem !important;
-    box-shadow: var(--shadow-xs) !important;
+    padding: 0.72rem 0.95rem !important;
+    box-shadow: 0 10px 22px rgba(15,23,42,0.05) !important;
 }
 
 .stTextInput > div > div > input:focus,
@@ -897,12 +930,15 @@ button, [data-testid="stFileUploaderDropzone"] * {
 
 /* Selectbox */
 [data-baseweb="select"] > div:first-child {
-    border-radius: var(--r-lg) !important;
-    border: 1.5px solid var(--border) !important;
-    background: var(--white) !important;
-    font-size: 0.9rem !important;
+    border-radius: 18px !important;
+    border: 1px solid rgba(148,163,184,0.30) !important;
+    background: rgba(255,255,255,0.96) !important;
+    font-size: 0.96rem !important;
     transition: all 0.2s !important;
-    box-shadow: var(--shadow-xs) !important;
+    box-shadow: 0 10px 22px rgba(15,23,42,0.05) !important;
+    min-height: 52px !important;
+    padding-left: 0.25rem !important;
+    padding-right: 0.25rem !important;
 }
 
 [data-baseweb="select"] > div:first-child:focus-within {
@@ -1308,6 +1344,14 @@ div[data-testid="stForm"]:hover {
     .metric-value { font-size: 2rem; }
     .metric-card  { padding: 1.1rem 0.75rem; }
     .metric-label { font-size: 0.7rem; }
+    .main .block-container {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    section[data-testid="stSidebar"] {
+        min-width: 285px !important;
+        max-width: 285px !important;
+    }
     .stTabs [data-baseweb="tab"] {
         padding: 0.45rem 0.7rem !important;
         font-size: 0.78rem !important;
