@@ -356,12 +356,42 @@ div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button[kind="
     box-shadow: 0 6px 16px rgba(37,99,235,0.4) !important;
 }
 
-/* Dropdowns sempre visíveis */
-[data-baseweb="menu"] div,
-[data-baseweb="menu"] span {
+/* ============================================ */
+/* ====== DROPDOWN / POPOVER DO SELECTBOX ===== */
+/* ============================================ */
+
+/* Container do popover (renderizado fora do stSelectbox, direto no body) */
+[data-baseweb="popover"],
+[data-baseweb="popover"] *,
+[data-baseweb="menu"],
+[data-baseweb="menu"] *,
+[role="listbox"],
+[role="listbox"] *,
+[role="option"],
+[role="option"] * {
     visibility: visible !important;
     opacity: 1 !important;
-    color: var(--dark) !important;
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
+    background-clip: unset !important;
+    -webkit-background-clip: unset !important;
+}
+
+/* Item hover */
+[data-baseweb="menu"] [role="option"]:hover,
+[role="listbox"] [role="option"]:hover {
+    background: #eff6ff !important;
+    color: #1d4ed8 !important;
+    -webkit-text-fill-color: #1d4ed8 !important;
+}
+
+/* Item selecionado */
+[data-baseweb="menu"] [aria-selected="true"],
+[role="option"][aria-selected="true"] {
+    background: #eff6ff !important;
+    color: #1d4ed8 !important;
+    -webkit-text-fill-color: #1d4ed8 !important;
+    font-weight: 600 !important;
 }
 
 /* ============================================ */
@@ -848,35 +878,14 @@ button, [data-testid="stFileUploaderDropzone"] * {
     box-shadow: 0 0 0 3px rgba(37,99,235,0.12) !important;
 }
 
-/* CORREÇÃO: texto visível dentro do selectbox (valor selecionado) */
-[data-baseweb="select"] [data-testid="stMarkdownContainer"] p,
+/* Valor selecionado visível no campo fechado */
 [data-baseweb="select"] span,
-[data-baseweb="select"] div[class*="placeholder"],
-[data-baseweb="select"] div[class*="singleValue"],
-[data-baseweb="select"] div[class*="value"],
-[data-baseweb="select"] > div > div > div,
-[data-baseweb="select"] > div > div {
-    color: var(--gray-dark) !important;
-    -webkit-text-fill-color: var(--gray-dark) !important;
+[data-baseweb="select"] div {
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
+    background-clip: unset !important;
+    -webkit-background-clip: unset !important;
     opacity: 1 !important;
-}
-
-/* Opções do dropdown (lista aberta) */
-[data-baseweb="menu"] li,
-[data-baseweb="menu"] [role="option"],
-[role="listbox"] li,
-[role="option"] {
-    color: var(--gray-dark) !important;
-    -webkit-text-fill-color: var(--gray-dark) !important;
-}
-
-/* Opção destacada/selecionada na lista */
-[data-baseweb="menu"] [aria-selected="true"],
-[role="option"][aria-selected="true"] {
-    background: var(--primary-xlight) !important;
-    color: var(--primary-dark) !important;
-    -webkit-text-fill-color: var(--primary-dark) !important;
-    font-weight: 600 !important;
 }
 
 /* Ocultar indicador "Running..." / modo de espera do Streamlit */
@@ -2544,9 +2553,29 @@ st.components.v1.html("""
 
         // CORREÇÃO: garante que o texto dentro dos selectboxes fica sempre visível
         document.querySelectorAll('[data-baseweb="select"] div, [data-baseweb="select"] span').forEach(el => {
-            el.style.setProperty('color', '#1e293b', 'important');
-            el.style.setProperty('-webkit-text-fill-color', '#1e293b', 'important');
+            el.style.setProperty('color', '#0f172a', 'important');
+            el.style.setProperty('-webkit-text-fill-color', '#0f172a', 'important');
             el.style.setProperty('opacity', '1', 'important');
+            el.style.setProperty('-webkit-background-clip', 'unset', 'important');
+            el.style.setProperty('background-clip', 'unset', 'important');
+        });
+
+        // CORREÇÃO: garante visibilidade no popover/dropdown aberto (renderizado fora do select)
+        const popoverSelectors = [
+            '[data-baseweb="popover"] *',
+            '[data-baseweb="menu"] *',
+            '[role="listbox"] *',
+            '[role="option"]'
+        ];
+        popoverSelectors.forEach(sel => {
+            document.querySelectorAll(sel).forEach(el => {
+                el.style.setProperty('color', '#0f172a', 'important');
+                el.style.setProperty('-webkit-text-fill-color', '#0f172a', 'important');
+                el.style.setProperty('-webkit-background-clip', 'unset', 'important');
+                el.style.setProperty('background-clip', 'unset', 'important');
+                el.style.setProperty('opacity', '1', 'important');
+                el.style.setProperty('visibility', 'visible', 'important');
+            });
         });
     }
     
