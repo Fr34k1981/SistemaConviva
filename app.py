@@ -5,6 +5,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import random
+import html
 from datetime import datetime, timedelta
 from io import BytesIO, StringIO
 from difflib import SequenceMatcher
@@ -6715,6 +6716,134 @@ elif menu == "📅 Agendamento de Espaços":
     # ======================================================
     with tabs_agend[3]:
         st.subheader("📍 Visualizar Agenda por Espaço")
+
+        st.markdown("---")
+        st.subheader("🗓️ Grade do Dia por Espaço (7 Aulas)")
+        data_grade_dia = st.date_input(
+            "Data da grade diária:",
+            datetime.now().date(),
+            key="grade_dia_data_espacos"
+        )
+        horarios_grade_dia = [
+            "07:00-07:50",
+            "07:50-08:40",
+            "09:00-09:50",
+            "09:50-10:40",
+            "10:40-11:30",
+            "11:30-12:20",
+            "12:20-13:10",
+        ]
+
+        if st.button("📊 Montar Grade do Dia", key="btn_grade_dia_espacos", type="primary", use_container_width=True):
+            try:
+                df_dia_espacos = carregar_agendamentos_filtrado(
+                    data_grade_dia.strftime("%Y-%m-%d"),
+                    data_grade_dia.strftime("%Y-%m-%d")
+                )
+
+                if not df_dia_espacos.empty and "status" in df_dia_espacos.columns:
+                    df_dia_espacos = df_dia_espacos[df_dia_espacos["status"] == "ATIVO"]
+
+                tabela_grade = []
+                for horario in horarios_grade_dia:
+                    linha = {"Horário": horario}
+                    for espaco_grade in ESPACOS_AGEND:
+                        if df_dia_espacos.empty:
+                            linha[espaco_grade] = "🟢 Livre"
+                            continue
+                        slot = df_dia_espacos[
+                            (df_dia_espacos["horario"] == horario) &
+                            (df_dia_espacos["espaco"] == espaco_grade)
+                        ]
+                        if slot.empty:
+                            linha[espaco_grade] = "🟢 Livre"
+                        elif len(slot) > 1:
+                            textos = []
+                            for _, r in slot.iterrows():
+                                textos.append(f"{r.get('turma', '')} | {r.get('disciplina', '')} | {r.get('professor_nome', '')}")
+                            linha[espaco_grade] = "🟡 Parcial: " + " / ".join(textos)
+                        else:
+                            textos = []
+                            for _, r in slot.iterrows():
+                                textos.append(f"{r.get('turma', '')} | {r.get('disciplina', '')} | {r.get('professor_nome', '')}")
+                            linha[espaco_grade] = "🔴 Ocupado: " + " / ".join(textos)
+                    tabela_grade.append(linha)
+
+                df_grade_dia = pd.DataFrame(tabela_grade)
+                st.caption(f"Grade diária de {data_grade_dia.strftime('%d/%m/%Y')} para todos os espaços.")
+                st.caption("Legenda: 🟢 Livre | 🟡 Parcial (mais de 1 lançamento no mesmo horário/espaço) | 🔴 Ocupado")
+                st.markdown("""
+                <style>
+                .agenda-grid-board{border:1px solid rgba(196,181,253,.45);border-radius:16px;overflow:hidden;background:rgba(255,255,255,.6);margin:.4rem 0 1rem 0}
+                .agenda-grid-head{display:grid;grid-template-columns:180px repeat(5,minmax(170px,1fr));background:linear-gradient(120deg,#f5f3ff,#eef2ff);border-bottom:1px solid rgba(196,181,253,.35)}
+                .agenda-grid-row{display:grid;grid-template-columns:180px repeat(5,minmax(170px,1fr));border-top:1px solid rgba(226,232,240,.7)}
+                .agenda-grid-cell{padding:.55rem .55rem;min-height:86px;border-left:1px solid rgba(226,232,240,.75);font-size:.78rem;color:#334155}
+                .agenda-grid-cell:first-child{border-left:none}
+                .agenda-grid-slot{background:#f8fafc;border:1px solid rgba(226,232,240,.85);border-radius:10px;padding:.45rem}
+                .agenda-status{display:inline-block;font-size:.72rem;font-weight:800;padding:.1rem .45rem;border-radius:999px;margin-bottom:.25rem}
+                .agenda-green{background:rgba(16,185,129,.16);color:#065f46}
+                .agenda-yellow{background:rgba(245,158,11,.16);color:#92400e}
+                .agenda-red{background:rgba(239,68,68,.16);color:#7f1d1d}
+                .agenda-slot-line{font-size:.72rem;line-height:1.35}
+                .agenda-slot-time{font-weight:800;color:#312e81}
+                .agenda-slot-label{font-weight:800;color:#4c1d95}
+                @media (max-width:1200px){
+                  .agenda-grid-head,.agenda-grid-row{grid-template-columns:150px repeat(5,minmax(150px,1fr))}
+                }
+                </style>
+                """, unsafe_allow_html=True)
+
+                horarios_lista = horarios_grade_dia
+                espacos_lista = ESPACOS_AGEND[:]
+                board_html = ['<div class="agenda-grid-board">']
+                board_html.append('<div class="agenda-grid-head">')
+                board_html.append('<div class="agenda-grid-cell"><span class="agenda-slot-label">Horário / Aula</span></div>')
+                for espaco_hdr in espacos_lista:
+                    board_html.append(f'<div class="agenda-grid-cell"><span class="agenda-slot-label">{html.escape(str(espaco_hdr))}</span></div>')
+                board_html.append('</div>')
+
+                for idx, horario in enumerate(horarios_lista, start=1):
+                    board_html.append('<div class="agenda-grid-row">')
+                    board_html.append(
+                        f'<div class="agenda-grid-cell"><div class="agenda-grid-slot"><div class="agenda-slot-label">{idx}ª Aula</div><div class="agenda-slot-time">{html.escape(horario)}</div></div></div>'
+                    )
+                    for espaco in espacos_lista:
+                        slot = df_dia_espacos[
+                            (df_dia_espacos["horario"] == horario) &
+                            (df_dia_espacos["espaco"] == espaco)
+                        ] if not df_dia_espacos.empty else pd.DataFrame()
+
+                        if slot.empty:
+                            cell = '<div class="agenda-grid-slot"><span class="agenda-status agenda-green">🟢 Livre</span></div>'
+                        elif len(slot) > 1:
+                            lines = []
+                            for _, r in slot.iterrows():
+                                t = html.escape(str(r.get("turma", "")))
+                                d = html.escape(str(r.get("disciplina", "")))
+                                p = html.escape(str(r.get("professor_nome", "")))
+                                lines.append(f'<div class="agenda-slot-line">{t} | {d} | {p}</div>')
+                            cell = '<div class="agenda-grid-slot"><span class="agenda-status agenda-yellow">🟡 Parcial</span>' + "".join(lines) + '</div>'
+                        else:
+                            r = slot.iloc[0]
+                            t = html.escape(str(r.get("turma", "")))
+                            d = html.escape(str(r.get("disciplina", "")))
+                            p = html.escape(str(r.get("professor_nome", "")))
+                            cell = (
+                                '<div class="agenda-grid-slot"><span class="agenda-status agenda-red">🔴 Ocupado</span>'
+                                f'<div class="agenda-slot-line">{t}</div>'
+                                f'<div class="agenda-slot-line">{d}</div>'
+                                f'<div class="agenda-slot-line">{p}</div>'
+                                '</div>'
+                            )
+                        board_html.append(f'<div class="agenda-grid-cell">{cell}</div>')
+                    board_html.append('</div>')
+                board_html.append('</div>')
+                st.markdown("".join(board_html), unsafe_allow_html=True)
+
+                with st.expander("Ver Tabela Simples", expanded=False):
+                    st.dataframe(df_grade_dia, use_container_width=True, hide_index=True)
+            except Exception as e:
+                st.error(f"❌ Erro ao montar grade do dia: {e}")
         
         col1, col2, col3 = st.columns([2, 1, 1])
         with col1:
@@ -6781,7 +6910,7 @@ elif menu == "📅 Agendamento de Espaços":
                 
                 st.dataframe(df_completo, use_container_width=True, hide_index=True)
                 
-                if st.button("🖨️ IMPRIMIR AGENDA", type="primary", use_container_width=True):
+                try:
                     buffer = BytesIO()
                     doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), leftMargin=1*cm, rightMargin=1*cm, topMargin=1*cm, bottomMargin=1*cm)
                     estilos = getSampleStyleSheet()
@@ -6794,8 +6923,16 @@ elif menu == "📅 Agendamento de Espaços":
                     
                     dados_tabela = [["Data", "Horário", "Turma", "Professor", "Disciplina"]]
                     for _, row in df.iterrows():
-                        data_str = row['data_agendamento'].strftime('%d/%m/%Y')
-                        dados_tabela.append([data_str, row['horario'], row['turma'], row['professor_nome'], row['disciplina']])
+                        data_val = row.get('data_agendamento')
+                        data_str = pd.to_datetime(data_val, errors='coerce')
+                        data_fmt = data_str.strftime('%d/%m/%Y') if pd.notna(data_str) else ""
+                        dados_tabela.append([
+                            data_fmt,
+                            str(row.get('horario', '')),
+                            str(row.get('turma', '')),
+                            str(row.get('professor_nome', '')),
+                            str(row.get('disciplina', ''))
+                        ])
                     
                     tabela = Table(dados_tabela, repeatRows=1)
                     tabela.setStyle(TableStyle([
@@ -6816,13 +6953,15 @@ elif menu == "📅 Agendamento de Espaços":
                     buffer.seek(0)
                     
                     st.download_button(
-                        "📥 Baixar PDF",
-                        data=buffer,
+                        "🖨️ IMPRIMIR AGENDA (PDF)",
+                        data=buffer.getvalue(),
                         file_name=f"agenda_{espaco_sel.replace(' ', '_')}_{data_ini.strftime('%Y%m%d')}.pdf",
-                        mime="application/pdf"
+                        mime="application/pdf",
+                        use_container_width=True,
+                        key="download_imprimir_agenda_pdf"
                     )
-                    
-                    st.success("✅ PDF gerado com sucesso!")
+                except Exception as e:
+                    st.error(f"❌ Erro ao gerar PDF da agenda: {e}")
                         # ======================================================
     # ABA 5: DASHBOARD DE AGENDAMENTOS
     # ======================================================
