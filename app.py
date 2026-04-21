@@ -356,14 +356,15 @@ button {
 /* ============================================ */
 .main-header {
     background:
-        radial-gradient(circle at top right, rgba(255,255,255,0.16), transparent 24%),
-        linear-gradient(135deg, #0f172a 0%, #1d4ed8 55%, #0f766e 100%);
+        radial-gradient(circle at top right, rgba(255,255,255,0.55), transparent 32%),
+        linear-gradient(120deg, #ffe0f3 0%, #ffecc8 24%, #d9f8ff 52%, #e8dbff 78%, #ffd9ef 100%);
     padding: 2.6rem 2.6rem;
     border-radius: 30px;
-    color: white;
+    color: #241b4d;
     text-align: left;
     margin-bottom: 2rem;
-    box-shadow: 0 28px 48px rgba(15,23,42,0.16), 0 0 0 1px rgba(255,255,255,0.10) inset;
+    border: 1.5px solid rgba(167,139,250,0.35);
+    box-shadow: 0 20px 38px rgba(76,29,149,0.10), 0 0 0 1px rgba(255,255,255,0.40) inset;
     position: relative;
     overflow: hidden;
     animation: fadeInUp 0.6s cubic-bezier(.16,1,.3,1) both;
@@ -376,7 +377,7 @@ button {
     right: -10%;
     width: 500px;
     height: 500px;
-    background: rgba(255,255,255,0.06);
+    background: rgba(129,140,248,0.12);
     border-radius: 50%;
     pointer-events: none;
 }
@@ -388,7 +389,7 @@ button {
     left: -8%;
     width: 350px;
     height: 350px;
-    background: rgba(255,255,255,0.04);
+    background: rgba(244,114,182,0.10);
     border-radius: 50%;
     pointer-events: none;
 }
@@ -398,39 +399,41 @@ button {
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
     background-image:
-        radial-gradient(circle at 20% 50%, rgba(255,255,255,0.05) 1px, transparent 1px),
-        radial-gradient(circle at 80% 20%, rgba(255,255,255,0.05) 1px, transparent 1px);
+        radial-gradient(circle at 20% 50%, rgba(124,58,237,0.10) 1px, transparent 1px),
+        radial-gradient(circle at 80% 20%, rgba(236,72,153,0.10) 1px, transparent 1px);
     background-size: 40px 40px;
     pointer-events: none;
 }
 
 .school-name {
     font-family: 'Nunito', sans-serif !important;
-    font-size: 2.55rem;
+    font-size: clamp(1.8rem, 2.6vw, 2.45rem);
     font-weight: 900;
     letter-spacing: -0.03em;
     margin-bottom: 0.4rem;
     position: relative;
     z-index: 1;
-    text-shadow: 0 2px 16px rgba(0,0,0,0.15);
+    color: #31215f;
+    line-height: 1.15;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.7);
     white-space: normal !important;
 }
 
 .school-subtitle {
     font-size: 1rem;
     font-weight: 700;
-    opacity: 0.92;
+    opacity: 1;
     margin-bottom: 1.25rem;
     position: relative;
     z-index: 1;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: #dbeafe;
+    color: #5b3d9b;
 }
 
 .school-info-chips {
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 1rem;
     flex-wrap: wrap;
     position: relative;
@@ -441,14 +444,14 @@ button {
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
-    background: rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.62);
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(255,255,255,0.18);
+    border: 1px solid rgba(124,58,237,0.22);
     border-radius: var(--r-full);
     padding: 0.45rem 0.95rem;
     font-size: 0.82rem;
     font-weight: 700;
-    color: white;
+    color: #3f2d77;
     white-space: nowrap;
 }
 
@@ -1337,8 +1340,8 @@ div[data-testid="stForm"]:hover {
     margin: 0.25rem 0 1rem 0;
     padding: 1rem 1.1rem;
     border-radius: 22px;
-    background: linear-gradient(135deg, rgba(219,234,254,0.82), rgba(236,253,245,0.92));
-    border: 1px solid rgba(147,197,253,0.45);
+    background: linear-gradient(120deg, rgba(255,241,250,0.92), rgba(240,249,255,0.95), rgba(245,243,255,0.95));
+    border: 1px solid rgba(196,181,253,0.45);
     box-shadow: 0 14px 30px rgba(15,23,42,0.06);
 }
 
@@ -1350,7 +1353,7 @@ div[data-testid="stForm"]:hover {
     width: 110px;
     height: 110px;
     border-radius: 999px;
-    background: radial-gradient(circle, rgba(37,99,235,0.12), transparent 70%);
+    background: radial-gradient(circle, rgba(168,85,247,0.12), transparent 70%);
 }
 
 .dashboard-callout-content {
@@ -1381,7 +1384,7 @@ div[data-testid="stForm"]:hover {
     border-radius: 999px;
     background: rgba(255,255,255,0.78);
     border: 1px solid rgba(148,163,184,0.22);
-    color: #1d4ed8;
+    color: #6d28d9;
     font-size: 0.76rem;
     font-weight: 800;
     letter-spacing: 0.06em;
@@ -1498,23 +1501,23 @@ st.sidebar.markdown(f"""
     padding: 1.2rem 1rem 1rem 1rem;
     margin: 0.2rem 0.2rem 0.9rem 0.2rem;
     border-radius: 28px;
-    background: linear-gradient(165deg, rgba(37,99,235,0.22) 0%, rgba(15,23,42,0.18) 100%);
-    border: 1px solid rgba(148,163,184,0.18);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 18px 36px rgba(15,23,42,0.18);
+    background: linear-gradient(145deg, rgba(255,236,247,0.9) 0%, rgba(237,246,255,0.9) 45%, rgba(241,232,255,0.92) 100%);
+    border: 1px solid rgba(196,181,253,0.45);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.75), 0 12px 24px rgba(76,29,149,0.10);
     overflow: hidden;
     text-align: center;
 ">
     <div style="
         display: inline-flex; align-items: center; justify-content: center;
         width: 56px; height: 56px;
-        background: linear-gradient(135deg, #1d4ed8, #0891b2);
+        background: linear-gradient(135deg, #ff89cf, #9cc7ff);
         border-radius: 16px;
-        box-shadow: 0 8px 20px rgba(37,99,235,0.4);
+        box-shadow: 0 8px 18px rgba(124,58,237,0.25);
         font-size: 1.6rem;
         margin-bottom: 0.75rem;
     ">🏫</div>
     <div style="
-        color:#e2e8f0;
+        color:#7c3aed;
         font-size:0.72rem;
         font-weight:700;
         letter-spacing:0.18em;
@@ -1523,23 +1526,22 @@ st.sidebar.markdown(f"""
     ">Plataforma Escolar</div>
     <h2 style="
         font-family: 'Nunito', sans-serif;
-        color: white;
+        color: #31215f;
         font-weight: 900;
-        font-size: 2rem;
+        font-size: 1.85rem;
         line-height: 1.05;
         margin: 0 0 0.25rem 0;
         letter-spacing: -0.03em;
     ">{ESCOLA_SUBTITULO}</h2>
     <p style="
-        color: #bfdbfe;
+        color: #5b3d9b;
         font-size: 0.82rem;
         margin: 0 0 0.9rem 0;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
+        font-weight: 700;
+        letter-spacing: 0.02em;
     ">{ESCOLA_NOME}</p>
 </div>
-<div style="height: 1px; background: linear-gradient(90deg, transparent, #334155, transparent); margin: 0 1rem 0.5rem 1rem;"></div>
+<div style="height: 1px; background: linear-gradient(90deg, transparent, #c4b5fd, transparent); margin: 0 1rem 0.5rem 1rem;"></div>
 """, unsafe_allow_html=True)
 
 # Inicializar página atual se não existir
@@ -1574,6 +1576,7 @@ if 'pagina_atual' not in st.session_state:
 
 # Lista de itens do menu com ícones
 menu_items = [
+    {"nome": "Dashboard", "icone": "🏠"},
     {"nome": "Registrar Ocorrência", "icone": "📝"},
     {"nome": "Histórico de Ocorrências", "icone": "📋"},
     {"nome": "Comunicado aos Pais", "icone": "📄"},
@@ -1583,7 +1586,6 @@ menu_items = [
     {"nome": "Cadastrar Professores", "icone": "👨‍🏫"},
     {"nome": "Cadastrar Assinaturas", "icone": "👤"},
     {"nome": "Eletiva", "icone": "🎨"},
-    {"nome": "Dashboard", "icone": "🏠"},
     {"nome": "Gráficos e Indicadores", "icone": "📊"},
     {"nome": "Imprimir PDF", "icone": "🖨️"},
     {"nome": "Mapa da Sala", "icone": "🏫"},
@@ -3125,20 +3127,21 @@ if menu == "🏠 Dashboard":
     st.markdown(f"""
     <div style="
         display: flex; align-items: center; gap: 1rem;
-        background: white; border-radius: 16px; padding: 1.25rem 1.5rem;
-        border: 1.5px solid #e2e8f0; box-shadow: 0 2px 8px rgba(15,23,42,0.06);
+        background: linear-gradient(120deg, rgba(255,255,255,0.95), rgba(250,245,255,0.96));
+        border-radius: 18px; padding: 1.25rem 1.5rem;
+        border: 1.5px solid rgba(196,181,253,0.45); box-shadow: 0 6px 16px rgba(76,29,149,0.08);
         margin-bottom: 1.75rem;
     ">
-        <div style="font-size: 2.5rem; line-height:1;">👋</div>
+        <div style="font-size: 2.35rem; line-height:1;">👋</div>
         <div>
             <div style="
                 font-family: 'Nunito', sans-serif;
                 font-size: 1.3rem; font-weight: 800;
-                color: #0f172a; margin-bottom: 0.15rem;
+                color: #1f1b3a; margin-bottom: 0.15rem;
             ">{saudacao}! Bem-vindo ao Sistema Conviva 179</div>
-            <div style="color: #64748b; font-size: 0.9rem;">
+            <div style="color: #5b5679; font-size: 0.9rem;">
                 Gerencie ocorrências, alunos e agendamentos de forma inteligente.
-                &nbsp;·&nbsp; <b style="color: #2563eb;">{datetime.now().strftime('%A, %d de %B de %Y')}</b>
+                &nbsp;·&nbsp; <b style="color: #7c3aed;">{datetime.now().strftime('%A, %d de %B de %Y')}</b>
             </div>
         </div>
     </div>
@@ -3148,20 +3151,37 @@ if menu == "🏠 Dashboard":
     total_ocorrencias = len(df_ocorrencias) if not df_ocorrencias.empty else 0
     total_professores = len(df_professores) if not df_professores.empty else 0
 
-    # Validação de status para considerar somente alunos ativos nas métricas
+    # Validação de status por RA (evita duplicidade e conta somente ativos reais)
     total_ativos = 0
     total_transferidos = 0
     total_remanejados = 0
     total_inativos = 0
     total_outros_status = 0
+    total_duplicados_ra = 0
     status_brutos = {}
+    turmas_ativas = 0
     if not df_alunos.empty:
-        if "situacao" in df_alunos.columns:
-            situacoes_raw = df_alunos["situacao"].fillna("").astype(str).str.strip()
-        else:
-            situacoes_raw = pd.Series(["Ativo"] * len(df_alunos))
+        base = df_alunos.copy()
+        if "situacao" not in base.columns:
+            base["situacao"] = "Ativo"
+        if "ra" not in base.columns:
+            base["ra"] = ""
+        base["ra_norm"] = base["ra"].astype(str).str.strip()
 
-        for s in situacoes_raw:
+        # dedupe por RA: mantém registro mais recente quando houver created_at
+        base_valid_ra = base[base["ra_norm"] != ""].copy()
+        total_duplicados_ra = int(base_valid_ra.loc[base_valid_ra.duplicated("ra_norm", keep=False), "ra_norm"].nunique())
+        if "created_at" in base_valid_ra.columns:
+            base_valid_ra["created_at"] = pd.to_datetime(base_valid_ra["created_at"], errors="coerce")
+            base_valid_ra = base_valid_ra.sort_values("created_at").drop_duplicates("ra_norm", keep="last")
+        else:
+            base_valid_ra = base_valid_ra.drop_duplicates("ra_norm", keep="last")
+
+        # inclui também linhas sem RA (não deduplicáveis)
+        base_sem_ra = base[base["ra_norm"] == ""].copy()
+        base_status = pd.concat([base_valid_ra, base_sem_ra], ignore_index=True)
+
+        for s in base_status["situacao"].fillna("").astype(str).str.strip():
             status_brutos[s if s else "(vazio)"] = status_brutos.get(s if s else "(vazio)", 0) + 1
             s_norm = normalizar_texto(s)
             if any(k in s_norm for k in ["TRANSFER", "BAIXA"]):
@@ -3172,10 +3192,14 @@ if menu == "🏠 Dashboard":
                 total_inativos += 1
             elif "ATIVO" in s_norm:
                 total_ativos += 1
-            elif not s_norm:
-                total_outros_status += 1
             else:
                 total_outros_status += 1
+
+        if "turma" in base_status.columns:
+            ativos_df = base_status[
+                base_status["situacao"].astype(str).apply(lambda s: "ATIVO" in normalizar_texto(s))
+            ]
+            turmas_ativas = int(ativos_df["turma"].dropna().astype(str).str.strip().replace("", pd.NA).dropna().nunique())
 
     gravissimas = (
         len(df_ocorrencias[df_ocorrencias["gravidade"] == "Gravíssima"])
@@ -3202,12 +3226,13 @@ if menu == "🏠 Dashboard":
     """, unsafe_allow_html=True)
 
     with st.expander("🔎 Verificação de Situação dos Estudantes", expanded=False):
-        st.info("As métricas usam apenas estudantes com situação ativa. Transferidos, remanejados/realocados e inativos ficam fora do total ativo.")
-        col_v1, col_v2, col_v3, col_v4 = st.columns(4)
+        st.info("As métricas usam RA único. Transferidos, remanejados/realocados e inativos ficam fora do total ativo.")
+        col_v1, col_v2, col_v3, col_v4, col_v5 = st.columns(5)
         col_v1.metric("Ativos", total_ativos)
         col_v2.metric("Transferidos", total_transferidos)
         col_v3.metric("Remanej./Realoc.", total_remanejados)
         col_v4.metric("Inativos/Outros", total_inativos + total_outros_status)
+        col_v5.metric("Duplicados de RA", total_duplicados_ra)
         if status_brutos:
             df_status = pd.DataFrame(
                 [{"Situação Original": k, "Quantidade": v} for k, v in sorted(status_brutos.items(), key=lambda x: (-x[1], x[0]))]
@@ -3217,11 +3242,11 @@ if menu == "🏠 Dashboard":
     col1, col2, col3, col4, col5 = st.columns(5)
 
     cards_data = [
-        (col1, "linear-gradient(135deg,#1d4ed8 0%,#2563eb 100%)", "✅", total_ativos, "Alunos Ativos", "somente ativos", "0"),
+        (col1, "linear-gradient(135deg,#1d4ed8 0%,#2563eb 100%)", "✅", total_ativos, "Alunos Ativos", "RA único validado", "0"),
         (col2, "linear-gradient(135deg,#dc2626 0%,#ef4444 100%)", "⚠️", total_ocorrencias, "Ocorrências", f"{gravissimas} gravíssimas", "0.08s"),
         (col3, "linear-gradient(135deg,#0891b2 0%,#06b6d4 100%)", "👨‍🏫", total_professores, "Professores", "cadastrados", "0.16s"),
-        (col4, "linear-gradient(135deg,#f59e0b 0%,#f97316 100%)", "↔️", total_remanejados, "Remanej./Realoc.", "fora do ativo", "0.24s"),
-        (col5, "linear-gradient(135deg,#7c3aed 0%,#8b5cf6 100%)", "🔄", total_transferidos, "Transferidos", "este ano", "0.32s"),
+        (col4, "linear-gradient(135deg,#059669 0%,#10b981 100%)", "🏫", turmas_ativas, "Turmas Ativas", "com alunos ativos", "0.24s"),
+        (col5, "linear-gradient(135deg,#7c3aed 0%,#8b5cf6 100%)", "🔎", total_duplicados_ra, "Duplicados de RA", "para saneamento", "0.32s"),
     ]
 
     for col, grad, icon, value, label, sub, delay in cards_data:
