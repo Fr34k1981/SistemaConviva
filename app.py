@@ -5509,14 +5509,23 @@ elif menu == "🎨 Eletiva":
                 st.error(f"Erro ao registrar estudante: {e}")
 
     with tab_colar:
-        serie_padrao = st.text_input("Turma padrão (opcional)", key="eletiva_serie_padrao", placeholder="Ex: 6º Ano A")
+        feedback_eletiva = st.session_state.get("eletiva_feedback", {})
+        if feedback_eletiva.get("tipo") == "success":
+            st.success(feedback_eletiva.get("msg", ""))
+        elif feedback_eletiva.get("tipo") == "error":
+            st.error(feedback_eletiva.get("msg", ""))
+        elif feedback_eletiva.get("tipo") == "warning":
+            st.warning(feedback_eletiva.get("msg", ""))
+
+        serie_padrao = st.text_input("Turma padr?o (opcional)", key="eletiva_serie_padrao", placeholder="Ex: 6? Ano A")
         lista_colada = st.text_area(
             "Cole a lista (1 estudante por linha). Opcional: Nome;Turma",
             key="eletiva_lista_colada",
             height=160,
-            placeholder="Maria Silva; 7º A\nJoão Santos; 8º B\nAna Souza"
+            placeholder="Maria Silva; 7? A\nJo?o Santos; 8? B\nAna Souza"
         )
-        if st.button("✅ Registrar Lista Colada", key="eletiva_btn_add_colada", type="primary"):
+
+        if st.button("? Registrar Lista Colada", key="eletiva_btn_add_colada", type="primary"):
             try:
                 novos = []
                 for linha in lista_colada.splitlines():
@@ -5525,27 +5534,49 @@ elif menu == "🎨 Eletiva":
                         novos.append(item)
                 qtd = _adicionar_estudantes_eletiva(novos, origem="lista_colada")
                 if qtd > 0:
-                    st.success(f"{qtd} estudante(s) adicionados via lista.")
-                    st.rerun()
+                    msg = f"? {qtd} estudante(s) adicionados via lista."
+                    st.session_state["eletiva_feedback"] = {"tipo": "success", "msg": msg}
+                    st.success(msg)
                 else:
-                    st.warning("Nenhum item válido novo foi encontrado na lista.")
+                    msg = "Nenhum item v?lido novo foi encontrado na lista."
+                    st.session_state["eletiva_feedback"] = {"tipo": "warning", "msg": msg}
+                    st.warning(msg)
             except Exception as e:
-                st.error(f"Erro ao registrar lista: {e}")
+                msg = f"? Erro ao registrar lista: {e}"
+                st.session_state["eletiva_feedback"] = {"tipo": "error", "msg": msg}
+                st.error(msg)
 
-        if st.button("💾 Salvar Agora no Supabase", key="eletiva_salvar_agora_colar", use_container_width=True):
+        if st.button("?? Salvar Agora no Supabase", key="eletiva_salvar_agora_colar", use_container_width=True):
             if not SUPABASE_VALID:
-                st.error("❌ Conexão com Supabase indisponível. Verifique URL/KEY e tente novamente.")
+                msg = "? Conex?o com Supabase indispon?vel. Verifique URL/KEY e tente novamente."
+                st.session_state["eletiva_feedback"] = {"tipo": "error", "msg": msg}
+                st.error(msg)
             else:
                 try:
-                    registros = converter_eletivas_para_registros(ELETIVAS, origem="sessao_manual")
-                    _supabase_request("DELETE", "eletivas?id=not.is.null")
-                    if registros:
-                        _supabase_request("POST", "eletivas", json=registros)
+                    registros_prof = [
+                        {
+                            "professora": professora_sel,
+                            "nome_aluno": str(item.get("nome", "")).strip(),
+                            "serie": formatar_turma_eletiva(str(item.get("serie", "")).strip()),
+                            "origem": "salvar_agora"
+                        }
+                        for item in ELETIVAS.get(professora_sel, [])
+                        if str(item.get("nome", "")).strip()
+                    ]
+
+                    prof_q = requests.utils.quote(str(professora_sel), safe="")
+                    _supabase_request("DELETE", f"eletivas?professora=eq.{prof_q}")
+                    if registros_prof:
+                        _supabase_request("POST", "eletivas", json=registros_prof)
+
                     st.session_state.FONTE_ELETIVAS = "supabase"
-                    st.success("✅ Dados das eletivas salvos no Supabase.")
-                    st.rerun()
+                    msg = f"? Salvamento conclu?do para {professora_sel}: {len(registros_prof)} estudante(s) gravado(s) no Supabase."
+                    st.session_state["eletiva_feedback"] = {"tipo": "success", "msg": msg}
+                    st.success(msg)
                 except Exception as e:
-                    st.error(f"❌ Erro ao salvar no Supabase: {e}")
+                    msg = f"? Erro ao salvar no Supabase: {e}"
+                    st.session_state["eletiva_feedback"] = {"tipo": "error", "msg": msg}
+                    st.error(msg)
 
     with tab_upload:
         arquivo_eletiva = st.file_uploader(
