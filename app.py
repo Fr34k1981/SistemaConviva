@@ -1857,6 +1857,16 @@ def serie_compativel_turma(serie_eletiva: str, turma_sistema: str) -> bool:
         return False
     return True
 
+def formatar_turma_eletiva(valor: str) -> str:
+    """Padroniza turma para formato escolar, ex.: 6A -> 6º Ano A."""
+    texto = str(valor or "").strip()
+    if not texto:
+        return ""
+    m = re.match(r"^\s*(\d{1,2})\s*([A-Za-z])\s*$", texto)
+    if m:
+        return f"{int(m.group(1))}º Ano {m.group(2).upper()}"
+    return texto
+
 def gerar_chave_segura(valor: str) -> str:
     """Gera uma chave segura para uso em session_state"""
     texto = normalizar_texto(valor)
@@ -2414,7 +2424,12 @@ def converter_eletivas_para_registros(eletivas_dict: dict, origem: str = "excel"
     registros = []
     for professora, alunos in eletivas_dict.items():
         for item in alunos:
-            registros.append({"professora": professora, "nome_aluno": item.get("nome", ""), "serie": item.get("serie", ""), "origem": origem})
+            registros.append({
+                "professora": professora,
+                "nome_aluno": item.get("nome", ""),
+                "serie": formatar_turma_eletiva(item.get("serie", "")),
+                "origem": origem
+            })
     return registros
 
 def converter_eletivas_supabase_para_dict(df_eletivas: pd.DataFrame) -> dict:
@@ -2424,7 +2439,7 @@ def converter_eletivas_supabase_para_dict(df_eletivas: pd.DataFrame) -> dict:
     for _, row in df_eletivas.iterrows():
         professora = str(row.get("professora", "")).strip()
         nome_aluno = str(row.get("nome_aluno", "")).strip()
-        serie = str(row.get("serie", "")).strip()
+        serie = formatar_turma_eletiva(str(row.get("serie", "")).strip())
         if not professora or not nome_aluno:
             continue
         eletivas.setdefault(professora, []).append({"nome": nome_aluno, "serie": serie})
@@ -2453,7 +2468,7 @@ def montar_dataframe_eletiva(nome_professora: str, df_alunos: pd.DataFrame, elet
 
     for item in eletivas_dict.get(nome_professora, []):
         nome_original = item.get("nome", "")
-        serie_original = item.get("serie", "")
+        serie_original = formatar_turma_eletiva(item.get("serie", ""))
         ra_original = "".join(ch for ch in str(item.get("ra", "")) if ch.isdigit())
         nome_norm_excel = normalizar_texto(nome_original)
         melhor_match = None
@@ -2491,10 +2506,11 @@ def montar_dataframe_eletiva(nome_professora: str, df_alunos: pd.DataFrame, elet
                 melhor_match = None
 
         if melhor_match is not None:
+            turma_final = str(melhor_match.get("turma", "")).strip() or serie_original
             registros.append({
                 "Professor(a)": nome_professora,
                 "Nome": nome_original,
-                "Série": serie_original,
+                "Turma": turma_final,
                 "Aluno Cadastrado": melhor_match.get("nome", ""),
                 "RA": melhor_match.get("ra", ""),
                 "Turma no Sistema": melhor_match.get("turma", ""),
@@ -2505,7 +2521,7 @@ def montar_dataframe_eletiva(nome_professora: str, df_alunos: pd.DataFrame, elet
             registros.append({
                 "Professor(a)": nome_professora,
                 "Nome": nome_original,
-                "Série": serie_original,
+                "Turma": serie_original,
                 "Aluno Cadastrado": "",
                 "RA": "",
                 "Turma no Sistema": "",
@@ -2550,18 +2566,17 @@ def gerar_pdf_eletiva(contexto: str, df_eletiva: pd.DataFrame) -> BytesIO:
     elementos.append(Paragraph(f"<b>Total de estudantes:</b> {len(df_eletiva)}", estilos['Normal']))
     elementos.append(Spacer(1, 0.5*cm))
     
-    cabecalho = ["Nome", "Série", "RA", "Turma", "Status"]
+    cabecalho = ["Nome", "Turma", "Professor(a)"]
     linhas = []
     for _, row in df_eletiva.iterrows():
+        turma_pdf = str(row.get("Turma", "")).strip() or str(row.get("Turma no Sistema", "")).strip()
         linhas.append([
-            str(row.get("Nome", ""))[:30],
-            str(row.get("Série", ""))[:15],
-            str(row.get("RA", ""))[:15],
-            str(row.get("Turma no Sistema", ""))[:15],
-            str(row.get("Status", ""))[:15]
+            str(row.get("Nome", ""))[:42],
+            turma_pdf[:24],
+            str(row.get("Professor(a)", ""))[:24]
         ])
     
-    tabela = Table([cabecalho] + linhas, colWidths=[7*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2.5*cm], repeatRows=1)
+    tabela = Table([cabecalho] + linhas, colWidths=[8.5*cm, 4.5*cm, 5*cm], repeatRows=1)
     tabela.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#4A90E2")), ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'), ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
@@ -4990,11 +5005,11 @@ elif menu == "🎨 Eletiva":
 
     dados_professoras = []
     for prof, alunos in ELETIVAS.items():
-        series = ", ".join(sorted({a.get("serie", "") for a in alunos if a.get("serie")}))
+        series = ", ".join(sorted({formatar_turma_eletiva(a.get("serie", "")) for a in alunos if a.get("serie")}))
         dados_professoras.append({
             "Professora": prof,
             "Total de Alunos": len(alunos),
-            "Séries": series
+            "Turmas": series
         })
     
     df_professoras = pd.DataFrame(dados_professoras)
@@ -5026,7 +5041,7 @@ elif menu == "🎨 Eletiva":
                     nome = possivel_nome
                 if possivel_serie:
                     serie = possivel_serie
-                return {"nome": nome, "serie": serie}
+                return {"nome": nome, "serie": formatar_turma_eletiva(serie)}
 
         for sep in [";", "\t", "|", " - ", " – ", ","]:
             if sep in bruto:
@@ -5036,7 +5051,7 @@ elif menu == "🎨 Eletiva":
                     if len(partes) > 1 and partes[1]:
                         serie = partes[1]
                     break
-        return {"nome": nome, "serie": serie}
+        return {"nome": nome, "serie": formatar_turma_eletiva(serie)}
 
     def _adicionar_estudantes_eletiva(novos_estudantes: list, origem: str):
         existentes = ELETIVAS.get(professora_sel, [])
@@ -5048,7 +5063,7 @@ elif menu == "🎨 Eletiva":
         inseridos = []
         for item in novos_estudantes:
             nome = str(item.get("nome", "")).strip()
-            serie = str(item.get("serie", "")).strip()
+            serie = formatar_turma_eletiva(str(item.get("serie", "")).strip())
             if not nome:
                 continue
             chave = f"{normalizar_texto(nome)}|{normalizar_texto(serie)}"
@@ -5120,7 +5135,7 @@ elif menu == "🎨 Eletiva":
         with col_a:
             nome_manual = st.text_input("Nome do estudante", key="eletiva_nome_manual")
         with col_b:
-            serie_manual = st.text_input("Série/Turma", key="eletiva_serie_manual")
+            serie_manual = st.text_input("Turma", key="eletiva_serie_manual", placeholder="Ex: 6º Ano A")
         if st.button("✅ Registrar Estudante", key="eletiva_btn_add_manual", type="primary"):
             try:
                 qtd = _adicionar_estudantes_eletiva(
@@ -5136,9 +5151,9 @@ elif menu == "🎨 Eletiva":
                 st.error(f"Erro ao registrar estudante: {e}")
 
     with tab_colar:
-        serie_padrao = st.text_input("Série/Turma padrão (opcional)", key="eletiva_serie_padrao")
+        serie_padrao = st.text_input("Turma padrão (opcional)", key="eletiva_serie_padrao", placeholder="Ex: 6º Ano A")
         lista_colada = st.text_area(
-            "Cole a lista (1 estudante por linha). Opcional: Nome;Série",
+            "Cole a lista (1 estudante por linha). Opcional: Nome;Turma",
             key="eletiva_lista_colada",
             height=160,
             placeholder="Maria Silva; 7º A\nJoão Santos; 8º B\nAna Souza"
@@ -5165,7 +5180,7 @@ elif menu == "🎨 Eletiva":
             type=["csv", "txt", "xlsx"],
             key="eletiva_upload"
         )
-        serie_upload = st.text_input("Série/Turma padrão para upload (opcional)", key="eletiva_serie_upload")
+        serie_upload = st.text_input("Turma padrão para upload (opcional)", key="eletiva_serie_upload", placeholder="Ex: 6º Ano A")
         if st.button("✅ Registrar Arquivo", key="eletiva_btn_add_upload", type="primary"):
             if not arquivo_eletiva:
                 st.warning("Selecione um arquivo para continuar.")
@@ -5266,7 +5281,7 @@ elif menu == "🎨 Eletiva":
     st.markdown("---")
     st.subheader("📋 Estudantes da Eletiva")
     colunas_visiveis = [
-        "Professor(a)", "Nome", "Série", "Aluno Cadastrado",
+        "Professor(a)", "Nome", "Turma", "Aluno Cadastrado",
         "RA", "Turma no Sistema", "Situação", "Status"
     ]
     colunas_visiveis = [c for c in colunas_visiveis if c in df_view.columns]
@@ -5308,17 +5323,17 @@ elif menu == "🎨 Eletiva":
             if not df_tmp.empty:
                 frames.append(df_tmp)
         df_geral_eletivas = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
-        turmas_eletiva = sorted([t for t in df_geral_eletivas.get("Série", pd.Series(dtype=str)).dropna().astype(str).str.strip().unique().tolist() if t])
+        turmas_eletiva = sorted([t for t in df_geral_eletivas.get("Turma", pd.Series(dtype=str)).dropna().astype(str).str.strip().unique().tolist() if t])
         if not turmas_eletiva:
-            st.info("Não há turmas/séries de eletiva para imprimir.")
+            st.info("Não há turmas de eletiva para imprimir.")
         else:
-            turma_impressao = st.selectbox("Turma/Série da Eletiva", turmas_eletiva, key="eletiva_turma_impressao")
-            df_imp = df_geral_eletivas[df_geral_eletivas["Série"].astype(str).str.strip() == str(turma_impressao).strip()].copy()
+            turma_impressao = st.selectbox("Turma da Eletiva", turmas_eletiva, key="eletiva_turma_impressao")
+            df_imp = df_geral_eletivas[df_geral_eletivas["Turma"].astype(str).str.strip() == str(turma_impressao).strip()].copy()
             if st.button("📄 Gerar PDF por Turma", type="primary", key="btn_pdf_eletiva_turma"):
                 if df_imp.empty:
                     st.warning("Não há estudantes para imprimir nessa turma.")
                 else:
-                    pdf = gerar_pdf_eletiva(f"Turma/Série: {turma_impressao}", df_imp)
+                    pdf = gerar_pdf_eletiva(f"Turma: {turma_impressao}", df_imp)
                     st.download_button(
                         "📥 Baixar PDF",
                         data=pdf,
@@ -5328,8 +5343,8 @@ elif menu == "🎨 Eletiva":
                     )
 
     st.markdown("---")
-    st.subheader("🔎 Buscar Não Localizados Por Turmas")
-    st.caption("Selecione as turmas do sistema para pesquisar estudantes da eletiva que ainda não foram localizados.")
+    st.subheader("🔎 Estudantes Sem Professor Na Eletiva")
+    st.caption("Selecione turmas do sistema para identificar alunos que ainda não estão vinculados a nenhum professor de eletiva.")
     if df_alunos.empty or "nome" not in df_alunos.columns:
         st.info("Não há base de alunos para pesquisa.")
     elif "turma" not in df_alunos.columns:
@@ -5343,32 +5358,46 @@ elif menu == "🎨 Eletiva":
             key="eletiva_turmas_pesquisa_nao_localizados"
         )
         if turmas_pesquisa:
+            frames = []
+            for prof in sorted(ELETIVAS.keys()):
+                df_tmp = montar_dataframe_eletiva(prof, df_alunos, ELETIVAS)
+                if not df_tmp.empty:
+                    frames.append(df_tmp)
+            df_geral_eletivas = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+
+            vinculados = set()
+            if not df_geral_eletivas.empty:
+                df_vinc = df_geral_eletivas[
+                    (df_geral_eletivas["Status"] == "Encontrado")
+                    & (df_geral_eletivas["Aluno Cadastrado"].astype(str).str.strip() != "")
+                    & (df_geral_eletivas["Professor(a)"].astype(str).str.strip() != "")
+                ].copy()
+                for _, r in df_vinc.iterrows():
+                    vinculados.add((
+                        normalizar_texto(r.get("Aluno Cadastrado", "")),
+                        normalizar_texto(r.get("Turma no Sistema", ""))
+                    ))
+
             base_turmas = df_alunos[df_alunos["turma"].astype(str).isin(turmas_pesquisa)].copy()
             base_turmas["nome_norm"] = base_turmas["nome"].astype(str).apply(normalizar_texto)
             base_turmas["turma_norm"] = base_turmas["turma"].astype(str).apply(normalizar_texto)
-            pendentes = []
-            for _, linha in df_eletiva.iterrows():
-                nome_eletiva = str(linha.get("Nome", "")).strip()
-                serie_eletiva = str(linha.get("Série", "")).strip()
-                if not nome_eletiva:
-                    continue
-                nome_norm = normalizar_texto(nome_eletiva)
-                candidatos_nome = base_turmas[base_turmas["nome_norm"] == nome_norm]
-                encontrados_compativeis = candidatos_nome[
-                    candidatos_nome["turma_norm"].apply(lambda t: serie_compativel_turma(serie_eletiva, t))
-                ]
-                if encontrados_compativeis.empty:
-                    pendentes.append({
-                        "Professor(a)": linha.get("Professor(a)", ""),
-                        "Nome": nome_eletiva,
-                        "Série": serie_eletiva,
-                        "Status": "Não localizado nas turmas selecionadas"
+
+            sem_professor = []
+            for _, aluno in base_turmas.iterrows():
+                chave = (aluno.get("nome_norm", ""), aluno.get("turma_norm", ""))
+                if chave not in vinculados:
+                    sem_professor.append({
+                        "Nome": aluno.get("nome", ""),
+                        "Turma": aluno.get("turma", ""),
+                        "RA": aluno.get("ra", ""),
+                        "Situação": aluno.get("situacao", ""),
+                        "Professor(a)": ""
                     })
 
-            df_pendentes = pd.DataFrame(pendentes)
-            st.metric("Não localizados nas turmas selecionadas", len(df_pendentes))
+            df_pendentes = pd.DataFrame(sem_professor)
+            st.metric("Estudantes sem professor de eletiva", len(df_pendentes))
             if df_pendentes.empty:
-                st.success("Todos os estudantes da eletiva foram localizados nas turmas selecionadas.")
+                st.success("Todos os estudantes das turmas selecionadas já possuem professor na eletiva.")
             else:
                 st.dataframe(df_pendentes, use_container_width=True, hide_index=True)
         else:
@@ -5396,13 +5425,13 @@ elif menu == "🎨 Eletiva":
         with col_ed1:
             novo_nome = st.text_input("Nome", value=nome_antigo, key=f"eletiva_nome_edit_{idx_sel}")
         with col_ed2:
-            nova_serie = st.text_input("Série", value=serie_antiga, key=f"eletiva_serie_edit_{idx_sel}")
+            nova_serie = st.text_input("Turma", value=serie_antiga, key=f"eletiva_serie_edit_{idx_sel}")
 
         col_btn1, col_btn2 = st.columns(2)
         with col_btn1:
             if st.button("✅ Editar Estudante", type="primary", key="btn_editar_estudante_eletiva"):
                 novo_nome = novo_nome.strip()
-                nova_serie = nova_serie.strip()
+                nova_serie = formatar_turma_eletiva(nova_serie.strip())
                 if not novo_nome:
                     st.warning("Informe um nome válido para salvar.")
                 else:
