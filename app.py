@@ -2441,9 +2441,9 @@ def montar_dataframe_eletiva(nome_professora: str, df_alunos: pd.DataFrame, elet
                 melhor_match = aluno
         if melhor_match is not None and melhor_score >= 0.80:
             registros.append({
-                "Professora": nome_professora,
-                "Nome da Eletiva": nome_original,
-                "Série da Eletiva": serie_original,
+                "Professor(a)": nome_professora,
+                "Nome": nome_original,
+                "Série": serie_original,
                 "Aluno Cadastrado": melhor_match.get("nome", ""),
                 "RA": melhor_match.get("ra", ""),
                 "Turma no Sistema": melhor_match.get("turma", ""),
@@ -2452,9 +2452,9 @@ def montar_dataframe_eletiva(nome_professora: str, df_alunos: pd.DataFrame, elet
             })
         else:
             registros.append({
-                "Professora": nome_professora,
-                "Nome da Eletiva": nome_original,
-                "Série da Eletiva": serie_original,
+                "Professor(a)": nome_professora,
+                "Nome": nome_original,
+                "Série": serie_original,
                 "Aluno Cadastrado": "",
                 "RA": "",
                 "Turma no Sistema": "",
@@ -2499,12 +2499,12 @@ def gerar_pdf_eletiva(nome_professora: str, df_eletiva: pd.DataFrame) -> BytesIO
     elementos.append(Paragraph(f"<b>Total de estudantes:</b> {len(df_eletiva)}", estilos['Normal']))
     elementos.append(Spacer(1, 0.5*cm))
     
-    cabecalho = ["Nome da Eletiva", "Série", "RA", "Turma", "Status"]
+    cabecalho = ["Nome", "Série", "RA", "Turma", "Status"]
     linhas = []
     for _, row in df_eletiva.iterrows():
         linhas.append([
-            str(row.get("Nome da Eletiva", ""))[:30],
-            str(row.get("Série da Eletiva", ""))[:15],
+            str(row.get("Nome", ""))[:30],
+            str(row.get("Série", ""))[:15],
             str(row.get("RA", ""))[:15],
             str(row.get("Turma no Sistema", ""))[:15],
             str(row.get("Status", ""))[:15]
@@ -5121,6 +5121,15 @@ elif menu == "🎨 Eletiva":
                 except Exception as e:
                     st.error(f"Erro ao processar arquivo: {e}")
 
+    def _apagar_registro_supabase_eletiva(professora: str, nome: str, serie: str = ""):
+        prof_q = requests.utils.quote(str(professora), safe="")
+        nome_q = requests.utils.quote(str(nome), safe="")
+        path = f"eletivas?professora=eq.{prof_q}&nome_aluno=eq.{nome_q}"
+        if str(serie).strip():
+            serie_q = requests.utils.quote(str(serie), safe="")
+            path += f"&serie=eq.{serie_q}"
+        _supabase_request("DELETE", path)
+
     df_eletiva = montar_dataframe_eletiva(professora_sel, df_alunos, ELETIVAS)
     
     total = len(df_eletiva)
@@ -5144,13 +5153,18 @@ elif menu == "🎨 Eletiva":
     
     df_view = df_eletiva.copy()
     if busca_nome:
-        df_view = df_view[df_view["Nome da Eletiva"].str.contains(busca_nome, case=False, na=False)]
+        df_view = df_view[df_view["Nome"].str.contains(busca_nome, case=False, na=False)]
     if filtro_status != "Todos":
         df_view = df_view[df_view["Status"] == filtro_status]
 
     st.markdown("---")
     st.subheader("📋 Estudantes da Eletiva")
-    st.dataframe(df_view, use_container_width=True, hide_index=True)
+    colunas_visiveis = [
+        "Professor(a)", "Nome", "Série", "Aluno Cadastrado",
+        "RA", "Turma no Sistema", "Situação", "Status"
+    ]
+    colunas_visiveis = [c for c in colunas_visiveis if c in df_view.columns]
+    st.dataframe(df_view[colunas_visiveis], use_container_width=True, hide_index=True)
 
     st.markdown("---")
     st.subheader("🖨️ Imprimir Lista da Eletiva")
@@ -5166,34 +5180,71 @@ elif menu == "🎨 Eletiva":
 
     if alunos_raw:
         st.markdown("---")
-        st.subheader("🗑️ Remover Estudantes da Eletiva")
-        
-        opcoes_remover = [f"{a['nome']} {a.get('serie', '')}".strip() for a in alunos_raw]
-        selecionados = st.multiselect("Selecione estudantes para remover", opcoes_remover)
-        
-        if st.button("🗑️ Remover Selecionados", type="secondary"):
-            if not selecionados:
-                st.warning("⚠️ Nenhum estudante selecionado.")
-            else:
-                novos = []
-                for a in alunos_raw:
-                    label = f"{a['nome']} {a.get('serie', '')}".strip()
-                    if label not in selecionados:
-                        novos.append(a)
-                
-                ELETIVAS[professora_sel] = novos
-                st.session_state.ELETIVAS = ELETIVAS
-                
-                if FONTE_ELETIVAS == "supabase":
+        st.subheader("✏️ Editar ou Excluir Estudante")
+        opcoes_estudantes = [
+            f"{a.get('nome', '').strip()} — {a.get('serie', '').strip()}".strip(" —")
+            for a in alunos_raw
+        ]
+        idx_sel = st.selectbox(
+            "Selecione o estudante",
+            options=list(range(len(opcoes_estudantes))),
+            format_func=lambda i: opcoes_estudantes[i],
+            key="eletiva_idx_edicao"
+        )
+
+        estudante_sel = alunos_raw[idx_sel]
+        nome_antigo = str(estudante_sel.get("nome", "")).strip()
+        serie_antiga = str(estudante_sel.get("serie", "")).strip()
+
+        col_ed1, col_ed2 = st.columns(2)
+        with col_ed1:
+            novo_nome = st.text_input("Nome", value=nome_antigo, key=f"eletiva_nome_edit_{idx_sel}")
+        with col_ed2:
+            nova_serie = st.text_input("Série", value=serie_antiga, key=f"eletiva_serie_edit_{idx_sel}")
+
+        col_btn1, col_btn2 = st.columns(2)
+        with col_btn1:
+            if st.button("✅ Editar Estudante", type="primary", key="btn_editar_estudante_eletiva"):
+                novo_nome = novo_nome.strip()
+                nova_serie = nova_serie.strip()
+                if not novo_nome:
+                    st.warning("Informe um nome válido para salvar.")
+                else:
                     try:
-                        for label in selecionados:
-                            nome = label.split("  ")[0]
-                            _supabase_request("DELETE", f"eletivas?professora=eq.{professora_sel}&nome_aluno=eq.{nome}")
+                        ELETIVAS[professora_sel][idx_sel] = {"nome": novo_nome, "serie": nova_serie}
+                        st.session_state.ELETIVAS = ELETIVAS
+                        if FONTE_ELETIVAS == "supabase":
+                            _apagar_registro_supabase_eletiva(professora_sel, nome_antigo, serie_antiga)
+                            _supabase_request("POST", "eletivas", json=[{
+                                "professora": professora_sel,
+                                "nome_aluno": novo_nome,
+                                "serie": nova_serie,
+                                "origem": "edicao_manual"
+                            }])
+                        st.success("✅ Estudante atualizado com sucesso.")
+                        st.rerun()
                     except Exception as e:
-                        st.error(f"Erro ao remover do Supabase: {e}")
-                
-                st.success(f"✅ {len(selecionados)} estudante(s) removido(s).")
-                st.rerun()
+                        st.error(f"Erro ao editar estudante: {e}")
+
+        with col_btn2:
+            confirmar_exc = st.checkbox("Confirmar exclusão", key=f"confirmar_exclusao_eletiva_{idx_sel}")
+            if st.button("🗑️ Excluir Estudante", type="secondary", key="btn_excluir_estudante_eletiva"):
+                if not confirmar_exc:
+                    st.warning("Marque a confirmação para excluir.")
+                else:
+                    try:
+                        removido = ELETIVAS[professora_sel].pop(idx_sel)
+                        st.session_state.ELETIVAS = ELETIVAS
+                        if FONTE_ELETIVAS == "supabase":
+                            _apagar_registro_supabase_eletiva(
+                                professora_sel,
+                                str(removido.get("nome", "")),
+                                str(removido.get("serie", ""))
+                            )
+                        st.success("✅ Estudante excluído com sucesso.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Erro ao excluir estudante: {e}")
                 # ======================================================
 # PÁGINA 🏫 MAPA DA SALA (COMPLETA)
 # ======================================================
