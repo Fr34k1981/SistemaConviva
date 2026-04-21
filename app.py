@@ -2428,18 +2428,69 @@ def montar_dataframe_eletiva(nome_professora: str, df_alunos: pd.DataFrame, elet
         alunos_db["nome_norm"] = alunos_db[nome_coluna].apply(normalizar_texto)
     else:
         alunos_db["nome_norm"] = ""
+    if "ra" in alunos_db.columns:
+        alunos_db["ra_norm"] = alunos_db["ra"].astype(str).apply(lambda x: "".join(ch for ch in x if ch.isdigit()))
+    else:
+        alunos_db["ra_norm"] = ""
+    if "turma" in alunos_db.columns:
+        alunos_db["turma_norm"] = alunos_db["turma"].astype(str).apply(normalizar_texto)
+    else:
+        alunos_db["turma_norm"] = ""
+
+    def _serie_compativel(serie_eletiva: str, turma_sistema: str) -> bool:
+        serie_norm = normalizar_texto(str(serie_eletiva or ""))
+        turma_norm = normalizar_texto(str(turma_sistema or ""))
+        if not serie_norm:
+            return True
+        # Ex.: "6A" deve combinar com "6º Ano A"
+        letras = "".join(ch for ch in serie_norm if ch.isalpha())
+        numeros = "".join(ch for ch in serie_norm if ch.isdigit())
+        if numeros and numeros not in turma_norm:
+            return False
+        if letras and letras not in turma_norm:
+            return False
+        return True
+
     for item in eletivas_dict.get(nome_professora, []):
         nome_original = item.get("nome", "")
         serie_original = item.get("serie", "")
+        ra_original = "".join(ch for ch in str(item.get("ra", "")) if ch.isdigit())
         nome_norm_excel = normalizar_texto(nome_original)
         melhor_match = None
-        melhor_score = 0.0
-        for _, aluno in alunos_db.iterrows():
-            score = SequenceMatcher(None, nome_norm_excel, aluno.get("nome_norm", "")).ratio()
-            if score > melhor_score:
-                melhor_score = score
-                melhor_match = aluno
-        if melhor_match is not None and melhor_score >= 0.80:
+
+        # 1) Prioriza match por RA quando disponível
+        if ra_original:
+            match_ra = alunos_db[alunos_db["ra_norm"] == ra_original]
+            if not match_ra.empty:
+                melhor_match = match_ra.iloc[0]
+
+        # 2) Match exato por nome (evita pegar irmã/irmão por similaridade)
+        if melhor_match is None and nome_norm_excel:
+            exatos = alunos_db[alunos_db["nome_norm"] == nome_norm_excel]
+            if not exatos.empty:
+                exatos_serie = exatos[exatos["turma_norm"].apply(lambda t: _serie_compativel(serie_original, t))]
+                melhor_match = (exatos_serie.iloc[0] if not exatos_serie.empty else exatos.iloc[0])
+
+        # 3) Fuzzy apenas como fallback, com regra de primeiro nome + série
+        if melhor_match is None and nome_norm_excel:
+            primeiro_nome = nome_norm_excel.split()[0] if nome_norm_excel.split() else ""
+            melhor_score = 0.0
+            for _, aluno in alunos_db.iterrows():
+                nome_sis = aluno.get("nome_norm", "")
+                if not nome_sis:
+                    continue
+                if primeiro_nome and not nome_sis.startswith(primeiro_nome):
+                    continue
+                if not _serie_compativel(serie_original, aluno.get("turma_norm", "")):
+                    continue
+                score = SequenceMatcher(None, nome_norm_excel, nome_sis).ratio()
+                if score > melhor_score:
+                    melhor_score = score
+                    melhor_match = aluno
+            if melhor_score < 0.92:
+                melhor_match = None
+
+        if melhor_match is not None:
             registros.append({
                 "Professor(a)": nome_professora,
                 "Nome": nome_original,
@@ -2510,7 +2561,7 @@ def gerar_pdf_eletiva(nome_professora: str, df_eletiva: pd.DataFrame) -> BytesIO
             str(row.get("Status", ""))[:15]
         ])
     
-    tabela = Table(cabecalho + linhas, colWidths=[7*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2.5*cm], repeatRows=1)
+    tabela = Table([cabecalho] + linhas, colWidths=[7*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2.5*cm], repeatRows=1)
     tabela.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#4A90E2")), ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'), ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
@@ -2537,6 +2588,60 @@ def gerar_pdf_eletiva(nome_professora: str, df_eletiva: pd.DataFrame) -> BytesIO
     doc.build(elementos)
     buffer.seek(0)
     return buffer
+
+def ler_csv_flexivel(arquivo_upload) -> pd.DataFrame:
+    bruto = arquivo_upload.getvalue()
+    ultimo_erro = None
+    for enc in ("utf-8-sig", "latin-1"):
+        try:
+            texto = bruto.decode(enc)
+            # Tentativa principal: autodetecta delimitador.
+            df = pd.read_csv(StringIO(texto), sep=None, engine="python", dtype=str)
+            if len(df.columns) <= 1:
+                # Fallbacks comuns de exportação escolar.
+                for sep in (";", "\t", ","):
+                    df = pd.read_csv(StringIO(texto), sep=sep, dtype=str)
+                    if len(df.columns) > 1:
+                        break
+            return df
+        except Exception as e:
+            ultimo_erro = e
+    raise ValueError(f"Não foi possível ler o CSV: {ultimo_erro}")
+
+def normalizar_dataframe_importacao(df_import: pd.DataFrame) -> pd.DataFrame:
+    df = df_import.copy()
+    df.columns = [str(c).strip() for c in df.columns]
+    df = df.dropna(how="all")
+    df = df.loc[:, ~df.columns.duplicated()]
+
+    # Quando o cabeçalho real vem na primeira linha de dados (ex.: Unnamed:0, Unnamed:1...).
+    palavras_chave = ("nome", "aluno", "ra")
+    linha_header = None
+    limite = min(len(df), 4)
+    for i in range(limite):
+        vals = [normalizar_texto(v) for v in df.iloc[i].fillna("").astype(str).tolist()]
+        joined = " ".join(vals)
+        if all(p in joined for p in palavras_chave):
+            linha_header = i
+            break
+    if linha_header is not None:
+        novo_header = [str(v).strip() for v in df.iloc[linha_header].fillna("").astype(str).tolist()]
+        df = df.iloc[linha_header + 1:].copy()
+        df.columns = novo_header
+
+    # Remove colunas completamente vazias ou lixo "Unnamed".
+    colunas_validas = []
+    for c in df.columns:
+        serie = df[c].fillna("").astype(str).str.strip()
+        if serie.eq("").all():
+            continue
+        if str(c).strip().lower().startswith("unnamed") and serie.eq("").all():
+            continue
+        colunas_validas.append(c)
+    if colunas_validas:
+        df = df[colunas_validas]
+
+    return df.reset_index(drop=True)
 
 # ======================================================
 # PDF — OCORRÊNCIA
@@ -3167,7 +3272,8 @@ elif menu == "📥 Importar Alunos":
     
     if arquivo_upload is not None:
         try:
-            df_import = pd.read_csv(arquivo_upload, sep=';', encoding='utf-8-sig', dtype=str)
+            df_import = ler_csv_flexivel(arquivo_upload)
+            df_import = normalizar_dataframe_importacao(df_import)
             st.success(f"✅ Arquivo lido! {len(df_import)} alunos encontrados.")
             st.write("### 👀 Pré-visualização dos dados:")
             st.dataframe(df_import.head(10), use_container_width=True)
