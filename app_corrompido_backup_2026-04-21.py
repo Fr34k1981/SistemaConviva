@@ -4114,60 +4114,20 @@ elif menu == "📝 Registrar Ocorrência":
 
     busca = st.text_input("🔍 Buscar infração", placeholder="Ex: celular, bullying, atraso...", key="busca_infracao")
 
-    # Modelo 4: expander por categoria + botões (sem perder opções)
-    grupos_match = {}
     if busca:
-        grupos_match = buscar_infracao_fuzzy(busca, PROTOCOLO_179)
-        if not grupos_match:
-            st.info("Busca sem correspondência exata. Todas as opções seguem disponíveis abaixo.")
+        grupos_filtrados = buscar_infracao_fuzzy(busca, PROTOCOLO_179)
+        if grupos_filtrados:
+            grupo = st.selectbox("Grupo", list(grupos_filtrados.keys()), key="grupo_infracao")
+            infracoes = grupos_filtrados[grupo]
+        else:
+            st.warning("⚠️ Nenhuma infração encontrada. Mostrando todas.")
+            grupo = st.selectbox("Grupo", list(PROTOCOLO_179.keys()), key="grupo_infracao")
+            infracoes = PROTOCOLO_179[grupo]
+    else:
+        grupo = st.selectbox("Grupo", list(PROTOCOLO_179.keys()), key="grupo_infracao")
+        infracoes = PROTOCOLO_179[grupo]
 
-    grupos_todos = list(PROTOCOLO_179.keys())
-    grupos_prioritarios = list(grupos_match.keys()) if grupos_match else []
-    grupos_restantes = [g for g in grupos_todos if g not in grupos_prioritarios]
-    grupos_ordenados = grupos_prioritarios + grupos_restantes
-
-    if "grupo_infracao_exp" not in st.session_state or st.session_state["grupo_infracao_exp"] not in PROTOCOLO_179:
-        st.session_state["grupo_infracao_exp"] = grupos_ordenados[0]
-
-    if "infracao_principal_exp" not in st.session_state:
-        st.session_state["infracao_principal_exp"] = list(PROTOCOLO_179[st.session_state["grupo_infracao_exp"]].keys())[0]
-
-    st.caption("Selecione a infração clicando nos botões dentro das categorias.")
-
-    for grupo_nome in grupos_ordenados:
-        infracoes_grupo = PROTOCOLO_179[grupo_nome]
-        expanded = (grupo_nome == st.session_state["grupo_infracao_exp"])
-        prioridade = " — resultado da busca" if grupo_nome in grupos_prioritarios else ""
-        with st.expander(f"{grupo_nome} ({len(infracoes_grupo)} opções){prioridade}", expanded=expanded):
-            opcoes_infracao = list(infracoes_grupo.keys())
-            colunas_infracao = st.columns(2)
-            for i, nome_infracao in enumerate(opcoes_infracao):
-                selecionada = (
-                    grupo_nome == st.session_state["grupo_infracao_exp"] and
-                    nome_infracao == st.session_state["infracao_principal_exp"]
-                )
-                rotulo = f"✅ {nome_infracao}" if selecionada else nome_infracao
-                with colunas_infracao[i % 2]:
-                    if st.button(
-                        rotulo,
-                        key=f"infr_btn_{grupo_nome}_{nome_infracao}_{i}",
-                        use_container_width=True,
-                        type="primary" if selecionada else "secondary"
-                    ):
-                        st.session_state["grupo_infracao_exp"] = grupo_nome
-                        st.session_state["infracao_principal_exp"] = nome_infracao
-                        st.rerun()
-
-    grupo = st.session_state["grupo_infracao_exp"]
-    if grupo not in PROTOCOLO_179:
-        grupo = grupos_todos[0]
-        st.session_state["grupo_infracao_exp"] = grupo
-
-    infracoes = PROTOCOLO_179[grupo]
-    infracao_principal = st.session_state["infracao_principal_exp"]
-    if infracao_principal not in infracoes:
-        infracao_principal = list(infracoes.keys())[0]
-        st.session_state["infracao_principal_exp"] = infracao_principal
+    infracao_principal = st.selectbox("Infração", list(infracoes.keys()), key="infracao_principal")
     dados_infracao = infracoes[infracao_principal]
     gravidade_sugerida = dados_infracao["gravidade"]
     encaminhamento_sugerido = dados_infracao["encaminhamento"]
