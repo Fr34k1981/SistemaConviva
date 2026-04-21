@@ -5532,6 +5532,21 @@ elif menu == "🎨 Eletiva":
             except Exception as e:
                 st.error(f"Erro ao registrar lista: {e}")
 
+        if st.button("💾 Salvar Agora no Supabase", key="eletiva_salvar_agora_colar", use_container_width=True):
+            if not SUPABASE_VALID:
+                st.error("❌ Conexão com Supabase indisponível. Verifique URL/KEY e tente novamente.")
+            else:
+                try:
+                    registros = converter_eletivas_para_registros(ELETIVAS, origem="sessao_manual")
+                    _supabase_request("DELETE", "eletivas?id=not.is.null")
+                    if registros:
+                        _supabase_request("POST", "eletivas", json=registros)
+                    st.session_state.FONTE_ELETIVAS = "supabase"
+                    st.success("✅ Dados das eletivas salvos no Supabase.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Erro ao salvar no Supabase: {e}")
+
     with tab_upload:
         arquivo_eletiva = st.file_uploader(
             "Envie CSV, TXT ou XLSX com nomes dos estudantes",
