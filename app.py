@@ -286,9 +286,9 @@ footer { visibility: hidden; }
 /* ============================================ */
 section[data-testid="stSidebar"] {
     background:
-        linear-gradient(180deg, rgba(74,40,126,0.94) 0%, rgba(99,58,156,0.95) 45%, rgba(56,111,181,0.92) 100%) !important;
+        linear-gradient(180deg, rgba(236,232,255,0.97) 0%, rgba(231,246,255,0.96) 100%) !important;
     border-right: none !important;
-    box-shadow: 16px 0 40px rgba(77,42,136,0.28) !important;
+    box-shadow: 10px 0 28px rgba(92,73,145,0.14) !important;
     min-width: 320px !important;
     max-width: 320px !important;
 }
@@ -306,12 +306,12 @@ section[data-testid="stSidebar"],
 }
 
 section[data-testid="stSidebar"] .stMarkdown h2 {
-    color: white !important;
+    color: #36285e !important;
 }
 
 section[data-testid="stSidebar"] p,
 section[data-testid="stSidebar"] span:not(button span) {
-    color: #94a3b8 !important;
+    color: #6a5f8e !important;
 }
 
 /* ============================================ */
@@ -322,18 +322,18 @@ section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div[data-t
 }
 
 section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button {
-    background: rgba(255,255,255,0.95) !important;
-    border: 1px solid rgba(148,163,184,0.18) !important;
+    background: rgba(255,255,255,0.94) !important;
+    border: 1px solid rgba(137,121,186,0.24) !important;
     border-radius: 18px !important;
-    padding: 0.9rem 1rem !important;
+    padding: 0.8rem 1rem !important;
     text-align: left !important;
-    font-size: 1rem !important;
+    font-size: 0.98rem !important;
     font-weight: 700 !important;
-    color: #183153 !important;
+    color: #3c2f67 !important;
     width: 100% !important;
     transition: all 0.22s ease !important;
-    box-shadow: 0 8px 18px rgba(15,23,42,0.10) !important;
-    min-height: 56px;
+    box-shadow: 0 6px 14px rgba(95,71,148,0.10) !important;
+    min-height: 52px;
     position: relative;
     justify-content: flex-start !important;
     align-items: center !important;
@@ -375,23 +375,25 @@ section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div[data-t
 
 section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button:hover {
     background: #ffffff !important;
-    color: #0f172a !important;
-    border-color: rgba(59,130,246,0.35) !important;
-    transform: translateX(4px) translateY(-1px) !important;
-    box-shadow: 0 14px 28px rgba(37,99,235,0.16) !important;
+    color: #2f2552 !important;
+    border-color: rgba(217,70,239,0.34) !important;
+    transform: translateX(2px) !important;
+    box-shadow: 0 10px 20px rgba(129,90,214,0.15) !important;
 }
 
 /* Botão ativo (primary) no sidebar */
 section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button[kind="primary"] {
-    background: linear-gradient(135deg, #2563eb 0%, #0f766e 100%) !important;
-    color: white !important;
-    box-shadow: 0 16px 30px rgba(37,99,235,0.30) !important;
-    border: 1px solid rgba(255,255,255,0.18) !important;
+    background: linear-gradient(120deg, #ffd0ef 0%, #dbeafe 45%, #c7f9f1 100%) !important;
+    color: #2f2552 !important;
+    box-shadow: 0 10px 20px rgba(168,85,247,0.22) !important;
+    border: 1px solid rgba(182,121,255,0.36) !important;
+    border-left: 6px solid #8b5cf6 !important;
+    font-weight: 800 !important;
 }
 
 section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div[data-testid="stButton"] > button[kind="primary"]:hover {
-    transform: translateX(2px) !important;
-    box-shadow: 0 18px 34px rgba(37,99,235,0.34) !important;
+    transform: translateX(1px) !important;
+    box-shadow: 0 12px 22px rgba(168,85,247,0.24) !important;
 }
 
 /* ============================================ */
@@ -453,6 +455,67 @@ section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div[data-t
     color: #1d4ed8 !important;
     -webkit-text-fill-color: #1d4ed8 !important;
     font-weight: 600 !important;
+}
+
+/* Força contraste alto no dropdown e no valor selecionado */
+[data-baseweb="popover"],
+[data-baseweb="menu"],
+[role="listbox"] {
+    background: #ffffff !important;
+    border: 1px solid #d8b4fe !important;
+    box-shadow: 0 14px 28px rgba(124,58,237,0.16) !important;
+}
+
+[role="option"],
+[role="option"] *,
+[role="listbox"] [role="option"] div,
+[role="listbox"] [role="option"] span {
+    color: #241a3d !important;
+    -webkit-text-fill-color: #241a3d !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+[data-baseweb="select"] [aria-live],
+[data-baseweb="select"] [aria-live] *,
+[data-baseweb="select"] [data-testid="stMarkdownContainer"],
+[data-baseweb="select"] [data-testid="stMarkdownContainer"] * {
+    color: #241a3d !important;
+    -webkit-text-fill-color: #241a3d !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* MultiSelect: chips/itens selecionados sempre legíveis */
+[data-baseweb="tag"],
+[data-baseweb="tag"] * {
+    background: #efe7ff !important;
+    color: #4c1d95 !important;
+    -webkit-text-fill-color: #4c1d95 !important;
+    border-color: #d8b4fe !important;
+}
+
+/* CorreÃ§Ã£o global definitiva de visibilidade para todos os menus suspensos */
+[data-baseweb="select"] *,
+[data-baseweb="select"] [role="combobox"] *,
+[data-baseweb="select"] [class*="value"] *,
+[data-baseweb="select"] [class*="singleValue"] *,
+[data-baseweb="select"] [class*="placeholder"] *,
+[data-baseweb="select"] [class*="input"] * {
+    color: #241a3d !important;
+    -webkit-text-fill-color: #241a3d !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    text-shadow: none !important;
+}
+
+[data-baseweb="select"] input,
+[data-baseweb="select"] [role="combobox"] input,
+[data-baseweb="select"] [contenteditable="true"] {
+    color: #241a3d !important;
+    -webkit-text-fill-color: #241a3d !important;
+    caret-color: #7c3aed !important;
+    opacity: 1 !important;
 }
 
 /* ============================================ */
@@ -1707,23 +1770,23 @@ st.sidebar.markdown("""
     padding: 1.2rem 1rem 1rem 1rem;
     margin: 0.2rem 0.2rem 0.9rem 0.2rem;
     border-radius: 28px;
-    background: linear-gradient(165deg, rgba(37,99,235,0.22) 0%, rgba(15,23,42,0.18) 100%);
-    border: 1px solid rgba(148,163,184,0.18);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 18px 36px rgba(15,23,42,0.18);
+    background: linear-gradient(165deg, rgba(255,255,255,0.92) 0%, rgba(243,238,255,0.92) 100%);
+    border: 1px solid rgba(186,170,226,0.35);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.45), 0 10px 22px rgba(84,66,130,0.10);
     overflow: hidden;
     text-align: center;
 ">
     <div style="
         display: inline-flex; align-items: center; justify-content: center;
         width: 56px; height: 56px;
-        background: linear-gradient(135deg, #1d4ed8, #0891b2);
+        background: linear-gradient(135deg, #c084fc, #60a5fa);
         border-radius: 16px;
-        box-shadow: 0 8px 20px rgba(37,99,235,0.4);
+        box-shadow: 0 8px 20px rgba(168,85,247,0.28);
         font-size: 1.6rem;
         margin-bottom: 0.75rem;
     ">🏫</div>
     <div style="
-        color:#e2e8f0;
+        color:#6f5ea2;
         font-size:0.72rem;
         font-weight:700;
         letter-spacing:0.18em;
@@ -1732,7 +1795,7 @@ st.sidebar.markdown("""
     ">Plataforma Escolar</div>
     <h2 style="
         font-family: 'Nunito', sans-serif;
-        color: white;
+        color: #37275d;
         font-weight: 900;
         font-size: 2rem;
         line-height: 1.05;
@@ -1740,7 +1803,7 @@ st.sidebar.markdown("""
         letter-spacing: -0.03em;
     ">Conviva 179</h2>
     <p style="
-        color: #bfdbfe;
+        color: #6b5a9d;
         font-size: 0.82rem;
         margin: 0 0 0.9rem 0;
         font-weight: 600;
@@ -1748,7 +1811,7 @@ st.sidebar.markdown("""
         letter-spacing: 0.08em;
     ">E.E. Profª Eliane</p>
 </div>
-<div style="height: 1px; background: linear-gradient(90deg, transparent, #334155, transparent); margin: 0 1rem 0.5rem 1rem;"></div>
+<div style="height: 1px; background: linear-gradient(90deg, transparent, #bca7e7, transparent); margin: 0 1rem 0.5rem 1rem;"></div>
 """, unsafe_allow_html=True)
 
 # Inicializar página atual se não existir
@@ -1761,19 +1824,19 @@ st.sidebar.markdown("""
     margin:0.1rem 0.35rem 0.95rem 0.35rem;
     padding:0.8rem 0.95rem;
     border-radius:18px;
-    background:rgba(255,255,255,0.08);
-    border:1px solid rgba(255,255,255,0.08);
+    background:rgba(255,255,255,0.72);
+    border:1px solid rgba(179,159,226,0.40);
 ">
     <div>
-        <div style="color:#93c5fd;font-size:0.68rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;">Ambiente</div>
-        <div style="color:#ffffff;font-size:0.95rem;font-weight:700;">Gestão Escolar</div>
+        <div style="color:#6f5ea2;font-size:0.68rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;">Ambiente</div>
+        <div style="color:#312455;font-size:0.95rem;font-weight:700;">Gestão Escolar</div>
     </div>
     <div style="
         width:40px;height:40px;border-radius:14px;
         display:flex;align-items:center;justify-content:center;
-        background:linear-gradient(135deg,#2563eb,#0f766e);
+        background:linear-gradient(135deg,#d8b4fe,#93c5fd);
         color:white;font-size:1.1rem;
-        box-shadow:0 10px 18px rgba(37,99,235,0.25);
+        box-shadow:0 8px 16px rgba(168,85,247,0.20);
     ">✦</div>
 </div>
 """, unsafe_allow_html=True)
@@ -2980,6 +3043,13 @@ st.components.v1.html("""
     function corrigirTextoSelects() {
         const seletoresTexto = [
             '[data-baseweb="select"] *',
+            '[data-baseweb="select"] input',
+            '[data-baseweb="select"] p',
+            '[data-baseweb="select"] [role="combobox"] *',
+            '[data-baseweb="select"] [class*="singleValue"] *',
+            '[data-baseweb="select"] [class*="value"] *',
+            '[data-baseweb="select"] [class*="placeholder"] *',
+            '[data-baseweb="tag"] *',
             '[data-baseweb="popover"] *',
             '[data-baseweb="menu"] *',
             '[role="listbox"] *',
@@ -2988,14 +3058,20 @@ st.components.v1.html("""
 
         seletoresTexto.forEach(sel => {
             document.querySelectorAll(sel).forEach(el => {
-                el.style.setProperty('color', '#0f172a', 'important');
-                el.style.setProperty('-webkit-text-fill-color', '#0f172a', 'important');
+                el.style.setProperty('color', '#241a3d', 'important');
+                el.style.setProperty('-webkit-text-fill-color', '#241a3d', 'important');
                 el.style.setProperty('opacity', '1', 'important');
                 el.style.setProperty('visibility', 'visible', 'important');
                 el.style.setProperty('-webkit-background-clip', 'unset', 'important');
                 el.style.setProperty('background-clip', 'unset', 'important');
                 el.style.setProperty('text-shadow', 'none', 'important');
             });
+        });
+
+        // garante fundo claro da lista para nÃ£o "sumir" texto claro
+        document.querySelectorAll('[data-baseweb="popover"], [data-baseweb="menu"], [role="listbox"]').forEach(el => {
+            el.style.setProperty('background', '#ffffff', 'important');
+            el.style.setProperty('border-color', '#d8b4fe', 'important');
         });
     }
     
@@ -3034,8 +3110,8 @@ st.components.v1.html("""
         // CORREÇÃO: garante que o texto dentro dos selectboxes fica sempre visível
         corrigirTextoSelects();
         document.querySelectorAll('[data-baseweb="select"] div, [data-baseweb="select"] span').forEach(el => {
-            el.style.setProperty('color', '#0f172a', 'important');
-            el.style.setProperty('-webkit-text-fill-color', '#0f172a', 'important');
+            el.style.setProperty('color', '#241a3d', 'important');
+            el.style.setProperty('-webkit-text-fill-color', '#241a3d', 'important');
             el.style.setProperty('opacity', '1', 'important');
             el.style.setProperty('-webkit-background-clip', 'unset', 'important');
             el.style.setProperty('background-clip', 'unset', 'important');
@@ -3050,8 +3126,8 @@ st.components.v1.html("""
         ];
         popoverSelectors.forEach(sel => {
             document.querySelectorAll(sel).forEach(el => {
-                el.style.setProperty('color', '#0f172a', 'important');
-                el.style.setProperty('-webkit-text-fill-color', '#0f172a', 'important');
+                el.style.setProperty('color', '#241a3d', 'important');
+                el.style.setProperty('-webkit-text-fill-color', '#241a3d', 'important');
                 el.style.setProperty('-webkit-background-clip', 'unset', 'important');
                 el.style.setProperty('background-clip', 'unset', 'important');
                 el.style.setProperty('opacity', '1', 'important');
@@ -3063,7 +3139,7 @@ st.components.v1.html("""
     // Executa após carregamento e periodicamente
     setTimeout(limparTooltips, 300);
     setTimeout(limparTooltips, 800);
-    setInterval(limparTooltips, 2000);
+    setInterval(limparTooltips, 6000);
     
     const observer = new MutationObserver(function() {
         corrigirTextoSelects();
