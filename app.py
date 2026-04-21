@@ -6,7 +6,7 @@ import pandas as pd
 import plotly.express as px
 import random
 from datetime import datetime, timedelta
-from io import BytesIO
+from io import BytesIO, StringIO
 from difflib import SequenceMatcher
 from xml.etree import ElementTree as ET
 import requests
@@ -2864,16 +2864,6 @@ if menu == "🏠 Dashboard":
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("""
-    <div class="section-header">
-        <div class="section-header-bar" style="--section-accent:linear-gradient(180deg,#059669,#10b981);"></div>
-        <div class="section-header-copy">
-            <h3 class="section-header-title">Acoes Rapidas</h3>
-            <p class="section-header-subtitle">Atalhos para as tarefas mais usadas no sistema.</p>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         if st.button("📝 Nova Ocorrência", use_container_width=True, type="primary", key="quick_ocorrencia"):
@@ -2915,16 +2905,6 @@ if menu == "🏠 Dashboard":
         <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
             <div style="width:4px; height:22px; background:linear-gradient(180deg,#dc2626,#f97316); border-radius:4px;"></div>
             <h3 style="margin:0; font-family:'Nunito',sans-serif; font-size:1.1rem; color:#0f172a;">Análise de Ocorrências</h3>
-        </div>
-        """, unsafe_allow_html=True)
-
-        st.markdown("""
-        <div class="section-header">
-            <div class="section-header-bar" style="--section-accent:linear-gradient(180deg,#dc2626,#f97316);"></div>
-            <div class="section-header-copy">
-                <h3 class="section-header-title">Analise de Ocorrencias</h3>
-                <p class="section-header-subtitle">Resumo visual das categorias, gravidades e reincidencias.</p>
-            </div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -4918,6 +4898,215 @@ elif menu == "🎨 Eletiva":
     professora_sel = st.selectbox("Selecione a Professora", sorted(ELETIVAS.keys()))
     alunos_raw = ELETIVAS.get(professora_sel, [])
 
+    st.markdown("---")
+    st.subheader("➕ Inserir Estudantes na Eletiva")
+    st.caption("Você pode buscar no cadastro, digitar manualmente, colar lista ou enviar arquivo.")
+
+    def _normalizar_linha_lista(linha: str, serie_padrao: str = ""):
+        bruto = str(linha or "").strip().lstrip("•-").strip()
+        if not bruto:
+            return None
+        nome = bruto
+        serie = str(serie_padrao or "").strip()
+        for sep in [";", "\t", "|", " - ", " – ", ","]:
+            if sep in bruto:
+                partes = [p.strip() for p in bruto.split(sep, 1)]
+                if partes and partes[0]:
+                    nome = partes[0]
+                    if len(partes) > 1 and partes[1]:
+                        serie = partes[1]
+                    break
+        return {"nome": nome, "serie": serie}
+
+    def _adicionar_estudantes_eletiva(novos_estudantes: list, origem: str):
+        existentes = ELETIVAS.get(professora_sel, [])
+        chaves_existentes = {
+            f"{normalizar_texto(item.get('nome', ''))}|{normalizar_texto(item.get('serie', ''))}"
+            for item in existentes
+        }
+
+        inseridos = []
+        for item in novos_estudantes:
+            nome = str(item.get("nome", "")).strip()
+            serie = str(item.get("serie", "")).strip()
+            if not nome:
+                continue
+            chave = f"{normalizar_texto(nome)}|{normalizar_texto(serie)}"
+            if chave in chaves_existentes:
+                continue
+            existentes.append({"nome": nome, "serie": serie})
+            chaves_existentes.add(chave)
+            inseridos.append({"nome": nome, "serie": serie})
+
+        if not inseridos:
+            return 0
+
+        ELETIVAS[professora_sel] = existentes
+        st.session_state.ELETIVAS = ELETIVAS
+
+        if FONTE_ELETIVAS == "supabase":
+            registros = [
+                {
+                    "professora": professora_sel,
+                    "nome_aluno": item["nome"],
+                    "serie": item["serie"],
+                    "origem": origem
+                }
+                for item in inseridos
+            ]
+            _supabase_request("POST", "eletivas", json=registros)
+
+        return len(inseridos)
+
+    tab_busca, tab_digitar, tab_colar, tab_upload = st.tabs(
+        ["🔎 Buscar no Cadastro", "✍️ Digitar", "📋 Colar Lista", "📁 Upload de Arquivo"]
+    )
+
+    with tab_busca:
+        if df_alunos.empty:
+            st.info("Não há alunos cadastrados para buscar.")
+        else:
+            base_busca = df_alunos.copy()
+            base_busca["nome"] = base_busca["nome"].astype(str)
+            if "turma" not in base_busca.columns:
+                base_busca["turma"] = ""
+            base_busca["turma"] = base_busca["turma"].astype(str)
+            termo_busca = st.text_input("Buscar aluno por nome", key="eletiva_busca_nome")
+            if termo_busca:
+                base_busca = base_busca[base_busca["nome"].str.contains(termo_busca, case=False, na=False)]
+
+            opcoes = []
+            mapa_opcoes = {}
+            for _, linha in base_busca.drop_duplicates(subset=["nome", "turma"]).iterrows():
+                label = f"{linha['nome']} ({linha['turma']})" if linha["turma"] else linha["nome"]
+                opcoes.append(label)
+                mapa_opcoes[label] = {"nome": linha["nome"], "serie": linha["turma"]}
+
+            selecionados_busca = st.multiselect("Selecione estudantes para adicionar", opcoes, key="eletiva_sel_busca")
+            if st.button("✅ Registrar Selecionados", key="eletiva_btn_add_busca", type="primary"):
+                try:
+                    novos = [mapa_opcoes[item] for item in selecionados_busca]
+                    qtd = _adicionar_estudantes_eletiva(novos, origem="busca_cadastro")
+                    if qtd > 0:
+                        st.success(f"{qtd} estudante(s) adicionados.")
+                        st.rerun()
+                    else:
+                        st.warning("Nenhum estudante novo para adicionar.")
+                except Exception as e:
+                    st.error(f"Erro ao registrar estudantes: {e}")
+
+    with tab_digitar:
+        col_a, col_b = st.columns([3, 1])
+        with col_a:
+            nome_manual = st.text_input("Nome do estudante", key="eletiva_nome_manual")
+        with col_b:
+            serie_manual = st.text_input("Série/Turma", key="eletiva_serie_manual")
+        if st.button("✅ Registrar Estudante", key="eletiva_btn_add_manual", type="primary"):
+            try:
+                qtd = _adicionar_estudantes_eletiva(
+                    [{"nome": nome_manual, "serie": serie_manual}],
+                    origem="digitacao_manual"
+                )
+                if qtd > 0:
+                    st.success("Estudante registrado com sucesso.")
+                    st.rerun()
+                else:
+                    st.warning("Informe um nome válido ou escolha um estudante novo.")
+            except Exception as e:
+                st.error(f"Erro ao registrar estudante: {e}")
+
+    with tab_colar:
+        serie_padrao = st.text_input("Série/Turma padrão (opcional)", key="eletiva_serie_padrao")
+        lista_colada = st.text_area(
+            "Cole a lista (1 estudante por linha). Opcional: Nome;Série",
+            key="eletiva_lista_colada",
+            height=160,
+            placeholder="Maria Silva; 7º A\nJoão Santos; 8º B\nAna Souza"
+        )
+        if st.button("✅ Registrar Lista Colada", key="eletiva_btn_add_colada", type="primary"):
+            try:
+                novos = []
+                for linha in lista_colada.splitlines():
+                    item = _normalizar_linha_lista(linha, serie_padrao=serie_padrao)
+                    if item:
+                        novos.append(item)
+                qtd = _adicionar_estudantes_eletiva(novos, origem="lista_colada")
+                if qtd > 0:
+                    st.success(f"{qtd} estudante(s) adicionados via lista.")
+                    st.rerun()
+                else:
+                    st.warning("Nenhum item válido novo foi encontrado na lista.")
+            except Exception as e:
+                st.error(f"Erro ao registrar lista: {e}")
+
+    with tab_upload:
+        arquivo_eletiva = st.file_uploader(
+            "Envie CSV, TXT ou XLSX com nomes dos estudantes",
+            type=["csv", "txt", "xlsx"],
+            key="eletiva_upload"
+        )
+        serie_upload = st.text_input("Série/Turma padrão para upload (opcional)", key="eletiva_serie_upload")
+        if st.button("✅ Registrar Arquivo", key="eletiva_btn_add_upload", type="primary"):
+            if not arquivo_eletiva:
+                st.warning("Selecione um arquivo para continuar.")
+            else:
+                try:
+                    nome_arquivo = arquivo_eletiva.name.lower()
+                    novos = []
+                    if nome_arquivo.endswith(".xlsx"):
+                        df_up = pd.read_excel(arquivo_eletiva)
+                        colunas_norm = {c: normalizar_texto(str(c)) for c in df_up.columns}
+                        col_nome = next((c for c, n in colunas_norm.items() if "nome" in n or "aluno" in n or "estudante" in n), None)
+                        col_serie = next((c for c, n in colunas_norm.items() if "serie" in n or "ano" in n or "turma" in n), None)
+                        if not col_nome and len(df_up.columns) > 0:
+                            col_nome = df_up.columns[0]
+                        if col_nome:
+                            for _, linha in df_up.iterrows():
+                                item = {
+                                    "nome": str(linha.get(col_nome, "")).strip(),
+                                    "serie": str(linha.get(col_serie, serie_upload) if col_serie else serie_upload).strip()
+                                }
+                                if item["nome"] and item["nome"].lower() != "nan":
+                                    novos.append(item)
+                    else:
+                        bruto = arquivo_eletiva.getvalue()
+                        try:
+                            conteudo = bruto.decode("utf-8-sig")
+                        except UnicodeDecodeError:
+                            conteudo = bruto.decode("latin-1", errors="ignore")
+                        if nome_arquivo.endswith(".csv"):
+                            df_csv = pd.read_csv(StringIO(conteudo), sep=None, engine="python")
+                            if len(df_csv.columns) == 1:
+                                for linha in df_csv.iloc[:, 0].astype(str).tolist():
+                                    item = _normalizar_linha_lista(linha, serie_padrao=serie_upload)
+                                    if item:
+                                        novos.append(item)
+                            else:
+                                colunas_norm = {c: normalizar_texto(str(c)) for c in df_csv.columns}
+                                col_nome = next((c for c, n in colunas_norm.items() if "nome" in n or "aluno" in n or "estudante" in n), df_csv.columns[0])
+                                col_serie = next((c for c, n in colunas_norm.items() if "serie" in n or "ano" in n or "turma" in n), None)
+                                for _, linha in df_csv.iterrows():
+                                    item = {
+                                        "nome": str(linha.get(col_nome, "")).strip(),
+                                        "serie": str(linha.get(col_serie, serie_upload) if col_serie else serie_upload).strip()
+                                    }
+                                    if item["nome"] and item["nome"].lower() != "nan":
+                                        novos.append(item)
+                        else:
+                            for linha in conteudo.splitlines():
+                                item = _normalizar_linha_lista(linha, serie_padrao=serie_upload)
+                                if item:
+                                    novos.append(item)
+
+                    qtd = _adicionar_estudantes_eletiva(novos, origem="upload_arquivo")
+                    if qtd > 0:
+                        st.success(f"{qtd} estudante(s) adicionados via upload.")
+                        st.rerun()
+                    else:
+                        st.warning("Nenhum estudante novo válido foi encontrado no arquivo.")
+                except Exception as e:
+                    st.error(f"Erro ao processar arquivo: {e}")
+
     df_eletiva = montar_dataframe_eletiva(professora_sel, df_alunos, ELETIVAS)
     
     total = len(df_eletiva)
@@ -6194,4 +6383,3 @@ elif menu == "📅 Agendamento de Espaços":
                         st.error(f"❌ Erro: {r.status_code}")
                 except Exception as e:
                     st.error(f"❌ Falha: {e}")
-
