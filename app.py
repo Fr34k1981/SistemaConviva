@@ -3736,9 +3736,10 @@ elif "REGISTRAR OCORR" in normalizar_texto(menu):
 elif "HISTORICO DE OCORRENCIA" in normalizar_texto(menu):
     page_header("📋 Histórico de Ocorrências", "Consulte, edite e exclua registros de ocorrências", "#d97706")
 
-    if "mensagem_exclusao" in st.session_state:
-        st.success(st.session_state.mensagem_exclusao)
-        del st.session_state.mensagem_exclusao
+    mensagem_exclusao = st.session_state.get("mensagem_exclusao")
+    if mensagem_exclusao:
+        st.success(mensagem_exclusao)
+        st.session_state.mensagem_exclusao = None
 
     if df_ocorrencias.empty:
         st.info("📭 Nenhuma ocorrência registrada.")
