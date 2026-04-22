@@ -2066,6 +2066,33 @@ def page_header(titulo: str, subtitulo: str = "", cor: str = "#2563eb"):
     """, unsafe_allow_html=True)
 
 
+def page_header(titulo: str, subtitulo: str = "", cor: str = "#2563eb"):
+    """Renderiza um cabeçalho de página moderno e consistente."""
+    partes = titulo.split(maxsplit=1)
+    primeiro_token = partes[0] if partes else ""
+    token_tem_texto = any(ch.isalnum() for ch in primeiro_token)
+
+    if len(partes) > 1 and not token_tem_texto:
+        icone = primeiro_token
+        titulo_texto = partes[1]
+    else:
+        icone = "📌"
+        titulo_texto = titulo
+
+    sub_html = f'<p class="page-banner-subtitle">{subtitulo}</p>' if subtitulo else ""
+    st.markdown(f"""
+    <div class="page-banner" style="--banner-accent:{cor};">
+        <div class="page-banner-content">
+            <div class="page-banner-icon">{icone}</div>
+            <div class="page-banner-copy">
+                <div class="page-banner-kicker">Painel</div>
+                <div class="page-banner-title">{titulo_texto}</div>
+                {sub_html}
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
 def info_message(message: str, type: str = "info"):
     """Mostra mensagem estilizada"""
     box_class = f"{type}-box"
