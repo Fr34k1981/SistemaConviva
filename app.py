@@ -3544,8 +3544,153 @@ elif menu == "👨‍👩‍👧 Portal do Responsável":
                     
                     st.markdown("---")
                     
-                    st.subheader("📋 Informações do Aluno")
+                    st.subheader("Informacoes do Aluno")
+                    st.write(f"Nome: {aluno['nome']}")
+                    st.write(f"RA: {aluno['ra']}")
+                    st.write(f"Turma: {aluno.get('turma', '')}")
 
+                    ocorr_aluno = df_ocorrencias[df_ocorrencias['ra'].astype(str) == str(aluno['ra'])] if not df_ocorrencias.empty else pd.DataFrame()
+                    if ocorr_aluno.empty:
+                        st.info("Nenhuma ocorrencia registrada para este aluno.")
+                    else:
+                        st.write("Ocorrencias recentes:")
+                        cols_show = [c for c in ["data", "categoria", "gravidade", "professor"] if c in ocorr_aluno.columns]
+                        st.dataframe(ocorr_aluno[cols_show].head(20), use_container_width=True, hide_index=True)
+
+# ======================================================
+# PAGINA REGISTRAR OCORRENCIA
+# ======================================================
+
+elif "REGISTRAR OCORR" in normalizar_texto(menu):
+    page_header("Registro de Ocorrencia", "Cadastre ocorrencias com Protocolo 179", "#dc2626")
+
+    if df_alunos.empty:
+        st.warning("Cadastre alunos antes de registrar ocorrencias.")
+        st.stop()
+    if df_professores.empty:
+        st.warning("Cadastre ao menos um professor antes de registrar ocorrencias.")
+        st.stop()
+
+    tz_sp = pytz.timezone("America/Sao_Paulo")
+    agora = datetime.now(tz_sp)
+
+    c1, c2 = st.columns(2)
+    with c1:
+        data_fato = st.date_input("Data do fato", value=agora.date(), key="data_fato")
+    with c2:
+        hora_fato = st.time_input("Hora do fato", value=agora.time(), key="hora_fato")
+
+    data_str = f"{data_fato.strftime('%d/%m/%Y')} {hora_fato.strftime('%H:%M')}"
+
+    turmas_disponiveis = sorted(df_alunos["turma"].dropna().astype(str).unique().tolist()) if "turma" in df_alunos.columns else []
+    turmas_sel = st.multiselect("Turma(s)", turmas_disponiveis, default=turmas_disponiveis[:1], key="turmas_sel")
+
+    alunos_turma = df_alunos[df_alunos["turma"].astype(str).isin(turmas_sel)].copy() if turmas_sel else pd.DataFrame()
+    if "situacao" in alunos_turma.columns:
+        alunos_turma = alunos_turma[alunos_turma["situacao"].astype(str).str.strip().str.lower() == "ativo"]
+
+    if alunos_turma.empty:
+        st.info("Selecione ao menos uma turma com alunos ativos.")
+        st.stop()
+
+    alunos_turma["aluno_label"] = alunos_turma["nome"].astype(str) + " - " + alunos_turma["turma"].astype(str)
+    labels_alunos = alunos_turma["aluno_label"].drop_duplicates().tolist()
+    alunos_sel_labels = st.multiselect("Estudantes envolvidos", labels_alunos, key="alunos_multiplos")
+
+    prof = st.selectbox("Professor", df_professores["nome"].dropna().astype(str).tolist(), key="professor_sel")
+
+    st.markdown("---")
+    st.subheader("Infracao (Protocolo 179)")
+    busca = st.text_input("Buscar infracao", placeholder="Ex: celular, bullying, atraso...", key="busca_infracao")
+
+    if busca:
+        grupos_filtrados = buscar_infracao_fuzzy(busca, PROTOCOLO_179)
+        if grupos_filtrados:
+            grupo = st.selectbox("Grupo", list(grupos_filtrados.keys()), key="grupo_infracao")
+            infracoes = grupos_filtrados[grupo]
+        else:
+            st.warning("Nenhuma infracao encontrada. Mostrando todas.")
+            grupo = st.selectbox("Grupo", list(PROTOCOLO_179.keys()), key="grupo_infracao")
+            infracoes = PROTOCOLO_179[grupo]
+    else:
+        grupo = st.selectbox("Grupo", list(PROTOCOLO_179.keys()), key="grupo_infracao")
+        infracoes = PROTOCOLO_179[grupo]
+
+    infracao_principal = st.selectbox("Infracao principal", list(infracoes.keys()), key="infracao_principal")
+    outras_infracoes = st.multiselect("Infracoes adicionais", [i for i in infracoes.keys() if i != infracao_principal], key="infracoes_adicionais")
+    infracoes_selecionadas = [infracao_principal] + [i for i in outras_infracoes if i != infracao_principal]
+
+    ordem_gravidade = {"Leve": 1, "M?dia": 2, "Grave": 3, "Grav?ssima": 4}
+    dados_infracoes_sel = [infracoes[i] for i in infracoes_selecionadas]
+    gravidade_sugerida = max([d.get("gravidade", "Leve") for d in dados_infracoes_sel], key=lambda g: ordem_gravidade.get(g, 1))
+
+    linhas_encam = []
+    for d in dados_infracoes_sel:
+        for linha in str(d.get("encaminhamento", "")).splitlines():
+            ln = linha.strip()
+            if ln and ln not in linhas_encam:
+                linhas_encam.append(ln)
+    encaminhamento_sugerido = "\n".join(linhas_encam)
+
+    gravidade = st.selectbox("Gravidade", ["Leve", "M?dia", "Grave", "Grav?ssima"], index=["Leve", "M?dia", "Grave", "Grav?ssima"].index(gravidade_sugerida) if gravidade_sugerida in ["Leve", "M?dia", "Grave", "Grav?ssima"] else 0, key="gravidade_sel")
+    encam = st.text_area("Encaminhamentos", value=encaminhamento_sugerido, height=120, key="encaminhamento")
+    relato = st.text_area("Relato dos fatos", height=140, key="relato")
+
+    if st.button("Salvar Ocorrencia(s)", type="primary"):
+        if not prof or not relato.strip() or not alunos_sel_labels:
+            st.error("Preencha professor, estudantes e relato.")
+        else:
+            salvas = 0
+            duplicadas = 0
+            for lbl in alunos_sel_labels:
+                reg = alunos_turma[alunos_turma["aluno_label"] == lbl]
+                if reg.empty:
+                    continue
+                row = reg.iloc[0]
+                aluno = str(row.get("nome", "")).strip()
+                turma = str(row.get("turma", "")).strip()
+                ra = str(row.get("ra", "")).strip()
+
+                for infracao_item in infracoes_selecionadas:
+                    if verificar_ocorrencia_duplicada(ra, infracao_item, data_str, df_ocorrencias):
+                        duplicadas += 1
+                        continue
+                    nova = {
+                        "data": data_str,
+                        "aluno": aluno,
+                        "ra": ra,
+                        "turma": turma,
+                        "categoria": infracao_item,
+                        "gravidade": gravidade,
+                        "relato": relato,
+                        "encaminhamento": encam,
+                        "professor": prof,
+                    }
+                    if salvar_ocorrencia(nova):
+                        salvas += 1
+            if salvas > 0:
+                st.success(f"Acao concluida: {salvas} ocorrencia(s) salva(s).")
+                carregar_ocorrencias.clear()
+                st.rerun()
+            elif duplicadas > 0:
+                st.warning(f"{duplicadas} ocorrencia(s) duplicada(s) ignorada(s).")
+            else:
+                st.info("Nenhuma ocorrencia foi salva.")
+
+# ======================================================
+# P?GINA ?? HIST?RICO DE OCORR?NCIAS (COMPLETA)
+# ======================================================
+
+elif "HISTORICO DE OCORRENCIA" in normalizar_texto(menu):
+    page_header("📋 Histórico de Ocorrências", "Consulte, edite e exclua registros de ocorrências", "#d97706")
+
+    if "mensagem_exclusao" in st.session_state:
+        st.success(st.session_state.mensagem_exclusao)
+        del st.session_state.mensagem_exclusao
+
+    if df_ocorrencias.empty:
+        st.info("📭 Nenhuma ocorrência registrada.")
+        st.stop()
     col1, col2, col3 = st.columns(3)
     with col1:
         turmas_disp = ["Todas"] + sorted(df_ocorrencias["turma"].dropna().unique().tolist())
@@ -3567,24 +3712,16 @@ elif menu == "👨‍👩‍👧 Portal do Responsável":
         else:
             filtro_professor = "Todos"
             st.selectbox("Professor", ["Todos"], disabled=True)
-
     with col5:
-        datas_parse = pd.to_datetime(df_ocorrencias.get("data"), format="%d/%m/%Y %H:%M", errors="coerce")
-        if datas_parse.notna().any():
-            data_min = datas_parse.min().date()
-            data_max = datas_parse.max().date()
+        data_parse = pd.to_datetime(df_ocorrencias["data"], format="%d/%m/%Y %H:%M", errors="coerce")
+        if data_parse.notna().any():
+            dt_min = data_parse.min().date()
+            dt_max = data_parse.max().date()
         else:
             hoje = datetime.now().date()
-            data_min = hoje
-            data_max = hoje
-
-        periodo_datas = st.date_input(
-            "Periodo",
-            value=(data_min, data_max),
-            min_value=data_min,
-            max_value=data_max,
-            key="filtro_periodo_historico"
-        )
+            dt_min = hoje
+            dt_max = hoje
+        periodo = st.date_input("Per?odo", value=(dt_min, dt_max), min_value=dt_min, max_value=dt_max, key="hist_periodo")
 
     df_view = df_ocorrencias.copy()
     if filtro_turma != "Todas":
@@ -3596,243 +3733,17 @@ elif menu == "👨‍👩‍👧 Portal do Responsável":
     if filtro_professor != "Todos" and "professor" in df_view.columns:
         df_view = df_view[df_view["professor"].astype(str).str.strip() == filtro_professor]
 
-    if "data" in df_view.columns:
-        df_view["data_dt_filtro"] = pd.to_datetime(df_view["data"], format="%d/%m/%Y %H:%M", errors="coerce")
-        if isinstance(periodo_datas, tuple) and len(periodo_datas) == 2:
-            data_ini, data_fim = periodo_datas
-        else:
-            data_ini = periodo_datas
-            data_fim = periodo_datas
-
-        df_view = df_view[
-            (df_view["data_dt_filtro"].dt.date >= data_ini) &
-            (df_view["data_dt_filtro"].dt.date <= data_fim)
-        ]
-        df_view = df_view.drop(columns=["data_dt_filtro"], errors="ignore")
-
-    st.markdown("""
-    <div class="form-panel">
-        <p class="form-panel-title">Etapas do registro</p>
-        <p class="form-panel-subtitle">Revise envolvidos, classificacao, gravidade, relato e encaminhamentos antes de salvar a ocorrencia.</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("---")
-    st.markdown("""
-    <div style="display:flex;align-items:center;gap:0.5rem;margin:1.25rem 0 0.75rem 0;padding-bottom:0.5rem;border-bottom:2px solid #e2e8f0;position:relative;">
-        <div style="position:absolute;bottom:-2px;left:0;width:45px;height:2px;background:linear-gradient(90deg,#dc2626,transparent);border-radius:4px;"></div>
-        <span style="font-size:1rem;">📋</span>
-        <h3 style="margin:0;font-family:'Nunito',sans-serif;font-size:1rem;color:#0f172a;">Infração — Protocolo 179</h3>
-        <span style="background:#fee2e2;color:#dc2626;border-radius:6px;padding:0.15rem 0.5rem;font-size:0.7rem;font-weight:700;margin-left:auto;">PREENCHIMENTO ASSISTIDO</span>
-    </div>
-    """, unsafe_allow_html=True)
-
-    busca = st.text_input("🔍 Buscar infração", placeholder="Ex: celular, bullying, atraso...", key="busca_infracao")
-
-    if busca:
-        grupos_filtrados = buscar_infracao_fuzzy(busca, PROTOCOLO_179)
-        if grupos_filtrados:
-            grupo = st.selectbox("Grupo", list(grupos_filtrados.keys()), key="grupo_infracao")
-            infracoes = grupos_filtrados[grupo]
-        else:
-            st.warning("⚠️ Nenhuma infração encontrada. Mostrando todas.")
-            grupo = st.selectbox("Grupo", list(PROTOCOLO_179.keys()), key="grupo_infracao")
-            infracoes = PROTOCOLO_179[grupo]
+    df_view["data_dt_filtro"] = pd.to_datetime(df_view["data"], format="%d/%m/%Y %H:%M", errors="coerce")
+    if isinstance(periodo, tuple) and len(periodo) == 2:
+        ini, fim = periodo
     else:
-        grupo = st.selectbox("Grupo", list(PROTOCOLO_179.keys()), key="grupo_infracao")
-        infracoes = PROTOCOLO_179[grupo]
-
-    infracao_principal = st.selectbox("Infração principal", list(infracoes.keys()), key="infracao_principal")
-    outras_infracoes = st.multiselect(
-        "Infrações adicionais (opcional)",
-        [i for i in infracoes.keys() if i != infracao_principal],
-        key="infracoes_adicionais"
-    )
-    infracoes_selecionadas = [infracao_principal] + [i for i in outras_infracoes if i != infracao_principal]
-
-    ordem_gravidade = {"Leve": 1, "Média": 2, "Grave": 3, "Gravíssima": 4}
-    dados_infracoes_sel = [infracoes[i] for i in infracoes_selecionadas]
-    gravidade_sugerida = max(
-        [d.get("gravidade", "Leve") for d in dados_infracoes_sel],
-        key=lambda g: ordem_gravidade.get(g, 1)
-    )
-
-    linhas_encam = []
-    for d in dados_infracoes_sel:
-        for linha in str(d.get("encaminhamento", "")).splitlines():
-            ln = linha.strip()
-            if ln and ln not in linhas_encam:
-                linhas_encam.append(ln)
-    encaminhamento_sugerido = "\n".join(linhas_encam)
-
-    cor_badge = CORES_GRAVIDADE.get(gravidade_sugerida, "#2563eb")
-    st.markdown(f"""
-    <div style="
-        display:inline-flex; align-items:center; gap:0.6rem;
-        background:linear-gradient(135deg,{cor_badge}15,{cor_badge}08);
-        border:1.5px solid {cor_badge}40;
-        border-left:4px solid {cor_badge};
-        border-radius:12px; padding:0.6rem 1.25rem;
-        margin:0.5rem 0;
-    ">
-        <span style="font-size:1.1rem;">🎯</span>
-        <span style="font-family:'Nunito',sans-serif;font-weight:700;font-size:1rem;color:{cor_badge};">{' + '.join(infracoes_selecionadas)}</span>
-    </div>
-    """, unsafe_allow_html=True)
-
-    cor_gravidade = CORES_GRAVIDADE.get(gravidade_sugerida, "#9E9E9E")
-    _cor_grav_map = {"Leve": "#059669", "Média": "#d97706", "Grave": "#f97316", "Gravíssima": "#dc2626"}
-    _cor_g = _cor_grav_map.get(gravidade_sugerida, "#2563eb")
-    _encam_html = encaminhamento_sugerido.replace(chr(10), '<br>').replace("✅","<span style=\'color:#059669;\'>✅</span>").replace("⚖️","<span style=\'color:#7c3aed;\'>⚖️</span>").replace("🚨","<span style=\'color:#dc2626;\'>🚨</span>")
-    st.markdown(f"""
-    <div style="
-        background:linear-gradient(135deg,#f0f4ff,#fafbff);
-        border:1.5px solid #c7d7fd; border-left:5px solid #2563eb;
-        border-radius:16px; padding:1.25rem 1.5rem; margin:1rem 0;
-        box-shadow:0 4px 12px rgba(37,99,235,0.08);
-    ">
-        <div style="display:flex; align-items:center; gap:0.6rem; margin-bottom:0.75rem;">
-            <span style="font-size:1.1rem;">📋</span>
-            <b style="font-family:'Nunito',sans-serif;font-size:1rem;color:#1d4ed8;">Protocolo 179 — Preenchimento Automático</b>
-        </div>
-        <div style="display:flex; gap:1.5rem; flex-wrap:wrap; margin-bottom:0.75rem;">
-            <div>
-                <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:0.2rem;">Infração</div>
-                <div style="font-weight:600;color:#0f172a;">{', '.join(infracoes_selecionadas)}</div>
-            </div>
-            <div>
-                <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:0.2rem;">Gravidade sugerida</div>
-                <span style="
-                    display:inline-block; padding:0.25rem 0.85rem;
-                    background:{_cor_g}18; border:1.5px solid {_cor_g}50;
-                    border-radius:99px; font-size:0.82rem; font-weight:700;
-                    color:{_cor_g};
-                ">{gravidade_sugerida}</span>
-            </div>
-        </div>
-        <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin-bottom:0.4rem;">Encaminhamentos sugeridos</div>
-        <div style="color:#334155; font-size:0.9rem; line-height:1.7;">{_encam_html}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("""
-    <div style="display:flex;align-items:center;gap:0.5rem;margin:1rem 0 0.5rem 0;">
-        <div style="width:4px;height:18px;background:linear-gradient(180deg,#d97706,#f59e0b);border-radius:4px;"></div>
-        <span style="font-family:'Nunito',sans-serif;font-weight:700;font-size:1rem;color:#0f172a;">⚖️ Gravidade da Ocorrência</span>
-    </div>
-    """, unsafe_allow_html=True)
-    gravidade = st.selectbox("Gravidade", ["Leve", "Média", "Grave", "Gravíssima"], 
-                            index=["Leve", "Média", "Grave", "Gravíssima"].index(gravidade_sugerida) if gravidade_sugerida in ["Leve", "Média", "Grave", "Gravíssima"] else 0,
-                            key="gravidade_sel")
-
-    if gravidade != gravidade_sugerida:
-        st.warning(f"⚠️ Gravidade alterada de {gravidade_sugerida} para {gravidade}.")
-
-    encam = st.text_area("🔀 Encaminhamentos", value=encaminhamento_sugerido, height=140, key="encaminhamento")
-    relato = st.text_area("📝 Relato dos fatos", height=160, placeholder="Descreva os fatos de forma clara e objetiva...", key="relato")
-
-    st.markdown("---")
-
-    if st.button("💾 Salvar Ocorrência(s)", type="primary"):
-        if not prof or not relato.strip():
-            st.error("❌ Preencha professor e relato.")
-            show_toast("Preencha professor e relato para salvar.", "warning")
-        else:
-            salvas = 0
-            duplicadas = 0
-            falhas = 0
-            
-            for turma in turmas_sel:
-                for aluno in alunos_selecionados:
-                    registro = df_alunos[(df_alunos["nome"] == aluno) & (df_alunos["turma"] == turma)]
-                    if registro.empty:
-                        continue
-                    
-                    ra = registro["ra"].values[0]
-
-                    for infracao_item in infracoes_selecionadas:
-                        if verificar_ocorrencia_duplicada(ra, infracao_item, data_str, df_ocorrencias):
-                            duplicadas += 1
-                            continue
-
-                        nova = {
-                            "data": data_str,
-                            "aluno": aluno,
-                            "ra": ra,
-                            "turma": turma,
-                            "categoria": infracao_item,
-                            "gravidade": gravidade,
-                            "relato": relato,
-                            "encaminhamento": encam,
-                            "professor": prof,
-                        }
-
-                        if salvar_ocorrencia(nova):
-                            salvas += 1
-                            if st.session_state.backup_manager:
-                                st.session_state.backup_manager.criar_backup()
-                        else:
-                            falhas += 1
-            
-            if salvas > 0:
-                st.session_state.ocorrencia_salva_sucesso = True
-                show_toast(f"{salvas} ocorrência(s) registrada(s)!", "success")
-                st.success(f"✅ Ação concluída: {salvas} ocorrência(s) salva(s) com sucesso.")
-                
-                st.session_state.registros_ocorrencias += salvas
-                
-                if st.session_state.registros_ocorrencias >= 1:
-                    verificar_conquista("primeiro_registro")
-                if st.session_state.registros_ocorrencias >= 10:
-                    verificar_conquista("10_ocorrencias")
-                if st.session_state.registros_ocorrencias >= 50:
-                    verificar_conquista("50_ocorrencias")
-            
-            if duplicadas > 0:
-                st.warning(f"⚠️ {duplicadas} ocorrência(s) duplicada(s) ignorada(s).")
-                show_toast(f"{duplicadas} duplicada(s) ignorada(s).", "warning")
-            if falhas > 0:
-                st.error(f"❌ {falhas} ocorrência(s) falharam no salvamento.")
-                show_toast(f"{falhas} ocorrência(s) não foram salvas.", "error")
-            if salvas == 0 and duplicadas == 0 and falhas == 0:
-                st.info("ℹ️ Nenhuma ocorrência foi salva (verifique filtros e seleção).")
-                show_toast("Nenhum registro foi criado.", "warning")
-            
-            carregar_ocorrencias.clear()
-            st.rerun()                                # ← 12 espaços
-            # ======================================================
-# PÁGINA 📋 HISTÓRICO DE OCORRÊNCIAS (COMPLETA)
-# ======================================================
-
-elif menu == "📋 Histórico de Ocorrências":
-    page_header("📋 Histórico de Ocorrências", "Consulte, edite e exclua registros de ocorrências", "#d97706")
-
-    if "mensagem_exclusao" in st.session_state:
-        st.success(st.session_state.mensagem_exclusao)
-        del st.session_state.mensagem_exclusao
-
-    if df_ocorrencias.empty:
-        st.info("📭 Nenhuma ocorrência registrada.")
-        st.stop()
-
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        turmas_disp = ["Todas"] + sorted(df_ocorrencias["turma"].dropna().unique().tolist())
-        filtro_turma = st.selectbox("🏫 Turma", turmas_disp)
-    with col2:
-        gravidades_disp = ["Todas"] + sorted(df_ocorrencias["gravidade"].dropna().unique().tolist())
-        filtro_gravidade = st.selectbox("⚖️ Gravidade", gravidades_disp)
-    with col3:
-        categorias_unicas = sorted(df_ocorrencias["categoria"].dropna().unique().tolist())
-        filtro_categoria = st.selectbox("📋 Categoria", ["Todas"] + categorias_unicas)
-
-    df_view = df_ocorrencias.copy()
-    if filtro_turma != "Todas":
-        df_view = df_view[df_view["turma"] == filtro_turma]
-    if filtro_gravidade != "Todas":
-        df_view = df_view[df_view["gravidade"] == filtro_gravidade]
-    if filtro_categoria != "Todas":
-        df_view = df_view[df_view["categoria"] == filtro_categoria]
+        ini = periodo
+        fim = periodo
+    df_view = df_view[
+        (df_view["data_dt_filtro"].dt.date >= ini) &
+        (df_view["data_dt_filtro"].dt.date <= fim)
+    ]
+    df_view = df_view.drop(columns=["data_dt_filtro"], errors="ignore")
 
     st.markdown("""
     <div class="form-panel">
