@@ -2809,48 +2809,64 @@ def gerar_pdf_eletiva(contexto: str, df_eletiva: pd.DataFrame) -> BytesIO:
     estilos = getSampleStyleSheet()
     elementos = []
     _adicionar_logo(elementos)
-    
-    titulo_style = ParagraphStyle('TituloEletiva', parent=estilos['Heading1'], fontSize=14, alignment=TA_CENTER, spaceAfter=0.5*cm, textColor=colors.HexColor("#4A90E2"))
-    elementos.append(Paragraph(f"LISTA DE ELETIVA", titulo_style))
-    elementos.append(Spacer(1, 0.3*cm))
+
+    titulo_style = ParagraphStyle(
+        'TituloEletiva',
+        parent=estilos['Heading1'],
+        fontSize=12,
+        alignment=TA_CENTER,
+        spaceAfter=0.2 * cm,
+        textColor=colors.HexColor("#4A90E2")
+    )
+    elementos.append(Paragraph("LISTA DE ELETIVA", titulo_style))
+    elementos.append(Spacer(1, 0.1 * cm))
     elementos.append(Paragraph(f"<b>Filtro:</b> {contexto}", estilos['Normal']))
     elementos.append(Paragraph(f"<b>Total de estudantes:</b> {len(df_eletiva)}", estilos['Normal']))
-    elementos.append(Spacer(1, 0.5*cm))
-    
+    elementos.append(Spacer(1, 0.2 * cm))
+
     cabecalho = ["Nome", "Turma", "Professor(a)"]
     linhas = []
     for _, row in df_eletiva.iterrows():
         turma_pdf = str(row.get("Turma", "")).strip() or str(row.get("Turma no Sistema", "")).strip()
         linhas.append([
-            str(row.get("Nome", ""))[:42],
+            str(row.get("Nome", ""))[:48],
             turma_pdf[:24],
             str(row.get("Professor(a)", ""))[:24]
         ])
-    
-    tabela = Table([cabecalho] + linhas, colWidths=[8.5*cm, 4.5*cm, 5*cm], repeatRows=1)
+
+    tabela = Table([cabecalho] + linhas, colWidths=[9.0 * cm, 4.0 * cm, 5.0 * cm], repeatRows=1)
     tabela.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#4A90E2")), ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'), ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 9), ('FONTSIZE', (0, 1), (-1, -1), 8),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 8), ('TOPPADDING', (0, 0), (-1, 0), 8),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#4A90E2")),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 8),
+        ('FONTSIZE', (0, 1), (-1, -1), 7),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 5),
+        ('TOPPADDING', (0, 0), (-1, 0), 5),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 3),
+        ('TOPPADDING', (0, 1), (-1, -1), 3),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
     ]))
+
     for i in range(1, len(linhas) + 1):
         if i % 2 == 0:
             tabela.setStyle(TableStyle([('BACKGROUND', (0, i), (-1, i), colors.HexColor("#F5F5F5"))]))
+
     elementos.append(tabela)
-    elementos.append(Spacer(1, 0.5*cm))
-    
-    encontrados = len(df_eletiva[df_eletiva["Status"] == "Encontrado"])
-    nao_encontrados = len(df_eletiva[df_eletiva["Status"] == "Não encontrado"])
-    elementos.append(Paragraph(f"<b>Encontrados no sistema:</b> {encontrados}", estilos['Normal']))
-    elementos.append(Paragraph(f"<b>Não encontrados:</b> {nao_encontrados}", estilos['Normal']))
-    elementos.append(Spacer(1, 0.5*cm))
-    
-    estilo_rodape = ParagraphStyle('Rodape', parent=estilos['Normal'], fontSize=7, alignment=TA_CENTER, textColor=colors.grey)
-    elementos.append(Paragraph("_" * 75, estilos['Normal']))
+    elementos.append(Spacer(1, 0.2 * cm))
+
+    estilo_rodape = ParagraphStyle(
+        'Rodape',
+        parent=estilos['Normal'],
+        fontSize=7,
+        alignment=TA_CENTER,
+        textColor=colors.grey
+    )
     elementos.append(Paragraph(f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}", estilo_rodape))
     elementos.append(Paragraph(f"Sistema Conviva 179 - {ESCOLA_NOME}", estilo_rodape))
+
     doc.build(elementos)
     buffer.seek(0)
     return buffer
