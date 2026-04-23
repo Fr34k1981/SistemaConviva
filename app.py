@@ -1594,6 +1594,7 @@ menu_items = [
     {"nome": "Cadastrar Professores", "icone": "👨‍🏫"},
     {"nome": "Cadastrar Assinaturas", "icone": "👤"},
     {"nome": "Eletiva", "icone": "🎨"},
+    {"nome": "Tutoria", "icone": "🫂"},
     {"nome": "Gráficos e Indicadores", "icone": "📊"},
     {"nome": "Imprimir PDF", "icone": "🖨️"},
     {"nome": "Mapa da Sala", "icone": "🏫"},
@@ -1641,12 +1642,25 @@ st.sidebar.markdown(f"""
 # ELETIVAS — ARQUIVO DE IMPORTAÇÃO
 # ======================================================
 ELETIVAS_ARQUIVO = r"C:\Users\Freak Work\Desktop\IMportação.xlsx"
+TUTORIA_ARQUIVOS_CANDIDATOS = [
+    os.path.join(os.getcwd(), "Tutoria.xlsx"),
+    os.path.join(os.getcwd(), "Tutoria (3).xlsx"),
+    r"C:\Users\Freak Work\Downloads\Tutoria (3).xlsx",
+]
 
 ELETIVAS = {
     "Solange": [], "Rosemeire": [], "Fernanda": [], "Fagna": [],
     "Elaine": [], "Geovana": [], "Shirley": [], "Rosangela": [],
     "Veronica": [], "Silvana": [], "Patricia": [],
 }
+
+def resolver_primeiro_arquivo_existente(candidatos: list[str]) -> str:
+    for caminho in candidatos:
+        if caminho and os.path.exists(caminho):
+            return caminho
+    return candidatos[0] if candidatos else ""
+
+TUTORIA_ARQUIVO = resolver_primeiro_arquivo_existente(TUTORIA_ARQUIVOS_CANDIDATOS)
 
 # ======================================================
 # AGENDAMENTO DE ESPAÇOS - CONSTANTES
@@ -2698,6 +2712,102 @@ def carregar_eletivas_do_excel(caminho_arquivo: str, fallback: dict = None) -> d
         logger.error(f"Erro ao importar eletivas: {e}")
         return fallback if fallback is not None else {}
 
+def carregar_tutoria_do_excel(caminho_arquivo: str, fallback: dict = None) -> dict:
+    """Lê planilha XLSX de tutoria considerando cada aba como um tutor(a)."""
+    if not caminho_arquivo or not os.path.exists(caminho_arquivo):
+        return fallback if fallback is not None else {}
+    try:
+        ns = {
+            "a": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
+            "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+        }
+        with zipfile.ZipFile(caminho_arquivo) as arquivo_zip:
+            shared_strings = []
+            if "xl/sharedStrings.xml" in arquivo_zip.namelist():
+                root = ET.fromstring(arquivo_zip.read("xl/sharedStrings.xml"))
+                for si in root.findall("a:si", ns):
+                    textos = [t.text or "" for t in si.iterfind(".//a:t", ns)]
+                    shared_strings.append("".join(textos))
+
+            workbook = ET.fromstring(arquivo_zip.read("xl/workbook.xml"))
+            rels = ET.fromstring(arquivo_zip.read("xl/_rels/workbook.xml.rels"))
+            rel_map = {rel.attrib.get("Id", ""): rel.attrib.get("Target", "") for rel in rels}
+
+            tutoria = {}
+            for sheet in workbook.findall("a:sheets/a:sheet", ns):
+                tutor_atual = str(sheet.attrib.get("name", "")).strip()
+                rel_id = sheet.attrib.get("{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id", "")
+                target = rel_map.get(rel_id, "")
+                if not tutor_atual or not target:
+                    continue
+
+                caminho_sheet = target.replace("\\", "/")
+                if not caminho_sheet.startswith("xl/"):
+                    caminho_sheet = f"xl/{caminho_sheet}"
+                if caminho_sheet not in arquivo_zip.namelist():
+                    continue
+
+                root_sheet = ET.fromstring(arquivo_zip.read(caminho_sheet))
+                alunos_tutor = []
+
+                for row in root_sheet.findall(".//a:sheetData/a:row", ns):
+                    valores = {}
+                    for cell in row.findall("a:c", ns):
+                        ref = cell.attrib.get("r", "")
+                        col = "".join(ch for ch in ref if ch.isalpha())
+                        tipo = cell.attrib.get("t")
+                        valor = ""
+                        v = cell.find("a:v", ns)
+                        if v is not None and v.text:
+                            valor = v.text
+                        if tipo == "s" and valor.isdigit():
+                            valor = shared_strings[int(valor)]
+                        valores[col] = str(valor).strip()
+
+                    valor_a = str(valores.get("A", "")).strip()
+                    valor_b = str(valores.get("B", "")).strip()
+                    valor_c = str(valores.get("C", "")).strip()
+
+                    nome = ""
+                    serie = ""
+
+                    if valor_b and valor_c:
+                        if not any(ch.isdigit() for ch in valor_b[:4]):
+                            nome = valor_b
+                            serie = valor_c
+                    elif valor_a and valor_b:
+                        if not valor_a.replace(".", "").isdigit():
+                            nome = valor_a
+                            serie = valor_b
+                    elif valor_a:
+                        combinado = re.match(r"^(.*?)(\d+\s*(?:º|°)?\s*[A-Za-z])$", valor_a)
+                        if combinado:
+                            nome = combinado.group(1).strip()
+                            serie = combinado.group(2).strip()
+
+                    nome_norm = normalizar_texto(nome)
+                    if (
+                        not nome
+                        or nome_norm in {"nome", "nomes", "nome:", "numero", "numero nome:", "vagas", "cadastrados"}
+                        or nome_norm.startswith("horario")
+                        or nome_norm.startswith("sala")
+                        or nome_norm.startswith("patio")
+                    ):
+                        continue
+
+                    alunos_tutor.append({
+                        "nome": nome.strip(),
+                        "serie": formatar_turma_eletiva(serie.strip())
+                    })
+
+                if alunos_tutor:
+                    tutoria[tutor_atual] = alunos_tutor
+
+            return tutoria if tutoria else (fallback or {})
+    except Exception as e:
+        logger.error(f"Erro ao importar tutoria: {e}")
+        return fallback if fallback is not None else {}
+
 def converter_eletivas_para_registros(eletivas_dict: dict, origem: str = "excel") -> list:
     registros = []
     for professora, alunos in eletivas_dict.items():
@@ -2809,6 +2919,7 @@ def montar_dataframe_eletiva(nome_professora: str, df_alunos: pd.DataFrame, elet
     return pd.DataFrame(registros)
 
 ELETIVAS_EXCEL = carregar_eletivas_do_excel(ELETIVAS_ARQUIVO, fallback=ELETIVAS)
+TUTORIA_EXCEL = carregar_tutoria_do_excel(TUTORIA_ARQUIVO, fallback={})
 # ======================================================
 # PDF — UTILITÁRIOS
 # ======================================================
@@ -2894,6 +3005,63 @@ def gerar_pdf_eletiva(contexto: str, df_eletiva: pd.DataFrame) -> BytesIO:
     elementos.append(Paragraph(f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}", estilo_rodape))
     elementos.append(Paragraph(f"Sistema Conviva 179 - {ESCOLA_NOME}", estilo_rodape))
 
+    doc.build(elementos)
+    buffer.seek(0)
+    return buffer
+
+def gerar_pdf_tutoria(contexto: str, df_tutoria: pd.DataFrame) -> BytesIO:
+    buffer = BytesIO()
+    doc = _criar_documento_pdf(buffer)
+    estilos = getSampleStyleSheet()
+    elementos = []
+    _adicionar_logo(elementos)
+
+    titulo_style = ParagraphStyle(
+        'TituloTutoria',
+        parent=estilos['Heading1'],
+        fontSize=12,
+        alignment=TA_CENTER,
+        spaceAfter=0.2 * cm,
+        textColor=colors.HexColor("#0f766e")
+    )
+    elementos.append(Paragraph("LISTA DE TUTORIA", titulo_style))
+    elementos.append(Spacer(1, 0.1 * cm))
+    elementos.append(Paragraph(f"<b>Filtro:</b> {contexto}", estilos['Normal']))
+    elementos.append(Paragraph(f"<b>Total de estudantes:</b> {len(df_tutoria)}", estilos['Normal']))
+    elementos.append(Spacer(1, 0.2 * cm))
+
+    cabecalho = ["Nome", "Turma", "Tutor(a)"]
+    linhas = []
+    for _, row in df_tutoria.iterrows():
+        tutor = str(row.get("Tutor(a)", row.get("Professor(a)", "")))
+        turma_pdf = str(row.get("Turma", "")).strip() or str(row.get("Turma no Sistema", "")).strip()
+        linhas.append([
+            str(row.get("Nome", ""))[:48],
+            turma_pdf[:24],
+            tutor[:24]
+        ])
+
+    tabela = Table([cabecalho] + linhas, colWidths=[9.0 * cm, 4.0 * cm, 5.0 * cm], repeatRows=1)
+    tabela.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#0f766e")),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 8),
+        ('FONTSIZE', (0, 1), (-1, -1), 7),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 5),
+        ('TOPPADDING', (0, 0), (-1, 0), 5),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 3),
+        ('TOPPADDING', (0, 1), (-1, -1), 3),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+
+    for i in range(1, len(linhas) + 1):
+        bg = colors.whitesmoke if i % 2 == 0 else colors.HexColor("#ecfeff")
+        tabela.setStyle(TableStyle([('BACKGROUND', (0, i), (-1, i), bg)]))
+
+    elementos.append(tabela)
     doc.build(elementos)
     buffer.seek(0)
     return buffer
@@ -3053,6 +3221,8 @@ def _init_session_state():
         # Estados de Eletivas
         "ELETIVAS": None,
         "FONTE_ELETIVAS": None,
+        "TUTORIA": None,
+        "FONTE_TUTORIA": None,
         
         # Estados de Backup
         "backup_manager": None,
@@ -3108,6 +3278,7 @@ df_professores = pd.DataFrame()
 df_ocorrencias = pd.DataFrame()
 df_responsaveis = pd.DataFrame()
 df_eletivas_supabase = pd.DataFrame()
+df_tutoria_supabase = pd.DataFrame()
 
 try:
     df_alunos = carregar_alunos()
@@ -3143,6 +3314,12 @@ if SUPABASE_VALID:
     except Exception:
         df_eletivas_supabase = pd.DataFrame()
 
+if SUPABASE_VALID:
+    try:
+        df_tutoria_supabase = _supabase_get_dataframe("tutoria?select=*", "carregar tutoria")
+    except Exception:
+        df_tutoria_supabase = pd.DataFrame()
+
 if st.session_state.ELETIVAS is None:
     if SUPABASE_VALID:
         if not df_eletivas_supabase.empty:
@@ -3162,6 +3339,24 @@ else:
 
 ELETIVAS = st.session_state.ELETIVAS
 FONTE_ELETIVAS = st.session_state.FONTE_ELETIVAS
+
+if st.session_state.TUTORIA is None:
+    if SUPABASE_VALID and not df_tutoria_supabase.empty:
+        st.session_state.TUTORIA = converter_eletivas_supabase_para_dict(df_tutoria_supabase)
+        st.session_state.FONTE_TUTORIA = "supabase"
+    else:
+        st.session_state.TUTORIA = TUTORIA_EXCEL.copy() if TUTORIA_EXCEL else {}
+        st.session_state.FONTE_TUTORIA = "excel" if TUTORIA_EXCEL else "indisponivel"
+else:
+    if SUPABASE_VALID and not df_tutoria_supabase.empty:
+        st.session_state.FONTE_TUTORIA = "supabase"
+    elif TUTORIA_EXCEL:
+        st.session_state.FONTE_TUTORIA = "excel"
+    else:
+        st.session_state.FONTE_TUTORIA = "indisponivel"
+
+TUTORIA = st.session_state.TUTORIA
+FONTE_TUTORIA = st.session_state.FONTE_TUTORIA
 ROTAS_MENU_SUPORTADAS = {
     normalizar_texto("🏠 Dashboard"),
     normalizar_texto("📝 Registrar Ocorrência"),
@@ -5919,6 +6114,621 @@ elif menu == "🎨 Eletiva":
                         _supabase_request("DELETE", f"eletivas?professora=eq.{prof_q}")
                         st.session_state.FONTE_ELETIVAS = "supabase"
                     st.success("✅ Todos os estudantes da eletiva foram excluídos.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Erro ao excluir todos os estudantes: {e}")
+                # ======================================================
+# PÁGINA 🫂 TUTORIA
+# ======================================================
+
+elif menu == "🫂 Tutoria":
+    page_header("🫂 Tutoria", "Consulte e gerencie os estudantes por tutor(a)", "#0f766e")
+
+    st.markdown("""
+    <div style="
+        background:linear-gradient(135deg,#ecfeff,#ccfbf1);
+        border:1.5px solid #5eead4; border-left:5px solid #0f766e;
+        border-radius:16px; padding:1.1rem 1.5rem; margin-bottom:1.25rem;
+        box-shadow:0 4px 12px rgba(15,118,110,0.08);
+    ">
+        <div style="display:flex;align-items:center;gap:0.5rem;">
+            <span>🫂</span>
+            <span style="color:#134e4a;font-size:0.875rem;">Use o mesmo sistema de cadastro da eletiva para organizar os estudantes por tutor(a).</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if FONTE_TUTORIA == "supabase":
+        st.success("✅ Base oficial ativa: Supabase.")
+    elif FONTE_TUTORIA == "excel":
+        st.info(f"📄 Base carregada do arquivo de tutoria: {os.path.basename(TUTORIA_ARQUIVO) if TUTORIA_ARQUIVO else 'arquivo local'}")
+    else:
+        st.warning("⚠️ Tutoria sem fonte oficial disponível no momento.")
+
+    if SUPABASE_VALID:
+        col_sync1, col_sync2 = st.columns([1, 1])
+        with col_sync1:
+            if st.button("🔄 Recarregar Tutoria do Supabase", key="reload_tutoria_supabase", use_container_width=True):
+                try:
+                    df_refresh = _supabase_get_dataframe("tutoria?select=*", "recarregar tutoria")
+                    st.session_state.TUTORIA = converter_eletivas_supabase_para_dict(df_refresh) if not df_refresh.empty else (TUTORIA_EXCEL.copy() if TUTORIA_EXCEL else {})
+                    st.session_state.FONTE_TUTORIA = "supabase" if not df_refresh.empty else ("excel" if TUTORIA_EXCEL else "indisponivel")
+                    st.success("✅ Tutoria recarregada.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Erro ao recarregar: {e}")
+        with col_sync2:
+            if st.button("💾 Forçar Salvar Estado Atual no Supabase", key="persistir_tutoria_supabase", use_container_width=True):
+                try:
+                    registros = converter_eletivas_para_registros(TUTORIA, origem="sessao_manual")
+                    _supabase_request("DELETE", "tutoria?id=not.is.null")
+                    if registros:
+                        _supabase_request("POST", "tutoria", json=registros)
+                    st.session_state.FONTE_TUTORIA = "supabase"
+                    st.success("✅ Estado atual da tutoria persistido no Supabase.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Erro ao persistir: {e}")
+
+    st.markdown("---")
+    st.subheader("📊 Tutores")
+
+    if not TUTORIA:
+        st.info("📭 Nenhum tutor(a) cadastrado em tutoria.")
+        st.stop()
+
+    dados_tutores = []
+    for tutor, alunos in TUTORIA.items():
+        series = ", ".join(sorted({formatar_turma_eletiva(a.get("serie", "")) for a in alunos if a.get("serie")}))
+        dados_tutores.append({
+            "Tutor(a)": tutor,
+            "Total de Alunos": len(alunos),
+            "Turmas": series
+        })
+    st.dataframe(pd.DataFrame(dados_tutores), use_container_width=True, hide_index=True)
+
+    st.markdown("---")
+    tutor_sel = st.selectbox("Selecione o Tutor(a)", sorted(TUTORIA.keys()), key="tutoria_tutor_select")
+    alunos_raw = TUTORIA.get(tutor_sel, [])
+
+    st.markdown("---")
+    st.subheader("➕ Inserir Estudantes na Tutoria")
+    st.caption("Você pode buscar no cadastro, digitar manualmente, colar lista ou enviar arquivo.")
+
+    def _normalizar_linha_lista_tutoria(linha: str, serie_padrao: str = ""):
+        bruto = str(linha or "").strip().lstrip("•-").strip()
+        if not bruto:
+            return None
+        nome = bruto
+        serie = str(serie_padrao or "").strip()
+
+        if "\t" in bruto:
+            partes_tab = [p.strip() for p in bruto.split("\t")]
+            if len(partes_tab) >= 3:
+                possivel_serie = partes_tab[0]
+                possivel_nome = partes_tab[2]
+                if possivel_nome:
+                    nome = possivel_nome
+                if possivel_serie:
+                    serie = possivel_serie
+                return {"nome": nome, "serie": formatar_turma_eletiva(serie)}
+
+        for sep in [";", "\t", "|", " - ", " – ", ","]:
+            if sep in bruto:
+                partes = [p.strip() for p in bruto.split(sep, 1)]
+                if partes and partes[0]:
+                    nome = partes[0]
+                    if len(partes) > 1 and partes[1]:
+                        serie = partes[1]
+                    break
+        return {"nome": nome, "serie": formatar_turma_eletiva(serie)}
+
+    def _adicionar_estudantes_tutoria(novos_estudantes: list, origem: str):
+        existentes = TUTORIA.get(tutor_sel, [])
+        chaves_existentes = {
+            f"{normalizar_texto(item.get('nome', ''))}|{normalizar_texto(item.get('serie', ''))}"
+            for item in existentes
+        }
+
+        inseridos = []
+        for item in novos_estudantes:
+            nome = str(item.get("nome", "")).strip()
+            serie = formatar_turma_eletiva(str(item.get("serie", "")).strip())
+            if not nome:
+                continue
+            chave = f"{normalizar_texto(nome)}|{normalizar_texto(serie)}"
+            if chave in chaves_existentes:
+                continue
+            existentes.append({"nome": nome, "serie": serie})
+            chaves_existentes.add(chave)
+            inseridos.append({"nome": nome, "serie": serie})
+
+        if not inseridos:
+            return 0
+
+        TUTORIA[tutor_sel] = existentes
+        st.session_state.TUTORIA = TUTORIA
+
+        if SUPABASE_VALID:
+            registros = [
+                {
+                    "professora": tutor_sel,
+                    "nome_aluno": item["nome"],
+                    "serie": item["serie"],
+                    "origem": origem
+                }
+                for item in inseridos
+            ]
+            _supabase_request("POST", "tutoria", json=registros)
+            st.session_state.FONTE_TUTORIA = "supabase"
+
+        return len(inseridos)
+
+    tab_busca, tab_digitar, tab_colar, tab_upload = st.tabs(
+        ["🔎 Buscar no Cadastro", "✍️ Digitar", "📋 Colar Lista", "📁 Upload de Arquivo"]
+    )
+
+    with tab_busca:
+        if df_alunos.empty:
+            st.info("Não há alunos cadastrados para buscar.")
+        else:
+            base_busca = df_alunos.copy()
+            base_busca["nome"] = base_busca["nome"].astype(str)
+            if "turma" not in base_busca.columns:
+                base_busca["turma"] = ""
+            base_busca["turma"] = base_busca["turma"].astype(str)
+            termo_busca = st.text_input("Buscar aluno por nome", key="tutoria_busca_nome")
+            if termo_busca:
+                base_busca = base_busca[base_busca["nome"].str.contains(termo_busca, case=False, na=False)]
+
+            opcoes = []
+            mapa_opcoes = {}
+            for _, linha in base_busca.drop_duplicates(subset=["nome", "turma"]).iterrows():
+                label = f"{linha['nome']} ({linha['turma']})" if linha["turma"] else linha["nome"]
+                opcoes.append(label)
+                mapa_opcoes[label] = {"nome": linha["nome"], "serie": linha["turma"]}
+
+            selecionados_busca = st.multiselect("Selecione estudantes para adicionar", opcoes, key="tutoria_sel_busca")
+            if st.button("✅ Registrar Selecionados", key="tutoria_btn_add_busca", type="primary"):
+                try:
+                    qtd = _adicionar_estudantes_tutoria([mapa_opcoes[item] for item in selecionados_busca], origem="busca_cadastro")
+                    if qtd > 0:
+                        st.success(f"{qtd} estudante(s) adicionados.")
+                        st.rerun()
+                    else:
+                        st.warning("Nenhum estudante novo para adicionar.")
+                except Exception as e:
+                    st.error(f"Erro ao registrar estudantes: {e}")
+
+    with tab_digitar:
+        col_a, col_b = st.columns([3, 1])
+        with col_a:
+            nome_manual = st.text_input("Nome do estudante", key="tutoria_nome_manual")
+        with col_b:
+            serie_manual = st.text_input("Turma", key="tutoria_serie_manual", placeholder="Ex: 6º Ano A")
+        if st.button("✅ Registrar Estudante", key="tutoria_btn_add_manual", type="primary"):
+            try:
+                qtd = _adicionar_estudantes_tutoria([{"nome": nome_manual, "serie": serie_manual}], origem="digitacao_manual")
+                if qtd > 0:
+                    st.success("Estudante registrado com sucesso.")
+                    st.rerun()
+                else:
+                    st.warning("Informe um nome válido ou escolha um estudante novo.")
+            except Exception as e:
+                st.error(f"Erro ao registrar estudante: {e}")
+
+    with tab_colar:
+        feedback_tutoria = st.session_state.get("tutoria_feedback", {})
+        if feedback_tutoria.get("tipo") == "success":
+            st.success(feedback_tutoria.get("msg", ""))
+        elif feedback_tutoria.get("tipo") == "error":
+            st.error(feedback_tutoria.get("msg", ""))
+        elif feedback_tutoria.get("tipo") == "warning":
+            st.warning(feedback_tutoria.get("msg", ""))
+
+        serie_padrao = st.text_input("Turma padrão (opcional)", key="tutoria_serie_padrao", placeholder="Ex: 6º Ano A")
+        lista_colada = st.text_area(
+            "Cole a lista (1 estudante por linha). Opcional: Nome;Turma",
+            key="tutoria_lista_colada",
+            height=160,
+            placeholder="Maria Silva; 7A\nJoão Santos; 8B\nAna Souza"
+        )
+
+        if st.button("Registrar Lista Colada", key="tutoria_btn_add_colada", type="primary"):
+            try:
+                novos = []
+                for linha in lista_colada.splitlines():
+                    item = _normalizar_linha_lista_tutoria(linha, serie_padrao=serie_padrao)
+                    if item:
+                        novos.append(item)
+                qtd = _adicionar_estudantes_tutoria(novos, origem="lista_colada")
+                if qtd > 0:
+                    msg = f"Sucesso: {qtd} estudante(s) adicionados via lista."
+                    st.session_state["tutoria_feedback"] = {"tipo": "success", "msg": msg}
+                    st.success(msg)
+                else:
+                    msg = "Nenhum item válido novo foi encontrado na lista."
+                    st.session_state["tutoria_feedback"] = {"tipo": "warning", "msg": msg}
+                    st.warning(msg)
+            except Exception as e:
+                msg = f"Erro ao registrar lista: {e}"
+                st.session_state["tutoria_feedback"] = {"tipo": "error", "msg": msg}
+                st.error(msg)
+
+        if st.button("Salvar Agora no Supabase", key="tutoria_salvar_agora_colar", use_container_width=True):
+            if not SUPABASE_VALID:
+                msg = "Erro: conexão com Supabase indisponível. Verifique URL/KEY e tente novamente."
+                st.session_state["tutoria_feedback"] = {"tipo": "error", "msg": msg}
+                st.error(msg)
+            else:
+                try:
+                    registros_tutor = [
+                        {
+                            "professora": tutor_sel,
+                            "nome_aluno": str(item.get("nome", "")).strip(),
+                            "serie": formatar_turma_eletiva(str(item.get("serie", "")).strip()),
+                            "origem": "salvar_agora"
+                        }
+                        for item in TUTORIA.get(tutor_sel, [])
+                        if str(item.get("nome", "")).strip()
+                    ]
+                    tutor_q = requests.utils.quote(str(tutor_sel), safe="")
+                    _supabase_request("DELETE", f"tutoria?professora=eq.{tutor_q}")
+                    if registros_tutor:
+                        _supabase_request("POST", "tutoria", json=registros_tutor)
+                    st.session_state.FONTE_TUTORIA = "supabase"
+                    msg = f"Salvamento concluído para {tutor_sel}: {len(registros_tutor)} estudante(s) gravado(s) no Supabase."
+                    st.session_state["tutoria_feedback"] = {"tipo": "success", "msg": msg}
+                    st.success(msg)
+                except Exception as e:
+                    msg = f"Erro ao salvar no Supabase: {e}"
+                    st.session_state["tutoria_feedback"] = {"tipo": "error", "msg": msg}
+                    st.error(msg)
+
+    with tab_upload:
+        arquivo_tutoria = st.file_uploader(
+            "Envie CSV, TXT ou XLSX com nomes dos estudantes",
+            type=["csv", "txt", "xlsx"],
+            key="tutoria_upload"
+        )
+        serie_upload = st.text_input("Turma padrão para upload (opcional)", key="tutoria_serie_upload", placeholder="Ex: 6º Ano A")
+        if st.button("✅ Registrar Arquivo", key="tutoria_btn_add_upload", type="primary"):
+            if not arquivo_tutoria:
+                st.warning("Selecione um arquivo para continuar.")
+            else:
+                try:
+                    nome_arquivo = arquivo_tutoria.name.lower()
+                    novos = []
+                    if nome_arquivo.endswith(".xlsx"):
+                        df_up = pd.read_excel(arquivo_tutoria)
+                        colunas_norm = {c: normalizar_texto(str(c)) for c in df_up.columns}
+                        col_nome = next((c for c, n in colunas_norm.items() if "nome" in n or "aluno" in n or "estudante" in n), None)
+                        col_serie = next((c for c, n in colunas_norm.items() if "serie" in n or "ano" in n or "turma" in n), None)
+                        if not col_nome and len(df_up.columns) > 0:
+                            col_nome = df_up.columns[0]
+                        if col_nome:
+                            for _, linha in df_up.iterrows():
+                                item = {
+                                    "nome": str(linha.get(col_nome, "")).strip(),
+                                    "serie": str(linha.get(col_serie, serie_upload) if col_serie else serie_upload).strip()
+                                }
+                                if item["nome"] and item["nome"].lower() != "nan":
+                                    novos.append(item)
+                    else:
+                        bruto = arquivo_tutoria.getvalue()
+                        try:
+                            conteudo = bruto.decode("utf-8-sig")
+                        except UnicodeDecodeError:
+                            conteudo = bruto.decode("latin-1", errors="ignore")
+                        if nome_arquivo.endswith(".csv"):
+                            df_csv = pd.read_csv(StringIO(conteudo), sep=None, engine="python")
+                            if len(df_csv.columns) == 1:
+                                for linha in df_csv.iloc[:, 0].astype(str).tolist():
+                                    item = _normalizar_linha_lista_tutoria(linha, serie_padrao=serie_upload)
+                                    if item:
+                                        novos.append(item)
+                            else:
+                                colunas_norm = {c: normalizar_texto(str(c)) for c in df_csv.columns}
+                                col_nome = next((c for c, n in colunas_norm.items() if "nome" in n or "aluno" in n or "estudante" in n), df_csv.columns[0])
+                                col_serie = next((c for c, n in colunas_norm.items() if "serie" in n or "ano" in n or "turma" in n), None)
+                                for _, linha in df_csv.iterrows():
+                                    item = {
+                                        "nome": str(linha.get(col_nome, "")).strip(),
+                                        "serie": str(linha.get(col_serie, serie_upload) if col_serie else serie_upload).strip()
+                                    }
+                                    if item["nome"] and item["nome"].lower() != "nan":
+                                        novos.append(item)
+                        else:
+                            for linha in conteudo.splitlines():
+                                item = _normalizar_linha_lista_tutoria(linha, serie_padrao=serie_upload)
+                                if item:
+                                    novos.append(item)
+
+                    qtd = _adicionar_estudantes_tutoria(novos, origem="upload_arquivo")
+                    if qtd > 0:
+                        st.success(f"{qtd} estudante(s) adicionados via upload.")
+                        st.rerun()
+                    else:
+                        st.warning("Nenhum estudante novo válido foi encontrado no arquivo.")
+                except Exception as e:
+                    st.error(f"Erro ao processar arquivo: {e}")
+
+    def _apagar_registro_supabase_tutoria(tutor: str, nome: str, serie: str = ""):
+        tutor_q = requests.utils.quote(str(tutor), safe="")
+        nome_q = requests.utils.quote(str(nome), safe="")
+        path = f"tutoria?professora=eq.{tutor_q}&nome_aluno=eq.{nome_q}"
+        if str(serie).strip():
+            serie_q = requests.utils.quote(str(serie), safe="")
+            path += f"&serie=eq.{serie_q}"
+        _supabase_request("DELETE", path)
+
+    df_tutoria = montar_dataframe_eletiva(tutor_sel, df_alunos, TUTORIA).rename(columns={"Professor(a)": "Tutor(a)"})
+
+    total = len(df_tutoria)
+    if not df_tutoria.empty and "Status" in df_tutoria.columns:
+        encontrados = len(df_tutoria[df_tutoria["Status"] == "Encontrado"])
+        nao_encontrados = len(df_tutoria[df_tutoria["Status"] == "Não encontrado"])
+    else:
+        encontrados = 0
+        nao_encontrados = 0
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Total", total)
+    with col2:
+        st.metric("Encontrados", encontrados)
+    with col3:
+        st.metric("Não Encontrados", nao_encontrados)
+
+    busca_nome = st.text_input("🔍 Buscar estudante na tutoria", placeholder="Digite parte do nome", key="tutoria_busca_estudante")
+    filtro_status = st.selectbox("Filtrar por status", ["Todos", "Encontrado", "Não encontrado"], key="tutoria_filtro_status")
+
+    df_view = df_tutoria.copy()
+    if busca_nome:
+        df_view = df_view[df_view["Nome"].str.contains(busca_nome, case=False, na=False)]
+    if filtro_status != "Todos":
+        df_view = df_view[df_view["Status"] == filtro_status]
+
+    st.markdown("---")
+    st.subheader("📋 Estudantes da Tutoria")
+    colunas_visiveis = [
+        "Tutor(a)", "Nome", "Turma", "Aluno Cadastrado",
+        "RA", "Turma no Sistema", "Situação", "Status"
+    ]
+    colunas_visiveis = [c for c in colunas_visiveis if c in df_view.columns]
+    st.dataframe(df_view[colunas_visiveis], use_container_width=True, hide_index=True)
+
+    st.markdown("---")
+    st.subheader("🖨️ Imprimir Lista da Tutoria")
+    modo_impressao = st.radio(
+        "Tipo de impressão",
+        ["Por Tutor(a)", "Por Turma"],
+        horizontal=True,
+        key="tutoria_modo_impressao"
+    )
+
+    if modo_impressao == "Por Tutor(a)":
+        tutores_lista = sorted(TUTORIA.keys())
+        tutor_impressao = st.selectbox(
+            "Tutor(a) para imprimir",
+            tutores_lista,
+            index=tutores_lista.index(tutor_sel) if tutor_sel in tutores_lista else 0,
+            key="tutoria_tutor_impressao"
+        )
+        df_imp = montar_dataframe_eletiva(tutor_impressao, df_alunos, TUTORIA).rename(columns={"Professor(a)": "Tutor(a)"})
+        if st.button("Gerar PDF por Tutor(a)", type="primary", key="btn_pdf_tutoria_tutor"):
+            if df_imp.empty:
+                st.warning("Não há estudantes para imprimir nesse tutor(a).")
+            else:
+                pdf = gerar_pdf_tutoria(f"Tutor(a): {tutor_impressao}", df_imp)
+                st.download_button(
+                    "Baixar PDF",
+                    data=pdf,
+                    file_name=f"Tutoria_Tutor_{gerar_chave_segura(tutor_impressao)}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                    mime="application/pdf",
+                    key="download_pdf_tutoria_tutor"
+                )
+
+        st.markdown("### Imprimir vários tutores")
+        tutores_sel = st.multiselect(
+            "Selecione os tutores para imprimir",
+            tutores_lista,
+            default=[tutor_impressao] if tutor_impressao else [],
+            key="tutoria_tutores_mult"
+        )
+
+        if st.button("Imprimir Tutores Selecionados", key="btn_zip_tutoria_tutor_mult"):
+            if not tutores_sel:
+                st.warning("Selecione ao menos um tutor.")
+            else:
+                zip_buffer = BytesIO()
+                total_pdfs = 0
+                with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+                    for tutor_item in tutores_sel:
+                        df_tutor = montar_dataframe_eletiva(tutor_item, df_alunos, TUTORIA).rename(columns={"Professor(a)": "Tutor(a)"})
+                        if df_tutor.empty:
+                            continue
+                        pdf_tutor = gerar_pdf_tutoria(f"Tutor(a): {tutor_item}", df_tutor)
+                        zip_file.writestr(f"Tutoria_Tutor_{gerar_chave_segura(tutor_item)}.pdf", pdf_tutor.getvalue())
+                        total_pdfs += 1
+                if total_pdfs == 0:
+                    st.warning("Nenhum PDF foi gerado para os tutores selecionados.")
+                else:
+                    zip_buffer.seek(0)
+                    st.download_button(
+                        "Baixar ZIP de Tutores",
+                        data=zip_buffer,
+                        file_name=f"Tutoria_Tutores_{datetime.now().strftime('%Y%m%d_%H%M')}.zip",
+                        mime="application/zip",
+                        key="download_zip_tutoria_tutores"
+                    )
+    else:
+        frames = []
+        for tutor_item in sorted(TUTORIA.keys()):
+            df_tmp = montar_dataframe_eletiva(tutor_item, df_alunos, TUTORIA).rename(columns={"Professor(a)": "Tutor(a)"})
+            if not df_tmp.empty:
+                frames.append(df_tmp)
+        df_geral_tutoria = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+        turmas_tutoria = sorted([
+            t for t in df_geral_tutoria.get("Turma", pd.Series(dtype=str)).dropna().astype(str).str.strip().unique().tolist() if t
+        ])
+        if not turmas_tutoria:
+            st.info("Não há turmas de tutoria para imprimir.")
+        else:
+            turma_impressao = st.selectbox("Turma da Tutoria", turmas_tutoria, key="tutoria_turma_impressao")
+            df_imp = df_geral_tutoria[df_geral_tutoria["Turma"].astype(str).str.strip() == str(turma_impressao).strip()].copy()
+            if st.button("Gerar PDF por Turma", type="primary", key="btn_pdf_tutoria_turma"):
+                if df_imp.empty:
+                    st.warning("Não há estudantes para imprimir nessa turma.")
+                else:
+                    pdf = gerar_pdf_tutoria(f"Turma: {turma_impressao}", df_imp)
+                    st.download_button(
+                        "Baixar PDF",
+                        data=pdf,
+                        file_name=f"Tutoria_Turma_{gerar_chave_segura(turma_impressao)}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                        mime="application/pdf",
+                        key="download_pdf_tutoria_turma"
+                    )
+
+    st.markdown("---")
+    st.subheader("🔎 Estudantes Sem Tutor Na Tutoria")
+    st.caption("Selecione turmas do sistema para identificar alunos que ainda não estão vinculados a nenhum tutor.")
+    if not df_alunos.empty and "nome" in df_alunos.columns and "turma" in df_alunos.columns:
+        turmas_base = sorted([t for t in df_alunos["turma"].dropna().astype(str).str.strip().unique().tolist() if t])
+        turmas_pesquisa = st.multiselect(
+            "Turmas para pesquisar",
+            turmas_base,
+            default=turmas_base,
+            key="tutoria_turmas_pesquisa_nao_localizados"
+        )
+        if turmas_pesquisa:
+            frames = []
+            for tutor_item in sorted(TUTORIA.keys()):
+                df_tmp = montar_dataframe_eletiva(tutor_item, df_alunos, TUTORIA).rename(columns={"Professor(a)": "Tutor(a)"})
+                if not df_tmp.empty:
+                    frames.append(df_tmp)
+            df_geral_tutoria = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+
+            vinculados = set()
+            if not df_geral_tutoria.empty:
+                df_vinc = df_geral_tutoria[
+                    (df_geral_tutoria["Status"] == "Encontrado")
+                    & (df_geral_tutoria["Aluno Cadastrado"].astype(str).str.strip() != "")
+                    & (df_geral_tutoria["Tutor(a)"].astype(str).str.strip() != "")
+                ].copy()
+                for _, r in df_vinc.iterrows():
+                    vinculados.add((
+                        normalizar_texto(r.get("Aluno Cadastrado", "")),
+                        normalizar_texto(r.get("Turma no Sistema", ""))
+                    ))
+
+            base_turmas = df_alunos[df_alunos["turma"].astype(str).isin(turmas_pesquisa)].copy()
+            base_turmas["nome_norm"] = base_turmas["nome"].astype(str).apply(normalizar_texto)
+            base_turmas["turma_norm"] = base_turmas["turma"].astype(str).apply(normalizar_texto)
+
+            sem_tutor = []
+            for _, aluno in base_turmas.iterrows():
+                chave = (aluno.get("nome_norm", ""), aluno.get("turma_norm", ""))
+                if chave not in vinculados:
+                    sem_tutor.append({
+                        "Nome": aluno.get("nome", ""),
+                        "Turma": aluno.get("turma", ""),
+                        "RA": aluno.get("ra", ""),
+                        "Situação": aluno.get("situacao", ""),
+                        "Tutor(a)": ""
+                    })
+
+            df_pendentes = pd.DataFrame(sem_tutor)
+            st.metric("Estudantes sem tutor na tutoria", len(df_pendentes))
+            if df_pendentes.empty:
+                st.success("Todos os estudantes das turmas selecionadas já possuem tutor na tutoria.")
+            else:
+                st.dataframe(df_pendentes, use_container_width=True, hide_index=True)
+
+    if alunos_raw:
+        st.markdown("---")
+        st.subheader("✏️ Editar ou Excluir Estudante")
+        opcoes_estudantes = [
+            f"{a.get('nome', '').strip()} — {a.get('serie', '').strip()}".strip(" —")
+            for a in alunos_raw
+        ]
+        idx_sel = st.selectbox(
+            "Selecione o estudante",
+            options=list(range(len(opcoes_estudantes))),
+            format_func=lambda i: opcoes_estudantes[i],
+            key="tutoria_idx_edicao"
+        )
+
+        estudante_sel = alunos_raw[idx_sel]
+        nome_antigo = str(estudante_sel.get("nome", "")).strip()
+        serie_antiga = str(estudante_sel.get("serie", "")).strip()
+
+        col_ed1, col_ed2 = st.columns(2)
+        with col_ed1:
+            novo_nome = st.text_input("Nome", value=nome_antigo, key=f"tutoria_nome_edit_{idx_sel}")
+        with col_ed2:
+            nova_serie = st.text_input("Turma", value=serie_antiga, key=f"tutoria_serie_edit_{idx_sel}")
+
+        col_btn1, col_btn2 = st.columns(2)
+        with col_btn1:
+            if st.button("✅ Editar Estudante", type="primary", key="btn_editar_estudante_tutoria"):
+                novo_nome = novo_nome.strip()
+                nova_serie = formatar_turma_eletiva(nova_serie.strip())
+                if not novo_nome:
+                    st.warning("Informe um nome válido para salvar.")
+                else:
+                    try:
+                        TUTORIA[tutor_sel][idx_sel] = {"nome": novo_nome, "serie": nova_serie}
+                        st.session_state.TUTORIA = TUTORIA
+                        if SUPABASE_VALID:
+                            _apagar_registro_supabase_tutoria(tutor_sel, nome_antigo, serie_antiga)
+                            _supabase_request("POST", "tutoria", json=[{
+                                "professora": tutor_sel,
+                                "nome_aluno": novo_nome,
+                                "serie": nova_serie,
+                                "origem": "edicao_manual"
+                            }])
+                            st.session_state.FONTE_TUTORIA = "supabase"
+                        st.success("✅ Estudante atualizado com sucesso.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Erro ao editar estudante: {e}")
+
+        with col_btn2:
+            confirmar_exc = st.checkbox("Confirmar exclusão", key=f"confirmar_exclusao_tutoria_{idx_sel}")
+            if st.button("🗑️ Excluir Estudante", type="secondary", key="btn_excluir_estudante_tutoria"):
+                if not confirmar_exc:
+                    st.warning("Marque a confirmação para excluir.")
+                else:
+                    try:
+                        removido = TUTORIA[tutor_sel].pop(idx_sel)
+                        st.session_state.TUTORIA = TUTORIA
+                        if SUPABASE_VALID:
+                            _apagar_registro_supabase_tutoria(tutor_sel, str(removido.get("nome", "")), str(removido.get("serie", "")))
+                            st.session_state.FONTE_TUTORIA = "supabase"
+                        st.success("✅ Estudante excluído com sucesso.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Erro ao excluir estudante: {e}")
+
+        st.markdown("---")
+        st.subheader("🧹 Limpeza em Massa")
+        confirmar_excluir_todos = st.checkbox(
+            f"Confirmo excluir todos os estudantes do tutor {tutor_sel}",
+            key=f"confirmar_excluir_todos_tutoria_{gerar_chave_segura(tutor_sel)}"
+        )
+        if st.button("🗑️ Excluir Todos os Alunos da Tutoria", type="secondary", key="btn_excluir_todos_tutoria"):
+            if not confirmar_excluir_todos:
+                st.warning("Marque a confirmação para excluir todos.")
+            else:
+                try:
+                    TUTORIA[tutor_sel] = []
+                    st.session_state.TUTORIA = TUTORIA
+                    if SUPABASE_VALID:
+                        tutor_q = requests.utils.quote(str(tutor_sel), safe="")
+                        _supabase_request("DELETE", f"tutoria?professora=eq.{tutor_q}")
+                        st.session_state.FONTE_TUTORIA = "supabase"
+                    st.success("✅ Todos os estudantes da tutoria foram excluídos.")
                     st.rerun()
                 except Exception as e:
                     st.error(f"Erro ao excluir todos os estudantes: {e}")
