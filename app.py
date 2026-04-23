@@ -2230,6 +2230,10 @@ def corrigir_texto_mojibake(texto: str) -> str:
 
 def normalizar_gravidade_protocolo(valor: str) -> str:
     gravidade = corrigir_texto_mojibake(valor)
+    gravidade_norm = "".join(
+        ch for ch in unicodedata.normalize("NFD", gravidade.lower())
+        if unicodedata.category(ch) != "Mn"
+    ).strip()
     mapa = {
         "leve": "Leve",
         "media": "Média",
@@ -2238,7 +2242,7 @@ def normalizar_gravidade_protocolo(valor: str) -> str:
         "gravissima": "Gravíssima",
         "gravíssima": "Gravíssima",
     }
-    return mapa.get(normalizar_texto(gravidade), "Leve")
+    return mapa.get(gravidade_norm, "Leve")
 
 def corrigir_protocolo_179(protocolo: dict) -> dict:
     protocolo_corrigido = {}
