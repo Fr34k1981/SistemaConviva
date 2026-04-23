@@ -1664,11 +1664,54 @@ def resolver_primeiro_arquivo_existente(candidatos: list[str]) -> str:
 TUTORIA_ARQUIVO = resolver_primeiro_arquivo_existente(TUTORIA_ARQUIVOS_CANDIDATOS)
 TUTORIA_CACHE_ARQUIVO = os.path.join(os.getcwd(), "data", "tutoria_cadastro.json")
 DIAS_SEMANA_TUTORIA = ("segunda", "terca", "terça", "quarta", "quinta", "sexta", "sabado", "sábado")
+PERFIS_TUTORIA = [
+    "Professor(a)",
+    "Professor(a) Tutor(a)",
+    "Tutor(a)",
+    "CGPG",
+    "Diretor(a)",
+    "Vice-Diretor(a)",
+    "Coordenador(a)"
+]
+MAPA_PERFIS_TUTORIA = {
+    "professor": "Professor(a)",
+    "professora": "Professor(a)",
+    "professor(a)": "Professor(a)",
+    "professor(a) tutor(a)": "Professor(a) Tutor(a)",
+    "tutor": "Tutor(a)",
+    "tutora": "Tutor(a)",
+    "tutor(a)": "Tutor(a)",
+    "cgpg": "CGPG",
+    "diretor": "Diretor(a)",
+    "diretora": "Diretor(a)",
+    "diretor(a)": "Diretor(a)",
+    "vice-diretor": "Vice-Diretor(a)",
+    "vice diretora": "Vice-Diretor(a)",
+    "vice-diretora": "Vice-Diretor(a)",
+    "vice diretor": "Vice-Diretor(a)",
+    "vice-diretor(a)": "Vice-Diretor(a)",
+    "coordenador": "Coordenador(a)",
+    "coordenadora": "Coordenador(a)",
+    "coordenador(a)": "Coordenador(a)"
+}
+
+def normalizar_perfil_tutoria(tipo: str = "") -> str:
+    perfil = str(tipo or "").strip()
+    if not perfil:
+        return "Professor(a)"
+    return MAPA_PERFIS_TUTORIA.get(normalizar_texto(perfil), perfil)
+
+def mensagem_erro_tutoria_supabase(erro: Exception) -> str:
+    texto = str(erro)
+    resposta = getattr(erro, "response", None)
+    if resposta is not None and getattr(resposta, "status_code", None) == 404:
+        return "A tabela de tutoria não está disponível no Supabase agora. O cadastro local continua salvo normalmente."
+    return f"Não foi possível sincronizar a tutoria com o Supabase: {texto}"
 
 def estrutura_tutoria_vazia(nome: str = "", tipo: str = "Professor(a)") -> dict:
     return {
         "nome": str(nome or "").strip(),
-        "tipo": str(tipo or "Professor(a)").strip() or "Professor(a)",
+        "tipo": normalizar_perfil_tutoria(tipo),
         "espaco": "",
         "horario": "",
         "dia": "",
@@ -1698,7 +1741,7 @@ def normalizar_base_tutoria(tutoria_raw: dict | None) -> dict:
         if isinstance(dados, dict):
             registro = estrutura_tutoria_vazia(
                 nome=nome_tutor,
-                tipo=str(dados.get("tipo", "Professor(a)")).strip() or "Professor(a)"
+                tipo=normalizar_perfil_tutoria(dados.get("tipo", "Professor(a)"))
             )
             registro["espaco"] = str(dados.get("espaco", "")).strip()
             registro["horario"] = str(dados.get("horario", "")).strip()
@@ -2944,7 +2987,11 @@ def converter_tutoria_para_registros(tutoria_dict: dict, origem: str = "excel") 
                 "professora": tutor,
                 "nome_aluno": item.get("nome", ""),
                 "serie": formatar_turma_eletiva(item.get("serie", "")),
-                "origem": origem
+                "origem": origem,
+                "tipo": normalizar_perfil_tutoria(dados.get("tipo", "Professor(a)")),
+                "espaco": str(dados.get("espaco", "")).strip(),
+                "horario": str(dados.get("horario", "")).strip(),
+                "dia": str(dados.get("dia", "")).strip()
             })
     return registros
 
@@ -2959,6 +3006,18 @@ def converter_tutoria_supabase_para_dict(df_tutoria: pd.DataFrame) -> dict:
         if not tutor:
             continue
         tutoria.setdefault(tutor, estrutura_tutoria_vazia(nome=tutor))
+        tipo = normalizar_perfil_tutoria(row.get("tipo", "Professor(a)"))
+        espaco = str(row.get("espaco", "")).strip()
+        horario = str(row.get("horario", "")).strip()
+        dia = str(row.get("dia", "")).strip()
+        if tipo:
+            tutoria[tutor]["tipo"] = tipo
+        if espaco:
+            tutoria[tutor]["espaco"] = espaco
+        if horario:
+            tutoria[tutor]["horario"] = horario
+        if dia:
+            tutoria[tutor]["dia"] = dia
         if nome_aluno:
             tutoria[tutor]["alunos"].append({"nome": nome_aluno, "serie": serie})
     return normalizar_base_tutoria(tutoria)
@@ -6365,47 +6424,47 @@ elif menu == "🫂 Tutoria":
                     st.success("✅ Estudantes importados do Supabase e metadados locais preservados.")
                     st.rerun()
                 except Exception as e:
-                    st.error(f"❌ Erro ao importar do Supabase: {e}")
+                    st.warning(mensagem_erro_tutoria_supabase(e))
         else:
             st.caption("Supabase indisponível nesta instalação.")
 
     st.markdown("---")
-    st.subheader("👩‍🏫 Cadastro de Professores e Espaços")
-    tab_novo_tutor, tab_editar_tutor = st.tabs(["➕ Novo professor(a)", "⚙️ Editar professor(a)"])
+    st.subheader("👩‍🏫 Cadastro de Responsáveis e Espaços")
+    tab_novo_tutor, tab_editar_tutor = st.tabs(["➕ Novo cadastro", "⚙️ Editar cadastro"])
 
     with tab_novo_tutor:
         col_n1, col_n2 = st.columns(2)
         with col_n1:
-            nome_novo_tutor = st.text_input("Nome do professor(a)", key="tutoria_novo_nome")
+            nome_novo_tutor = st.text_input("Nome do responsável", key="tutoria_novo_nome")
             espaco_novo_tutor = st.text_input("Espaço usado", key="tutoria_novo_espaco", placeholder="Ex: Sala 04 / Pátio / Sala de Leitura")
         with col_n2:
-            tipo_novo_tutor = st.selectbox("Perfil", ["Professor(a)", "Professor(a) Tutor(a)", "Tutor(a)"], key="tutoria_novo_tipo")
+            tipo_novo_tutor = st.selectbox("Perfil", PERFIS_TUTORIA, key="tutoria_novo_tipo")
             horario_novo_tutor = st.text_input("Horário", key="tutoria_novo_horario", placeholder="Ex: 13:10 às 14:00")
         dia_novo_tutor = st.text_input("Dia", key="tutoria_novo_dia", placeholder="Ex: Quarta-feira")
-        if st.button("✅ Cadastrar Professor(a)", key="btn_cadastrar_tutor_tutoria", type="primary"):
+        if st.button("✅ Cadastrar Responsável", key="btn_cadastrar_tutor_tutoria", type="primary"):
             nome_novo_tutor = str(nome_novo_tutor).strip()
             if not nome_novo_tutor:
-                st.warning("Informe o nome do professor(a).")
+                st.warning("Informe o nome do responsável.")
             elif any(normalizar_texto(nome_novo_tutor) == normalizar_texto(nome_existente) for nome_existente in TUTORIA.keys()):
-                st.warning("Já existe um professor(a) com esse nome.")
+                st.warning("Já existe um cadastro com esse nome.")
             else:
                 TUTORIA[nome_novo_tutor] = {
                     "nome": nome_novo_tutor,
-                    "tipo": tipo_novo_tutor,
+                    "tipo": normalizar_perfil_tutoria(tipo_novo_tutor),
                     "espaco": str(espaco_novo_tutor).strip(),
                     "horario": str(horario_novo_tutor).strip(),
                     "dia": str(dia_novo_tutor).strip(),
                     "alunos": []
                 }
                 _salvar_estado_tutoria("local")
-                st.success("✅ Professor(a) cadastrado com sucesso.")
+                st.success("✅ Cadastro realizado com sucesso.")
                 st.rerun()
 
     with tab_editar_tutor:
         if not TUTORIA:
-            st.info("Cadastre um professor(a) para habilitar a edição.")
+            st.info("Cadastre um responsável para habilitar a edição.")
         else:
-            tutor_edicao = st.selectbox("Professor(a) para editar", sorted(TUTORIA.keys()), key="tutoria_tutor_edicao")
+            tutor_edicao = st.selectbox("Cadastro para editar", sorted(TUTORIA.keys()), key="tutoria_tutor_edicao")
             dados_edicao = obter_registro_tutoria(TUTORIA, tutor_edicao)
             col_e1, col_e2 = st.columns(2)
             with col_e1:
@@ -6414,8 +6473,8 @@ elif menu == "🫂 Tutoria":
             with col_e2:
                 tipo_edit_tutor = st.selectbox(
                     "Perfil",
-                    ["Professor(a)", "Professor(a) Tutor(a)", "Tutor(a)"],
-                    index=["Professor(a)", "Professor(a) Tutor(a)", "Tutor(a)"].index(dados_edicao.get("tipo", "Professor(a)")) if dados_edicao.get("tipo", "Professor(a)") in ["Professor(a)", "Professor(a) Tutor(a)", "Tutor(a)"] else 0,
+                    PERFIS_TUTORIA,
+                    index=PERFIS_TUTORIA.index(normalizar_perfil_tutoria(dados_edicao.get("tipo", "Professor(a)"))) if normalizar_perfil_tutoria(dados_edicao.get("tipo", "Professor(a)")) in PERFIS_TUTORIA else 0,
                     key="tutoria_edit_tipo"
                 )
                 horario_edit_tutor = st.text_input("Horário", value=dados_edicao.get("horario", ""), key="tutoria_edit_horario")
@@ -6428,11 +6487,11 @@ elif menu == "🫂 Tutoria":
                     if not nome_edit_tutor:
                         st.warning("Informe um nome válido.")
                     elif nome_edit_tutor != tutor_edicao and any(normalizar_texto(nome_edit_tutor) == normalizar_texto(nome_existente) for nome_existente in TUTORIA.keys()):
-                        st.warning("Já existe outro professor(a) com esse nome.")
+                        st.warning("Já existe outro cadastro com esse nome.")
                     else:
                         dados_salvos = obter_registro_tutoria(TUTORIA, tutor_edicao)
                         dados_salvos["nome"] = nome_edit_tutor
-                        dados_salvos["tipo"] = tipo_edit_tutor
+                        dados_salvos["tipo"] = normalizar_perfil_tutoria(tipo_edit_tutor)
                         dados_salvos["espaco"] = str(espaco_edit_tutor).strip()
                         dados_salvos["horario"] = str(horario_edit_tutor).strip()
                         dados_salvos["dia"] = str(dia_edit_tutor).strip()
@@ -6449,11 +6508,11 @@ elif menu == "🫂 Tutoria":
                                     _supabase_request("POST", "tutoria", json=registros)
                             except Exception:
                                 pass
-                        st.success("✅ Professor(a) atualizado com sucesso.")
+                        st.success("✅ Cadastro atualizado com sucesso.")
                         st.rerun()
             with col_b2:
-                confirmar_exclusao_tutor = st.checkbox("Confirmar exclusão do professor(a)", key="confirmar_exclusao_tutor_tutoria")
-                if st.button("🗑️ Excluir Professor(a)", key="btn_excluir_tutor_tutoria", type="secondary"):
+                confirmar_exclusao_tutor = st.checkbox("Confirmar exclusão do cadastro", key="confirmar_exclusao_tutor_tutoria")
+                if st.button("🗑️ Excluir Cadastro", key="btn_excluir_tutor_tutoria", type="secondary"):
                     if not confirmar_exclusao_tutor:
                         st.warning("Marque a confirmação para excluir.")
                     else:
@@ -6465,18 +6524,18 @@ elif menu == "🫂 Tutoria":
                                 _supabase_request("DELETE", f"tutoria?professora=eq.{tutor_q}")
                             except Exception:
                                 pass
-                        st.success("✅ Professor(a) excluído com sucesso.")
+                        st.success("✅ Cadastro excluído com sucesso.")
                         st.rerun()
 
     st.markdown("---")
-    st.subheader("📊 Professores Cadastrados")
+    st.subheader("📊 Cadastros da Tutoria")
     if TUTORIA:
         dados_tutores = []
         for tutor, dados in sorted(TUTORIA.items()):
             alunos = dados.get("alunos", [])
             series = ", ".join(sorted({formatar_turma_eletiva(a.get("serie", "")) for a in alunos if a.get("serie")}))
             dados_tutores.append({
-                "Professor(a)": tutor,
+                "Responsável": tutor,
                 "Perfil": dados.get("tipo", "Professor(a)"),
                 "Espaço": dados.get("espaco", ""),
                 "Horário": dados.get("horario", ""),
@@ -6486,23 +6545,34 @@ elif menu == "🫂 Tutoria":
             })
         st.dataframe(pd.DataFrame(dados_tutores), use_container_width=True, hide_index=True)
     else:
-        st.info("📭 Nenhum professor(a) cadastrado em tutoria.")
+        st.info("📭 Nenhum cadastro realizado em tutoria.")
         st.stop()
 
     st.markdown("---")
-    tutor_sel = st.selectbox("Selecione o Professor(a)", sorted(TUTORIA.keys()), key="tutoria_tutor_select")
+    tutor_sel = st.selectbox("Selecione o responsável", sorted(TUTORIA.keys()), key="tutoria_tutor_select")
     tutor_info = obter_registro_tutoria(TUTORIA, tutor_sel)
     alunos_raw = tutor_info.get("alunos", [])
 
     col_meta1, col_meta2, col_meta3, col_meta4 = st.columns(4)
-    with col_meta1:
-        st.metric("Perfil", tutor_info.get("tipo", "Professor(a)"))
-    with col_meta2:
-        st.metric("Espaço", tutor_info.get("espaco", "") or "Não informado")
-    with col_meta3:
-        st.metric("Horário", tutor_info.get("horario", "") or "Não informado")
-    with col_meta4:
-        st.metric("Dia", tutor_info.get("dia", "") or "Não informado")
+    meta_tutoria = [
+        ("Perfil", tutor_info.get("tipo", "Professor(a)")),
+        ("Espaço", tutor_info.get("espaco", "") or "Não informado"),
+        ("Horário", tutor_info.get("horario", "") or "Não informado"),
+        ("Dia", tutor_info.get("dia", "") or "Não informado")
+    ]
+    for coluna, (rotulo, valor) in zip((col_meta1, col_meta2, col_meta3, col_meta4), meta_tutoria):
+        with coluna:
+            st.markdown(
+                f"""
+                <div style="padding:0.25rem 0 0.75rem 0;">
+                    <div style="font-size:0.95rem;color:#475569;margin-bottom:0.35rem;">{rotulo}</div>
+                    <div style="font-family:'Nunito',sans-serif;font-size:0.95rem;line-height:1.35;font-weight:700;color:#1e293b;word-break:break-word;">
+                        {html.escape(str(valor))}
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
     def _adicionar_estudantes_tutoria(novos_estudantes: list, origem: str, tutor_destino: str | None = None):
         tutor_destino = str(tutor_destino or tutor_sel).strip()
@@ -6543,17 +6613,26 @@ elif menu == "🫂 Tutoria":
                 }
                 for item in inseridos
             ]
-            _supabase_request("POST", "tutoria", json=registros)
+            try:
+                _supabase_request("POST", "tutoria", json=registros)
+            except Exception as e:
+                st.session_state["tutoria_feedback"] = {
+                    "tipo": "warning",
+                    "msg": (
+                        f"{len(inseridos)} estudante(s) foram salvos localmente para {tutor_destino}, "
+                        f"mas a sincronização com o Supabase falhou. {mensagem_erro_tutoria_supabase(e)}"
+                    )
+                }
 
         return len(inseridos)
 
     st.markdown("---")
-    st.subheader("📝 Cadastro em Lista por Professor(a)")
-    st.caption("Escolha o professor(a) e cole a lista inteira, como na eletiva.")
+    st.subheader("📝 Cadastro em Lista por Responsável")
+    st.caption("Escolha o responsável e cole a lista inteira, como na eletiva.")
     col_lista1, col_lista2 = st.columns([2, 1])
     with col_lista1:
         tutor_lista_lote = st.selectbox(
-            "Professor(a) da lista",
+            "Responsável da lista",
             sorted(TUTORIA.keys()),
             index=sorted(TUTORIA.keys()).index(tutor_sel) if tutor_sel in TUTORIA else 0,
             key="tutoria_tutor_lista_lote"
@@ -6565,7 +6644,7 @@ elif menu == "🫂 Tutoria":
             placeholder="Ex: 6º Ano A"
         )
     lista_lote = st.text_area(
-        "Cole a lista para esse professor(a). Opcional: Nome;Turma",
+        "Cole a lista para esse responsável. Opcional: Nome;Turma",
         key="tutoria_lista_lote_professor",
         height=160,
         placeholder="Maria Silva; 7A\nJoão Santos; 8B\nAna Souza"
@@ -6584,7 +6663,7 @@ elif menu == "🫂 Tutoria":
             else:
                 st.warning("Nenhum estudante novo válido foi encontrado nessa lista.")
         except Exception as e:
-            st.error(f"Erro ao registrar lista do professor(a): {e}")
+            st.error(f"Erro ao registrar lista do responsável: {e}")
 
     st.markdown("---")
     st.subheader("➕ Inserir Estudantes na Tutoria")
@@ -6697,9 +6776,9 @@ elif menu == "🫂 Tutoria":
                     st.session_state["tutoria_feedback"] = {"tipo": "success", "msg": msg}
                     st.success(msg)
                 except Exception as e:
-                    msg = f"Erro ao salvar no Supabase: {e}"
-                    st.session_state["tutoria_feedback"] = {"tipo": "error", "msg": msg}
-                    st.error(msg)
+                    msg = mensagem_erro_tutoria_supabase(e)
+                    st.session_state["tutoria_feedback"] = {"tipo": "warning", "msg": msg}
+                    st.warning(msg)
 
     with tab_upload:
         arquivo_tutoria = st.file_uploader(
