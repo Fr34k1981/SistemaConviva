@@ -6419,10 +6419,12 @@ elif menu == "🫂 Tutoria":
     </div>
     """, unsafe_allow_html=True)
 
-    if FONTE_TUTORIA == "local":
-        st.success(f"✅ Cadastro local da tutoria ativo: {os.path.basename(TUTORIA_CACHE_ARQUIVO)}")
-    elif FONTE_TUTORIA == "supabase":
-        st.success("✅ Base de estudantes da tutoria carregada do Supabase.")
+    if FONTE_TUTORIA == "supabase":
+        st.success("✅ Tutoria online conectada ao Supabase.")
+    elif FONTE_TUTORIA == "local" and SUPABASE_VALID:
+        st.info("☁️ Tutoria pronta para sincronização online com o Supabase.")
+    elif FONTE_TUTORIA == "local":
+        st.info("💾 Tutoria em uso no armazenamento desta máquina.")
     elif FONTE_TUTORIA == "excel":
         st.info(f"📄 Base carregada do arquivo de tutoria: {os.path.basename(TUTORIA_ARQUIVO) if TUTORIA_ARQUIVO else 'arquivo local'}")
     else:
