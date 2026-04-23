@@ -6340,7 +6340,7 @@ elif menu == "🏫 Mapa da Sala":
     st.markdown("---")
     st.subheader("🛠️ Ferramentas de Organização")
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         if st.button("🔀 Atribuir Aleatoriamente", use_container_width=True, type="primary"):
             nomes_embaralhados = nomes_alunos.copy()
