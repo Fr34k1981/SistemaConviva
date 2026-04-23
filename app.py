@@ -6063,13 +6063,14 @@ elif menu == "🏫 Mapa da Sala":
             html_mapa.append('<div class="mapa-impressao-lousa">LOUSA</div>')
 
         html_mapa.append('<div class="mapa-impressao-wrap"><table class="mapa-impressao-tabela">')
-        html_mapa.append("<thead><tr>")
+        html_mapa.append("<thead><tr><th>Fileira</th>")
         for carteira in range(carteiras_por_fileira):
             html_mapa.append(f"<th>Carteira {carteira + 1}</th>")
         html_mapa.append("</tr></thead><tbody>")
 
         for fileira, linha in enumerate(grade, start=1):
             html_mapa.append("<tr>")
+            html_mapa.append(f"<th>Fileira {fileira}</th>")
             for carteira, valor in enumerate(linha, start=1):
                 html_mapa.append(
                     f"<td><span class='mapa-impressao-posicao'>Fileira {fileira} - Carteira {carteira}</span>{html.escape(valor)}</td>"
@@ -6133,16 +6134,16 @@ elif menu == "🏫 Mapa da Sala":
             )
             elementos.append(Spacer(1, 0.25 * cm))
 
-        dados_tabela = [[f"Carteira {i + 1}" for i in range(carteiras_por_fileira)]]
+        dados_tabela = [["Fileira"] + [f"Carteira {i + 1}" for i in range(carteiras_por_fileira)]]
         for fileira, linha in enumerate(grade, start=1):
-            linha_pdf = []
+            linha_pdf = [Paragraph(f"<b>Fileira {fileira}</b>", estilo_celula)]
             for carteira, valor in enumerate(linha, start=1):
                 conteudo = f"<b>Fileira {fileira} - Carteira {carteira}</b><br/>{html.escape(valor)}"
                 linha_pdf.append(Paragraph(conteudo, estilo_celula))
             dados_tabela.append(linha_pdf)
 
-        largura_coluna = 25 * cm / max(carteiras_por_fileira, 1)
-        tabela = Table(dados_tabela, colWidths=[largura_coluna] * carteiras_por_fileira, repeatRows=1)
+        largura_coluna = 22.5 * cm / max(carteiras_por_fileira, 1)
+        tabela = Table(dados_tabela, colWidths=[2.5 * cm] + [largura_coluna] * carteiras_por_fileira, repeatRows=1)
         tabela.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#DBEAFE")),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#1E3A8A")),
@@ -6184,25 +6185,53 @@ elif menu == "🏫 Mapa da Sala":
     st.markdown("""
     <style>
     .sala-grid {
-        display: flex;
+        display: inline-flex;
         flex-direction: column;
         gap: 8px;
         margin: 20px 0;
         padding: 20px;
         background: var(--light);
         border-radius: var(--radius-xl);
+        border: 1px solid var(--border);
     }
     .fileira-row {
         display: flex;
         gap: 8px;
-        justify-content: center;
+        align-items: stretch;
     }
-    .assento-card {
-        width: 70px;
-        height: 50px;
+    .fileira-label,
+    .carteira-header,
+    .sala-corner {
+        width: 82px;
+        min-height: 40px;
         border: 2px solid var(--border);
         border-radius: var(--radius-md);
         display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        font-size: 11px;
+        font-weight: 700;
+        background: #eff6ff;
+        color: #1e3a8a;
+        padding: 4px;
+    }
+    .fileira-label {
+        background: #e2e8f0;
+        color: #0f172a;
+    }
+    .sala-corner {
+        background: transparent;
+        border-style: dashed;
+        color: #64748b;
+    }
+    .assento-card {
+        width: 82px;
+        min-height: 58px;
+        border: 2px solid var(--border);
+        border-radius: var(--radius-md);
+        display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
         font-size: 9px;
@@ -6210,8 +6239,18 @@ elif menu == "🏫 Mapa da Sala":
         text-align: center;
         background: white;
         transition: all 0.2s;
-        padding: 2px;
+        padding: 4px;
         word-break: break-word;
+    }
+    .assento-posicao {
+        font-size: 8px;
+        line-height: 1.1;
+        color: inherit;
+        opacity: 0.9;
+    }
+    .assento-nome {
+        font-size: 10px;
+        line-height: 1.15;
     }
     .assento-card.ocupado {
         background: var(--gradient-primary);
@@ -6245,16 +6284,20 @@ elif menu == "🏫 Mapa da Sala":
         st.markdown('<div class="lousa">📚 LOUSA</div>', unsafe_allow_html=True)
 
     sala_html = '<div class="sala-grid">'
+    sala_html += '<div class="fileira-row"><div class="sala-corner">Mapa</div>'
+    for carteira in range(carteiras_por_fileira):
+        sala_html += f'<div class="carteira-header">Carteira {carteira + 1}</div>'
+    sala_html += '</div>'
     for fileira in range(num_fileiras):
-        sala_html += '<div class="fileira-row">'
+        sala_html += f'<div class="fileira-row"><div class="fileira-label">Fileira {fileira + 1}</div>'
         for carteira in range(carteiras_por_fileira):
             idx = obter_indice_assento(fileira, carteira)
             nome_no_assento = st.session_state[mapa_key].get(str(idx), "")
             if nome_no_assento:
                 nome_exib = nome_no_assento.split()[0] if nome_no_assento else f"C{idx+1}"
-                sala_html += f'<div class="assento-card ocupado" title="{nome_no_assento}">{nome_exib}</div>'
+                sala_html += f'<div class="assento-card ocupado" title="{nome_no_assento}"><span class="assento-posicao">F{fileira + 1} • C{carteira + 1}</span><span class="assento-nome">{nome_exib}</span></div>'
             else:
-                sala_html += f'<div class="assento-card vazio">C{idx+1}</div>'
+                sala_html += f'<div class="assento-card vazio"><span class="assento-posicao">F{fileira + 1} • C{carteira + 1}</span><span class="assento-nome">Carteira {idx + 1}</span></div>'
         sala_html += '</div>'
     sala_html += '</div>'
     st.markdown(sala_html, unsafe_allow_html=True)
