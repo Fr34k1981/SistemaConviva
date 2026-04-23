@@ -5985,6 +5985,198 @@ elif menu == "🏫 Mapa da Sala":
         estado_anterior = st.session_state[mapa_key]
         st.session_state[mapa_key] = {str(i): estado_anterior.get(str(i), "") for i in range(total_assentos)}
 
+    def construir_grade_mapa_impressao():
+        grade = []
+        for fileira in range(num_fileiras):
+            linha = []
+            for carteira in range(carteiras_por_fileira):
+                idx = fileira * carteiras_por_fileira + carteira
+                nome = st.session_state[mapa_key].get(str(idx), "").strip()
+                linha.append(nome if nome else f"Carteira {idx + 1}")
+            grade.append(linha)
+        return grade
+
+    def renderizar_html_mapa_impressao(grade):
+        html_mapa = [
+            """
+            <style>
+            .mapa-impressao-wrap {
+                margin-top: 1rem;
+                padding: 1.2rem;
+                border: 1px solid #d1d5db;
+                border-radius: 16px;
+                background: #ffffff;
+            }
+            .mapa-impressao-lousa {
+                margin: 0 auto 1rem auto;
+                max-width: 340px;
+                padding: 0.7rem 1rem;
+                border-radius: 12px;
+                background: #111827;
+                color: #ffffff;
+                text-align: center;
+                font-weight: 700;
+                letter-spacing: 0.04em;
+            }
+            .mapa-impressao-tabela {
+                width: 100%;
+                border-collapse: collapse;
+                table-layout: fixed;
+            }
+            .mapa-impressao-tabela th,
+            .mapa-impressao-tabela td {
+                border: 1px solid #cbd5e1;
+                padding: 0.75rem 0.5rem;
+                text-align: center;
+                vertical-align: middle;
+            }
+            .mapa-impressao-tabela th {
+                background: #eff6ff;
+                color: #1e3a8a;
+                font-size: 0.9rem;
+            }
+            .mapa-impressao-tabela td {
+                min-height: 72px;
+                background: #f8fafc;
+                color: #0f172a;
+                font-size: 0.95rem;
+                font-weight: 600;
+                word-break: break-word;
+            }
+            .mapa-impressao-posicao {
+                display: block;
+                margin-bottom: 0.25rem;
+                font-size: 0.72rem;
+                font-weight: 700;
+                color: #64748b;
+                text-transform: uppercase;
+                letter-spacing: 0.03em;
+            }
+            </style>
+            """
+        ]
+
+        if orientacao_lousa in ["Topo", "Esquerda"]:
+            html_mapa.append('<div class="mapa-impressao-lousa">LOUSA</div>')
+
+        html_mapa.append('<div class="mapa-impressao-wrap"><table class="mapa-impressao-tabela">')
+        html_mapa.append("<thead><tr>")
+        for carteira in range(carteiras_por_fileira):
+            html_mapa.append(f"<th>Carteira {carteira + 1}</th>")
+        html_mapa.append("</tr></thead><tbody>")
+
+        for fileira, linha in enumerate(grade, start=1):
+            html_mapa.append("<tr>")
+            for carteira, valor in enumerate(linha, start=1):
+                html_mapa.append(
+                    f"<td><span class='mapa-impressao-posicao'>Fileira {fileira} - Carteira {carteira}</span>{html.escape(valor)}</td>"
+                )
+            html_mapa.append("</tr>")
+
+        html_mapa.append("</tbody></table></div>")
+
+        if orientacao_lousa in ["Fundo", "Direita"]:
+            html_mapa.append('<div class="mapa-impressao-lousa">LOUSA</div>')
+
+        return "".join(html_mapa)
+
+    def gerar_pdf_mapa_sala():
+        grade = construir_grade_mapa_impressao()
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=landscape(A4),
+            leftMargin=1 * cm,
+            rightMargin=1 * cm,
+            topMargin=1 * cm,
+            bottomMargin=1 * cm
+        )
+
+        estilos = getSampleStyleSheet()
+        estilo_celula = ParagraphStyle(
+            "MapaSalaCelula",
+            parent=estilos["Normal"],
+            alignment=TA_CENTER,
+            fontSize=8,
+            leading=10,
+            spaceAfter=0,
+            spaceBefore=0
+        )
+
+        elementos = [
+            Paragraph(f"Mapa da Sala - Turma {turma_sel}", estilos["Heading1"]),
+            Spacer(1, 0.2 * cm),
+            Paragraph(
+                f"Lousa: {orientacao_lousa} | Fileiras: {num_fileiras} | Carteiras por fileira: {carteiras_por_fileira}",
+                estilos["Normal"]
+            ),
+            Spacer(1, 0.4 * cm),
+        ]
+
+        if orientacao_lousa in ["Topo", "Esquerda"]:
+            elementos.append(
+                Table(
+                    [["LOUSA"]],
+                    colWidths=[25 * cm],
+                    style=TableStyle([
+                        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#111827")),
+                        ("TEXTCOLOR", (0, 0), (-1, -1), colors.white),
+                        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                        ("FONTNAME", (0, 0), (-1, -1), "Helvetica-Bold"),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                        ("TOPPADDING", (0, 0), (-1, -1), 8),
+                    ])
+                )
+            )
+            elementos.append(Spacer(1, 0.25 * cm))
+
+        dados_tabela = [[f"Carteira {i + 1}" for i in range(carteiras_por_fileira)]]
+        for fileira, linha in enumerate(grade, start=1):
+            linha_pdf = []
+            for carteira, valor in enumerate(linha, start=1):
+                conteudo = f"<b>Fileira {fileira} - Carteira {carteira}</b><br/>{html.escape(valor)}"
+                linha_pdf.append(Paragraph(conteudo, estilo_celula))
+            dados_tabela.append(linha_pdf)
+
+        largura_coluna = 25 * cm / max(carteiras_por_fileira, 1)
+        tabela = Table(dados_tabela, colWidths=[largura_coluna] * carteiras_por_fileira, repeatRows=1)
+        tabela.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#DBEAFE")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#1E3A8A")),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("GRID", (0, 0), (-1, -1), 0.7, colors.HexColor("#94A3B8")),
+            ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#F8FAFC")),
+            ("TOPPADDING", (0, 1), (-1, -1), 10),
+            ("BOTTOMPADDING", (0, 1), (-1, -1), 10),
+        ]))
+        elementos.append(tabela)
+
+        if orientacao_lousa in ["Fundo", "Direita"]:
+            elementos.append(Spacer(1, 0.25 * cm))
+            elementos.append(
+                Table(
+                    [["LOUSA"]],
+                    colWidths=[25 * cm],
+                    style=TableStyle([
+                        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#111827")),
+                        ("TEXTCOLOR", (0, 0), (-1, -1), colors.white),
+                        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                        ("FONTNAME", (0, 0), (-1, -1), "Helvetica-Bold"),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                        ("TOPPADDING", (0, 0), (-1, -1), 8),
+                    ])
+                )
+            )
+
+        elementos.append(Spacer(1, 0.3 * cm))
+        elementos.append(Paragraph(f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}", estilos["Normal"]))
+
+        doc.build(elementos)
+        buffer.seek(0)
+        return buffer.getvalue()
+
     # CSS para os assentos
     st.markdown("""
     <style>
@@ -6068,6 +6260,25 @@ elif menu == "🏫 Mapa da Sala":
         st.markdown('<div class="lousa">📚 LOUSA</div>', unsafe_allow_html=True)
 
     # Estatísticas
+    st.markdown("---")
+    st.subheader("Mapa para Impressao")
+    grade_mapa_impressao = construir_grade_mapa_impressao()
+    st.caption("Visualizacao com nomes completos para facilitar a leitura e a impressao da sala.")
+    st.markdown(renderizar_html_mapa_impressao(grade_mapa_impressao), unsafe_allow_html=True)
+
+    try:
+        pdf_mapa = gerar_pdf_mapa_sala()
+        st.download_button(
+            "Imprimir Mapa (PDF)",
+            data=pdf_mapa,
+            file_name=f"mapa_sala_{gerar_chave_segura(turma_sel)}.pdf",
+            mime="application/pdf",
+            use_container_width=True,
+            key=f"download_mapa_pdf_{mapa_key}"
+        )
+    except Exception as e:
+        st.error(f"Nao foi possivel gerar o PDF do mapa: {e}")
+
     assentos_ocupados = [v for v in st.session_state[mapa_key].values() if v.strip()]
     
     col1, col2, col3 = st.columns(3)
