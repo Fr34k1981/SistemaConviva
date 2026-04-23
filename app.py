@@ -2706,6 +2706,18 @@ def verificar_ocorrencia_duplicada(ra: str, categoria: str, data_str: str, df_oc
         return False
     duplicadas = df_ocorrencias[(df_ocorrencias["ra"] == ra) & (df_ocorrencias["categoria"] == categoria) & (df_ocorrencias["data"] == data_str)]
     return not duplicadas.empty
+
+def consolidar_categoria_ocorrencia(infracoes: list[str]) -> str:
+    categorias = []
+    vistos = set()
+    for item in infracoes or []:
+        nome = str(item or "").strip()
+        chave = normalizar_texto(nome)
+        if not nome or chave in vistos:
+            continue
+        vistos.add(chave)
+        categorias.append(nome)
+    return " / ".join(categorias)
 # ======================================================
 # AGENDAMENTO - FUNÇÕES SUPABASE
 # ======================================================
@@ -4060,6 +4072,34 @@ elif "REGISTRAR OCORR" in normalizar_texto(menu):
 
     prof = st.selectbox("Professor", df_professores["nome"].dropna().astype(str).tolist(), key="professor_sel")
 
+    resumo_ocorrencia = [
+        ("Turmas selecionadas", len(turmas_sel), "#2563eb", ", ".join(turmas_sel[:3]) if turmas_sel else "Nenhuma turma"),
+        ("Estudantes envolvidos", len(alunos_sel_labels), "#7c3aed", ", ".join(alunos_sel_labels[:2]) if alunos_sel_labels else "Nenhum estudante"),
+        ("Professor", 1 if prof else 0, "#dc2626", prof or "Não selecionado")
+    ]
+    cols_resumo = st.columns(3)
+    for coluna, (titulo, valor, cor, detalhe) in zip(cols_resumo, resumo_ocorrencia):
+        with coluna:
+            st.markdown(
+                f"""
+                <div style="
+                    background:white;
+                    border:1.5px solid {cor}26;
+                    border-top:4px solid {cor};
+                    border-radius:18px;
+                    padding:1rem 1rem 0.9rem 1rem;
+                    box-shadow:0 8px 20px rgba(15,23,42,0.06);
+                    margin:0.25rem 0 0.75rem 0;
+                    min-height:112px;
+                ">
+                    <div style="font-size:0.78rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:{cor};margin-bottom:0.45rem;">{titulo}</div>
+                    <div style="font-family:'Nunito',sans-serif;font-size:1.7rem;font-weight:800;color:#1e293b;line-height:1;">{valor}</div>
+                    <div style="font-size:0.88rem;color:#64748b;margin-top:0.55rem;line-height:1.35;">{html.escape(str(detalhe))}</div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
     st.markdown("---")
     st.subheader("Infracao (Protocolo 179)")
     busca = st.text_input("Buscar infracao", placeholder="Ex: celular, bullying, atraso...", key="busca_infracao")
@@ -4096,6 +4136,22 @@ elif "REGISTRAR OCORR" in normalizar_texto(menu):
     gravidade = st.selectbox("Gravidade", ["Leve", "M?dia", "Grave", "Grav?ssima"], index=["Leve", "M?dia", "Grave", "Grav?ssima"].index(gravidade_sugerida) if gravidade_sugerida in ["Leve", "M?dia", "Grave", "Grav?ssima"] else 0, key="gravidade_sel")
     encam = st.text_area("Encaminhamentos", value=encaminhamento_sugerido, height=120, key="encaminhamento")
     relato = st.text_area("Relato dos fatos", height=140, key="relato")
+    categoria_consolidada = consolidar_categoria_ocorrencia(infracoes_selecionadas)
+
+    feedback_ocorrencia = st.session_state.get("ocorrencia_feedback")
+    if feedback_ocorrencia:
+        tipo_feedback = feedback_ocorrencia.get("tipo", "info")
+        msg_feedback = feedback_ocorrencia.get("msg", "")
+        if tipo_feedback == "success":
+            st.success(msg_feedback)
+            st.toast(msg_feedback, icon="✅")
+        elif tipo_feedback == "warning":
+            st.warning(msg_feedback)
+        elif tipo_feedback == "error":
+            st.error(msg_feedback)
+        else:
+            st.info(msg_feedback)
+        st.session_state["ocorrencia_feedback"] = None
 
     if st.button("Salvar Ocorrencia(s)", type="primary"):
         if not prof or not relato.strip() or not alunos_sel_labels:
@@ -4111,32 +4167,35 @@ elif "REGISTRAR OCORR" in normalizar_texto(menu):
                 aluno = str(row.get("nome", "")).strip()
                 turma = str(row.get("turma", "")).strip()
                 ra = str(row.get("ra", "")).strip()
-
-                for infracao_item in infracoes_selecionadas:
-                    if verificar_ocorrencia_duplicada(ra, infracao_item, data_str, df_ocorrencias):
-                        duplicadas += 1
-                        continue
-                    nova = {
-                        "data": data_str,
-                        "aluno": aluno,
-                        "ra": ra,
-                        "turma": turma,
-                        "categoria": infracao_item,
-                        "gravidade": gravidade,
-                        "relato": relato,
-                        "encaminhamento": encam,
-                        "professor": prof,
-                    }
-                    if salvar_ocorrencia(nova):
-                        salvas += 1
+                if verificar_ocorrencia_duplicada(ra, categoria_consolidada, data_str, df_ocorrencias):
+                    duplicadas += 1
+                    continue
+                nova = {
+                    "data": data_str,
+                    "aluno": aluno,
+                    "ra": ra,
+                    "turma": turma,
+                    "categoria": categoria_consolidada,
+                    "gravidade": gravidade,
+                    "relato": relato,
+                    "encaminhamento": encam,
+                    "professor": prof,
+                }
+                if salvar_ocorrencia(nova):
+                    salvas += 1
             if salvas > 0:
-                st.success(f"Acao concluida: {salvas} ocorrencia(s) salva(s).")
+                msg_sucesso = f"Ação concluída: {salvas} ocorrência(s) salva(s)."
+                if duplicadas > 0:
+                    msg_sucesso += f" {duplicadas} duplicada(s) ignorada(s)."
+                st.session_state["ocorrencia_feedback"] = {"tipo": "success", "msg": msg_sucesso}
                 carregar_ocorrencias.clear()
                 st.rerun()
             elif duplicadas > 0:
-                st.warning(f"{duplicadas} ocorrencia(s) duplicada(s) ignorada(s).")
+                st.session_state["ocorrencia_feedback"] = {"tipo": "warning", "msg": f"{duplicadas} ocorrência(s) duplicada(s) ignorada(s)."}
+                st.rerun()
             else:
-                st.info("Nenhuma ocorrencia foi salva.")
+                st.session_state["ocorrencia_feedback"] = {"tipo": "info", "msg": "Nenhuma ocorrência foi salva."}
+                st.rerun()
 
 # ======================================================
 # P?GINA ?? HIST?RICO DE OCORR?NCIAS (COMPLETA)
