@@ -6490,7 +6490,7 @@ elif menu == "🫂 Tutoria":
         st.stop()
 
     st.markdown("---")
-    tutor_sel = st.selectbox("Selecione o Tutor(a)", sorted(TUTORIA.keys()), key="tutoria_tutor_select")
+    tutor_sel = st.selectbox("Selecione o Professor(a)/Tutor(a)", sorted(TUTORIA.keys()), key="tutoria_tutor_select")
     tutor_info = obter_registro_tutoria(TUTORIA, tutor_sel)
     alunos_raw = tutor_info.get("alunos", [])
 
@@ -6504,12 +6504,9 @@ elif menu == "🫂 Tutoria":
     with col_meta4:
         st.metric("Dia", tutor_info.get("dia", "") or "Não informado")
 
-    st.markdown("---")
-    st.subheader("➕ Inserir Estudantes na Tutoria")
-    st.caption("Você pode buscar no cadastro, digitar manualmente, colar lista ou enviar arquivo.")
-
-    def _adicionar_estudantes_tutoria(novos_estudantes: list, origem: str):
-        registro = TUTORIA.setdefault(tutor_sel, estrutura_tutoria_vazia(nome=tutor_sel))
+    def _adicionar_estudantes_tutoria(novos_estudantes: list, origem: str, tutor_destino: str | None = None):
+        tutor_destino = str(tutor_destino or tutor_sel).strip()
+        registro = TUTORIA.setdefault(tutor_destino, estrutura_tutoria_vazia(nome=tutor_destino))
         existentes = registro.get("alunos", [])
         chaves_existentes = {
             f"{normalizar_texto(item.get('nome', ''))}|{normalizar_texto(item.get('serie', ''))}"
@@ -6533,13 +6530,13 @@ elif menu == "🫂 Tutoria":
             return 0
 
         registro["alunos"] = existentes
-        TUTORIA[tutor_sel] = registro
+        TUTORIA[tutor_destino] = registro
         _salvar_estado_tutoria("local")
 
         if SUPABASE_VALID:
             registros = [
                 {
-                    "professora": tutor_sel,
+                    "professora": tutor_destino,
                     "nome_aluno": item["nome"],
                     "serie": item["serie"],
                     "origem": origem
@@ -6549,6 +6546,49 @@ elif menu == "🫂 Tutoria":
             _supabase_request("POST", "tutoria", json=registros)
 
         return len(inseridos)
+
+    st.markdown("---")
+    st.subheader("📝 Cadastro em Lista por Professor(a)")
+    st.caption("Escolha o professor(a)/tutor(a) e cole a lista inteira, como na eletiva.")
+    col_lista1, col_lista2 = st.columns([2, 1])
+    with col_lista1:
+        tutor_lista_lote = st.selectbox(
+            "Professor(a)/Tutor(a) da lista",
+            sorted(TUTORIA.keys()),
+            index=sorted(TUTORIA.keys()).index(tutor_sel) if tutor_sel in TUTORIA else 0,
+            key="tutoria_tutor_lista_lote"
+        )
+    with col_lista2:
+        serie_padrao_lote = st.text_input(
+            "Turma padrão",
+            key="tutoria_serie_padrao_lote",
+            placeholder="Ex: 6º Ano A"
+        )
+    lista_lote = st.text_area(
+        "Cole a lista para esse professor(a). Opcional: Nome;Turma",
+        key="tutoria_lista_lote_professor",
+        height=160,
+        placeholder="Maria Silva; 7A\nJoão Santos; 8B\nAna Souza"
+    )
+    if st.button("✅ Registrar Lista do Professor(a)", key="tutoria_btn_lista_lote_professor", type="primary"):
+        try:
+            novos = []
+            for linha in lista_lote.splitlines():
+                item = _normalizar_linha_lista_tutoria(linha, serie_padrao=serie_padrao_lote)
+                if item:
+                    novos.append(item)
+            qtd = _adicionar_estudantes_tutoria(novos, origem="lista_por_professor", tutor_destino=tutor_lista_lote)
+            if qtd > 0:
+                st.success(f"{qtd} estudante(s) adicionados para {tutor_lista_lote}.")
+                st.rerun()
+            else:
+                st.warning("Nenhum estudante novo válido foi encontrado nessa lista.")
+        except Exception as e:
+            st.error(f"Erro ao registrar lista do professor(a): {e}")
+
+    st.markdown("---")
+    st.subheader("➕ Inserir Estudantes na Tutoria")
+    st.caption("Você pode buscar no cadastro, digitar manualmente, colar lista ou enviar arquivo.")
 
     tab_busca, tab_digitar, tab_colar, tab_upload = st.tabs(
         ["🔎 Buscar no Cadastro", "✍️ Digitar", "📋 Colar Lista", "📁 Upload de Arquivo"]
