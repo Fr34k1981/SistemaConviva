@@ -3365,7 +3365,7 @@ if menu == "🏠 Dashboard":
     </div>
     """, unsafe_allow_html=True)
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         if st.button("📝 Nova Ocorrência", use_container_width=True, type="primary", key="quick_ocorrencia"):
             st.session_state.pagina_atual = "📝 Registrar Ocorrência"
@@ -6266,6 +6266,7 @@ elif menu == "🏫 Mapa da Sala":
     st.caption("Visualizacao com nomes completos para facilitar a leitura e a impressao da sala.")
     st.markdown(renderizar_html_mapa_impressao(grade_mapa_impressao), unsafe_allow_html=True)
 
+    pdf_mapa = None
     try:
         pdf_mapa = gerar_pdf_mapa_sala()
         st.download_button(
@@ -6379,6 +6380,17 @@ elif menu == "🏫 Mapa da Sala":
         if st.button("💾 Salvar Layout", use_container_width=True, type="secondary"):
             st.success("✅ Layout salvo com sucesso!")
             # ======================================================
+    with col5:
+        if pdf_mapa:
+            st.download_button(
+                "Imprimir Mapeamento",
+                data=pdf_mapa,
+                file_name=f"mapa_sala_{gerar_chave_segura(turma_sel)}.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+                key=f"download_mapa_pdf_tools_{mapa_key}"
+            )
+
 # PÁGINA 💾 BACKUPS (COMPLETA)
 # ======================================================
 
