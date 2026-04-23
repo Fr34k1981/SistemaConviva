@@ -6339,11 +6339,34 @@ elif menu == "🫂 Tutoria":
     page_header("🫂 Tutoria", "Cadastre professores, estudantes e espaços usados na tutoria", "#0f766e")
     TUTORIA = normalizar_base_tutoria(st.session_state.get("TUTORIA", {}))
     st.session_state.TUTORIA = TUTORIA
+    nomes_tutoria = sorted(TUTORIA.keys())
 
     def _salvar_estado_tutoria(fonte: str = "local"):
         st.session_state.TUTORIA = normalizar_base_tutoria(TUTORIA)
         salvar_tutoria_local(st.session_state.TUTORIA)
         st.session_state.FONTE_TUTORIA = fonte
+
+    def _carregar_campos_edicao_tutoria(nome_responsavel: str):
+        dados = obter_registro_tutoria(TUTORIA, nome_responsavel)
+        st.session_state["tutoria_edit_nome"] = nome_responsavel
+        st.session_state["tutoria_edit_espaco"] = dados.get("espaco", "")
+        st.session_state["tutoria_edit_tipo"] = normalizar_perfil_tutoria(dados.get("tipo", "Professor(a)"))
+        st.session_state["tutoria_edit_horario"] = dados.get("horario", "")
+        st.session_state["tutoria_edit_dia"] = dados.get("dia", "")
+        st.session_state["tutoria_edit_loaded_for"] = nome_responsavel
+
+    def _sincronizar_responsavel_tutoria(origem: str):
+        nomes_atuais = sorted(TUTORIA.keys())
+        if not nomes_atuais:
+            return
+        selecionado = str(st.session_state.get(origem, "")).strip()
+        if selecionado not in nomes_atuais:
+            selecionado = nomes_atuais[0]
+        st.session_state["tutoria_responsavel_atual"] = selecionado
+        st.session_state["tutoria_tutor_select"] = selecionado
+        st.session_state["tutoria_tutor_lista_lote"] = selecionado
+        st.session_state["tutoria_tutor_edicao"] = selecionado
+        _carregar_campos_edicao_tutoria(selecionado)
 
     def _normalizar_linha_lista_tutoria(linha: str, serie_padrao: str = ""):
         bruto = str(linha or "").strip().lstrip("•-").strip()
@@ -6432,6 +6455,15 @@ elif menu == "🫂 Tutoria":
     st.subheader("👩‍🏫 Cadastro de Responsáveis e Espaços")
     tab_novo_tutor, tab_editar_tutor = st.tabs(["➕ Novo cadastro", "⚙️ Editar cadastro"])
 
+    if nomes_tutoria:
+        if st.session_state.get("tutoria_responsavel_atual") not in nomes_tutoria:
+            st.session_state["tutoria_responsavel_atual"] = nomes_tutoria[0]
+        for chave in ("tutoria_tutor_select", "tutoria_tutor_lista_lote", "tutoria_tutor_edicao"):
+            if st.session_state.get(chave) not in nomes_tutoria:
+                st.session_state[chave] = st.session_state["tutoria_responsavel_atual"]
+        if st.session_state.get("tutoria_edit_loaded_for") != st.session_state["tutoria_tutor_edicao"]:
+            _carregar_campos_edicao_tutoria(st.session_state["tutoria_tutor_edicao"])
+
     with tab_novo_tutor:
         col_n1, col_n2 = st.columns(2)
         with col_n1:
@@ -6464,21 +6496,26 @@ elif menu == "🫂 Tutoria":
         if not TUTORIA:
             st.info("Cadastre um responsável para habilitar a edição.")
         else:
-            tutor_edicao = st.selectbox("Cadastro para editar", sorted(TUTORIA.keys()), key="tutoria_tutor_edicao")
+            tutor_edicao = st.selectbox(
+                "Cadastro para editar",
+                nomes_tutoria,
+                key="tutoria_tutor_edicao",
+                on_change=_sincronizar_responsavel_tutoria,
+                args=("tutoria_tutor_edicao",)
+            )
             dados_edicao = obter_registro_tutoria(TUTORIA, tutor_edicao)
             col_e1, col_e2 = st.columns(2)
             with col_e1:
-                nome_edit_tutor = st.text_input("Nome", value=tutor_edicao, key="tutoria_edit_nome")
-                espaco_edit_tutor = st.text_input("Espaço usado", value=dados_edicao.get("espaco", ""), key="tutoria_edit_espaco")
+                nome_edit_tutor = st.text_input("Nome", key="tutoria_edit_nome")
+                espaco_edit_tutor = st.text_input("Espaço usado", key="tutoria_edit_espaco")
             with col_e2:
                 tipo_edit_tutor = st.selectbox(
                     "Perfil",
                     PERFIS_TUTORIA,
-                    index=PERFIS_TUTORIA.index(normalizar_perfil_tutoria(dados_edicao.get("tipo", "Professor(a)"))) if normalizar_perfil_tutoria(dados_edicao.get("tipo", "Professor(a)")) in PERFIS_TUTORIA else 0,
                     key="tutoria_edit_tipo"
                 )
-                horario_edit_tutor = st.text_input("Horário", value=dados_edicao.get("horario", ""), key="tutoria_edit_horario")
-            dia_edit_tutor = st.text_input("Dia", value=dados_edicao.get("dia", ""), key="tutoria_edit_dia")
+                horario_edit_tutor = st.text_input("Horário", key="tutoria_edit_horario")
+            dia_edit_tutor = st.text_input("Dia", key="tutoria_edit_dia")
 
             col_b1, col_b2 = st.columns(2)
             with col_b1:
@@ -6549,7 +6586,13 @@ elif menu == "🫂 Tutoria":
         st.stop()
 
     st.markdown("---")
-    tutor_sel = st.selectbox("Selecione o responsável", sorted(TUTORIA.keys()), key="tutoria_tutor_select")
+    tutor_sel = st.selectbox(
+        "Selecione o responsável",
+        nomes_tutoria,
+        key="tutoria_tutor_select",
+        on_change=_sincronizar_responsavel_tutoria,
+        args=("tutoria_tutor_select",)
+    )
     tutor_info = obter_registro_tutoria(TUTORIA, tutor_sel)
     alunos_raw = tutor_info.get("alunos", [])
 
@@ -6631,12 +6674,13 @@ elif menu == "🫂 Tutoria":
     st.caption("Escolha o responsável e cole a lista inteira, como na eletiva.")
     col_lista1, col_lista2 = st.columns([2, 1])
     with col_lista1:
-        tutor_lista_lote = st.selectbox(
+        st.text_input(
             "Responsável da lista",
-            sorted(TUTORIA.keys()),
-            index=sorted(TUTORIA.keys()).index(tutor_sel) if tutor_sel in TUTORIA else 0,
-            key="tutoria_tutor_lista_lote"
+            value=tutor_sel,
+            disabled=True,
+            key="tutoria_tutor_lista_lote_view"
         )
+        tutor_lista_lote = tutor_sel
     with col_lista2:
         serie_padrao_lote = st.text_input(
             "Turma padrão",
@@ -6649,7 +6693,7 @@ elif menu == "🫂 Tutoria":
         height=160,
         placeholder="Maria Silva; 7A\nJoão Santos; 8B\nAna Souza"
     )
-    if st.button("✅ Registrar Lista do Professor(a)", key="tutoria_btn_lista_lote_professor", type="primary"):
+    if st.button("✅ Registrar Lista do Responsável", key="tutoria_btn_lista_lote_professor", type="primary"):
         try:
             novos = []
             for linha in lista_lote.splitlines():
