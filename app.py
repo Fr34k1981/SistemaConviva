@@ -3158,7 +3158,7 @@ def gerar_pdf_eletiva(contexto: str, df_eletiva: pd.DataFrame) -> BytesIO:
         fontSize=12,
         alignment=TA_CENTER,
         spaceAfter=0.2 * cm,
-        textColor=colors.HexColor("#4A90E2")
+        textColor=colors.HexColor("#0f766e")
     )
     elementos.append(Paragraph("LISTA DE ELETIVA", titulo_style))
     elementos.append(Spacer(1, 0.1 * cm))
@@ -3178,7 +3178,7 @@ def gerar_pdf_eletiva(contexto: str, df_eletiva: pd.DataFrame) -> BytesIO:
 
     tabela = Table([cabecalho] + linhas, colWidths=[9.0 * cm, 4.0 * cm, 5.0 * cm], repeatRows=1)
     tabela.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#4A90E2")),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#0f766e")),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
@@ -3193,8 +3193,8 @@ def gerar_pdf_eletiva(contexto: str, df_eletiva: pd.DataFrame) -> BytesIO:
     ]))
 
     for i in range(1, len(linhas) + 1):
-        if i % 2 == 0:
-            tabela.setStyle(TableStyle([('BACKGROUND', (0, i), (-1, i), colors.HexColor("#F5F5F5"))]))
+        bg = colors.whitesmoke if i % 2 == 0 else colors.HexColor("#ecfeff")
+        tabela.setStyle(TableStyle([('BACKGROUND', (0, i), (-1, i), bg)]))
 
     elementos.append(tabela)
     elementos.append(Spacer(1, 0.2 * cm))
