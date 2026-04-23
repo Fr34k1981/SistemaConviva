@@ -13,6 +13,7 @@ from xml.etree import ElementTree as ET
 import requests
 import os
 import re
+import json
 import zipfile
 import pytz
 import unicodedata
@@ -1661,6 +1662,91 @@ def resolver_primeiro_arquivo_existente(candidatos: list[str]) -> str:
     return candidatos[0] if candidatos else ""
 
 TUTORIA_ARQUIVO = resolver_primeiro_arquivo_existente(TUTORIA_ARQUIVOS_CANDIDATOS)
+TUTORIA_CACHE_ARQUIVO = os.path.join(os.getcwd(), "data", "tutoria_cadastro.json")
+DIAS_SEMANA_TUTORIA = ("segunda", "terca", "terça", "quarta", "quinta", "sexta", "sabado", "sábado")
+
+def estrutura_tutoria_vazia(nome: str = "", tipo: str = "Professor(a)") -> dict:
+    return {
+        "nome": str(nome or "").strip(),
+        "tipo": str(tipo or "Professor(a)").strip() or "Professor(a)",
+        "espaco": "",
+        "horario": "",
+        "dia": "",
+        "alunos": []
+    }
+
+def normalizar_alunos_tutoria(alunos_raw) -> list:
+    alunos = []
+    for item in alunos_raw or []:
+        if isinstance(item, dict):
+            nome = str(item.get("nome", "")).strip()
+            serie = formatar_turma_eletiva(str(item.get("serie", "")).strip())
+        else:
+            nome = str(item or "").strip()
+            serie = ""
+        if not nome:
+            continue
+        alunos.append({"nome": nome, "serie": serie})
+    return alunos
+
+def normalizar_base_tutoria(tutoria_raw: dict | None) -> dict:
+    base = {}
+    for tutor, dados in (tutoria_raw or {}).items():
+        nome_tutor = str(tutor or "").strip()
+        if not nome_tutor:
+            continue
+        if isinstance(dados, dict):
+            registro = estrutura_tutoria_vazia(
+                nome=nome_tutor,
+                tipo=str(dados.get("tipo", "Professor(a)")).strip() or "Professor(a)"
+            )
+            registro["espaco"] = str(dados.get("espaco", "")).strip()
+            registro["horario"] = str(dados.get("horario", "")).strip()
+            registro["dia"] = str(dados.get("dia", "")).strip()
+            registro["alunos"] = normalizar_alunos_tutoria(dados.get("alunos", []))
+        else:
+            registro = estrutura_tutoria_vazia(nome=nome_tutor)
+            registro["alunos"] = normalizar_alunos_tutoria(dados)
+        base[nome_tutor] = registro
+    return base
+
+def obter_registro_tutoria(tutoria_dict: dict, tutor: str) -> dict:
+    nome_tutor = str(tutor or "").strip()
+    if not nome_tutor:
+        return estrutura_tutoria_vazia()
+    return normalizar_base_tutoria({nome_tutor: tutoria_dict.get(nome_tutor, {})}).get(
+        nome_tutor,
+        estrutura_tutoria_vazia(nome=nome_tutor)
+    )
+
+def mesclar_tutoria_com_metadados(base_tutoria: dict, referencia_tutoria: dict) -> dict:
+    base = normalizar_base_tutoria(base_tutoria)
+    referencia = normalizar_base_tutoria(referencia_tutoria)
+    for tutor, dados in referencia.items():
+        if tutor not in base:
+            base[tutor] = dados
+            continue
+        for campo in ("tipo", "espaco", "horario", "dia"):
+            if str(dados.get(campo, "")).strip():
+                base[tutor][campo] = str(dados.get(campo, "")).strip()
+    return base
+
+def carregar_tutoria_local(fallback: dict | None = None) -> dict:
+    try:
+        if os.path.exists(TUTORIA_CACHE_ARQUIVO):
+            with open(TUTORIA_CACHE_ARQUIVO, "r", encoding="utf-8") as f:
+                return normalizar_base_tutoria(json.load(f))
+    except Exception as e:
+        logger.error(f"Erro ao carregar cache local da tutoria: {e}")
+    return normalizar_base_tutoria(fallback or {})
+
+def salvar_tutoria_local(tutoria_dict: dict):
+    try:
+        os.makedirs(os.path.dirname(TUTORIA_CACHE_ARQUIVO), exist_ok=True)
+        with open(TUTORIA_CACHE_ARQUIVO, "w", encoding="utf-8") as f:
+            json.dump(normalizar_base_tutoria(tutoria_dict), f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        logger.error(f"Erro ao salvar cache local da tutoria: {e}")
 
 # ======================================================
 # AGENDAMENTO DE ESPAÇOS - CONSTANTES
@@ -2715,7 +2801,7 @@ def carregar_eletivas_do_excel(caminho_arquivo: str, fallback: dict = None) -> d
 def carregar_tutoria_do_excel(caminho_arquivo: str, fallback: dict = None) -> dict:
     """Lê planilha XLSX de tutoria considerando cada aba como um tutor(a)."""
     if not caminho_arquivo or not os.path.exists(caminho_arquivo):
-        return fallback if fallback is not None else {}
+        return normalizar_base_tutoria(fallback if fallback is not None else {})
     try:
         ns = {
             "a": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
@@ -2748,6 +2834,7 @@ def carregar_tutoria_do_excel(caminho_arquivo: str, fallback: dict = None) -> di
                     continue
 
                 root_sheet = ET.fromstring(arquivo_zip.read(caminho_sheet))
+                registro_tutor = estrutura_tutoria_vazia(nome=tutor_atual)
                 alunos_tutor = []
 
                 for row in root_sheet.findall(".//a:sheetData/a:row", ns):
@@ -2767,6 +2854,21 @@ def carregar_tutoria_do_excel(caminho_arquivo: str, fallback: dict = None) -> di
                     valor_a = str(valores.get("A", "")).strip()
                     valor_b = str(valores.get("B", "")).strip()
                     valor_c = str(valores.get("C", "")).strip()
+                    valor_d = str(valores.get("D", "")).strip()
+                    valor_e = str(valores.get("E", "")).strip()
+                    valor_f = str(valores.get("F", "")).strip()
+
+                    for valor_meta in [valor_a, valor_b, valor_c, valor_d, valor_e, valor_f]:
+                        valor_meta = str(valor_meta).strip()
+                        if not valor_meta:
+                            continue
+                        valor_norm = normalizar_texto(valor_meta)
+                        if not registro_tutor["espaco"] and any(chave in valor_norm for chave in ("sala", "patio", "pátio", "leitura")) and not valor_norm.startswith("horario"):
+                            registro_tutor["espaco"] = valor_meta
+                        if not registro_tutor["horario"] and re.search(r"\d{1,2}:\d{2}", valor_meta):
+                            registro_tutor["horario"] = valor_meta
+                        if not registro_tutor["dia"] and any(dia in valor_norm for dia in DIAS_SEMANA_TUTORIA):
+                            registro_tutor["dia"] = valor_meta
 
                     nome = ""
                     serie = ""
@@ -2801,12 +2903,13 @@ def carregar_tutoria_do_excel(caminho_arquivo: str, fallback: dict = None) -> di
                     })
 
                 if alunos_tutor:
-                    tutoria[tutor_atual] = alunos_tutor
+                    registro_tutor["alunos"] = alunos_tutor
+                    tutoria[tutor_atual] = registro_tutor
 
-            return tutoria if tutoria else (fallback or {})
+            return normalizar_base_tutoria(tutoria if tutoria else (fallback or {}))
     except Exception as e:
         logger.error(f"Erro ao importar tutoria: {e}")
-        return fallback if fallback is not None else {}
+        return normalizar_base_tutoria(fallback if fallback is not None else {})
 
 def converter_eletivas_para_registros(eletivas_dict: dict, origem: str = "excel") -> list:
     registros = []
@@ -2832,6 +2935,33 @@ def converter_eletivas_supabase_para_dict(df_eletivas: pd.DataFrame) -> dict:
             continue
         eletivas.setdefault(professora, []).append({"nome": nome_aluno, "serie": serie})
     return eletivas
+
+def converter_tutoria_para_registros(tutoria_dict: dict, origem: str = "excel") -> list:
+    registros = []
+    for tutor, dados in normalizar_base_tutoria(tutoria_dict).items():
+        for item in dados.get("alunos", []):
+            registros.append({
+                "professora": tutor,
+                "nome_aluno": item.get("nome", ""),
+                "serie": formatar_turma_eletiva(item.get("serie", "")),
+                "origem": origem
+            })
+    return registros
+
+def converter_tutoria_supabase_para_dict(df_tutoria: pd.DataFrame) -> dict:
+    if df_tutoria.empty:
+        return {}
+    tutoria = {}
+    for _, row in df_tutoria.iterrows():
+        tutor = str(row.get("professora", "")).strip()
+        nome_aluno = str(row.get("nome_aluno", "")).strip()
+        serie = formatar_turma_eletiva(str(row.get("serie", "")).strip())
+        if not tutor:
+            continue
+        tutoria.setdefault(tutor, estrutura_tutoria_vazia(nome=tutor))
+        if nome_aluno:
+            tutoria[tutor]["alunos"].append({"nome": nome_aluno, "serie": serie})
+    return normalizar_base_tutoria(tutoria)
 
 def montar_dataframe_eletiva(nome_professora: str, df_alunos: pd.DataFrame, eletivas_dict: dict) -> pd.DataFrame:
     registros = []
@@ -2917,6 +3047,21 @@ def montar_dataframe_eletiva(nome_professora: str, df_alunos: pd.DataFrame, elet
                 "Status": "Não encontrado",
             })
     return pd.DataFrame(registros)
+
+def montar_dataframe_tutoria(nome_tutor: str, df_alunos: pd.DataFrame, tutoria_dict: dict) -> pd.DataFrame:
+    registro_tutor = obter_registro_tutoria(tutoria_dict, nome_tutor)
+    df_tutoria = montar_dataframe_eletiva(
+        nome_tutor,
+        df_alunos,
+        {nome_tutor: registro_tutor.get("alunos", [])}
+    ).rename(columns={"Professor(a)": "Tutor(a)"})
+    if df_tutoria.empty:
+        return df_tutoria
+    df_tutoria["Espaço"] = registro_tutor.get("espaco", "")
+    df_tutoria["Horário"] = registro_tutor.get("horario", "")
+    df_tutoria["Dia"] = registro_tutor.get("dia", "")
+    df_tutoria["Tipo do Tutor"] = registro_tutor.get("tipo", "Professor(a)")
+    return df_tutoria
 
 ELETIVAS_EXCEL = carregar_eletivas_do_excel(ELETIVAS_ARQUIVO, fallback=ELETIVAS)
 TUTORIA_EXCEL = carregar_tutoria_do_excel(TUTORIA_ARQUIVO, fallback={})
@@ -3340,22 +3485,31 @@ else:
 ELETIVAS = st.session_state.ELETIVAS
 FONTE_ELETIVAS = st.session_state.FONTE_ELETIVAS
 
+TUTORIA_LOCAL = carregar_tutoria_local()
+
 if st.session_state.TUTORIA is None:
-    if SUPABASE_VALID and not df_tutoria_supabase.empty:
-        st.session_state.TUTORIA = converter_eletivas_supabase_para_dict(df_tutoria_supabase)
+    if TUTORIA_LOCAL:
+        st.session_state.TUTORIA = TUTORIA_LOCAL
+        st.session_state.FONTE_TUTORIA = "local"
+    elif SUPABASE_VALID and not df_tutoria_supabase.empty:
+        st.session_state.TUTORIA = converter_tutoria_supabase_para_dict(df_tutoria_supabase)
         st.session_state.FONTE_TUTORIA = "supabase"
     else:
-        st.session_state.TUTORIA = TUTORIA_EXCEL.copy() if TUTORIA_EXCEL else {}
+        st.session_state.TUTORIA = normalizar_base_tutoria(TUTORIA_EXCEL.copy() if TUTORIA_EXCEL else {})
         st.session_state.FONTE_TUTORIA = "excel" if TUTORIA_EXCEL else "indisponivel"
 else:
-    if SUPABASE_VALID and not df_tutoria_supabase.empty:
+    st.session_state.TUTORIA = normalizar_base_tutoria(st.session_state.TUTORIA)
+    if TUTORIA_LOCAL:
+        st.session_state.FONTE_TUTORIA = "local"
+    elif SUPABASE_VALID and not df_tutoria_supabase.empty:
         st.session_state.FONTE_TUTORIA = "supabase"
     elif TUTORIA_EXCEL:
         st.session_state.FONTE_TUTORIA = "excel"
     else:
         st.session_state.FONTE_TUTORIA = "indisponivel"
 
-TUTORIA = st.session_state.TUTORIA
+TUTORIA = normalizar_base_tutoria(st.session_state.TUTORIA)
+st.session_state.TUTORIA = TUTORIA
 FONTE_TUTORIA = st.session_state.FONTE_TUTORIA
 ROTAS_MENU_SUPORTADAS = {
     normalizar_texto("🏠 Dashboard"),
@@ -3368,6 +3522,7 @@ ROTAS_MENU_SUPORTADAS = {
     normalizar_texto("👨‍🏫 Cadastrar Professores"),
     normalizar_texto("👤 Cadastrar Assinaturas"),
     normalizar_texto("🎨 Eletiva"),
+    normalizar_texto("🫂 Tutoria"),
     normalizar_texto("📊 Gráficos e Indicadores"),
     normalizar_texto("🖨️ Imprimir PDF"),
     normalizar_texto("🏫 Mapa da Sala"),
