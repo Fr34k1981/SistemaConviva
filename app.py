@@ -2179,6 +2179,81 @@ PROTOCOLO_179 = {
         },
     },
 }
+
+REPAROS_MOJIBAKE = {
+    "Ã¡": "á",
+    "Ã ": "à",
+    "Ã¢": "â",
+    "Ã£": "ã",
+    "Ã¤": "ä",
+    "Ã©": "é",
+    "Ãª": "ê",
+    "Ã­": "í",
+    "Ã³": "ó",
+    "Ã´": "ô",
+    "Ãµ": "õ",
+    "Ãº": "ú",
+    "Ã§": "ç",
+    "Ã": "Á",
+    "Ã€": "À",
+    "Ã‚": "Â",
+    "Ãƒ": "Ã",
+    "Ã‰": "É",
+    "ÃŠ": "Ê",
+    "Ã": "Í",
+    "Ã“": "Ó",
+    "Ã”": "Ô",
+    "Ã•": "Õ",
+    "Ãš": "Ú",
+    "Ã‡": "Ç",
+    "â€¢": "•",
+    "âœ…": "✅",
+    "âš–ï¸": "⚖️",
+    "ðŸš¨": "🚨",
+    "ðŸ”«": "🔫",
+    "ðŸ“Œ": "📌",
+    "ðŸ›¡ï¸": "🛡️",
+    "ðŸ’Š": "💊",
+    "ðŸ§ ": "🧠",
+    "ðŸŒ": "🌐",
+    "ðŸ ": "🏠",
+    "âš ï¸": "⚠️",
+}
+GRAVIDADES_PROTOCOLO = ["Leve", "Média", "Grave", "Gravíssima"]
+ORDEM_GRAVIDADE_PROTOCOLO = {nome: idx for idx, nome in enumerate(GRAVIDADES_PROTOCOLO, start=1)}
+
+def corrigir_texto_mojibake(texto: str) -> str:
+    texto_corrigido = str(texto or "")
+    for origem, destino in REPAROS_MOJIBAKE.items():
+        texto_corrigido = texto_corrigido.replace(origem, destino)
+    return texto_corrigido.strip()
+
+def normalizar_gravidade_protocolo(valor: str) -> str:
+    gravidade = corrigir_texto_mojibake(valor)
+    mapa = {
+        "leve": "Leve",
+        "media": "Média",
+        "média": "Média",
+        "grave": "Grave",
+        "gravissima": "Gravíssima",
+        "gravíssima": "Gravíssima",
+    }
+    return mapa.get(normalizar_texto(gravidade), "Leve")
+
+def corrigir_protocolo_179(protocolo: dict) -> dict:
+    protocolo_corrigido = {}
+    for grupo, infracoes in (protocolo or {}).items():
+        grupo_corrigido = corrigir_texto_mojibake(grupo)
+        protocolo_corrigido[grupo_corrigido] = {}
+        for nome_infracao, dados in (infracoes or {}).items():
+            infracao_corrigida = corrigir_texto_mojibake(nome_infracao)
+            protocolo_corrigido[grupo_corrigido][infracao_corrigida] = {
+                "gravidade": normalizar_gravidade_protocolo(dados.get("gravidade", "Leve")),
+                "encaminhamento": corrigir_texto_mojibake(dados.get("encaminhamento", "")),
+            }
+    return protocolo_corrigido
+
+PROTOCOLO_179 = corrigir_protocolo_179(PROTOCOLO_179)
 # ======================================================
 # FUNÇÕES UTILITÁRIAS PREMIUM
 # ======================================================
@@ -4035,7 +4110,7 @@ elif menu == "👨‍👩‍👧 Portal do Responsável":
 # ======================================================
 
 elif "REGISTRAR OCORR" in normalizar_texto(menu):
-    page_header("Registro de Ocorrencia", "Cadastre ocorrencias com Protocolo 179", "#dc2626")
+    page_header("Registro de Ocorrência", "Cadastre ocorrências com Protocolo 179", "#dc2626")
 
     if df_alunos.empty:
         st.warning("Cadastre alunos antes de registrar ocorrencias.")
@@ -4101,8 +4176,8 @@ elif "REGISTRAR OCORR" in normalizar_texto(menu):
             )
 
     st.markdown("---")
-    st.subheader("Infracao (Protocolo 179)")
-    busca = st.text_input("Buscar infracao", placeholder="Ex: celular, bullying, atraso...", key="busca_infracao")
+    st.subheader("Infração (Protocolo 179)")
+    busca = st.text_input("Buscar infração", placeholder="Ex: celular, bullying, atraso...", key="busca_infracao")
 
     if busca:
         grupos_filtrados = buscar_infracao_fuzzy(busca, PROTOCOLO_179)
@@ -4110,20 +4185,22 @@ elif "REGISTRAR OCORR" in normalizar_texto(menu):
             grupo = st.selectbox("Grupo", list(grupos_filtrados.keys()), key="grupo_infracao")
             infracoes = grupos_filtrados[grupo]
         else:
-            st.warning("Nenhuma infracao encontrada. Mostrando todas.")
+            st.warning("Nenhuma infração encontrada. Mostrando todas.")
             grupo = st.selectbox("Grupo", list(PROTOCOLO_179.keys()), key="grupo_infracao")
             infracoes = PROTOCOLO_179[grupo]
     else:
         grupo = st.selectbox("Grupo", list(PROTOCOLO_179.keys()), key="grupo_infracao")
         infracoes = PROTOCOLO_179[grupo]
 
-    infracao_principal = st.selectbox("Infracao principal", list(infracoes.keys()), key="infracao_principal")
-    outras_infracoes = st.multiselect("Infracoes adicionais", [i for i in infracoes.keys() if i != infracao_principal], key="infracoes_adicionais")
+    infracao_principal = st.selectbox("Infração principal", list(infracoes.keys()), key="infracao_principal")
+    outras_infracoes = st.multiselect("Infrações adicionais", [i for i in infracoes.keys() if i != infracao_principal], key="infracoes_adicionais")
     infracoes_selecionadas = [infracao_principal] + [i for i in outras_infracoes if i != infracao_principal]
 
-    ordem_gravidade = {"Leve": 1, "M?dia": 2, "Grave": 3, "Grav?ssima": 4}
     dados_infracoes_sel = [infracoes[i] for i in infracoes_selecionadas]
-    gravidade_sugerida = max([d.get("gravidade", "Leve") for d in dados_infracoes_sel], key=lambda g: ordem_gravidade.get(g, 1))
+    gravidade_sugerida = max(
+        [normalizar_gravidade_protocolo(d.get("gravidade", "Leve")) for d in dados_infracoes_sel],
+        key=lambda g: ORDEM_GRAVIDADE_PROTOCOLO.get(g, 1)
+    )
 
     linhas_encam = []
     for d in dados_infracoes_sel:
@@ -4133,7 +4210,9 @@ elif "REGISTRAR OCORR" in normalizar_texto(menu):
                 linhas_encam.append(ln)
     encaminhamento_sugerido = "\n".join(linhas_encam)
 
-    gravidade = st.selectbox("Gravidade", ["Leve", "M?dia", "Grave", "Grav?ssima"], index=["Leve", "M?dia", "Grave", "Grav?ssima"].index(gravidade_sugerida) if gravidade_sugerida in ["Leve", "M?dia", "Grave", "Grav?ssima"] else 0, key="gravidade_sel")
+    gravidade = gravidade_sugerida
+    st.text_input("Gravidade", value=gravidade, key="gravidade_sel_auto", disabled=True)
+    st.caption("A gravidade é definida automaticamente conforme o Protocolo 179.")
     encam = st.text_area("Encaminhamentos", value=encaminhamento_sugerido, height=120, key="encaminhamento")
     relato = st.text_area("Relato dos fatos", height=140, key="relato")
     categoria_consolidada = consolidar_categoria_ocorrencia(infracoes_selecionadas)
