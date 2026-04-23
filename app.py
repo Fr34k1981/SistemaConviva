@@ -6010,9 +6010,15 @@ elif menu == "🏫 Mapa da Sala":
                 border-radius: 16px;
                 background: #ffffff;
             }
+            .mapa-impressao-topo {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 1rem;
+                margin-bottom: 1rem;
+            }
             .mapa-impressao-lousa {
-                margin: 0 auto 1rem auto;
-                max-width: 340px;
+                flex: 1;
                 padding: 0.7rem 1rem;
                 border-radius: 12px;
                 background: #111827;
@@ -6020,6 +6026,27 @@ elif menu == "🏫 Mapa da Sala":
                 text-align: center;
                 font-weight: 700;
                 letter-spacing: 0.04em;
+            }
+            .mapa-impressao-professor,
+            .mapa-impressao-porta {
+                min-width: 160px;
+                padding: 0.7rem 1rem;
+                border-radius: 12px;
+                text-align: center;
+                font-weight: 700;
+            }
+            .mapa-impressao-professor {
+                background: #fef3c7;
+                border: 1px solid #f59e0b;
+                color: #92400e;
+            }
+            .mapa-impressao-porta {
+                margin-top: 1rem;
+                margin-left: auto;
+                width: fit-content;
+                background: #dcfce7;
+                border: 1px solid #22c55e;
+                color: #166534;
             }
             .mapa-impressao-tabela {
                 width: 100%;
@@ -6060,27 +6087,32 @@ elif menu == "🏫 Mapa da Sala":
         ]
 
         if orientacao_lousa in ["Topo", "Esquerda"]:
-            html_mapa.append('<div class="mapa-impressao-lousa">LOUSA</div>')
+            html_mapa.append(
+                '<div class="mapa-impressao-topo"><div class="mapa-impressao-lousa">LOUSA</div><div class="mapa-impressao-professor">MESA DO PROFESSOR</div></div>'
+            )
 
         html_mapa.append('<div class="mapa-impressao-wrap"><table class="mapa-impressao-tabela">')
-        html_mapa.append("<thead><tr><th>Fileira</th>")
+        html_mapa.append("<thead><tr><th>Carteira</th>")
         for carteira in range(carteiras_por_fileira):
-            html_mapa.append(f"<th>Carteira {carteira + 1}</th>")
+            html_mapa.append(f"<th>Fileira {carteira + 1}</th>")
         html_mapa.append("</tr></thead><tbody>")
 
         for fileira, linha in enumerate(grade, start=1):
             html_mapa.append("<tr>")
-            html_mapa.append(f"<th>Fileira {fileira}</th>")
+            html_mapa.append(f"<th>Carteira {fileira}</th>")
             for carteira, valor in enumerate(linha, start=1):
                 html_mapa.append(
-                    f"<td><span class='mapa-impressao-posicao'>Fileira {fileira} - Carteira {carteira}</span>{html.escape(valor)}</td>"
+                    f"<td><span class='mapa-impressao-posicao'>Carteira {fileira} - Fileira {carteira}</span>{html.escape(valor)}</td>"
                 )
             html_mapa.append("</tr>")
 
         html_mapa.append("</tbody></table></div>")
+        html_mapa.append('<div class="mapa-impressao-porta">PORTA</div>')
 
         if orientacao_lousa in ["Fundo", "Direita"]:
-            html_mapa.append('<div class="mapa-impressao-lousa">LOUSA</div>')
+            html_mapa.append(
+                '<div class="mapa-impressao-topo"><div class="mapa-impressao-lousa">LOUSA</div><div class="mapa-impressao-professor">MESA DO PROFESSOR</div></div>'
+            )
 
         return "".join(html_mapa)
 
@@ -6120,11 +6152,14 @@ elif menu == "🏫 Mapa da Sala":
         if orientacao_lousa in ["Topo", "Esquerda"]:
             elementos.append(
                 Table(
-                    [["LOUSA"]],
-                    colWidths=[25 * cm],
+                    [["LOUSA", "MESA DO PROFESSOR"]],
+                    colWidths=[19 * cm, 6 * cm],
                     style=TableStyle([
-                        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#111827")),
-                        ("TEXTCOLOR", (0, 0), (-1, -1), colors.white),
+                        ("BACKGROUND", (0, 0), (0, 0), colors.HexColor("#111827")),
+                        ("TEXTCOLOR", (0, 0), (0, 0), colors.white),
+                        ("BACKGROUND", (1, 0), (1, 0), colors.HexColor("#FEF3C7")),
+                        ("TEXTCOLOR", (1, 0), (1, 0), colors.HexColor("#92400E")),
+                        ("BOX", (1, 0), (1, 0), 1, colors.HexColor("#F59E0B")),
                         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
                         ("FONTNAME", (0, 0), (-1, -1), "Helvetica-Bold"),
                         ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
@@ -6134,11 +6169,11 @@ elif menu == "🏫 Mapa da Sala":
             )
             elementos.append(Spacer(1, 0.25 * cm))
 
-        dados_tabela = [["Fileira"] + [f"Carteira {i + 1}" for i in range(carteiras_por_fileira)]]
+        dados_tabela = [["Carteira"] + [f"Fileira {i + 1}" for i in range(carteiras_por_fileira)]]
         for fileira, linha in enumerate(grade, start=1):
-            linha_pdf = [Paragraph(f"<b>Fileira {fileira}</b>", estilo_celula)]
+            linha_pdf = [Paragraph(f"<b>Carteira {fileira}</b>", estilo_celula)]
             for carteira, valor in enumerate(linha, start=1):
-                conteudo = f"<b>Fileira {fileira} - Carteira {carteira}</b><br/>{html.escape(valor)}"
+                conteudo = f"<b>Carteira {fileira} - Fileira {carteira}</b><br/>{html.escape(valor)}"
                 linha_pdf.append(Paragraph(conteudo, estilo_celula))
             dados_tabela.append(linha_pdf)
 
@@ -6156,16 +6191,35 @@ elif menu == "🏫 Mapa da Sala":
             ("BOTTOMPADDING", (0, 1), (-1, -1), 10),
         ]))
         elementos.append(tabela)
+        elementos.append(Spacer(1, 0.25 * cm))
+        elementos.append(
+            Table(
+                [["PORTA"]],
+                colWidths=[4 * cm],
+                style=TableStyle([
+                    ("BACKGROUND", (0, 0), (0, 0), colors.HexColor("#DCFCE7")),
+                    ("TEXTCOLOR", (0, 0), (0, 0), colors.HexColor("#166534")),
+                    ("BOX", (0, 0), (0, 0), 1, colors.HexColor("#22C55E")),
+                    ("ALIGN", (0, 0), (0, 0), "CENTER"),
+                    ("FONTNAME", (0, 0), (0, 0), "Helvetica-Bold"),
+                    ("BOTTOMPADDING", (0, 0), (0, 0), 8),
+                    ("TOPPADDING", (0, 0), (0, 0), 8),
+                ])
+            )
+        )
 
         if orientacao_lousa in ["Fundo", "Direita"]:
             elementos.append(Spacer(1, 0.25 * cm))
             elementos.append(
                 Table(
-                    [["LOUSA"]],
-                    colWidths=[25 * cm],
+                    [["LOUSA", "MESA DO PROFESSOR"]],
+                    colWidths=[19 * cm, 6 * cm],
                     style=TableStyle([
-                        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#111827")),
-                        ("TEXTCOLOR", (0, 0), (-1, -1), colors.white),
+                        ("BACKGROUND", (0, 0), (0, 0), colors.HexColor("#111827")),
+                        ("TEXTCOLOR", (0, 0), (0, 0), colors.white),
+                        ("BACKGROUND", (1, 0), (1, 0), colors.HexColor("#FEF3C7")),
+                        ("TEXTCOLOR", (1, 0), (1, 0), colors.HexColor("#92400E")),
+                        ("BOX", (1, 0), (1, 0), 1, colors.HexColor("#F59E0B")),
                         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
                         ("FONTNAME", (0, 0), (-1, -1), "Helvetica-Bold"),
                         ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
@@ -6201,7 +6255,9 @@ elif menu == "🏫 Mapa da Sala":
     }
     .fileira-label,
     .carteira-header,
-    .sala-corner {
+    .sala-corner,
+    .sala-professor,
+    .sala-porta {
         width: 82px;
         min-height: 40px;
         border: 2px solid var(--border);
@@ -6224,6 +6280,19 @@ elif menu == "🏫 Mapa da Sala":
         background: transparent;
         border-style: dashed;
         color: #64748b;
+    }
+    .sala-professor {
+        width: 172px;
+        background: #fef3c7;
+        border-color: #f59e0b;
+        color: #92400e;
+    }
+    .sala-porta {
+        width: 172px;
+        margin-left: auto;
+        background: #dcfce7;
+        border-color: #22c55e;
+        color: #166534;
     }
     .assento-card {
         width: 82px;
@@ -6286,19 +6355,21 @@ elif menu == "🏫 Mapa da Sala":
     sala_html = '<div class="sala-grid">'
     sala_html += '<div class="fileira-row"><div class="sala-corner">Mapa</div>'
     for carteira in range(carteiras_por_fileira):
-        sala_html += f'<div class="carteira-header">Carteira {carteira + 1}</div>'
+        sala_html += f'<div class="carteira-header">Fileira {carteira + 1}</div>'
+    sala_html += '<div class="sala-professor">Mesa do Professor</div>'
     sala_html += '</div>'
     for fileira in range(num_fileiras):
-        sala_html += f'<div class="fileira-row"><div class="fileira-label">Fileira {fileira + 1}</div>'
+        sala_html += f'<div class="fileira-row"><div class="fileira-label">Carteira {fileira + 1}</div>'
         for carteira in range(carteiras_por_fileira):
             idx = obter_indice_assento(fileira, carteira)
             nome_no_assento = st.session_state[mapa_key].get(str(idx), "")
             if nome_no_assento:
                 nome_exib = nome_no_assento.split()[0] if nome_no_assento else f"C{idx+1}"
-                sala_html += f'<div class="assento-card ocupado" title="{nome_no_assento}"><span class="assento-posicao">F{fileira + 1} • C{carteira + 1}</span><span class="assento-nome">{nome_exib}</span></div>'
+                sala_html += f'<div class="assento-card ocupado" title="{nome_no_assento}"><span class="assento-posicao">Carteira {fileira + 1} • Fileira {carteira + 1}</span><span class="assento-nome">{nome_exib}</span></div>'
             else:
-                sala_html += f'<div class="assento-card vazio"><span class="assento-posicao">F{fileira + 1} • C{carteira + 1}</span><span class="assento-nome">Carteira {idx + 1}</span></div>'
+                sala_html += f'<div class="assento-card vazio"><span class="assento-posicao">Carteira {fileira + 1} • Fileira {carteira + 1}</span><span class="assento-nome">Assento {idx + 1}</span></div>'
         sala_html += '</div>'
+    sala_html += '<div class="fileira-row"><div class="sala-porta">Porta</div></div>'
     sala_html += '</div>'
     st.markdown(sala_html, unsafe_allow_html=True)
 
