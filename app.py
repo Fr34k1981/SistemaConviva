@@ -4765,7 +4765,7 @@ elif menu == "📊 Gráficos e Indicadores":
     _grv  = len(df_filtro[df_filtro["gravidade"] == "Grave"])      if not df_filtro.empty and "gravidade" in df_filtro.columns else 0
     _turm = df_filtro["turma"].nunique() if not df_filtro.empty else 0
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         st.markdown(f'''<div class="metric-card animate-fade-in" style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);box-shadow:0 8px 20px rgba(37,99,235,0.25);">
             <div class="metric-icon">📊</div><div class="metric-value">{_tot}</div>
