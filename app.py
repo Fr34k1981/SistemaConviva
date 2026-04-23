@@ -5985,12 +5985,15 @@ elif menu == "🏫 Mapa da Sala":
         estado_anterior = st.session_state[mapa_key]
         st.session_state[mapa_key] = {str(i): estado_anterior.get(str(i), "") for i in range(total_assentos)}
 
+    def obter_indice_assento(fileira, carteira):
+        return carteira * num_fileiras + fileira
+
     def construir_grade_mapa_impressao():
         grade = []
         for fileira in range(num_fileiras):
             linha = []
             for carteira in range(carteiras_por_fileira):
-                idx = fileira * carteiras_por_fileira + carteira
+                idx = obter_indice_assento(fileira, carteira)
                 nome = st.session_state[mapa_key].get(str(idx), "").strip()
                 linha.append(nome if nome else f"Carteira {idx + 1}")
             grade.append(linha)
@@ -6245,7 +6248,7 @@ elif menu == "🏫 Mapa da Sala":
     for fileira in range(num_fileiras):
         sala_html += '<div class="fileira-row">'
         for carteira in range(carteiras_por_fileira):
-            idx = fileira * carteiras_por_fileira + carteira
+            idx = obter_indice_assento(fileira, carteira)
             nome_no_assento = st.session_state[mapa_key].get(str(idx), "")
             if nome_no_assento:
                 nome_exib = nome_no_assento.split()[0] if nome_no_assento else f"C{idx+1}"
@@ -6311,7 +6314,7 @@ elif menu == "🏫 Mapa da Sala":
         
         for carteira in range(carteiras_por_fileira):
             col_idx = carteira % colunas_por_linha
-            idx = fileira * carteiras_por_fileira + carteira
+            idx = obter_indice_assento(fileira, carteira)
             
             with cols[col_idx]:
                 valor_atual = st.session_state[mapa_key].get(str(idx), "")
