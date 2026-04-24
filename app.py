@@ -468,8 +468,8 @@ button {
 /* ============================================ */
 .metric-card {
     border-radius: 26px;
-    padding: 1.5rem 1.25rem;
-    text-align: center;
+    padding: 1.2rem 1.05rem 1rem 1.05rem;
+    text-align: left;
     transition: all 0.3s cubic-bezier(.16,1,.3,1);
     position: relative;
     overflow: hidden;
@@ -477,18 +477,19 @@ button {
     height: 100%;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    align-items: center;
+    justify-content: flex-start;
+    align-items: flex-start;
     border: 1px solid rgba(255,255,255,0.14);
     backdrop-filter: blur(10px);
+    box-shadow: 0 16px 30px rgba(15,23,42,0.10);
 }
 
 .metric-card::before {
     content: '';
     position: absolute;
-    top: -30px; right: -30px;
-    width: 100px; height: 100px;
-    background: rgba(255,255,255,0.08);
+    top: -24px; right: -24px;
+    width: 108px; height: 108px;
+    background: rgba(255,255,255,0.12);
     border-radius: 50%;
 }
 
@@ -499,8 +500,16 @@ button {
 }
 
 .metric-icon {
-    font-size: 2rem;
-    margin-bottom: 0.5rem;
+    font-size: 1.55rem;
+    margin-bottom: 0.75rem;
+    width: 50px;
+    height: 50px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.16);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.18);
     position: relative;
     z-index: 1;
 }
@@ -517,11 +526,11 @@ button {
 
 .metric-label {
     font-size: 0.78rem;
-    font-weight: 600;
-    margin-top: 0.4rem;
+    font-weight: 700;
+    margin-top: 0.55rem;
     text-transform: uppercase;
-    letter-spacing: 0.07em;
-    opacity: 0.85;
+    letter-spacing: 0.09em;
+    opacity: 0.92;
     position: relative;
     z-index: 1;
     white-space: normal !important;
@@ -5427,6 +5436,59 @@ elif menu == "📊 Gráficos e Indicadores":
     st.subheader("👤 Top 10 Alunos com Mais Ocorrências")
     top_alunos = df_filtro['aluno'].value_counts().head(10)
     if not top_alunos.empty:
+        aluno_podio = top_alunos.index[0]
+        ocorrencias_podio = int(top_alunos.iloc[0])
+        turma_podio = ""
+        if "turma" in df_filtro.columns:
+            turmas_podio = df_filtro[df_filtro["aluno"] == aluno_podio]["turma"].dropna().astype(str).str.strip()
+            turma_podio = turmas_podio.mode().iloc[0] if not turmas_podio.empty else ""
+        gravidade_podio = ""
+        if "gravidade" in df_filtro.columns:
+            gravidades_podio = df_filtro[df_filtro["aluno"] == aluno_podio]["gravidade"].dropna().astype(str).str.strip()
+            gravidade_podio = gravidades_podio.mode().iloc[0] if not gravidades_podio.empty else ""
+
+        detalhe_podio = []
+        if turma_podio:
+            detalhe_podio.append(f"Turma: {turma_podio}")
+        if gravidade_podio:
+            detalhe_podio.append(f"Gravidade mais comum: {gravidade_podio}")
+        detalhe_podio_txt = " • ".join(detalhe_podio) if detalhe_podio else "Maior volume de ocorrências no filtro atual"
+
+        st.markdown(
+            f"""
+            <div style="
+                position:relative;
+                overflow:hidden;
+                margin:0.35rem 0 1rem 0;
+                padding:1.25rem 1.3rem;
+                border-radius:28px;
+                background:
+                    radial-gradient(circle at 90% 18%, rgba(245,158,11,0.16), transparent 26%),
+                    linear-gradient(135deg, #fff8e6 0%, #fffdf7 48%, #f8fafc 100%);
+                border:1px solid rgba(245,158,11,0.28);
+                box-shadow:0 18px 36px rgba(15,23,42,0.08);
+            ">
+                <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:1rem;">
+                    <div>
+                        <div style="font-size:0.76rem; font-weight:900; letter-spacing:0.12em; text-transform:uppercase; color:#b45309; margin-bottom:0.35rem;">Estudante do Pódio</div>
+                        <div style="font-family:'Nunito',sans-serif; font-size:1.45rem; font-weight:900; color:#1f2937; line-height:1.15;">{html.escape(str(aluno_podio))}</div>
+                        <div style="font-size:0.92rem; color:#6b7280; margin-top:0.45rem;">{html.escape(detalhe_podio_txt)}</div>
+                    </div>
+                    <div style="text-align:right; min-width:112px;">
+                        <div style="
+                            width:58px; height:58px; margin-left:auto; margin-bottom:0.45rem;
+                            border-radius:18px; display:flex; align-items:center; justify-content:center;
+                            background:linear-gradient(135deg,#f59e0b,#fbbf24); color:white;
+                            font-size:1.55rem; box-shadow:0 12px 24px rgba(245,158,11,0.28);
+                        ">🏆</div>
+                        <div style="font-family:'Nunito',sans-serif; font-size:2rem; font-weight:900; color:#b45309; line-height:1;">{ocorrencias_podio}</div>
+                        <div style="font-size:0.82rem; font-weight:700; color:#92400e;">ocorrência(s)</div>
+                    </div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
         fig_alunos = px.bar(x=top_alunos.values, y=top_alunos.index, orientation='h',
                             labels={'x': 'Quantidade', 'y': 'Aluno'},
                             color=top_alunos.values, color_continuous_scale='Reds')
