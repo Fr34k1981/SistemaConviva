@@ -7403,8 +7403,8 @@ elif menu == "🏫 Mapa da Sala":
                 margin-bottom: 1rem;
             }
             .mapa-impressao-lousa {
-                flex: 1;
-                padding: 0.7rem 1rem;
+                flex: 0 1 42%;
+                padding: 0.55rem 0.9rem;
                 border-radius: 12px;
                 background: #111827;
                 color: #ffffff;
@@ -7414,7 +7414,7 @@ elif menu == "🏫 Mapa da Sala":
             }
             .mapa-impressao-professor,
             .mapa-impressao-porta {
-                min-width: 160px;
+                min-width: 170px;
                 padding: 0.7rem 1rem;
                 border-radius: 12px;
                 text-align: center;
@@ -7426,9 +7426,6 @@ elif menu == "🏫 Mapa da Sala":
                 color: #92400e;
             }
             .mapa-impressao-porta {
-                margin-top: 1rem;
-                margin-left: auto;
-                width: fit-content;
                 background: #dcfce7;
                 border: 1px solid #22c55e;
                 color: #166534;
@@ -7473,7 +7470,7 @@ elif menu == "🏫 Mapa da Sala":
 
         if orientacao_lousa in ["Topo", "Esquerda"]:
             html_mapa.append(
-                '<div class="mapa-impressao-topo"><div class="mapa-impressao-lousa">LOUSA</div><div class="mapa-impressao-professor">MESA DO PROFESSOR</div></div>'
+                '<div class="mapa-impressao-topo"><div class="mapa-impressao-professor">MESA DO PROFESSOR</div><div class="mapa-impressao-lousa">LOUSA</div><div class="mapa-impressao-porta">PORTA</div></div>'
             )
 
         html_mapa.append('<div class="mapa-impressao-wrap"><table class="mapa-impressao-tabela">')
@@ -7492,11 +7489,10 @@ elif menu == "🏫 Mapa da Sala":
             html_mapa.append("</tr>")
 
         html_mapa.append("</tbody></table></div>")
-        html_mapa.append('<div class="mapa-impressao-porta">PORTA</div>')
 
         if orientacao_lousa in ["Fundo", "Direita"]:
             html_mapa.append(
-                '<div class="mapa-impressao-topo"><div class="mapa-impressao-lousa">LOUSA</div><div class="mapa-impressao-professor">MESA DO PROFESSOR</div></div>'
+                '<div class="mapa-impressao-topo"><div class="mapa-impressao-professor">MESA DO PROFESSOR</div><div class="mapa-impressao-lousa">LOUSA</div><div class="mapa-impressao-porta">PORTA</div></div>'
             )
 
         return "".join(html_mapa)
@@ -7537,14 +7533,17 @@ elif menu == "🏫 Mapa da Sala":
         if orientacao_lousa in ["Topo", "Esquerda"]:
             elementos.append(
                 Table(
-                    [["LOUSA", "MESA DO PROFESSOR"]],
-                    colWidths=[19 * cm, 6 * cm],
+                    [["MESA DO PROFESSOR", "LOUSA", "PORTA"]],
+                    colWidths=[5.6 * cm, 14.2 * cm, 4.2 * cm],
                     style=TableStyle([
-                        ("BACKGROUND", (0, 0), (0, 0), colors.HexColor("#111827")),
-                        ("TEXTCOLOR", (0, 0), (0, 0), colors.white),
-                        ("BACKGROUND", (1, 0), (1, 0), colors.HexColor("#FEF3C7")),
-                        ("TEXTCOLOR", (1, 0), (1, 0), colors.HexColor("#92400E")),
-                        ("BOX", (1, 0), (1, 0), 1, colors.HexColor("#F59E0B")),
+                        ("BACKGROUND", (0, 0), (0, 0), colors.HexColor("#FEF3C7")),
+                        ("TEXTCOLOR", (0, 0), (0, 0), colors.HexColor("#92400E")),
+                        ("BOX", (0, 0), (0, 0), 1, colors.HexColor("#F59E0B")),
+                        ("BACKGROUND", (1, 0), (1, 0), colors.HexColor("#111827")),
+                        ("TEXTCOLOR", (1, 0), (1, 0), colors.white),
+                        ("BACKGROUND", (2, 0), (2, 0), colors.HexColor("#DCFCE7")),
+                        ("TEXTCOLOR", (2, 0), (2, 0), colors.HexColor("#166534")),
+                        ("BOX", (2, 0), (2, 0), 1, colors.HexColor("#22C55E")),
                         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
                         ("FONTNAME", (0, 0), (-1, -1), "Helvetica-Bold"),
                         ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
@@ -7576,35 +7575,22 @@ elif menu == "🏫 Mapa da Sala":
             ("BOTTOMPADDING", (0, 1), (-1, -1), 10),
         ]))
         elementos.append(tabela)
-        elementos.append(Spacer(1, 0.25 * cm))
-        elementos.append(
-            Table(
-                [["PORTA"]],
-                colWidths=[4 * cm],
-                style=TableStyle([
-                    ("BACKGROUND", (0, 0), (0, 0), colors.HexColor("#DCFCE7")),
-                    ("TEXTCOLOR", (0, 0), (0, 0), colors.HexColor("#166534")),
-                    ("BOX", (0, 0), (0, 0), 1, colors.HexColor("#22C55E")),
-                    ("ALIGN", (0, 0), (0, 0), "CENTER"),
-                    ("FONTNAME", (0, 0), (0, 0), "Helvetica-Bold"),
-                    ("BOTTOMPADDING", (0, 0), (0, 0), 8),
-                    ("TOPPADDING", (0, 0), (0, 0), 8),
-                ])
-            )
-        )
 
         if orientacao_lousa in ["Fundo", "Direita"]:
             elementos.append(Spacer(1, 0.25 * cm))
             elementos.append(
                 Table(
-                    [["LOUSA", "MESA DO PROFESSOR"]],
-                    colWidths=[19 * cm, 6 * cm],
+                    [["MESA DO PROFESSOR", "LOUSA", "PORTA"]],
+                    colWidths=[5.6 * cm, 14.2 * cm, 4.2 * cm],
                     style=TableStyle([
-                        ("BACKGROUND", (0, 0), (0, 0), colors.HexColor("#111827")),
-                        ("TEXTCOLOR", (0, 0), (0, 0), colors.white),
-                        ("BACKGROUND", (1, 0), (1, 0), colors.HexColor("#FEF3C7")),
-                        ("TEXTCOLOR", (1, 0), (1, 0), colors.HexColor("#92400E")),
-                        ("BOX", (1, 0), (1, 0), 1, colors.HexColor("#F59E0B")),
+                        ("BACKGROUND", (0, 0), (0, 0), colors.HexColor("#FEF3C7")),
+                        ("TEXTCOLOR", (0, 0), (0, 0), colors.HexColor("#92400E")),
+                        ("BOX", (0, 0), (0, 0), 1, colors.HexColor("#F59E0B")),
+                        ("BACKGROUND", (1, 0), (1, 0), colors.HexColor("#111827")),
+                        ("TEXTCOLOR", (1, 0), (1, 0), colors.white),
+                        ("BACKGROUND", (2, 0), (2, 0), colors.HexColor("#DCFCE7")),
+                        ("TEXTCOLOR", (2, 0), (2, 0), colors.HexColor("#166534")),
+                        ("BOX", (2, 0), (2, 0), 1, colors.HexColor("#22C55E")),
                         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
                         ("FONTNAME", (0, 0), (-1, -1), "Helvetica-Bold"),
                         ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
@@ -7637,6 +7623,12 @@ elif menu == "🏫 Mapa da Sala":
         display: flex;
         gap: 8px;
         align-items: stretch;
+    }
+    .frente-sala-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 4px;
     }
     .fileira-label,
     .carteira-header,
@@ -7674,7 +7666,6 @@ elif menu == "🏫 Mapa da Sala":
     }
     .sala-porta {
         width: 172px;
-        margin-left: auto;
         background: #dcfce7;
         border-color: #22c55e;
         color: #166534;
@@ -7716,9 +7707,9 @@ elif menu == "🏫 Mapa da Sala":
         color: var(--gray);
     }
     .lousa {
-        width: 100%;
-        max-width: 300px;
-        height: 35px;
+        flex: 0 1 320px;
+        max-width: 320px;
+        height: 30px;
         background: var(--dark);
         color: white;
         display: flex;
@@ -7726,7 +7717,8 @@ elif menu == "🏫 Mapa da Sala":
         justify-content: center;
         font-weight: bold;
         border-radius: var(--radius-md);
-        margin: 10px auto;
+        margin: 0 auto;
+        font-size: 0.9rem;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -7734,14 +7726,14 @@ elif menu == "🏫 Mapa da Sala":
     st.markdown("---")
     st.subheader("🪑 Layout da Sala")
 
-    if orientacao_lousa in ["Topo", "Esquerda"]:
+    if False and orientacao_lousa in ["Topo", "Esquerda"]:
         st.markdown('<div class="lousa">📚 LOUSA</div>', unsafe_allow_html=True)
 
     sala_html = '<div class="sala-grid">'
+    sala_html += '<div class="frente-sala-row"><div class="sala-professor">Mesa do Professor</div><div class="lousa">📚 LOUSA</div><div class="sala-porta">Porta</div></div>'
     sala_html += '<div class="fileira-row"><div class="sala-corner">Mapa</div>'
     for carteira in range(carteiras_por_fileira):
         sala_html += f'<div class="carteira-header">Fileira {carteira + 1}</div>'
-    sala_html += '<div class="sala-professor">Mesa do Professor</div>'
     sala_html += '</div>'
     for fileira in range(num_fileiras):
         sala_html += f'<div class="fileira-row"><div class="fileira-label">Carteira {fileira + 1}</div>'
@@ -7754,11 +7746,10 @@ elif menu == "🏫 Mapa da Sala":
             else:
                 sala_html += f'<div class="assento-card vazio"><span class="assento-posicao">Carteira {fileira + 1} • Fileira {carteira + 1}</span><span class="assento-nome">Assento {idx + 1}</span></div>'
         sala_html += '</div>'
-    sala_html += '<div class="fileira-row"><div class="sala-porta">Porta</div></div>'
     sala_html += '</div>'
     st.markdown(sala_html, unsafe_allow_html=True)
 
-    if orientacao_lousa in ["Fundo", "Direita"]:
+    if False and orientacao_lousa in ["Fundo", "Direita"]:
         st.markdown('<div class="lousa">📚 LOUSA</div>', unsafe_allow_html=True)
 
     # Estatísticas
