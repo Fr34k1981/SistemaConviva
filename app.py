@@ -2401,6 +2401,42 @@ def turma_para_comparacao(valor: str) -> str:
     return normalizar_texto(formatar_turma_eletiva(valor))
 
 
+
+
+# ======================================================
+# TUTORIA - CLASSIFICACAO POR TURNO E ETAPA
+# ======================================================
+def extrair_numero_letra_turma(valor: str) -> tuple[int | None, str]:
+    """Extrai numero e letra da turma padronizada. Ex.: 9A, 9º A -> (9, 'A')."""
+    turma = formatar_turma_eletiva(valor)
+    m = re.search(r"(\d{1,2})\D*([A-Z])?", normalizar_texto(turma))
+    if not m:
+        return None, ""
+    return int(m.group(1)), (m.group(2) or "").upper()
+
+def classificar_etapa_tutoria(valor: str) -> str:
+    numero, _ = extrair_numero_letra_turma(valor)
+    if numero in (6, 7, 8, 9):
+        return "Ensino Fundamental"
+    if numero in (1, 2, 3):
+        return "Ensino Medio"
+    return "Sem etapa definida"
+
+def classificar_turno_tutoria(valor: str) -> str:
+    """Turno 1 = 6º ao 9º + 3º A e 3º B. Turno 2 = demais turmas do Ensino Medio."""
+    numero, letra = extrair_numero_letra_turma(valor)
+    if numero in (6, 7, 8, 9):
+        return "Turno 1"
+    if numero == 3 and letra in {"A", "B"}:
+        return "Turno 1"
+    if numero in (1, 2, 3):
+        return "Turno 2"
+    return "Sem turno definido"
+
+def ordenar_turma_tutoria(turma: str) -> tuple[int, str]:
+    numero, letra = extrair_numero_letra_turma(turma)
+    return (numero if numero is not None else 99, letra or "Z")
+
 def estudante_ativo(linha) -> bool:
     """Considera ativo todo estudante que nao esteja claramente marcado como inativo."""
     for coluna in ["situacao", "situação", "status", "ativo"]:
@@ -9928,34 +9964,62 @@ elif menu == "🫂 Tutoria":
             if (chave_ra and chave_ra in vinculados) or chave_nome_turma in vinculados:
                 continue
 
+            turma_aluno = formatar_turma_eletiva(aluno.get("turma", ""))
             sem_tutor.append({
                 "Nome": aluno.get("nome", ""),
-                "Turma": formatar_turma_eletiva(aluno.get("turma", "")),
+                "Turma": turma_aluno,
+                "Etapa": classificar_etapa_tutoria(turma_aluno),
+                "Turno": classificar_turno_tutoria(turma_aluno),
                 "RA": aluno.get("ra", ""),
                 "Situação": aluno.get("situacao", aluno.get("situação", aluno.get("status", ""))),
             })
 
         df_sem_tutor = pd.DataFrame(sem_tutor)
         if not df_sem_tutor.empty:
-            df_sem_tutor = df_sem_tutor.sort_values(["Turma", "Nome"]).reset_index(drop=True)
+            df_sem_tutor["ordem_turma"] = df_sem_tutor["Turma"].apply(ordenar_turma_tutoria)
+            df_sem_tutor = df_sem_tutor.sort_values(["Turno", "ordem_turma", "Nome"]).drop(columns=["ordem_turma"]).reset_index(drop=True)
 
         total_ativos = len(base_ativa_tutoria)
         total_sem_tutor = len(df_sem_tutor)
         total_com_tutor = max(total_ativos - total_sem_tutor, 0)
 
-        col_st1, col_st2, col_st3 = st.columns(3)
+        total_turno1 = int((df_sem_tutor["Turno"] == "Turno 1").sum()) if not df_sem_tutor.empty else 0
+        total_turno2 = int((df_sem_tutor["Turno"] == "Turno 2").sum()) if not df_sem_tutor.empty else 0
+
+        col_st1, col_st2, col_st3, col_st4, col_st5 = st.columns(5)
         col_st1.metric("Ativos no Supabase", total_ativos)
         col_st2.metric("Com tutor", total_com_tutor)
         col_st3.metric("Sem tutor", total_sem_tutor)
+        col_st4.metric("Sem tutor - Turno 1", total_turno1)
+        col_st5.metric("Sem tutor - Turno 2", total_turno2)
 
-        aba_geral_sem_tutor, aba_sala_sem_tutor = st.tabs(["📌 Geral", "🏫 Por sala"])
+        aba_geral_sem_tutor, aba_turno_sem_tutor, aba_sala_sem_tutor = st.tabs(["📌 Geral", "🕒 Por turno/etapa", "🏫 Por sala"])
 
         with aba_geral_sem_tutor:
             if df_sem_tutor.empty:
                 st.success("Todos os estudantes ativos já possuem tutor cadastrado.")
             else:
-                st.dataframe(df_sem_tutor, use_container_width=True, hide_index=True)
-                csv_sem_tutor = df_sem_tutor.to_csv(index=False).encode("utf-8-sig")
+                col_f1, col_f2 = st.columns(2)
+                with col_f1:
+                    filtro_turno_geral = st.selectbox(
+                        "Filtrar por turno",
+                        ["Todos"] + sorted(df_sem_tutor["Turno"].dropna().unique().tolist()),
+                        key="sem_tutor_filtro_turno_geral"
+                    )
+                with col_f2:
+                    filtro_etapa_geral = st.selectbox(
+                        "Filtrar por etapa",
+                        ["Todas"] + sorted(df_sem_tutor["Etapa"].dropna().unique().tolist()),
+                        key="sem_tutor_filtro_etapa_geral"
+                    )
+                df_sem_tutor_exibir = df_sem_tutor.copy()
+                if filtro_turno_geral != "Todos":
+                    df_sem_tutor_exibir = df_sem_tutor_exibir[df_sem_tutor_exibir["Turno"] == filtro_turno_geral]
+                if filtro_etapa_geral != "Todas":
+                    df_sem_tutor_exibir = df_sem_tutor_exibir[df_sem_tutor_exibir["Etapa"] == filtro_etapa_geral]
+                st.markdown(f"**Total exibido:** {len(df_sem_tutor_exibir)} estudante(s)")
+                st.dataframe(df_sem_tutor_exibir, use_container_width=True, hide_index=True)
+                csv_sem_tutor = df_sem_tutor_exibir.to_csv(index=False).encode("utf-8-sig")
                 st.download_button(
                     "⬇️ Baixar lista geral em CSV",
                     data=csv_sem_tutor,
@@ -9964,11 +10028,52 @@ elif menu == "🫂 Tutoria":
                     key="download_sem_tutor_geral_csv"
                 )
 
+
+        with aba_turno_sem_tutor:
+            if df_sem_tutor.empty:
+                st.success("Não há estudantes sem tutor para agrupar por turno.")
+            else:
+                resumo_turno = (
+                    df_sem_tutor.groupby(["Turno", "Etapa"])
+                    .size()
+                    .reset_index(name="Sem tutor")
+                    .sort_values(["Turno", "Etapa"])
+                )
+                st.dataframe(resumo_turno, use_container_width=True, hide_index=True)
+
+                turno_sel = st.selectbox(
+                    "Selecionar turno para detalhar",
+                    ["Todos", "Turno 1", "Turno 2", "Sem turno definido"],
+                    key="sem_tutor_turno_detalhe"
+                )
+                df_turno = df_sem_tutor if turno_sel == "Todos" else df_sem_tutor[df_sem_tutor["Turno"] == turno_sel]
+
+                resumo_turma_turno = (
+                    df_turno.groupby(["Turno", "Etapa", "Turma"])
+                    .size()
+                    .reset_index(name="Sem tutor")
+                    .sort_values(["Turno", "Turma"])
+                ) if not df_turno.empty else pd.DataFrame()
+
+                st.markdown("**Resumo por turma dentro do turno selecionado:**")
+                st.dataframe(resumo_turma_turno, use_container_width=True, hide_index=True)
+                st.markdown(f"**Total no detalhe:** {len(df_turno)} estudante(s)")
+                st.dataframe(df_turno, use_container_width=True, hide_index=True)
+
+                csv_turno = df_turno.to_csv(index=False).encode("utf-8-sig")
+                st.download_button(
+                    "⬇️ Baixar turno selecionado em CSV",
+                    data=csv_turno,
+                    file_name=f"estudantes_sem_tutor_{gerar_chave_segura(turno_sel)}_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                    mime="text/csv",
+                    key="download_sem_tutor_turno_csv"
+                )
+
         with aba_sala_sem_tutor:
             if df_sem_tutor.empty:
                 st.success("Não há estudantes sem tutor para agrupar por sala.")
             else:
-                turmas_sem_tutor = sorted(df_sem_tutor["Turma"].dropna().astype(str).unique().tolist())
+                turmas_sem_tutor = sorted(df_sem_tutor["Turma"].dropna().astype(str).unique().tolist(), key=ordenar_turma_tutoria)
                 turma_sem_tutor_sel = st.selectbox(
                     "Selecione a sala/turma",
                     options=["Todas"] + turmas_sem_tutor,
@@ -9976,10 +10081,10 @@ elif menu == "🫂 Tutoria":
                 )
 
                 resumo_sem_tutor = (
-                    df_sem_tutor.groupby("Turma")
+                    df_sem_tutor.groupby(["Turno", "Etapa", "Turma"])
                     .size()
                     .reset_index(name="Sem tutor")
-                    .sort_values("Turma")
+                    .sort_values(["Turno", "Turma"])
                 )
                 st.dataframe(resumo_sem_tutor, use_container_width=True, hide_index=True)
 
