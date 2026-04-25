@@ -8154,16 +8154,28 @@ elif menu == "🫂 Tutoria":
             _carregar_campos_edicao_tutoria(st.session_state["tutoria_tutor_edicao"])
 
     with tab_novo_tutor:
-        col_n1, col_n2 = st.columns(2)
-        with col_n1:
-            nome_novo_tutor = st.text_input("Nome do responsável", key="tutoria_novo_nome")
-            espaco_novo_tutor = st.text_input("Espaço usado", key="tutoria_novo_espaco", placeholder="Ex: Sala 04 / Pátio / Sala de Leitura")
-        with col_n2:
-            tipo_novo_tutor = st.selectbox("Perfil", PERFIS_TUTORIA, key="tutoria_novo_tipo")
-            horario_novo_tutor = st.text_input("Horário", key="tutoria_novo_horario", placeholder="Ex: 13:10 às 14:00")
-        dia_novo_tutor = st.text_input("Dia", key="tutoria_novo_dia", placeholder="Ex: Quarta-feira")
-        if st.button("✅ Cadastrar Responsável", key="btn_cadastrar_tutor_tutoria", type="primary"):
-            nome_novo_tutor = str(nome_novo_tutor).strip()
+    col_n1, col_n2 = st.columns(2)
+    with col_n1:
+        # Busca a lista de nomes únicos, ordenados, ignorando nulos
+        professores_lista = []
+        if not df_professores.empty and "nome" in df_professores.columns:
+            professores_lista = sorted(df_professores["nome"].dropna().astype(str).unique().tolist())
+        
+        if professores_lista:
+            nome_novo_tutor = st.selectbox("Nome do responsável", professores_lista, key="tutoria_novo_nome")
+        else:
+            st.warning("Nenhum professor cadastrado. Cadastre professores em '👨‍🏫 Cadastrar Professores'.")
+            nome_novo_tutor = ""
+        
+        espaco_novo_tutor = st.text_input("Espaço usado", key="tutoria_novo_espaco", placeholder="Ex: Sala 04 / Pátio / Sala de Leitura")
+    with col_n2:
+        tipo_novo_tutor = st.selectbox("Perfil", PERFIS_TUTORIA, key="tutoria_novo_tipo")
+        horario_novo_tutor = st.text_input("Horário", key="tutoria_novo_horario", placeholder="Ex: 13:10 às 14:00")
+    dia_novo_tutor = st.text_input("Dia", key="tutoria_novo_dia", placeholder="Ex: Quarta-feira")
+    
+    if st.button("✅ Cadastrar Responsável", key="btn_cadastrar_tutor_tutoria", type="primary"):
+        # O restante do código permanece igual...
+            nome_novo_tutor = str(nome_novo_tutor = st.text_inputnome_novo_tutor).strip()
             if not nome_novo_tutor:
                 st.warning("Informe o nome do responsável.")
             elif any(normalizar_texto(nome_novo_tutor) == normalizar_texto(nome_existente) for nome_existente in TUTORIA.keys()):
@@ -8181,77 +8193,85 @@ elif menu == "🫂 Tutoria":
                 st.success("✅ Cadastro realizado com sucesso.")
                 st.rerun()
 
-    with tab_editar_tutor:
-        if not TUTORIA:
-            st.info("Cadastre um responsável para habilitar a edição.")
-        else:
-            tutor_edicao = st.selectbox(
-                "Cadastro para editar",
-                nomes_tutoria,
-                key="tutoria_tutor_edicao",
-                on_change=_sincronizar_responsavel_tutoria,
-                args=("tutoria_tutor_edicao",)
-            )
-            dados_edicao = obter_registro_tutoria(TUTORIA, tutor_edicao)
-            col_e1, col_e2 = st.columns(2)
-            with col_e1:
-                nome_edit_tutor = st.text_input("Nome", key="tutoria_edit_nome")
-                espaco_edit_tutor = st.text_input("Espaço usado", key="tutoria_edit_espaco")
-            with col_e2:
-                tipo_edit_tutor = st.selectbox(
-                    "Perfil",
-                    PERFIS_TUTORIA,
-                    key="tutoria_edit_tipo"
-                )
-                horario_edit_tutor = st.text_input("Horário", key="tutoria_edit_horario")
-            dia_edit_tutor = st.text_input("Dia", key="tutoria_edit_dia")
+   with tab_editar_tutor:
+    if not TUTORIA:
+        st.info("Cadastre um responsável para habilitar a edição.")
+    else:
+        tutor_edicao = st.selectbox(
+            "Cadastro para editar",
+            nomes_tutoria,
+            key="tutoria_tutor_edicao",
+            on_change=_sincronizar_responsavel_tutoria,
+            args=("tutoria_tutor_edicao",)
+        )
+        dados_edicao = obter_registro_tutoria(TUTORIA, tutor_edicao)
+        col_e1, col_e2 = st.columns(2)
+        with col_e1:
+            # Lista de professores cadastrados
+            professores_lista = []
+            if not df_professores.empty and "nome" in df_professores.columns:
+                professores_lista = sorted(df_professores["nome"].dropna().astype(str).unique().tolist())
+            
+            nome_atual = dados_edicao.get("nome", "")
+            if professores_lista:
+                idx_atual = professores_lista.index(nome_atual) if nome_atual in professores_lista else 0
+                nome_edit_tutor = st.selectbox("Nome", professores_lista, index=idx_atual, key="tutoria_edit_nome")
+            else:
+                nome_edit_tutor = st.text_input("Nome", value=nome_atual, key="tutoria_edit_nome")
+                st.warning("Nenhum professor cadastrado. Cadastre professores primeiro.")
+            
+            espaco_edit_tutor = st.text_input("Espaço usado", key="tutoria_edit_espaco")
+        with col_e2:
+            tipo_edit_tutor = st.selectbox("Perfil", PERFIS_TUTORIA, key="tutoria_edit_tipo")
+            horario_edit_tutor = st.text_input("Horário", key="tutoria_edit_horario")
+        dia_edit_tutor = st.text_input("Dia", key="tutoria_edit_dia")
 
-            col_b1, col_b2 = st.columns(2)
-            with col_b1:
-                if st.button("💾 Salvar Professor(a)", key="btn_salvar_tutor_tutoria", type="primary"):
-                    nome_edit_tutor = str(nome_edit_tutor).strip()
-                    if not nome_edit_tutor:
-                        st.warning("Informe um nome válido.")
-                    elif nome_edit_tutor != tutor_edicao and any(normalizar_texto(nome_edit_tutor) == normalizar_texto(nome_existente) for nome_existente in TUTORIA.keys()):
-                        st.warning("Já existe outro cadastro com esse nome.")
-                    else:
-                        dados_salvos = obter_registro_tutoria(TUTORIA, tutor_edicao)
-                        dados_salvos["nome"] = nome_edit_tutor
-                        dados_salvos["tipo"] = normalizar_perfil_tutoria(tipo_edit_tutor)
-                        dados_salvos["espaco"] = str(espaco_edit_tutor).strip()
-                        dados_salvos["horario"] = str(horario_edit_tutor).strip()
-                        dados_salvos["dia"] = str(dia_edit_tutor).strip()
-                        if nome_edit_tutor != tutor_edicao:
-                            TUTORIA.pop(tutor_edicao, None)
-                        TUTORIA[nome_edit_tutor] = dados_salvos
-                        _salvar_estado_tutoria("local")
-                        if SUPABASE_VALID and nome_edit_tutor != tutor_edicao:
-                            try:
-                                tutor_q = requests.utils.quote(str(tutor_edicao), safe="")
-                                _supabase_request("DELETE", f"tutoria?professora=eq.{tutor_q}")
-                                registros = converter_tutoria_para_registros({nome_edit_tutor: dados_salvos}, origem="renomeacao_tutor")
-                                if registros:
-                                    _supabase_request("POST", "tutoria", json=registros)
-                            except Exception:
-                                pass
-                        st.success("✅ Cadastro atualizado com sucesso.")
-                        st.rerun()
-            with col_b2:
-                confirmar_exclusao_tutor = st.checkbox("Confirmar exclusão do cadastro", key="confirmar_exclusao_tutor_tutoria")
-                if st.button("🗑️ Excluir Cadastro", key="btn_excluir_tutor_tutoria", type="secondary"):
-                    if not confirmar_exclusao_tutor:
-                        st.warning("Marque a confirmação para excluir.")
-                    else:
+        col_b1, col_b2 = st.columns(2)
+        with col_b1:
+            if st.button("💾 Salvar Professor(a)", key="btn_salvar_tutor_tutoria", type="primary"):
+                nome_edit_tutor = str(nome_edit_tutor).strip()
+                if not nome_edit_tutor:
+                    st.warning("Informe um nome válido.")
+                elif nome_edit_tutor != tutor_edicao and any(normalizar_texto(nome_edit_tutor) == normalizar_texto(nome_existente) for nome_existente in TUTORIA.keys()):
+                    st.warning("Já existe outro cadastro com esse nome.")
+                else:
+                    dados_salvos = obter_registro_tutoria(TUTORIA, tutor_edicao)
+                    dados_salvos["nome"] = nome_edit_tutor
+                    dados_salvos["tipo"] = normalizar_perfil_tutoria(tipo_edit_tutor)
+                    dados_salvos["espaco"] = str(espaco_edit_tutor).strip()
+                    dados_salvos["horario"] = str(horario_edit_tutor).strip()
+                    dados_salvos["dia"] = str(dia_edit_tutor).strip()
+                    if nome_edit_tutor != tutor_edicao:
                         TUTORIA.pop(tutor_edicao, None)
-                        _salvar_estado_tutoria("local")
-                        if SUPABASE_VALID:
-                            try:
-                                tutor_q = requests.utils.quote(str(tutor_edicao), safe="")
-                                _supabase_request("DELETE", f"tutoria?professora=eq.{tutor_q}")
-                            except Exception:
-                                pass
-                        st.success("✅ Cadastro excluído com sucesso.")
-                        st.rerun()
+                    TUTORIA[nome_edit_tutor] = dados_salvos
+                    _salvar_estado_tutoria("local")
+                    if SUPABASE_VALID and nome_edit_tutor != tutor_edicao:
+                        try:
+                            tutor_q = requests.utils.quote(str(tutor_edicao), safe="")
+                            _supabase_request("DELETE", f"tutoria?professora=eq.{tutor_q}")
+                            registros = converter_tutoria_para_registros({nome_edit_tutor: dados_salvos}, origem="renomeacao_tutor")
+                            if registros:
+                                _supabase_request("POST", "tutoria", json=registros)
+                        except Exception:
+                            pass
+                    st.success("✅ Cadastro atualizado com sucesso.")
+                    st.rerun()
+        with col_b2:
+            confirmar_exclusao_tutor = st.checkbox("Confirmar exclusão do cadastro", key="confirmar_exclusao_tutor_tutoria")
+            if st.button("🗑️ Excluir Cadastro", key="btn_excluir_tutor_tutoria", type="secondary"):
+                if not confirmar_exclusao_tutor:
+                    st.warning("Marque a confirmação para excluir.")
+                else:
+                    TUTORIA.pop(tutor_edicao, None)
+                    _salvar_estado_tutoria("local")
+                    if SUPABASE_VALID:
+                        try:
+                            tutor_q = requests.utils.quote(str(tutor_edicao), safe="")
+                            _supabase_request("DELETE", f"tutoria?professora=eq.{tutor_q}")
+                        except Exception:
+                            pass
+                    st.success("✅ Cadastro excluído com sucesso.")
+                    st.rerun()
 
     st.markdown("---")
     st.subheader("📊 Cadastros da Tutoria")
