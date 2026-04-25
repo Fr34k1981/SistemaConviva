@@ -8307,6 +8307,215 @@ elif menu == "🎨 Eletiva":
 # PÁGINA 🫂 TUTORIA
 # ======================================================
 elif menu == "🫂 Tutoria":
+    
+    # ======================================================
+    # TUTORIA — BUSCA FLEXÍVEL + VALIDAÇÃO VISUAL
+    # ======================================================
+    def estudante_ativo(linha) -> bool:
+        """Considera estudante ativo de forma segura e permissiva.
+    
+        Só bloqueia quando a situação/status disser claramente que o aluno está inativo,
+        transferido, evadido, cancelado, removido ou baixado. Campo vazio, nulo ou qualquer
+        outro valor é tratado como ativo para não impedir estudantes válidos por inconsistência da base.
+        """
+        for coluna in ["situacao", "situação", "status", "ativo"]:
+            if coluna not in linha.index:
+                continue
+            valor = linha.get(coluna)
+            if isinstance(valor, bool):
+                return valor
+            if valor is None or str(valor).strip() == "" or str(valor).lower().strip() in {"nan", "none", "null"}:
+                return True
+            valor_norm = normalizar_texto(valor)
+            if any(palavra in valor_norm for palavra in [
+                "INATIVO", "INATIVA", "TRANSFERIDO", "TRANSFERIDA", "REMOVIDO", "REMOVIDA",
+                "EVADIDO", "EVADIDA", "CANCELADO", "CANCELADA", "BAIXADO", "BAIXADA",
+                "DESISTENTE", "CONCLUIDO", "CONCLUÍDO"
+            ]):
+                return False
+            return True
+        return True
+    
+    
+    def preparar_base_alunos_ativos_tutoria(df_alunos: pd.DataFrame) -> pd.DataFrame:
+        """Prepara a base de estudantes ativos do Supabase para busca inteligente da tutoria."""
+        if df_alunos is None or df_alunos.empty or "nome" not in df_alunos.columns:
+            return pd.DataFrame()
+    
+        base = df_alunos.copy()
+        if "turma" not in base.columns:
+            base["turma"] = ""
+        if "ra" not in base.columns:
+            base["ra"] = ""
+    
+        base["nome"] = base["nome"].astype(str).str.strip()
+        base["turma"] = base["turma"].astype(str).apply(formatar_turma_eletiva)
+        base["ra"] = base["ra"].astype(str).str.replace(r"\D", "", regex=True)
+        base["nome_norm"] = base["nome"].apply(normalizar_texto)
+        base["turma_norm"] = base["turma"].apply(turma_para_comparacao)
+        base = base[base.apply(estudante_ativo, axis=1)]
+        base = base[base["nome"].str.strip() != ""]
+        return base
+    
+    
+    def buscar_estudante_ativo_mais_proximo(nome_digitado: str, serie_digitada: str, df_alunos: pd.DataFrame) -> dict | None:
+        """Busca o estudante ativo mais próximo no Supabase.
+    
+        A turma/sala informada funciona como confirmação forte. Isso permite aceitar variações
+        comuns de escrita: Talita/Thalita, Enzo/Henzo, Iago/Yago, Manuela/Manuella, etc.
+        """
+        base = preparar_base_alunos_ativos_tutoria(df_alunos)
+        if base.empty:
+            return None
+    
+        nome_original = str(nome_digitado or "").strip()
+        serie_original = formatar_turma_eletiva(serie_digitada)
+        nome_norm = normalizar_texto(nome_original)
+        nome_aprox = _nome_para_busca_aproximada(nome_original)
+        serie_norm = turma_para_comparacao(serie_original)
+        ra_digitado = "".join(ch for ch in nome_original if ch.isdigit())
+    
+        if ra_digitado and len(ra_digitado) >= 5:
+            por_ra = base[base["ra"] == ra_digitado]
+            if not por_ra.empty:
+                aluno = por_ra.iloc[0]
+                return {
+                    "nome": aluno.get("nome", ""),
+                    "serie": aluno.get("turma", ""),
+                    "ra": aluno.get("ra", ""),
+                    "score": 1.0,
+                    "status_busca": "RA encontrado no Supabase",
+                }
+    
+        if not nome_norm:
+            return None
+    
+        melhor = None
+        melhor_score = 0.0
+        melhor_serie_ok = False
+        melhor_status = ""
+    
+        tokens_digitados = [t for t in nome_aprox.split() if len(t) >= 2]
+        primeiro_digitado = tokens_digitados[0] if tokens_digitados else nome_aprox
+    
+        for _, aluno in base.iterrows():
+            nome_base = aluno.get("nome_norm", "")
+            turma_base = aluno.get("turma_norm", "")
+            if not nome_base:
+                continue
+    
+            serie_ok = True
+            if serie_norm:
+                serie_ok = serie_compativel_turma(serie_original, aluno.get("turma", "")) or serie_norm == turma_base
+    
+            nome_base_aprox = _nome_para_busca_aproximada(nome_base)
+            tokens_base = [t for t in nome_base_aprox.split() if len(t) >= 2]
+            primeiro_base = tokens_base[0] if tokens_base else nome_base_aprox
+    
+            score = max(
+                SequenceMatcher(None, nome_norm, nome_base).ratio(),
+                SequenceMatcher(None, nome_aprox, nome_base_aprox).ratio(),
+            )
+            status = "nome aproximado"
+    
+            if nome_base.startswith(nome_norm) or nome_base_aprox.startswith(nome_aprox):
+                score = max(score, 0.96)
+                status = "nome digitado é início do cadastro"
+            elif nome_norm in nome_base or nome_aprox in nome_base_aprox:
+                score = max(score, 0.90)
+                status = "nome digitado aparece no cadastro"
+    
+            score_primeiro_nome = SequenceMatcher(None, primeiro_digitado, primeiro_base).ratio() if primeiro_digitado and primeiro_base else 0
+            if score_primeiro_nome >= 0.72:
+                score = max(score, 0.74 + (score_primeiro_nome * 0.10))
+                status = "primeiro nome semelhante"
+    
+            if tokens_digitados and tokens_base:
+                intersecao = set(tokens_digitados) & set(tokens_base)
+                proporcao_tokens = len(intersecao) / max(len(set(tokens_digitados)), 1)
+                if proporcao_tokens >= 0.50:
+                    score = max(score, 0.78 + (proporcao_tokens * 0.10))
+                    status = "partes do nome coincidem"
+    
+            if serie_norm and serie_ok:
+                score += 0.18
+                status += " + turma compatível"
+            elif serie_norm and not serie_ok:
+                score -= 0.40
+                status += " + turma diferente"
+    
+            if score > melhor_score:
+                melhor_score = score
+                melhor = aluno
+                melhor_serie_ok = serie_ok
+                melhor_status = status
+    
+        limite = 0.58 if serie_norm and melhor_serie_ok else 0.76
+    
+        if melhor is None or melhor_score < limite:
+            return None
+    
+        return {
+            "nome": melhor.get("nome", ""),
+            "serie": melhor.get("turma", ""),
+            "ra": melhor.get("ra", ""),
+            "score": round(float(min(melhor_score, 1.0)), 3),
+            "status_busca": melhor_status or "Encontrado por aproximação",
+        }
+    
+    
+    def resolver_estudantes_tutoria(novos_estudantes: list, df_alunos: pd.DataFrame) -> tuple[list, list]:
+        """Resolve os estudantes digitados contra a lista ativa do Supabase."""
+        resolvidos = []
+        nao_encontrados = []
+        for item in novos_estudantes or []:
+            nome_digitado = str(item.get("nome", "")).strip()
+            serie_digitada = formatar_turma_eletiva(str(item.get("serie", "")).strip())
+            if not nome_digitado:
+                continue
+            encontrado = buscar_estudante_ativo_mais_proximo(nome_digitado, serie_digitada, df_alunos)
+            if encontrado:
+                resolvidos.append({
+                    "nome": encontrado["nome"],
+                    "serie": encontrado["serie"],
+                    "ra": encontrado.get("ra", ""),
+                    "nome_digitado": nome_digitado,
+                    "serie_digitada": serie_digitada,
+                    "score": encontrado.get("score", 0),
+                    "status_busca": encontrado.get("status_busca", "Encontrado por aproximação"),
+                })
+            else:
+                nao_encontrados.append({
+                    "nome": nome_digitado,
+                    "serie": serie_digitada,
+                    "status_busca": "Não encontrado entre estudantes ativos do Supabase",
+                })
+        return resolvidos, nao_encontrados
+    
+    
+    def montar_validacao_visual_tutoria(resolvidos: list, nao_encontrados: list) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """Monta tabelas visuais para conferência da lista importada/digitada."""
+        encontrados = []
+        for item in resolvidos or []:
+            score = float(item.get("score", 0) or 0)
+            encontrados.append({
+                "Digitado": item.get("nome_digitado", ""),
+                "Turma digitada": item.get("serie_digitada", ""),
+                "Encontrado no Supabase": item.get("nome", ""),
+                "Turma Supabase": item.get("serie", ""),
+                "RA": item.get("ra", ""),
+                "Confiança": f"{round(score * 100)}%",
+                "Como encontrou": item.get("status_busca", ""),
+            })
+        pendentes = []
+        for item in nao_encontrados or []:
+            pendentes.append({
+                "Digitado": item.get("nome", ""),
+                "Turma digitada": item.get("serie", ""),
+                "Situação": item.get("status_busca", "Não encontrado entre estudantes ativos do Supabase"),
+            })
+        return pd.DataFrame(encontrados), pd.DataFrame(pendentes)
+    
     page_header("🫂 Tutoria", "Cadastre professores, estudantes e espaços usados na tutoria", "#0f766e")
     TUTORIA = normalizar_base_tutoria(st.session_state.get("TUTORIA", {}))
     st.session_state.TUTORIA = TUTORIA
@@ -8715,6 +8924,7 @@ elif menu == "🫂 Tutoria":
                 "nome_digitado": item.get("nome_digitado", ""),
                 "serie_digitada": item.get("serie_digitada", ""),
                 "score": item.get("score", 0),
+                "status_busca": item.get("status_busca", ""),
             }
             existentes.append(novo_registro)
             inseridos.append(novo_registro)
@@ -8722,9 +8932,16 @@ elif menu == "🫂 Tutoria":
                 chaves_existentes.add(chave_ra)
             chaves_existentes.add(chave_nome)
 
+        df_ok, df_pendentes = montar_validacao_visual_tutoria(estudantes_resolvidos, nao_encontrados)
+        st.session_state["tutoria_validacao_ultimo"] = {
+            "responsavel": tutor_destino,
+            "encontrados": df_ok.to_dict("records") if not df_ok.empty else [],
+            "pendentes": df_pendentes.to_dict("records") if not df_pendentes.empty else [],
+        }
+
         if nao_encontrados:
             st.warning(
-                "Alguns estudantes não foram inseridos porque não foram encontrados como ativos no Supabase: "
+                "Alguns estudantes não foram inseridos porque não foram localizados com segurança entre os estudantes ativos do Supabase: "
                 + ", ".join([f"{a['nome']} ({a['serie']})".strip() for a in nao_encontrados[:10]])
             )
 
@@ -8761,6 +8978,22 @@ elif menu == "🫂 Tutoria":
     st.markdown("---")
     st.subheader("📝 Cadastro em Lista por Responsável")
     st.caption("Escolha o responsável e cole a lista inteira, como na eletiva.")
+
+    validacao_anterior = st.session_state.get("tutoria_validacao_ultimo")
+    if validacao_anterior:
+        with st.expander("🔎 Validação da última lista enviada", expanded=True):
+            st.caption(f"Responsável: {validacao_anterior.get('responsavel', '')}")
+            encontrados_df = pd.DataFrame(validacao_anterior.get("encontrados", []))
+            pendentes_df = pd.DataFrame(validacao_anterior.get("pendentes", []))
+            if not encontrados_df.empty:
+                st.success(f"{len(encontrados_df)} estudante(s) encontrados no Supabase e validados pela turma/nome aproximado.")
+                st.dataframe(encontrados_df, use_container_width=True, hide_index=True)
+            if not pendentes_df.empty:
+                st.warning(f"{len(pendentes_df)} estudante(s) precisam de conferência manual.")
+                st.dataframe(pendentes_df, use_container_width=True, hide_index=True)
+            if st.button("Limpar validação exibida", key="tutoria_limpar_validacao_ultimo"):
+                st.session_state.pop("tutoria_validacao_ultimo", None)
+                st.rerun()
     col_lista1, col_lista2 = st.columns([2, 1])
     with col_lista1:
         st.text_input(
