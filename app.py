@@ -4808,9 +4808,24 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
         except Exception:
             return padrao
 
+    def _normalizar_estado_date_input(chave: str, padrao):
+        """Evita que valores NaT/Timestamp inválidos no session_state derrubem o date_input."""
+        if chave not in st.session_state:
+            return
+        try:
+            valor_normalizado = _parse_data_relatorio(st.session_state.get(chave), padrao)
+            st.session_state[chave] = valor_normalizado
+        except Exception:
+            st.session_state[chave] = padrao
+
     hoje = datetime.now().date()
     data_inicio_padrao = _parse_data_relatorio(registro_relatorio.get("data_inicio"), hoje - timedelta(days=30))
     data_fim_padrao = _parse_data_relatorio(registro_relatorio.get("data_fim"), hoje)
+    if data_fim_padrao < data_inicio_padrao:
+        data_fim_padrao = data_inicio_padrao
+
+    _normalizar_estado_date_input("relatorio_data_inicio", data_inicio_padrao)
+    _normalizar_estado_date_input("relatorio_data_fim", data_fim_padrao)
 
     professor_autor_padrao = str(registro_relatorio.get("professor_autor", "")).strip()
     professor_resp_padrao = str(registro_relatorio.get("professor_responsavel_sala", "")).strip()
