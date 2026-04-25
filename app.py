@@ -4840,17 +4840,23 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
     col_form_1, col_form_2 = st.columns(2)
     with col_form_1:
         editor_sel = st.selectbox("👨‍🏫 Professor que está editando", opcoes_professores if opcoes_professores else ["Digitar manualmente"], index=idx_autor, key="relatorio_editor_sel")
-        editor_manual = st.text_input(
-            "Nome do professor editor",
-            value=professor_autor_padrao if editor_sel == "Digitar manualmente" or not professores_lista else "",
-            key="relatorio_editor_manual"
-        )
+        if editor_sel == "Digitar manualmente" or not professores_lista:
+            editor_manual = st.text_input(
+                "Nome do professor editor",
+                value=professor_autor_padrao,
+                key="relatorio_editor_manual"
+            )
+        else:
+            editor_manual = ""
         professor_resp_sel = st.selectbox("🪪 Professor responsável pela sala", opcoes_professores if opcoes_professores else ["Digitar manualmente"], index=idx_resp, key="relatorio_prof_resp_sel")
-        professor_resp_manual = st.text_input(
-            "Nome do responsável da sala",
-            value=professor_resp_padrao if professor_resp_sel == "Digitar manualmente" or not professores_lista else "",
-            key="relatorio_prof_resp_manual"
-        )
+        if professor_resp_sel == "Digitar manualmente" or not professores_lista:
+            professor_resp_manual = st.text_input(
+                "Nome do responsável da sala",
+                value=professor_resp_padrao,
+                key="relatorio_prof_resp_manual"
+            )
+        else:
+            professor_resp_manual = ""
         data_inicio = st.date_input("📅 Data inicial", value=data_inicio_padrao, key="relatorio_data_inicio")
         frequencia = st.number_input(
             "📊 Frequência (%)",
@@ -4862,11 +4868,14 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
         )
     with col_form_2:
         coordenador_sel = st.selectbox("🧭 Coordenador(a) da sala", opcoes_coord, index=idx_coord, key="relatorio_coord_sel")
-        coordenador_manual = st.text_input(
-            "Nome do coordenador(a)",
-            value=coordenador_padrao if coordenador_sel == "Digitar manualmente" else "",
-            key="relatorio_coord_manual"
-        )
+        if coordenador_sel == "Digitar manualmente":
+            coordenador_manual = st.text_input(
+                "Nome do coordenador(a)",
+                value=coordenador_padrao,
+                key="relatorio_coord_manual"
+            )
+        else:
+            coordenador_manual = ""
         componente_curricular = st.text_input(
             "📘 Componente curricular / área",
             value=str(registro_relatorio.get("componente_curricular", "")).strip(),
