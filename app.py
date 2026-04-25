@@ -9026,6 +9026,101 @@ elif menu == "🫂 Tutoria":
                 unsafe_allow_html=True
             )
 
+    # ======================================================
+    # TUTORIA - CONTROLE DE DUPLICIDADE
+    # Objetivo: impedir que um estudante já vinculado a um tutor
+    # apareça disponível para outro tutor, além de apontar registros
+    # duplicados já existentes para correção manual.
+    # ======================================================
+    def _nome_fonetico_seguro_tutoria(valor: str) -> str:
+        try:
+            return normalizar_nome_fonetico(valor)
+        except Exception:
+            return normalizar_texto(valor)
+
+    def _chaves_estudante_tutoria(item: dict) -> set[str]:
+        """Gera chaves de comparação por RA, nome normalizado e nome fonético."""
+        ra = "".join(ch for ch in str(item.get("ra", "")) if ch.isdigit())
+        nome = str(item.get("nome", item.get("Nome", item.get("aluno", "")))).strip()
+        serie = formatar_turma_eletiva(str(item.get("serie", item.get("turma", item.get("Turma", "")))).strip())
+        turma_cmp = turma_para_comparacao(serie)
+        chaves = set()
+        if ra:
+            chaves.add(f"RA|{ra}")
+        if nome:
+            chaves.add(f"NOME|{normalizar_texto(nome)}|{turma_cmp}")
+            chaves.add(f"FON|{_nome_fonetico_seguro_tutoria(nome)}|{turma_cmp}")
+        return {c for c in chaves if c and not c.endswith("||")}
+
+    def _mapear_estudantes_vinculados_tutoria(tutoria_dict: dict) -> dict:
+        """Retorna chave -> lista de vínculos encontrados em todas as listas de tutoria."""
+        mapa = {}
+        for tutor_nome, dados_tutor in normalizar_base_tutoria(tutoria_dict).items():
+            for aluno_item in dados_tutor.get("alunos", []) or []:
+                registro = {
+                    "tutor": tutor_nome,
+                    "nome": str(aluno_item.get("nome", "")).strip(),
+                    "serie": formatar_turma_eletiva(aluno_item.get("serie", "")),
+                    "ra": "".join(ch for ch in str(aluno_item.get("ra", "")) if ch.isdigit()),
+                }
+                for chave in _chaves_estudante_tutoria(aluno_item):
+                    mapa.setdefault(chave, []).append(registro)
+        return mapa
+
+    def _vinculos_do_estudante_tutoria(item: dict, tutoria_dict: dict) -> list[dict]:
+        mapa = _mapear_estudantes_vinculados_tutoria(tutoria_dict)
+        encontrados = []
+        vistos = set()
+        for chave in _chaves_estudante_tutoria(item):
+            for vinculo in mapa.get(chave, []):
+                id_vinculo = (
+                    vinculo.get("tutor", ""),
+                    vinculo.get("ra", ""),
+                    normalizar_texto(vinculo.get("nome", "")),
+                    turma_para_comparacao(vinculo.get("serie", "")),
+                )
+                if id_vinculo not in vistos:
+                    encontrados.append(vinculo)
+                    vistos.add(id_vinculo)
+        return encontrados
+
+    def _estudante_ja_tem_tutor(item: dict, tutoria_dict: dict, tutor_permitido: str | None = None) -> tuple[bool, list[dict]]:
+        """Retorna True quando o estudante já está em qualquer lista de tutoria."""
+        vinculos = _vinculos_do_estudante_tutoria(item, tutoria_dict)
+        if tutor_permitido:
+            vinculos = [v for v in vinculos if str(v.get("tutor", "")).strip() != str(tutor_permitido).strip()]
+        return bool(vinculos), vinculos
+
+    def _localizar_duplicidades_tutoria(tutoria_dict: dict) -> pd.DataFrame:
+        """Monta uma tabela de estudantes que aparecem em mais de uma lista."""
+        mapa = _mapear_estudantes_vinculados_tutoria(tutoria_dict)
+        linhas = []
+        chaves_processadas = set()
+        for chave, vinculos in mapa.items():
+            tutores = sorted({str(v.get("tutor", "")).strip() for v in vinculos if str(v.get("tutor", "")).strip()})
+            if len(tutores) <= 1:
+                continue
+            assinatura = tuple(tutores) + (chave,)
+            if assinatura in chaves_processadas:
+                continue
+            chaves_processadas.add(assinatura)
+            primeiro = vinculos[0] if vinculos else {}
+            linhas.append({
+                "Estudante": primeiro.get("nome", ""),
+                "Turma": primeiro.get("serie", ""),
+                "RA": primeiro.get("ra", ""),
+                "Aparece em": ", ".join(tutores),
+                "Quantidade de listas": len(tutores),
+            })
+        return pd.DataFrame(linhas)
+
+    duplicidades_tutoria_df = _localizar_duplicidades_tutoria(TUTORIA)
+    if not duplicidades_tutoria_df.empty:
+        st.warning(f"⚠️ Existem {len(duplicidades_tutoria_df)} estudante(s) em duplicidade nas listas de tutoria.")
+        with st.expander("🔁 Ver estudantes em duplicidade", expanded=False):
+            st.dataframe(duplicidades_tutoria_df, use_container_width=True, hide_index=True)
+            st.caption("Remova o estudante da lista incorreta antes de tentar vinculá-lo a outro responsável.")
+
     def _adicionar_estudantes_tutoria(novos_estudantes: list, origem: str, tutor_destino: str | None = None):
         tutor_destino = str(tutor_destino or tutor_sel).strip()
         registro = TUTORIA.setdefault(tutor_destino, estrutura_tutoria_vazia(nome=tutor_destino))
@@ -9044,6 +9139,21 @@ elif menu == "🫂 Tutoria":
             logger.warning(f"Nao foi possivel recarregar alunos para validacao da tutoria: {e}")
 
         estudantes_resolvidos, nao_encontrados = resolver_estudantes_tutoria(novos_estudantes, df_alunos_validacao)
+
+        bloqueados_por_tutor = []
+        estudantes_liberados = []
+        for estudante_item in estudantes_resolvidos:
+            ja_tem, vinculos = _estudante_ja_tem_tutor(estudante_item, TUTORIA, tutor_permitido=tutor_destino)
+            if ja_tem:
+                bloqueados_por_tutor.append({
+                    "nome": estudante_item.get("nome", ""),
+                    "serie": estudante_item.get("serie", ""),
+                    "ra": estudante_item.get("ra", ""),
+                    "tutores": ", ".join(sorted({v.get("tutor", "") for v in vinculos if v.get("tutor", "")})),
+                })
+                continue
+            estudantes_liberados.append(estudante_item)
+        estudantes_resolvidos = estudantes_liberados
 
         chaves_existentes = set()
         for item in existentes:
@@ -9097,6 +9207,14 @@ elif menu == "🫂 Tutoria":
                 "Alguns estudantes ficaram para conferência manual. Confira se existem no Supabase e se a turma está correta: "
                 + ", ".join([f"{a['nome']} ({a['serie']})".strip() for a in nao_encontrados[:10]])
             )
+
+        if bloqueados_por_tutor:
+            nomes_bloqueados = ", ".join([
+                f"{a['nome']} ({a['serie']}) já está com {a['tutores']}"
+                for a in bloqueados_por_tutor[:10]
+            ])
+            st.warning("Estudantes não inseridos porque já possuem tutor: " + nomes_bloqueados)
+            st.session_state["tutoria_bloqueados_ultimo"] = bloqueados_por_tutor
 
         if not inseridos:
             return 0
@@ -9265,6 +9383,7 @@ elif menu == "🫂 Tutoria":
     def _adicionar_na_lista_temp(itens: list[dict]) -> int:
         existentes = {_chave_aluno_temp(item) for item in st.session_state[chave_lista_temp]}
         adicionados = 0
+        bloqueados = []
         for item in itens or []:
             nome = str(item.get("nome", "")).strip()
             turma = formatar_turma_eletiva(str(item.get("serie", item.get("turma", ""))).strip())
@@ -9272,12 +9391,27 @@ elif menu == "🫂 Tutoria":
             if not nome:
                 continue
             novo = {"nome": nome, "serie": turma, "ra": ra}
+            ja_tem, vinculos = _estudante_ja_tem_tutor(novo, TUTORIA)
+            if ja_tem:
+                bloqueados.append({
+                    "nome": nome,
+                    "serie": turma,
+                    "ra": ra,
+                    "tutores": ", ".join(sorted({v.get("tutor", "") for v in vinculos if v.get("tutor", "")})),
+                })
+                continue
             chave = _chave_aluno_temp(novo)
             if chave in existentes:
                 continue
             st.session_state[chave_lista_temp].append(novo)
             existentes.add(chave)
             adicionados += 1
+        if bloqueados:
+            st.session_state["tutoria_bloqueados_temp"] = bloqueados
+            st.warning(
+                "Estudantes não adicionados porque já estão em outra lista: "
+                + ", ".join([f"{b['nome']} ({b['serie']}) — {b['tutores']}" for b in bloqueados[:10]])
+            )
         return adicionados
 
     # ------------------------------------------------------
@@ -9338,7 +9472,25 @@ elif menu == "🫂 Tutoria":
 
                 df_resultado = df_resultado[df_resultado["nome"].apply(_combina_nome_busca)]
 
-            df_resultado = df_resultado.drop_duplicates(subset=["nome", "turma_padrao", "ra"]).head(80)
+            df_resultado = df_resultado.drop_duplicates(subset=["nome", "turma_padrao", "ra"])
+
+            if not df_resultado.empty:
+                def _linha_disponivel_para_tutoria(linha):
+                    candidato = {
+                        "nome": linha.get("nome", ""),
+                        "serie": linha.get("turma_padrao", linha.get("turma", "")),
+                        "ra": linha.get("ra", ""),
+                    }
+                    ja_tem, _ = _estudante_ja_tem_tutor(candidato, TUTORIA)
+                    return not ja_tem
+
+                total_antes_disponibilidade = len(df_resultado)
+                df_resultado = df_resultado[df_resultado.apply(_linha_disponivel_para_tutoria, axis=1)]
+                total_ocultos = total_antes_disponibilidade - len(df_resultado)
+                if total_ocultos > 0:
+                    st.info(f"{total_ocultos} estudante(s) foram ocultados porque já possuem tutor em outra lista.")
+
+            df_resultado = df_resultado.head(80)
 
             mapa_opcoes = {}
             opcoes = []
