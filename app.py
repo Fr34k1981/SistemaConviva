@@ -2567,6 +2567,51 @@ def resolver_estudantes_tutoria(novos_estudantes: list, df_alunos: pd.DataFrame)
             nao_encontrados.append({"nome": nome_digitado, "serie": serie_digitada, "motivo": "Nao localizado com seguranca entre estudantes ativos do Supabase"})
     return resolvidos, nao_encontrados
 
+# ======================================================
+# TUTORIA - ESPACOS PADRAO
+# ======================================================
+# Espacos fisicos separados do nome do responsavel.
+# Ex.: responsavel = Patricia | espaco = Sala 1
+TUTORIA_ESPACOS_PADRAO = [
+    "Sala 1",
+    "Sala 2",
+    "Sala 3",
+    "Sala 4",
+    "Sala de Leitura",
+    "Sala 5",
+    "Sala 6",
+    "Sala de video",
+    "Sala 7",
+    "Sala 8",
+    "Sala 9",
+    "Sala 10",
+    "Sala 11",
+    "Patio",
+    "Direcao",
+    "Coordenacao",
+    "Informatica",
+]
+
+TUTORIA_RESPONSAVEIS_REFERENCIA = {
+    "Sala 1": "Patricia",
+    "Sala 2": "Veronica",
+    "Sala 3": "Fagna",
+    "Sala 4": "Elaine",
+    "Sala de Leitura": "Giovana",
+    "Sala 5": "Fernanda",
+    "Sala 6": "Lourdes",
+    "Sala de video": "Anderson",
+    "Sala 7": "Shirley",
+    "Sala 8": "Rosemeire",
+    "Sala 9": "Rosangela",
+    "Sala 10": "Solange",
+    "Sala 11": "Silvana/Jaqueline",
+    "Patio": "Itatiara / Lucineide / Guilherme C.",
+    "Direcao": "Renan",
+    "Coordenacao": "Aleandro",
+    "Informatica": "Erika",
+}
+
 def normalizar_espaco_tutoria(valor: str) -> str:
     """
     Padroniza o campo de espaço da tutoria.
@@ -8488,52 +8533,70 @@ elif menu == "🫂 Tutoria":
 
     def _normalizar_linha_lista_tutoria(linha: str, serie_padrao: str = ""):
         """
-        Lê uma linha colada na tutoria e identifica nome + turma.
+        Le uma linha colada na tutoria e separa automaticamente NOME e TURMA.
+
         Aceita:
         1<TAB>Alice Elizabete<TAB>9 A
+        1 Alice Elizabete 9 A
         2 Allana 9A
+        20 Gabriel Costa 9o A
+        Gabriel Costa 9o A
         Alice Elizabete; 9 A
-        Alice Elizabete - 9º A
+        Alice Elizabete - 9o A
+
+        Regra principal:
+        - remove numeracao inicial da lista;
+        - considera turma quando ela aparece no FINAL da linha;
+        - tudo que vem antes da turma vira nome.
         """
-        bruto = str(linha or "").strip().lstrip("•-").strip()
+        bruto = str(linha or "").strip()
+        bruto = bruto.replace("\u00a0", " ").strip().lstrip("•-").strip()
         if not bruto:
             return None
 
-        serie = formatar_turma_eletiva(serie_padrao)
+        serie_padrao_formatada = formatar_turma_eletiva(serie_padrao)
 
         def _parece_turma(valor: str) -> bool:
             valor = str(valor or "").strip()
             if not valor:
                 return False
-            return bool(re.fullmatch(r"\d{1,2}\s*(?:º|ª)?\s*(?:ANO|SERIE|SÉRIE)?\s*[A-Za-z]?", valor, flags=re.I))
+            valor = valor.replace("º", " º ").replace("ª", " ª ")
+            valor = re.sub(r"\s+", " ", valor).strip()
+            padrao = r"^\d{1,2}\s*(?:º|ª|O|o)?\s*(?:ANO|ANOS|SERIE|SÉRIE)?\s*[A-Za-z]?$"
+            return bool(re.fullmatch(padrao, valor, flags=re.I))
 
         def _limpar_numero_lista(valor: str) -> str:
-            return re.sub(r"^\s*\d{1,3}\s*[.)ºª-]?\s+", "", str(valor or "")).strip()
+            texto = str(valor or "").strip()
+            return re.sub(r"^\s*\d{1,3}\s*[.)ºª-]?\s+", "", texto).strip()
+
+        def _limpar_nome(valor: str) -> str:
+            texto = _limpar_numero_lista(valor)
+            texto = re.sub(r"\s+", " ", texto).strip(" -;|,\t")
+            return texto
 
         def _montar(nome: str, turma: str = ""):
-            nome = _limpar_numero_lista(nome)
-            turma_final = formatar_turma_eletiva(turma or serie)
+            nome = _limpar_nome(nome)
+            turma_final = formatar_turma_eletiva(turma or serie_padrao_formatada)
             if not nome:
                 return None
             return {"nome": nome, "serie": turma_final}
 
-        # Modelo de planilha: número | nome | turma
+        # 1) Modelo de planilha: numero | nome | turma, geralmente por TAB.
         if "\t" in bruto:
             partes = [p.strip() for p in bruto.split("\t") if str(p).strip()]
-            if len(partes) >= 3:
-                if partes[0].isdigit():
-                    return _montar(partes[1], partes[2])
-                if _parece_turma(partes[-1]):
-                    return _montar(" ".join(partes[:-1]), partes[-1])
-                return _montar(partes[0], partes[1] if len(partes) > 1 else serie)
-            if len(partes) == 2:
-                if partes[0].isdigit():
-                    return _montar(partes[1], serie)
-                if _parece_turma(partes[1]):
-                    return _montar(partes[0], partes[1])
-                return _montar(" ".join(partes), serie)
+            if len(partes) >= 3 and re.fullmatch(r"\d{1,3}", partes[0]):
+                return _montar(partes[1], partes[2])
+            if len(partes) >= 2 and _parece_turma(partes[-1]):
+                nome_partes = partes[:-1]
+                if nome_partes and re.fullmatch(r"\d{1,3}", nome_partes[0]):
+                    nome_partes = nome_partes[1:]
+                return _montar(" ".join(nome_partes), partes[-1])
+            if len(partes) >= 2:
+                if re.fullmatch(r"\d{1,3}", partes[0]):
+                    return _montar(" ".join(partes[1:]), serie_padrao_formatada)
+                return _montar(" ".join(partes), serie_padrao_formatada)
 
-        # Separadores comuns
+        # 2) Separadores explicitos.
         for sep in [";", "|", " – ", " - ", ","]:
             if sep in bruto:
                 partes = [p.strip() for p in bruto.split(sep) if p.strip()]
@@ -8542,27 +8605,31 @@ elif menu == "🫂 Tutoria":
                 if len(partes) >= 2:
                     return _montar(partes[0], partes[1])
 
-        # Modelo com espaços: 2 Allana 9A / 20 Gabriel Costa 9º A
+        # 3) Modelo com tudo na mesma linha:
+        #    "1 Alice Elizabete 9 A", "2 Allana 9A", "20 Gabriel Costa 9o A".
         sem_numero = _limpar_numero_lista(bruto)
-        m = re.match(r"^(?P<nome>.+?)\s+(?P<turma>\d{1,2}\s*(?:º|ª)?\s*[A-Za-z])$", sem_numero, flags=re.I)
+        sem_numero = re.sub(r"\s+", " ", sem_numero).strip()
+
+        m = re.match(
+            r"^(?P<nome>.+?)\s+(?P<turma>\d{1,2}\s*(?:º|ª|O|o)?\s*(?:ANO|ANOS|SERIE|SÉRIE)?\s*[A-Za-z])\s*$",
+            sem_numero,
+            flags=re.I,
+        )
         if m:
             return _montar(m.group("nome"), m.group("turma"))
 
-        return _montar(sem_numero, serie)
+        # 4) Ultima tentativa: se os dois ultimos tokens formarem turma, separa.
+        tokens = sem_numero.split()
+        if len(tokens) >= 2:
+            ultimo = tokens[-1]
+            penultimo = tokens[-2]
+            if _parece_turma(ultimo):
+                return _montar(" ".join(tokens[:-1]), ultimo)
+            if _parece_turma(f"{penultimo} {ultimo}"):
+                return _montar(" ".join(tokens[:-2]), f"{penultimo} {ultimo}")
 
-    def _apagar_registro_supabase_tutoria(tutor: str, nome: str, serie: str = ""):
-        tutor_q = requests.utils.quote(str(tutor), safe="")
-        nome_q = requests.utils.quote(str(nome), safe="")
-        path = f"tutoria?professora=eq.{tutor_q}&nome_aluno=eq.{nome_q}"
-        if str(serie).strip():
-            serie_q = requests.utils.quote(str(serie), safe="")
-            path += f"&serie=eq.{serie_q}"
-        _supabase_request("DELETE", path)
+        return _montar(sem_numero, serie_padrao_formatada)
 
-    st.markdown("""
-    <div style="
-        background:linear-gradient(135deg,#ecfeff,#ccfbf1);
-        border:1.5px solid #5eead4; border-left:5px solid #0f766e;
         border-radius:16px; padding:1.1rem 1.5rem; margin-bottom:1.25rem;
         box-shadow:0 4px 12px rgba(15,118,110,0.08);
     ">
