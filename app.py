@@ -2813,12 +2813,16 @@ def consolidar_categoria_ocorrencia(infracoes: list[str]) -> str:
 # ======================================================
 
 RELATORIOS_LOCAL_PATH = os.path.join(os.getcwd(), "data", "relatorios_estudantes_local.json")
+TURMAS_CONFIG_LOCAL_PATH = os.path.join(os.getcwd(), "data", "turmas_config_local.json")
+
+def _garantir_arquivo_json_local(caminho: str, padrao):
+    os.makedirs(os.path.dirname(caminho), exist_ok=True)
+    if not os.path.exists(caminho):
+        with open(caminho, "w", encoding="utf-8") as arquivo:
+            json.dump(padrao, arquivo, ensure_ascii=False, indent=2)
 
 def _garantir_arquivo_relatorios_local():
-    os.makedirs(os.path.dirname(RELATORIOS_LOCAL_PATH), exist_ok=True)
-    if not os.path.exists(RELATORIOS_LOCAL_PATH):
-        with open(RELATORIOS_LOCAL_PATH, "w", encoding="utf-8") as arquivo:
-            json.dump([], arquivo, ensure_ascii=False, indent=2)
+    _garantir_arquivo_json_local(RELATORIOS_LOCAL_PATH, [])
 
 def _carregar_relatorios_local() -> list[dict]:
     _garantir_arquivo_relatorios_local()
@@ -2834,6 +2838,116 @@ def _salvar_relatorios_local(registros: list[dict]) -> bool:
     with open(RELATORIOS_LOCAL_PATH, "w", encoding="utf-8") as arquivo:
         json.dump(registros, arquivo, ensure_ascii=False, indent=2)
     return True
+
+def normalizar_config_turmas(config_raw) -> dict:
+    base = {}
+    if isinstance(config_raw, list):
+        itens = config_raw
+    elif isinstance(config_raw, dict):
+        itens = [{"turma": chave, **(valor if isinstance(valor, dict) else {})} for chave, valor in config_raw.items()]
+    else:
+        itens = []
+    for item in itens:
+        turma = str(item.get("turma", "")).strip()
+        if not turma:
+            continue
+        base[turma] = {
+            "turma": turma,
+            "coordenador_sala": str(item.get("coordenador_sala", "")).strip(),
+            "updated_at": str(item.get("updated_at", datetime.now().isoformat())).strip() or datetime.now().isoformat(),
+        }
+    return dict(sorted(base.items()))
+
+def _carregar_turmas_config_local() -> dict:
+    _garantir_arquivo_json_local(TURMAS_CONFIG_LOCAL_PATH, {})
+    try:
+        with open(TURMAS_CONFIG_LOCAL_PATH, "r", encoding="utf-8") as arquivo:
+            return normalizar_config_turmas(json.load(arquivo))
+    except Exception:
+        return {}
+
+def _salvar_turmas_config_local(config: dict) -> bool:
+    _garantir_arquivo_json_local(TURMAS_CONFIG_LOCAL_PATH, {})
+    with open(TURMAS_CONFIG_LOCAL_PATH, "w", encoding="utf-8") as arquivo:
+        json.dump(normalizar_config_turmas(config), arquivo, ensure_ascii=False, indent=2)
+    return True
+
+def _limpar_cache_turmas_config():
+    try:
+        carregar_config_turmas.clear()
+    except Exception:
+        pass
+
+@st.cache_data(ttl=300)
+def carregar_config_turmas() -> pd.DataFrame:
+    if SUPABASE_VALID:
+        try:
+            return _supabase_get_dataframe("turmas_config?select=*&order=turma.asc", "carregar configuração das turmas")
+        except Exception as e:
+            logger.warning(f"Fallback local da configuração de turmas ativado: {e}")
+    return pd.DataFrame(list(_carregar_turmas_config_local().values()))
+
+def salvar_config_turma(turma: str, coordenador_sala: str) -> tuple[bool, str]:
+    turma = str(turma).strip()
+    coordenador_sala = str(coordenador_sala).strip()
+    if not turma:
+        raise ErroValidacao("turma", "Informe a turma para salvar a configuração.")
+
+    payload = {
+        "turma": turma,
+        "coordenador_sala": coordenador_sala,
+        "updated_at": datetime.now().isoformat(),
+    }
+
+    if SUPABASE_VALID:
+        try:
+            _supabase_request("DELETE", f"turmas_config?turma=eq.{requests.utils.quote(turma, safe='')}")
+            _supabase_request("POST", "turmas_config", json=payload)
+            _limpar_cache_turmas_config()
+            return True, "supabase"
+        except Exception as e:
+            logger.warning(f"Salvando configuração de turma em base local por indisponibilidade do Supabase: {e}")
+
+    config = _carregar_turmas_config_local()
+    config[turma] = payload
+    _salvar_turmas_config_local(config)
+    _limpar_cache_turmas_config()
+    return True, "local"
+
+def renomear_config_turma(turma_antiga: str, turma_nova: str):
+    turma_antiga = str(turma_antiga).strip()
+    turma_nova = str(turma_nova).strip()
+    if not turma_antiga or not turma_nova or turma_antiga == turma_nova:
+        return
+    config_df = carregar_config_turmas()
+    coordenador = ""
+    if not config_df.empty and "turma" in config_df.columns:
+        config_filtrada = config_df[config_df["turma"].astype(str).str.strip() == turma_antiga]
+        if not config_filtrada.empty:
+            coordenador = str(config_filtrada.iloc[0].get("coordenador_sala", "")).strip()
+    if coordenador:
+        salvar_config_turma(turma_nova, coordenador)
+        excluir_config_turma(turma_antiga)
+
+def excluir_config_turma(turma: str):
+    turma = str(turma).strip()
+    if not turma:
+        return False, "local"
+    if SUPABASE_VALID:
+        try:
+            sucesso = _supabase_mutation("DELETE", f"turmas_config?turma=eq.{turma}", None, "excluir configuração da turma")
+            if sucesso:
+                _limpar_cache_turmas_config()
+                return True, "supabase"
+        except Exception as e:
+            logger.warning(f"Excluindo configuração de turma em base local por indisponibilidade do Supabase: {e}")
+    config = _carregar_turmas_config_local()
+    if turma in config:
+        del config[turma]
+        _salvar_turmas_config_local(config)
+        _limpar_cache_turmas_config()
+        return True, "local"
+    return False, "local"
 
 def _limpar_cache_relatorios():
     try:
@@ -4759,6 +4873,12 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
                 if "COORDEN" in normalizar_texto(row.get("cargo", ""))
                 and str(row.get("nome", "")).strip()
             ])
+    df_config_turmas = carregar_config_turmas()
+    coordenador_auto_turma = ""
+    if not df_config_turmas.empty and "turma" in df_config_turmas.columns:
+        config_atual = df_config_turmas[df_config_turmas["turma"].astype(str).str.strip() == turma_sel]
+        if not config_atual.empty:
+            coordenador_auto_turma = str(config_atual.iloc[0].get("coordenador_sala", "")).strip()
 
     modo_relatorio = "Novo relatório"
     if not relatorios_turma.empty:
@@ -4828,14 +4948,10 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
     _normalizar_estado_date_input("relatorio_data_fim", data_fim_padrao)
 
     professor_autor_padrao = str(registro_relatorio.get("professor_autor", "")).strip()
-    professor_resp_padrao = str(registro_relatorio.get("professor_responsavel_sala", "")).strip()
-    coordenador_padrao = str(registro_relatorio.get("coordenador_sala", "")).strip()
+    coordenador_padrao = coordenador_auto_turma or str(registro_relatorio.get("coordenador_sala", "")).strip()
 
     opcoes_professores = professores_lista + (["Digitar manualmente"] if professores_lista else [])
     idx_autor = opcoes_professores.index(professor_autor_padrao) if professor_autor_padrao in opcoes_professores else (len(opcoes_professores) - 1 if opcoes_professores else 0)
-    idx_resp = opcoes_professores.index(professor_resp_padrao) if professor_resp_padrao in opcoes_professores else (len(opcoes_professores) - 1 if opcoes_professores else 0)
-    opcoes_coord = coordenadores_lista + (["Digitar manualmente"] if coordenadores_lista else ["Digitar manualmente"])
-    idx_coord = opcoes_coord.index(coordenador_padrao) if coordenador_padrao in opcoes_coord else (len(opcoes_coord) - 1 if opcoes_coord else 0)
 
     col_form_1, col_form_2 = st.columns(2)
     with col_form_1:
@@ -4848,15 +4964,6 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
             )
         else:
             editor_manual = ""
-        professor_resp_sel = st.selectbox("🪪 Professor responsável pela sala", opcoes_professores if opcoes_professores else ["Digitar manualmente"], index=idx_resp, key="relatorio_prof_resp_sel")
-        if professor_resp_sel == "Digitar manualmente" or not professores_lista:
-            professor_resp_manual = st.text_input(
-                "Nome do responsável da sala",
-                value=professor_resp_padrao,
-                key="relatorio_prof_resp_manual"
-            )
-        else:
-            professor_resp_manual = ""
         data_inicio = st.date_input("📅 Data inicial", value=data_inicio_padrao, key="relatorio_data_inicio")
         frequencia = st.number_input(
             "📊 Frequência (%)",
@@ -4867,15 +4974,16 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
             key="relatorio_frequencia"
         )
     with col_form_2:
-        coordenador_sel = st.selectbox("🧭 Coordenador(a) da sala", opcoes_coord, index=idx_coord, key="relatorio_coord_sel")
-        if coordenador_sel == "Digitar manualmente":
-            coordenador_manual = st.text_input(
-                "Nome do coordenador(a)",
-                value=coordenador_padrao,
-                key="relatorio_coord_manual"
-            )
+        st.text_input(
+            "🧭 Coordenador(a) da sala",
+            value=coordenador_padrao,
+            disabled=True,
+            key="relatorio_coord_auto"
+        )
+        if not coordenador_padrao:
+            st.caption("Cadastre o coordenador desta turma em '📋 Gerenciar Turmas' para preenchimento automático.")
         else:
-            coordenador_manual = ""
+            st.caption("Coordenador preenchido automaticamente pela turma selecionada.")
         componente_curricular = st.text_input(
             "📘 Componente curricular / área",
             value=str(registro_relatorio.get("componente_curricular", "")).strip(),
@@ -4895,8 +5003,7 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
         )
 
     professor_editor = editor_manual.strip() if editor_sel == "Digitar manualmente" or not professores_lista else editor_sel
-    professor_responsavel = professor_resp_manual.strip() if professor_resp_sel == "Digitar manualmente" or not professores_lista else professor_resp_sel
-    coordenador_sala = coordenador_manual.strip() if coordenador_sel == "Digitar manualmente" else coordenador_sel
+    coordenador_sala = coordenador_padrao.strip()
 
     pontos_automaticos = gerar_pontos_atencao_automaticos(df_ocorrencias, turma_sel, aluno_ra, aluno_nome, data_inicio, data_fim)
     if pontos_automaticos:
@@ -4958,8 +5065,8 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
         if st.button("💾 Salvar relatório", type="primary", use_container_width=True, key="relatorio_salvar_btn"):
             if not professor_editor:
                 st.error("Informe o professor que está registrando a edição.")
-            elif not professor_responsavel:
-                st.error("Informe o professor responsável pela sala.")
+            elif not coordenador_sala:
+                st.error("Cadastre o coordenador desta turma em '📋 Gerenciar Turmas' antes de salvar o relatório.")
             elif indicacao_grave and not descricao_ponto_grave.strip():
                 st.error("Descreva o ponto grave sinalizado pelo professor.")
             elif data_fim < data_inicio:
@@ -4972,7 +5079,7 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
                     "data_inicio": str(data_inicio),
                     "data_fim": str(data_fim),
                     "professor_autor": str(registro_relatorio.get("professor_autor", professor_editor)).strip() or professor_editor,
-                    "professor_responsavel_sala": professor_responsavel,
+                    "professor_responsavel_sala": "",
                     "coordenador_sala": coordenador_sala,
                     "componente_curricular": componente_curricular,
                     "situacao_geral": situacao_geral,
@@ -5036,7 +5143,7 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
         colunas_relatorio = [
             coluna for coluna in [
                 "id", "aluno", "ra", "data_inicio", "data_fim", "situacao_geral",
-                "professor_responsavel_sala", "coordenador_sala", "ultima_edicao_por", "updated_at", "alerta"
+                "coordenador_sala", "ultima_edicao_por", "updated_at", "alerta"
             ] if coluna in df_lista.columns
         ]
         st.dataframe(df_lista[colunas_relatorio].sort_values(["data_fim", "aluno"], ascending=[False, True]), use_container_width=True, hide_index=True)
@@ -5304,6 +5411,22 @@ elif "GERENCIAR TURMAS" in normalizar_texto(menu):
     if df_alunos.empty:
         st.info("📭 Nenhuma turma cadastrada. Use '📥 Importar Alunos' para começar.")
     else:
+        df_config_turmas = carregar_config_turmas()
+        mapa_coord_turma = {}
+        if not df_config_turmas.empty and "turma" in df_config_turmas.columns:
+            for _, cfg in df_config_turmas.iterrows():
+                turma_cfg = str(cfg.get("turma", "")).strip()
+                if turma_cfg:
+                    mapa_coord_turma[turma_cfg] = str(cfg.get("coordenador_sala", "")).strip()
+        coordenadores_disponiveis = []
+        if not df_professores.empty and "cargo" in df_professores.columns:
+            coordenadores_disponiveis = sorted([
+                str(row.get("nome", "")).strip()
+                for _, row in df_professores.iterrows()
+                if "COORDEN" in normalizar_texto(row.get("cargo", ""))
+                and str(row.get("nome", "")).strip()
+            ])
+
         st.markdown("""
         <div style="display:flex;align-items:center;gap:0.5rem;margin:0.5rem 0 0.75rem 0;padding-bottom:0.5rem;border-bottom:2px solid #e2e8f0;position:relative;">
             <div style="position:absolute;bottom:-2px;left:0;width:45px;height:2px;background:linear-gradient(90deg,#059669,transparent);border-radius:4px;"></div>
@@ -5329,6 +5452,7 @@ elif "GERENCIAR TURMAS" in normalizar_texto(menu):
                         <div>
                             <div style="font-family:'Nunito',sans-serif;font-weight:700;font-size:1rem;color:#0f172a;">{row['turma']}</div>
                             <div style="font-size:0.78rem;color:#64748b;font-weight:500;">{row['total_alunos']} alunos cadastrados</div>
+                            <div style="font-size:0.76rem;color:#0f766e;font-weight:600;margin-top:0.15rem;">Coordenador(a): {mapa_coord_turma.get(row['turma'], 'Não vinculado')}</div>
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
@@ -5362,18 +5486,34 @@ elif "GERENCIAR TURMAS" in normalizar_texto(menu):
         if st.session_state.get("turma_para_editar"):
             turma_antiga = st.session_state.turma_para_editar
             st.markdown("---")
-            st.subheader(f"✏️ Editar Nome da Turma: {turma_antiga}")
+            st.subheader(f"✏️ Editar Turma: {turma_antiga}")
             novo_nome = st.text_input("Novo nome da turma", value=turma_antiga)
+            coord_atual = mapa_coord_turma.get(turma_antiga, "")
+            opcoes_coord_turma = coordenadores_disponiveis + (["Digitar manualmente"] if coordenadores_disponiveis else ["Digitar manualmente"])
+            idx_coord_turma = opcoes_coord_turma.index(coord_atual) if coord_atual in opcoes_coord_turma else len(opcoes_coord_turma) - 1
+            coord_sel_turma = st.selectbox("Coordenador(a) da sala", opcoes_coord_turma, index=idx_coord_turma, key="coord_turma_edit")
+            coord_manual_turma = ""
+            if coord_sel_turma == "Digitar manualmente":
+                coord_manual_turma = st.text_input("Nome do coordenador(a)", value=coord_atual if coord_atual not in coordenadores_disponiveis else "", key="coord_turma_manual")
+            coordenador_turma_final = coord_manual_turma.strip() if coord_sel_turma == "Digitar manualmente" else coord_sel_turma
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("💾 Salvar Alterações", type="primary"):
                     if not novo_nome.strip():
                         st.error("❌ Nome da turma não pode ser vazio.")
+                    elif not coordenador_turma_final:
+                        st.error("❌ Informe o coordenador(a) da sala.")
                     elif novo_nome == turma_antiga:
-                        st.warning("⚠️ O nome não foi alterado.")
+                        sucesso_cfg, _ = salvar_config_turma(turma_antiga, coordenador_turma_final)
+                        if sucesso_cfg:
+                            st.success("✅ Coordenador(a) da turma atualizado com sucesso!")
+                            st.session_state.turma_para_editar = None
+                            st.rerun()
                     else:
                         sucesso = editar_nome_turma(turma_antiga, novo_nome)
                         if sucesso:
+                            renomear_config_turma(turma_antiga, novo_nome)
+                            salvar_config_turma(novo_nome, coordenador_turma_final)
                             st.success(f"✅ Turma renomeada para {novo_nome}!")
                             st.session_state.turma_para_editar = None
                             st.rerun()
@@ -5476,6 +5616,7 @@ elif "GERENCIAR TURMAS" in normalizar_texto(menu):
                 if st.button("✅ Confirmar Exclusão", type="primary"):
                     sucesso = excluir_alunos_por_turma(turma)
                     if sucesso:
+                        excluir_config_turma(turma)
                         st.success(f"✅ Turma {turma} excluída com sucesso!")
                         st.session_state.turma_para_deletar = None
                         carregar_alunos.clear()
