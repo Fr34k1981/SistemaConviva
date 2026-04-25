@@ -1734,12 +1734,17 @@ def normalizar_alunos_tutoria(alunos_raw) -> list:
         if isinstance(item, dict):
             nome = str(item.get("nome", "")).strip()
             serie = formatar_turma_eletiva(str(item.get("serie", "")).strip())
+            ra = "".join(ch for ch in str(item.get("ra", "")) if ch.isdigit())
         else:
             nome = str(item or "").strip()
             serie = ""
+            ra = ""
         if not nome:
             continue
-        alunos.append({"nome": nome, "serie": serie})
+        aluno = {"nome": nome, "serie": serie}
+        if ra:
+            aluno["ra"] = ra
+        alunos.append(aluno)
     return alunos
 
 def normalizar_base_tutoria(tutoria_raw: dict | None) -> dict:
@@ -2354,14 +2359,202 @@ def serie_compativel_turma(serie_eletiva: str, turma_sistema: str) -> bool:
     return True
 
 def formatar_turma_eletiva(valor: str) -> str:
-    """Padroniza turma para formato escolar, ex.: 6A -> 6º Ano A."""
-    texto = str(valor or "").strip()
+    """
+    Padroniza a escrita da turma/série.
+    Exemplos aceitos: 6a, 6 A, 6º A, 6º Ano A, 6 ano a -> 6º A.
+    """
+    texto = corrigir_texto_mojibake(str(valor or "").strip())
     if not texto:
         return ""
-    m = re.match(r"^\s*(\d{1,2})\s*([A-Za-z])\s*$", texto)
+
+    texto_norm = normalizar_texto(texto)
+    texto_norm = (
+        texto_norm
+        .replace("TURMA", " ")
+        .replace("ANO", " ")
+        .replace("SERIE", " ")
+        .replace("SÉRIE", " ")
+        .replace("º", " ")
+        .replace("ª", " ")
+        .replace("-", " ")
+        .replace("/", " ")
+    )
+    texto_norm = re.sub(r"\s+", " ", texto_norm).strip()
+
+    m = re.search(r"\b(\d{1,2})\s*([A-Z])\b", texto_norm)
     if m:
-        return f"{int(m.group(1))}º Ano {m.group(2).upper()}"
-    return texto
+        return f"{int(m.group(1))}º {m.group(2).upper()}"
+
+    m = re.search(r"\b(\d{1,2})([A-Z])\b", texto_norm)
+    if m:
+        return f"{int(m.group(1))}º {m.group(2).upper()}"
+
+    m = re.search(r"\b(\d{1,2})\b", texto_norm)
+    if m:
+        return f"{int(m.group(1))}º"
+
+    return texto.strip()
+
+
+def turma_para_comparacao(valor: str) -> str:
+    """Normaliza turma para comparação segura, sem depender de variações de escrita."""
+    return normalizar_texto(formatar_turma_eletiva(valor))
+
+
+def estudante_ativo(linha) -> bool:
+    """Retorna True apenas para estudantes ativos quando houver coluna de situação/status."""
+    for coluna in ["situacao", "situação", "status", "ativo"]:
+        if coluna not in linha.index:
+            continue
+        valor = linha.get(coluna)
+        if isinstance(valor, bool):
+            return valor
+        valor_norm = normalizar_texto(valor)
+        if not valor_norm:
+            return True
+        inativos = {
+            "INATIVO", "INATIVA", "TRANSFERIDO", "TRANSFERIDA",
+            "EVADIDO", "EVADIDA", "CANCELADO", "CANCELADA",
+            "BAIXADO", "BAIXADA", "REMOVIDO", "REMOVIDA"
+        }
+        ativos = {"ATIVO", "ATIVA", "CURSANDO", "MATRICULADO", "MATRICULADA", "REGULAR", "FREQUENTE"}
+        if valor_norm in inativos:
+            return False
+        if valor_norm in ativos:
+            return True
+    return True
+
+
+def preparar_base_alunos_ativos_tutoria(df_alunos: pd.DataFrame) -> pd.DataFrame:
+    """Prepara a base de estudantes ativos do Supabase para busca inteligente da tutoria."""
+    if df_alunos is None or df_alunos.empty or "nome" not in df_alunos.columns:
+        return pd.DataFrame()
+
+    base = df_alunos.copy()
+    if "turma" not in base.columns:
+        base["turma"] = ""
+    if "ra" not in base.columns:
+        base["ra"] = ""
+
+    base["nome"] = base["nome"].astype(str).str.strip()
+    base["turma"] = base["turma"].astype(str).apply(formatar_turma_eletiva)
+    base["ra"] = base["ra"].astype(str).str.replace(r"\D", "", regex=True)
+    base["nome_norm"] = base["nome"].apply(normalizar_texto)
+    base["turma_norm"] = base["turma"].apply(turma_para_comparacao)
+    base = base[base.apply(estudante_ativo, axis=1)]
+    base = base[base["nome"].str.strip() != ""]
+    return base
+
+
+def buscar_estudante_ativo_mais_proximo(nome_digitado: str, serie_digitada: str, df_alunos: pd.DataFrame) -> dict | None:
+    """Busca o estudante ativo mais próximo no cadastro do Supabase com base no que foi digitado."""
+    base = preparar_base_alunos_ativos_tutoria(df_alunos)
+    if base.empty:
+        return None
+
+    nome_original = str(nome_digitado or "").strip()
+    serie_original = formatar_turma_eletiva(serie_digitada)
+    nome_norm = normalizar_texto(nome_original)
+    serie_norm = turma_para_comparacao(serie_original)
+    ra_digitado = "".join(ch for ch in nome_original if ch.isdigit())
+
+    if ra_digitado and len(ra_digitado) >= 5:
+        por_ra = base[base["ra"] == ra_digitado]
+        if not por_ra.empty:
+            aluno = por_ra.iloc[0]
+            return {"nome": aluno.get("nome", ""), "serie": aluno.get("turma", ""), "ra": aluno.get("ra", ""), "score": 1.0}
+
+    if not nome_norm:
+        return None
+
+    melhor = None
+    melhor_score = 0.0
+    for _, aluno in base.iterrows():
+        nome_base = aluno.get("nome_norm", "")
+        turma_base = aluno.get("turma_norm", "")
+        if not nome_base:
+            continue
+
+        serie_ok = True
+        if serie_norm:
+            serie_ok = serie_compativel_turma(serie_original, aluno.get("turma", "")) or serie_norm == turma_base
+
+        score = SequenceMatcher(None, nome_norm, nome_base).ratio()
+        if nome_base.startswith(nome_norm):
+            score = max(score, 0.96)
+        elif nome_norm in nome_base:
+            score = max(score, 0.90)
+
+        if serie_norm and serie_ok:
+            score += 0.08
+        elif serie_norm and not serie_ok:
+            score -= 0.20
+
+        if score > melhor_score:
+            melhor_score = score
+            melhor = aluno
+
+    if melhor is None or melhor_score < 0.78:
+        return None
+
+    return {
+        "nome": melhor.get("nome", ""),
+        "serie": melhor.get("turma", ""),
+        "ra": melhor.get("ra", ""),
+        "score": round(float(melhor_score), 3),
+    }
+
+
+def resolver_estudantes_tutoria(novos_estudantes: list, df_alunos: pd.DataFrame) -> tuple[list, list]:
+    """Resolve os estudantes digitados contra a lista ativa do Supabase."""
+    resolvidos = []
+    nao_encontrados = []
+    for item in novos_estudantes or []:
+        nome_digitado = str(item.get("nome", "")).strip()
+        serie_digitada = formatar_turma_eletiva(str(item.get("serie", "")).strip())
+        if not nome_digitado:
+            continue
+        encontrado = buscar_estudante_ativo_mais_proximo(nome_digitado, serie_digitada, df_alunos)
+        if encontrado:
+            resolvidos.append({
+                "nome": encontrado["nome"],
+                "serie": encontrado["serie"],
+                "ra": encontrado.get("ra", ""),
+                "nome_digitado": nome_digitado,
+                "serie_digitada": serie_digitada,
+                "score": encontrado.get("score", 0),
+            })
+        else:
+            nao_encontrados.append({"nome": nome_digitado, "serie": serie_digitada})
+    return resolvidos, nao_encontrados
+
+
+TUTORIA_ESPACOS_PADRAO = [
+    "Sala 1 - Patrícia", "Sala 2 - Verônica", "Sala 3 - Fagna", "Sala 4 - Elaine",
+    "Sala de Leitura - Giovana", "Sala 5 - Fernanda", "Sala 6 - Lourdes",
+    "Sala de vídeo - Anderson", "Sala 7 - Shirley", "Sala 8 - Rosemeire",
+    "Sala 9 - Rosângela", "Sala 10 - Solange", "Sala 11 - Silvana/Jaqueline",
+    "Pátio - Itatiara", "Pátio - Lucineide", "Pátio - Guilherme C.",
+    "Direção - Renan", "Coordenação - Aleandro", "Informática - Érika",
+]
+
+
+def obter_opcoes_espacos_tutoria(tutoria_dict: dict) -> list[str]:
+    """Lista espaços padrão e inclui novos espaços já cadastrados na tutoria."""
+    opcoes = []
+    vistos = set()
+    for espaco in TUTORIA_ESPACOS_PADRAO:
+        chave = normalizar_texto(espaco)
+        if chave not in vistos:
+            opcoes.append(espaco)
+            vistos.add(chave)
+    for _, dados in normalizar_base_tutoria(tutoria_dict).items():
+        espaco = str(dados.get("espaco", "")).strip()
+        chave = normalizar_texto(espaco)
+        if espaco and chave not in vistos:
+            opcoes.append(espaco)
+            vistos.add(chave)
+    return opcoes
 
 def gerar_chave_segura(valor: str) -> str:
     """Gera uma chave segura para uso em session_state"""
@@ -7500,7 +7693,7 @@ elif menu == "🎨 Eletiva":
         if df_alunos.empty:
             st.info("Não há alunos cadastrados para buscar.")
         else:
-            base_busca = df_alunos.copy()
+            base_busca = preparar_base_alunos_ativos_tutoria(df_alunos)
             base_busca["nome"] = base_busca["nome"].astype(str)
             if "turma" not in base_busca.columns:
                 base_busca["turma"] = ""
@@ -7514,7 +7707,7 @@ elif menu == "🎨 Eletiva":
             for _, linha in base_busca.drop_duplicates(subset=["nome", "turma"]).iterrows():
                 label = f"{linha['nome']} ({linha['turma']})" if linha["turma"] else linha["nome"]
                 opcoes.append(label)
-                mapa_opcoes[label] = {"nome": linha["nome"], "serie": linha["turma"]}
+                mapa_opcoes[label] = {"nome": linha["nome"], "serie": linha["turma"], "ra": linha.get("ra", "")}
 
             selecionados_busca = st.multiselect("Selecione estudantes para adicionar", opcoes, key="eletiva_sel_busca")
             if st.button("✅ Registrar Selecionados", key="eletiva_btn_add_busca", type="primary"):
@@ -8165,7 +8358,20 @@ elif menu == "🫂 Tutoria":
                 st.warning("Nenhum professor cadastrado. Cadastre professores em '👨‍🏫 Cadastrar Professores'.")
                 nome_novo_tutor = ""
             
-            espaco_novo_tutor = st.text_input("Espaço usado", key="tutoria_novo_espaco", placeholder="Ex: Sala 04 / Pátio / Sala de Leitura")
+            opcoes_espacos_tutoria = obter_opcoes_espacos_tutoria(TUTORIA)
+            espaco_novo_tutor_select = st.selectbox(
+                "Espaço usado",
+                opcoes_espacos_tutoria + ["Outro espaço"],
+                key="tutoria_novo_espaco_select"
+            )
+            if espaco_novo_tutor_select == "Outro espaço":
+                espaco_novo_tutor = st.text_input(
+                    "Digite o novo espaço",
+                    key="tutoria_novo_espaco",
+                    placeholder="Ex: Sala 12 - Nome"
+                )
+            else:
+                espaco_novo_tutor = espaco_novo_tutor_select
         
         with col_n2:
             tipo_novo_tutor = st.selectbox("Perfil", PERFIS_TUTORIA, key="tutoria_novo_tipo")
@@ -8218,7 +8424,26 @@ elif menu == "🫂 Tutoria":
                     nome_edit_tutor = st.text_input("Nome", value=nome_atual, key="tutoria_edit_nome")
                     st.warning("Nenhum professor cadastrado. Cadastre professores primeiro.")
                 
-                espaco_edit_tutor = st.text_input("Espaço usado", key="tutoria_edit_espaco")
+                opcoes_espacos_tutoria = obter_opcoes_espacos_tutoria(TUTORIA)
+                espaco_atual = dados_edicao.get("espaco", "")
+                opcoes_edit_espacos = list(opcoes_espacos_tutoria)
+                if espaco_atual and normalizar_texto(espaco_atual) not in {normalizar_texto(e) for e in opcoes_edit_espacos}:
+                    opcoes_edit_espacos.append(espaco_atual)
+                idx_espaco = opcoes_edit_espacos.index(espaco_atual) if espaco_atual in opcoes_edit_espacos else 0
+                espaco_edit_tutor_select = st.selectbox(
+                    "Espaço usado",
+                    opcoes_edit_espacos + ["Outro espaço"],
+                    index=idx_espaco,
+                    key="tutoria_edit_espaco_select"
+                )
+                if espaco_edit_tutor_select == "Outro espaço":
+                    espaco_edit_tutor = st.text_input(
+                        "Digite o novo espaço",
+                        value=espaco_atual,
+                        key="tutoria_edit_espaco"
+                    )
+                else:
+                    espaco_edit_tutor = espaco_edit_tutor_select
             with col_e2:
                 tipo_edit_tutor = st.selectbox("Perfil", PERFIS_TUTORIA, key="tutoria_edit_tipo")
                 horario_edit_tutor = st.text_input("Horário", key="tutoria_edit_horario")
@@ -8328,23 +8553,52 @@ elif menu == "🫂 Tutoria":
         tutor_destino = str(tutor_destino or tutor_sel).strip()
         registro = TUTORIA.setdefault(tutor_destino, estrutura_tutoria_vazia(nome=tutor_destino))
         existentes = registro.get("alunos", [])
-        chaves_existentes = {
-            f"{normalizar_texto(item.get('nome', ''))}|{normalizar_texto(item.get('serie', ''))}"
-            for item in existentes
-        }
+
+        estudantes_resolvidos, nao_encontrados = resolver_estudantes_tutoria(novos_estudantes, df_alunos)
+
+        chaves_existentes = set()
+        for item in existentes:
+            ra_existente = "".join(ch for ch in str(item.get("ra", "")) if ch.isdigit())
+            nome_existente = normalizar_texto(item.get("nome", ""))
+            serie_existente = turma_para_comparacao(item.get("serie", ""))
+            if ra_existente:
+                chaves_existentes.add(f"RA|{ra_existente}")
+            chaves_existentes.add(f"NOME|{nome_existente}|{serie_existente}")
 
         inseridos = []
-        for item in novos_estudantes:
+        for item in estudantes_resolvidos:
             nome = str(item.get("nome", "")).strip()
             serie = formatar_turma_eletiva(str(item.get("serie", "")).strip())
+            ra = "".join(ch for ch in str(item.get("ra", "")) if ch.isdigit())
             if not nome:
                 continue
-            chave = f"{normalizar_texto(nome)}|{normalizar_texto(serie)}"
-            if chave in chaves_existentes:
+
+            chave_ra = f"RA|{ra}" if ra else ""
+            chave_nome = f"NOME|{normalizar_texto(nome)}|{turma_para_comparacao(serie)}"
+            if chave_ra and chave_ra in chaves_existentes:
                 continue
-            existentes.append({"nome": nome, "serie": serie})
-            chaves_existentes.add(chave)
-            inseridos.append({"nome": nome, "serie": serie})
+            if chave_nome in chaves_existentes:
+                continue
+
+            novo_registro = {
+                "nome": nome,
+                "serie": serie,
+                "ra": ra,
+                "nome_digitado": item.get("nome_digitado", ""),
+                "serie_digitada": item.get("serie_digitada", ""),
+                "score": item.get("score", 0),
+            }
+            existentes.append(novo_registro)
+            inseridos.append(novo_registro)
+            if chave_ra:
+                chaves_existentes.add(chave_ra)
+            chaves_existentes.add(chave_nome)
+
+        if nao_encontrados:
+            st.warning(
+                "Alguns estudantes não foram inseridos porque não foram encontrados como ativos no Supabase: "
+                + ", ".join([f"{a['nome']} ({a['serie']})".strip() for a in nao_encontrados[:10]])
+            )
 
         if not inseridos:
             return 0
@@ -8428,7 +8682,7 @@ elif menu == "🫂 Tutoria":
         if df_alunos.empty:
             st.info("Não há alunos cadastrados para buscar.")
         else:
-            base_busca = df_alunos.copy()
+            base_busca = preparar_base_alunos_ativos_tutoria(df_alunos)
             base_busca["nome"] = base_busca["nome"].astype(str)
             if "turma" not in base_busca.columns:
                 base_busca["turma"] = ""
@@ -8442,7 +8696,7 @@ elif menu == "🫂 Tutoria":
             for _, linha in base_busca.drop_duplicates(subset=["nome", "turma"]).iterrows():
                 label = f"{linha['nome']} ({linha['turma']})" if linha["turma"] else linha["nome"]
                 opcoes.append(label)
-                mapa_opcoes[label] = {"nome": linha["nome"], "serie": linha["turma"]}
+                mapa_opcoes[label] = {"nome": linha["nome"], "serie": linha["turma"], "ra": linha.get("ra", "")}
 
             selecionados_busca = st.multiselect("Selecione estudantes para adicionar", opcoes, key="tutoria_sel_busca")
             if st.button("✅ Registrar Selecionados", key="tutoria_btn_add_busca", type="primary"):
