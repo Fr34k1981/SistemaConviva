@@ -20,6 +20,3 @@ enableXsrfProtection = true
 [logger]
 level = "warning"
 
-[magic]
-# Desabilitar magic commands para melhor performance
-enabled = false
