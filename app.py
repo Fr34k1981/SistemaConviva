@@ -1,4 +1,4 @@
-# ======================================================
+﻿# ======================================================
 # IMPORTS PADRÃO
 # ======================================================
 import streamlit as st
@@ -3098,6 +3098,89 @@ def excluir_relatorio_estudante(id_relatorio) -> tuple[bool, str]:
     _limpar_cache_relatorios()
     return True, "local"
 
+    def obter_professor_tutor_do_aluno(
+    nome_aluno: str,
+    turma_aluno: str,
+    ra_aluno: str,
+    tutoria_dict: dict,
+) -> str:
+    """
+    Retorna o nome do professor tutor vinculado ao aluno.
+    Busca por RA (prioridade), nome exato e, por último, fuzzy.
+    """
+    nome_norm = normalizar_texto(nome_aluno)
+    ra_norm   = "".join(ch for ch in str(ra_aluno or "") if ch.isdigit())
+    turma_norm = normalizar_texto(turma_aluno)
+ 
+    melhor_tutor = ""
+    melhor_score = 0.0
+ 
+    for tutor, dados in (tutoria_dict or {}).items():
+        for item in dados.get("alunos", []):
+            # --- match por RA ---
+            ra_item = "".join(ch for ch in str(item.get("ra", "")) if ch.isdigit())
+            if ra_norm and ra_item and ra_norm == ra_item:
+                return tutor
+ 
+            # --- match por nome ---
+            item_norm = normalizar_texto(item.get("nome", ""))
+            if not item_norm:
+                continue
+ 
+            # Verifica compatibilidade de série
+            serie_item = normalizar_texto(item.get("serie", ""))
+            serie_ok = (not serie_item) or (not turma_norm) or (serie_item in turma_norm) or (turma_norm in serie_item)
+ 
+            score = SequenceMatcher(None, nome_norm, item_norm).ratio()
+            if nome_norm == item_norm and serie_ok:
+                return tutor                     # match exato imediato
+            if score > melhor_score and serie_ok:
+                melhor_score = score
+                melhor_tutor = tutor
+ 
+    return melhor_tutor if melhor_score >= 0.85 else ""
+ 
+ 
+def obter_eletiva_do_aluno(
+    nome_aluno: str,
+    turma_aluno: str,
+    ra_aluno: str,
+    eletivas_dict: dict,
+) -> str:
+    """
+    Retorna o nome da(o) professora(o) de eletiva vinculado ao aluno.
+    Retorna "" se não encontrado.
+    """
+    nome_norm  = normalizar_texto(nome_aluno)
+    ra_norm    = "".join(ch for ch in str(ra_aluno or "") if ch.isdigit())
+    turma_norm = normalizar_texto(turma_aluno)
+ 
+    melhor_prof  = ""
+    melhor_score = 0.0
+ 
+    for prof, alunos in (eletivas_dict or {}).items():
+        for item in alunos:
+            # --- match por RA ---
+            ra_item = "".join(ch for ch in str(item.get("ra", "")) if ch.isdigit())
+            if ra_norm and ra_item and ra_norm == ra_item:
+                return prof
+ 
+            item_norm = normalizar_texto(item.get("nome", ""))
+            if not item_norm:
+                continue
+ 
+            serie_item = normalizar_texto(item.get("serie", ""))
+            serie_ok = (not serie_item) or (not turma_norm) or (serie_item in turma_norm) or (turma_norm in serie_item)
+ 
+            score = SequenceMatcher(None, nome_norm, item_norm).ratio()
+            if nome_norm == item_norm and serie_ok:
+                return prof
+            if score > melhor_score and serie_ok:
+                melhor_score = score
+                melhor_prof  = prof
+ 
+    return melhor_prof if melhor_score >= 0.85 else ""
+
 def gerar_pontos_atencao_automaticos(df_ocorrencias: pd.DataFrame, turma: str, ra: str, aluno: str, data_inicio, data_fim) -> list[str]:
     if df_ocorrencias.empty:
         return []
@@ -3810,6 +3893,338 @@ def gerar_pdf_comunicado(aluno_data: dict, ocorrencia_data: dict, medidas_aplica
         elementos.append(Spacer(1, 0.3*cm))
         elementos.append(Paragraph("<b>OBSERVAÇÕES</b>", estilos["Normal"]))
         elementos.append(Paragraph(observacoes, estilos["Normal"]))
+    doc.build(elementos)
+    buffer.seek(0)
+    return buffer
+
+    def gerar_pdf_relatorio_estudante(registro: dict, df_ocorrencias_aluno: pd.DataFrame) -> BytesIO:
+    """
+    Gera PDF completo do relatório do estudante com:
+    - Cabeçalho da escola (logo se disponível)
+    - Dados do aluno (nome, RA, turma, tutor, eletiva)
+    - Indicadores (frequência, situação, alertas)
+    - Ocorrências graves/gravíssimas no período
+    - Desenvolvimento acadêmico, comportamento, estratégias e pontos de atenção
+    - Assinatura com data de impressão
+    """
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.platypus import (
+        SimpleDocTemplate, Table, TableStyle, Paragraph,
+        Spacer, HRFlowable, Image
+    )
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import cm
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+ 
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=1.8 * cm,
+        leftMargin=1.8 * cm,
+        topMargin=1.5 * cm,
+        bottomMargin=1.8 * cm,
+    )
+ 
+    estilos = getSampleStyleSheet()
+ 
+    # ── Paleta de cores ──────────────────────────────
+    COR_PRIMARIA   = colors.HexColor("#1d4ed8")
+    COR_SECUNDARIA = colors.HexColor("#0f766e")
+    COR_ALERTA     = colors.HexColor("#dc2626")
+    COR_AVISO      = colors.HexColor("#d97706")
+    COR_CINZA_CLR  = colors.HexColor("#f8fafc")
+    COR_BORDA      = colors.HexColor("#e2e8f0")
+    COR_TEXTO      = colors.HexColor("#0f172a")
+    COR_SUBTEXTO   = colors.HexColor("#475569")
+ 
+    # ── Estilos customizados ─────────────────────────
+    def _estilo(nome, **kwargs):
+        base = kwargs.pop("base", "Normal")
+        estilo = ParagraphStyle(nome, parent=estilos[base], **kwargs)
+        return estilo
+ 
+    est_titulo    = _estilo("Titulo",    base="Heading1", fontSize=13, textColor=COR_PRIMARIA,
+                             spaceAfter=4, spaceBefore=0, leading=16)
+    est_subtitulo = _estilo("Subtitulo", base="Heading2", fontSize=10, textColor=COR_SECUNDARIA,
+                             spaceAfter=4, spaceBefore=8, leading=13)
+    est_label     = _estilo("Label",     fontSize=8,  textColor=COR_SUBTEXTO,
+                             fontName="Helvetica-Bold", spaceAfter=1, leading=10)
+    est_valor     = _estilo("Valor",     fontSize=9,  textColor=COR_TEXTO,
+                             spaceAfter=2, leading=12)
+    est_corpo     = _estilo("Corpo",     fontSize=9,  textColor=COR_TEXTO,
+                             spaceAfter=4, leading=13)
+    est_rodape    = _estilo("Rodape",    fontSize=7,  textColor=COR_SUBTEXTO,
+                             alignment=TA_CENTER, leading=10)
+    est_centro    = _estilo("Centro",    fontSize=9,  textColor=COR_TEXTO,
+                             alignment=TA_CENTER, leading=12)
+ 
+    elementos = []
+ 
+    # ── Logo / Cabeçalho ─────────────────────────────
+    logo_path = os.path.join("assets", "images", "eliane_dantas.png")
+    if os.path.exists(logo_path):
+        try:
+            logo = Image(logo_path, width=15 * cm, height=3.6 * cm)
+            logo.hAlign = "CENTER"
+            elementos.append(logo)
+            elementos.append(Spacer(1, 0.3 * cm))
+        except Exception:
+            elementos.append(Paragraph("E.E. ELIANE APARECIDA DANTAS DA SILVA PROFESSORA - PEI", est_titulo))
+    else:
+        elementos.append(Paragraph("E.E. ELIANE APARECIDA DANTAS DA SILVA PROFESSORA - PEI", est_titulo))
+        elementos.append(Spacer(1, 0.2 * cm))
+ 
+    elementos.append(HRFlowable(width="100%", thickness=2, color=COR_PRIMARIA, spaceAfter=6))
+    elementos.append(Paragraph("RELATÓRIO DE ACOMPANHAMENTO DO ESTUDANTE", est_titulo))
+    elementos.append(HRFlowable(width="100%", thickness=1, color=COR_BORDA, spaceAfter=8))
+ 
+    # ── Dados do aluno ────────────────────────────────
+    aluno           = str(registro.get("aluno", "")).strip()
+    ra              = str(registro.get("ra", "")).strip()
+    turma           = str(registro.get("turma", "")).strip()
+    tutor           = str(registro.get("professor_tutor", "")).strip() or "Não localizado"
+    eletiva         = str(registro.get("eletiva", "")).strip() or "Não localizado"
+    data_inicio     = str(registro.get("data_inicio", "")).strip()
+    data_fim        = str(registro.get("data_fim", "")).strip()
+    frequencia      = float(registro.get("frequencia_percentual", 100) or 100)
+    situacao        = str(registro.get("situacao_geral", "Em acompanhamento")).strip()
+    coordenador     = str(registro.get("coordenador_sala", "")).strip() or "—"
+    componente      = str(registro.get("componente_curricular", "")).strip() or "—"
+    editor          = str(registro.get("ultima_edicao_por", registro.get("professor_autor", ""))).strip() or "—"
+ 
+    try:
+        data_ini_fmt = pd.to_datetime(data_inicio, errors="coerce").strftime("%d/%m/%Y")
+    except Exception:
+        data_ini_fmt = data_inicio
+    try:
+        data_fim_fmt = pd.to_datetime(data_fim, errors="coerce").strftime("%d/%m/%Y")
+    except Exception:
+        data_fim_fmt = data_fim
+ 
+    # Tabela de identificação
+    dados_id = [
+        [Paragraph("<b>Estudante</b>", est_label),    Paragraph(aluno, est_valor),
+         Paragraph("<b>RA</b>", est_label),           Paragraph(ra, est_valor)],
+        [Paragraph("<b>Turma</b>", est_label),        Paragraph(turma, est_valor),
+         Paragraph("<b>Componente</b>", est_label),   Paragraph(componente, est_valor)],
+        [Paragraph("<b>Tutor(a)</b>", est_label),     Paragraph(tutor, est_valor),
+         Paragraph("<b>Eletiva</b>", est_label),      Paragraph(eletiva, est_valor)],
+        [Paragraph("<b>Período</b>", est_label),      Paragraph(f"{data_ini_fmt} a {data_fim_fmt}", est_valor),
+         Paragraph("<b>Coordenador(a)</b>", est_label), Paragraph(coordenador, est_valor)],
+    ]
+ 
+    tab_id = Table(dados_id, colWidths=[3.2 * cm, 7.3 * cm, 3.2 * cm, 5.3 * cm])
+    tab_id.setStyle(TableStyle([
+        ("BACKGROUND",  (0, 0), (-1, -1), COR_CINZA_CLR),
+        ("BOX",         (0, 0), (-1, -1), 1, COR_BORDA),
+        ("INNERGRID",   (0, 0), (-1, -1), 0.5, COR_BORDA),
+        ("TOPPADDING",  (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING",(0, 0),(-1, -1), 5),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING",(0, 0), (-1, -1), 6),
+        ("VALIGN",      (0, 0), (-1, -1), "MIDDLE"),
+    ]))
+    elementos.append(tab_id)
+    elementos.append(Spacer(1, 0.4 * cm))
+ 
+    # ── Indicadores ───────────────────────────────────
+    # Frequência
+    freq_cor = COR_SECUNDARIA if frequencia >= 75 else COR_AVISO if frequencia >= 60 else COR_ALERTA
+    freq_txt = f"{frequencia:.1f}%"
+ 
+    # Ocorrências no período
+    total_ocorr = len(df_ocorrencias_aluno) if not df_ocorrencias_aluno.empty else 0
+    graves_count = 0
+    if not df_ocorrencias_aluno.empty and "gravidade" in df_ocorrencias_aluno.columns:
+        graves_count = int(df_ocorrencias_aluno["gravidade"].isin(["Grave", "Gravíssima"]).sum())
+ 
+    # Alerta do professor
+    alerta_prof = bool(registro.get("indicacao_grave_professor", False))
+ 
+    dados_ind = [
+        [
+            Paragraph("<b>FREQUÊNCIA</b>", _estilo("L1", fontSize=7, textColor=COR_SUBTEXTO,
+                                                    fontName="Helvetica-Bold", alignment=TA_CENTER)),
+            Paragraph("<b>SITUAÇÃO GERAL</b>", _estilo("L2", fontSize=7, textColor=COR_SUBTEXTO,
+                                                         fontName="Helvetica-Bold", alignment=TA_CENTER)),
+            Paragraph("<b>OCORRÊNCIAS NO PERÍODO</b>", _estilo("L3", fontSize=7, textColor=COR_SUBTEXTO,
+                                                                 fontName="Helvetica-Bold", alignment=TA_CENTER)),
+            Paragraph("<b>ALERTA DO PROFESSOR</b>", _estilo("L4", fontSize=7, textColor=COR_SUBTEXTO,
+                                                              fontName="Helvetica-Bold", alignment=TA_CENTER)),
+        ],
+        [
+            Paragraph(freq_txt, _estilo("V1", fontSize=16, fontName="Helvetica-Bold",
+                                         textColor=freq_cor, alignment=TA_CENTER)),
+            Paragraph(situacao, _estilo("V2", fontSize=9, fontName="Helvetica-Bold",
+                                         textColor=COR_TEXTO, alignment=TA_CENTER)),
+            Paragraph(f"{total_ocorr} ({graves_count} graves)",
+                      _estilo("V3", fontSize=11, fontName="Helvetica-Bold",
+                               textColor=COR_ALERTA if graves_count else COR_TEXTO,
+                               alignment=TA_CENTER)),
+            Paragraph("⚠ SIM" if alerta_prof else "OK",
+                      _estilo("V4", fontSize=11, fontName="Helvetica-Bold",
+                               textColor=COR_ALERTA if alerta_prof else COR_SECUNDARIA,
+                               alignment=TA_CENTER)),
+        ],
+    ]
+ 
+    tab_ind = Table(dados_ind, colWidths=[4.5 * cm] * 4)
+    tab_ind.setStyle(TableStyle([
+        ("BACKGROUND",  (0, 0), (-1, 0), colors.HexColor("#eff6ff")),
+        ("BACKGROUND",  (0, 1), (-1, 1), colors.white),
+        ("BOX",         (0, 0), (-1, -1), 1, COR_BORDA),
+        ("INNERGRID",   (0, 0), (-1, -1), 0.5, COR_BORDA),
+        ("TOPPADDING",  (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING",(0, 0),(-1, -1), 6),
+        ("VALIGN",      (0, 0), (-1, -1), "MIDDLE"),
+    ]))
+    elementos.append(tab_ind)
+    elementos.append(Spacer(1, 0.5 * cm))
+ 
+    # ── Seções de texto ───────────────────────────────
+    def _secao(titulo: str, conteudo: str, cor_titulo=COR_PRIMARIA):
+        if not str(conteudo or "").strip():
+            return
+        elementos.append(HRFlowable(width="100%", thickness=1, color=COR_BORDA, spaceAfter=4))
+        elementos.append(Paragraph(titulo, _estilo(
+            f"sec_{titulo[:8]}", base="Heading2",
+            fontSize=9, textColor=cor_titulo, fontName="Helvetica-Bold",
+            spaceAfter=3, spaceBefore=4, leading=12,
+        )))
+        for linha in str(conteudo).strip().splitlines():
+            linha = linha.strip()
+            if linha:
+                elementos.append(Paragraph(linha, est_corpo))
+        elementos.append(Spacer(1, 0.15 * cm))
+ 
+    _secao("📚 Desenvolvimento Acadêmico",
+           registro.get("desenvolvimento_academico", ""))
+ 
+    _secao("🧠 Observações Comportamentais e Socioemocionais",
+           registro.get("observacoes_comportamentais", ""))
+ 
+    _secao("🛠️ Estratégias e Encaminhamentos",
+           registro.get("estrategias_adotadas", ""))
+ 
+    _secao("🔎 Pontos de Atenção Complementares",
+           registro.get("pontos_atencao", ""))
+ 
+    # Ponto grave do professor
+    if alerta_prof and str(registro.get("descricao_ponto_grave", "")).strip():
+        _secao("⚠ Ponto Grave Sinalizado pelo Professor",
+               registro.get("descricao_ponto_grave", ""),
+               cor_titulo=COR_ALERTA)
+ 
+    # Pontos automáticos (ocorrências graves)
+    pontos_auto = registro.get("pontos_atencao_automaticos", [])
+    if isinstance(pontos_auto, list) and pontos_auto:
+        elementos.append(HRFlowable(width="100%", thickness=1, color=COR_BORDA, spaceAfter=4))
+        elementos.append(Paragraph(
+            "🚨 Ocorrências Graves/Gravíssimas no Período",
+            _estilo("sec_auto", base="Heading2", fontSize=9, textColor=COR_ALERTA,
+                    fontName="Helvetica-Bold", spaceAfter=3, spaceBefore=4, leading=12),
+        ))
+        for item in pontos_auto:
+            elementos.append(Paragraph(f"• {item}", est_corpo))
+        elementos.append(Spacer(1, 0.15 * cm))
+ 
+    # ── Ocorrências do período (tabela resumida) ──────
+    if not df_ocorrencias_aluno.empty:
+        elementos.append(HRFlowable(width="100%", thickness=1, color=COR_BORDA, spaceAfter=4))
+        elementos.append(Paragraph(
+            "📋 Histórico de Ocorrências no Período",
+            _estilo("sec_ocorr", base="Heading2", fontSize=9, textColor=COR_PRIMARIA,
+                    fontName="Helvetica-Bold", spaceAfter=4, spaceBefore=4, leading=12),
+        ))
+ 
+        cabecalho_ocorr = [
+            Paragraph("<b>Data</b>", _estilo("th1", fontSize=8, fontName="Helvetica-Bold",
+                                              textColor=colors.white, alignment=TA_CENTER)),
+            Paragraph("<b>Categoria</b>", _estilo("th2", fontSize=8, fontName="Helvetica-Bold",
+                                                    textColor=colors.white)),
+            Paragraph("<b>Gravidade</b>", _estilo("th3", fontSize=8, fontName="Helvetica-Bold",
+                                                    textColor=colors.white, alignment=TA_CENTER)),
+            Paragraph("<b>Professor</b>", _estilo("th4", fontSize=8, fontName="Helvetica-Bold",
+                                                    textColor=colors.white)),
+        ]
+        linhas_ocorr = [cabecalho_ocorr]
+ 
+        df_sorted = df_ocorrencias_aluno.copy()
+        df_sorted["_dt"] = pd.to_datetime(df_sorted.get("data", ""), format="%d/%m/%Y %H:%M", errors="coerce")
+        df_sorted = df_sorted.sort_values("_dt", ascending=False).head(15)
+ 
+        for _, row in df_sorted.iterrows():
+            grav = str(row.get("gravidade", "")).strip()
+            grav_cor = {
+                "Gravíssima": COR_ALERTA,
+                "Grave":      COR_AVISO,
+                "Média":      colors.HexColor("#0891b2"),
+                "Leve":       COR_SECUNDARIA,
+            }.get(grav, COR_TEXTO)
+ 
+            linhas_ocorr.append([
+                Paragraph(str(row.get("data", ""))[:10], _estilo(f"td_d{_}", fontSize=8,
+                                                                    alignment=TA_CENTER)),
+                Paragraph(str(row.get("categoria", ""))[:60], _estilo(f"td_c{_}", fontSize=8)),
+                Paragraph(grav, _estilo(f"td_g{_}", fontSize=8, textColor=grav_cor,
+                                         fontName="Helvetica-Bold", alignment=TA_CENTER)),
+                Paragraph(str(row.get("professor", ""))[:30], _estilo(f"td_p{_}", fontSize=8)),
+            ])
+ 
+        tab_ocorr = Table(linhas_ocorr, colWidths=[2.8 * cm, 7.5 * cm, 2.5 * cm, 5.2 * cm],
+                          repeatRows=1)
+        tab_ocorr.setStyle(TableStyle([
+            ("BACKGROUND",   (0, 0), (-1, 0), COR_PRIMARIA),
+            ("TEXTCOLOR",    (0, 0), (-1, 0), colors.white),
+            ("FONTNAME",     (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE",     (0, 0), (-1, 0), 8),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, COR_CINZA_CLR]),
+            ("BOX",          (0, 0), (-1, -1), 1, COR_BORDA),
+            ("INNERGRID",    (0, 0), (-1, -1), 0.3, COR_BORDA),
+            ("TOPPADDING",   (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING",(0, 0), (-1, -1), 4),
+            ("LEFTPADDING",  (0, 0), (-1, -1), 5),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+            ("VALIGN",       (0, 0), (-1, -1), "MIDDLE"),
+        ]))
+        elementos.append(tab_ocorr)
+        if len(df_ocorrencias_aluno) > 15:
+            elementos.append(Paragraph(
+                f"* Exibindo as 15 mais recentes de {len(df_ocorrencias_aluno)} ocorrências no período.",
+                _estilo("nota", fontSize=7, textColor=COR_SUBTEXTO),
+            ))
+        elementos.append(Spacer(1, 0.4 * cm))
+ 
+    # ── Assinatura / Rodapé ───────────────────────────
+    elementos.append(Spacer(1, 0.6 * cm))
+    elementos.append(HRFlowable(width="100%", thickness=1, color=COR_BORDA, spaceAfter=6))
+ 
+    dados_assinatura = [
+        [
+            Paragraph("_______________________________\nProfessor(a) Responsável\n" + editor,
+                       _estilo("ass1", fontSize=8, alignment=TA_CENTER, leading=12)),
+            Paragraph("_______________________________\nCoordenador(a) de Sala\n" + coordenador,
+                       _estilo("ass2", fontSize=8, alignment=TA_CENTER, leading=12)),
+            Paragraph("_______________________________\nDiretor(a) / Gestão\n ",
+                       _estilo("ass3", fontSize=8, alignment=TA_CENTER, leading=12)),
+        ]
+    ]
+    tab_ass = Table(dados_assinatura, colWidths=[6 * cm, 6 * cm, 6 * cm])
+    tab_ass.setStyle(TableStyle([
+        ("ALIGN",      (0, 0), (-1, -1), "CENTER"),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING",(0,0),(-1,-1), 4),
+    ]))
+    elementos.append(tab_ass)
+    elementos.append(Spacer(1, 0.3 * cm))
+    elementos.append(Paragraph(
+        f"Documento gerado pelo Sistema Conviva 179 em {datetime.now().strftime('%d/%m/%Y às %H:%M')} — "
+        f"E.E. ELIANE APARECIDA DANTAS DA SILVA PROFESSORA - PEI",
+        est_rodape,
+    ))
+ 
     doc.build(elementos)
     buffer.seek(0)
     return buffer
@@ -4786,12 +5201,15 @@ elif "HISTORICO DE OCORRENCIA" in normalizar_texto(menu):
 # PÁGINA 🧾 RELATÓRIO DOS ESTUDANTES
 # ======================================================
 
+RELATORIO_ESTUDANTE_PAGE = """
 elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
-    page_header("🧾 Relatório dos Estudantes", "Registre acompanhamentos por turma com edição por professor, datas e pontos de atenção", "#0f766e")
-
+    page_header("🧾 Relatório dos Estudantes",
+                "Acompanhamentos por turma com professor tutor, eletiva e impressão em PDF",
+                "#0f766e")
+ 
     feedback_relatorio = st.session_state.get("relatorio_feedback")
     if feedback_relatorio:
-        tipo_feedback = feedback_relatorio.get("tipo", "success")
+        tipo_feedback    = feedback_relatorio.get("tipo", "success")
         mensagem_feedback = feedback_relatorio.get("msg", "")
         if tipo_feedback == "success":
             st.success(mensagem_feedback)
@@ -4800,11 +5218,11 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
         else:
             st.info(mensagem_feedback)
         st.session_state.relatorio_feedback = None
-
+ 
     if df_alunos.empty:
         st.info("📭 Cadastre ou importe estudantes antes de criar relatórios por turma.")
         st.stop()
-
+ 
     df_relatorios = carregar_relatorios_estudantes()
     if not df_relatorios.empty and "pontos_atencao_automaticos" in df_relatorios.columns:
         def _normalizar_pontos_auto(valor):
@@ -4822,13 +5240,14 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
                 except Exception:
                     return [texto]
             return []
-        df_relatorios["pontos_atencao_automaticos"] = df_relatorios["pontos_atencao_automaticos"].apply(_normalizar_pontos_auto)
-
+        df_relatorios["pontos_atencao_automaticos"] = \
+            df_relatorios["pontos_atencao_automaticos"].apply(_normalizar_pontos_auto)
+ 
     turmas_disponiveis = sorted([
         turma for turma in df_alunos["turma"].dropna().astype(str).str.strip().unique().tolist() if turma
     ])
     turma_sel = st.selectbox("🏫 Turma", turmas_disponiveis, key="relatorio_turma")
-
+ 
     alunos_turma = (
         df_alunos[df_alunos["turma"].astype(str).str.strip() == turma_sel]
         .copy()
@@ -4838,33 +5257,41 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
         lambda row: f"{str(row.get('nome', '')).strip()} • RA {str(row.get('ra', '')).strip()}",
         axis=1
     )
-
+ 
     relatorios_turma = df_relatorios.copy()
     if not relatorios_turma.empty and "turma" in relatorios_turma.columns:
-        relatorios_turma = relatorios_turma[relatorios_turma["turma"].astype(str).str.strip() == turma_sel].copy()
-
+        relatorios_turma = relatorios_turma[
+            relatorios_turma["turma"].astype(str).str.strip() == turma_sel
+        ].copy()
+ 
     def _valor_booleano_seguro(valor) -> bool:
         if isinstance(valor, bool):
             return valor
         return normalizar_texto(valor) in {"TRUE", "SIM", "YES", "1"}
-
+ 
     total_alertas = 0
     if not relatorios_turma.empty:
         if "indicacao_grave_professor" in relatorios_turma.columns:
-            total_alertas = int(relatorios_turma["indicacao_grave_professor"].apply(_valor_booleano_seguro).sum())
+            total_alertas = int(
+                relatorios_turma["indicacao_grave_professor"].apply(_valor_booleano_seguro).sum()
+            )
         if "pontos_atencao_automaticos" in relatorios_turma.columns:
-            total_alertas += int(relatorios_turma["pontos_atencao_automaticos"].apply(lambda itens: len(itens) > 0).sum())
-
+            total_alertas += int(
+                relatorios_turma["pontos_atencao_automaticos"]
+                .apply(lambda itens: len(itens) > 0).sum()
+            )
+ 
     col_metric_1, col_metric_2, col_metric_3 = st.columns(3)
     col_metric_1.metric("👥 Estudantes da turma", len(alunos_turma))
     col_metric_2.metric("🧾 Relatórios cadastrados", len(relatorios_turma))
     col_metric_3.metric("🚨 Sinalizações de atenção", total_alertas)
-
+ 
     professores_lista = []
     coordenadores_lista = []
     if not df_professores.empty and "nome" in df_professores.columns:
         professores_lista = sorted([
-            nome for nome in df_professores["nome"].dropna().astype(str).str.strip().unique().tolist() if nome
+            nome for nome in df_professores["nome"].dropna().astype(str).str.strip().unique().tolist()
+            if nome
         ])
         if "cargo" in df_professores.columns:
             coordenadores_lista = sorted([
@@ -4873,13 +5300,16 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
                 if "COORDEN" in normalizar_texto(row.get("cargo", ""))
                 and str(row.get("nome", "")).strip()
             ])
+ 
     df_config_turmas = carregar_config_turmas()
     coordenador_auto_turma = ""
     if not df_config_turmas.empty and "turma" in df_config_turmas.columns:
-        config_atual = df_config_turmas[df_config_turmas["turma"].astype(str).str.strip() == turma_sel]
+        config_atual = df_config_turmas[
+            df_config_turmas["turma"].astype(str).str.strip() == turma_sel
+        ]
         if not config_atual.empty:
             coordenador_auto_turma = str(config_atual.iloc[0].get("coordenador_sala", "")).strip()
-
+ 
     modo_relatorio = "Novo relatório"
     if not relatorios_turma.empty:
         modo_relatorio = st.radio(
@@ -4888,37 +5318,93 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
             horizontal=True,
             key="relatorio_modo"
         )
-
+ 
     registro_relatorio = {}
     if modo_relatorio == "Editar relatório existente" and not relatorios_turma.empty:
         opcoes_relatorios = []
         mapa_relatorios = {}
-        for _, row in relatorios_turma.sort_values(["data_fim", "aluno"], ascending=[False, True]).iterrows():
+        for _, row in relatorios_turma.sort_values(
+            ["data_fim", "aluno"], ascending=[False, True]
+        ).iterrows():
             data_ini_txt = str(row.get("data_inicio", "")).strip()
             data_fim_txt = str(row.get("data_fim", "")).strip()
-            aluno_txt = str(row.get("aluno", "")).strip()
-            autor_txt = str(row.get("ultima_edicao_por", row.get("professor_autor", ""))).strip()
+            aluno_txt    = str(row.get("aluno", "")).strip()
+            autor_txt    = str(row.get("ultima_edicao_por", row.get("professor_autor", ""))).strip()
             label = f"#{row.get('id')} • {aluno_txt} • {data_ini_txt} a {data_fim_txt}"
             if autor_txt:
                 label += f" • {autor_txt}"
             opcoes_relatorios.append(label)
             mapa_relatorios[label] = row.to_dict()
-        escolha_relatorio = st.selectbox("Selecione o relatório", opcoes_relatorios, key="relatorio_existente_sel")
+        escolha_relatorio = st.selectbox(
+            "Selecione o relatório", opcoes_relatorios, key="relatorio_existente_sel"
+        )
         registro_relatorio = mapa_relatorios.get(escolha_relatorio, {})
-
+ 
     aluno_padrao = ""
     if registro_relatorio:
         aluno_padrao = f"{str(registro_relatorio.get('aluno', '')).strip()} • RA {str(registro_relatorio.get('ra', '')).strip()}"
     elif not alunos_turma.empty:
         aluno_padrao = alunos_turma.iloc[0]["aluno_label"]
-
-    opcoes_alunos = alunos_turma["aluno_label"].tolist()
-    indice_aluno = opcoes_alunos.index(aluno_padrao) if aluno_padrao in opcoes_alunos else 0
-    aluno_label_sel = st.selectbox("🎓 Estudante", opcoes_alunos, index=indice_aluno, key="relatorio_aluno_sel")
-    aluno_info = alunos_turma[alunos_turma["aluno_label"] == aluno_label_sel].iloc[0]
-    aluno_nome = str(aluno_info.get("nome", "")).strip()
-    aluno_ra = str(aluno_info.get("ra", "")).strip()
-
+ 
+    opcoes_alunos   = alunos_turma["aluno_label"].tolist()
+    indice_aluno    = opcoes_alunos.index(aluno_padrao) if aluno_padrao in opcoes_alunos else 0
+    aluno_label_sel = st.selectbox(
+        "🎓 Estudante", opcoes_alunos, index=indice_aluno, key="relatorio_aluno_sel"
+    )
+    aluno_info  = alunos_turma[alunos_turma["aluno_label"] == aluno_label_sel].iloc[0]
+    aluno_nome  = str(aluno_info.get("nome", "")).strip()
+    aluno_ra    = str(aluno_info.get("ra", "")).strip()
+ 
+    # ── Busca automática: Tutor e Eletiva ────────────
+    professor_tutor_auto = obter_professor_tutor_do_aluno(
+        aluno_nome, turma_sel, aluno_ra, TUTORIA
+    )
+    eletiva_auto = obter_eletiva_do_aluno(
+        aluno_nome, turma_sel, aluno_ra, ELETIVAS
+    )
+ 
+    # Exibe chips informativos
+    col_info1, col_info2 = st.columns(2)
+    with col_info1:
+        if professor_tutor_auto:
+            st.markdown(f\"""
+            <div style="background:linear-gradient(135deg,#ecfeff,#ccfbf1);border:1.5px solid #5eead4;
+                        border-left:5px solid #0f766e;border-radius:14px;padding:.75rem 1rem;margin:.35rem 0;">
+                <div style="font-size:.72rem;font-weight:800;color:#0f766e;letter-spacing:.08em;
+                            text-transform:uppercase;margin-bottom:.2rem;">Professor(a) Tutor(a)</div>
+                <div style="font-size:.97rem;font-weight:700;color:#134e4a;">🫂 {professor_tutor_auto}</div>
+            </div>
+            \""", unsafe_allow_html=True)
+        else:
+            st.markdown(\"""
+            <div style="background:#f8fafc;border:1.5px dashed #cbd5e1;border-radius:14px;
+                        padding:.75rem 1rem;margin:.35rem 0;">
+                <div style="font-size:.72rem;font-weight:800;color:#64748b;letter-spacing:.08em;
+                            text-transform:uppercase;margin-bottom:.2rem;">Professor(a) Tutor(a)</div>
+                <div style="font-size:.88rem;color:#94a3b8;">Não localizado na base de tutoria</div>
+            </div>
+            \""", unsafe_allow_html=True)
+ 
+    with col_info2:
+        if eletiva_auto:
+            st.markdown(f\"""
+            <div style="background:linear-gradient(135deg,#faf5ff,#ede9fe);border:1.5px solid #c4b5fd;
+                        border-left:5px solid #7c3aed;border-radius:14px;padding:.75rem 1rem;margin:.35rem 0;">
+                <div style="font-size:.72rem;font-weight:800;color:#7c3aed;letter-spacing:.08em;
+                            text-transform:uppercase;margin-bottom:.2rem;">Eletiva — Professor(a)</div>
+                <div style="font-size:.97rem;font-weight:700;color:#4c1d95;">🎨 {eletiva_auto}</div>
+            </div>
+            \""", unsafe_allow_html=True)
+        else:
+            st.markdown(\"""
+            <div style="background:#f8fafc;border:1.5px dashed #cbd5e1;border-radius:14px;
+                        padding:.75rem 1rem;margin:.35rem 0;">
+                <div style="font-size:.72rem;font-weight:800;color:#64748b;letter-spacing:.08em;
+                            text-transform:uppercase;margin-bottom:.2rem;">Eletiva — Professor(a)</div>
+                <div style="font-size:.88rem;color:#94a3b8;">Não localizado na base de eletivas</div>
+            </div>
+            \""", unsafe_allow_html=True)
+ 
     def _parse_data_relatorio(valor, padrao):
         try:
             data_convertida = pd.to_datetime(valor, errors="coerce")
@@ -4927,9 +5413,8 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
             return data_convertida.date()
         except Exception:
             return padrao
-
+ 
     def _normalizar_estado_date_input(chave: str, padrao):
-        """Evita que valores NaT/Timestamp inválidos no session_state derrubem o date_input."""
         if chave not in st.session_state:
             return
         try:
@@ -4937,89 +5422,108 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
             st.session_state[chave] = valor_normalizado
         except Exception:
             st.session_state[chave] = padrao
-
-    hoje = datetime.now().date()
-    data_inicio_padrao = _parse_data_relatorio(registro_relatorio.get("data_inicio"), hoje - timedelta(days=30))
+ 
+    hoje              = datetime.now().date()
+    data_inicio_padrao = _parse_data_relatorio(
+        registro_relatorio.get("data_inicio"), hoje - timedelta(days=30)
+    )
     data_fim_padrao = _parse_data_relatorio(registro_relatorio.get("data_fim"), hoje)
     if data_fim_padrao < data_inicio_padrao:
         data_fim_padrao = data_inicio_padrao
-
+ 
     _normalizar_estado_date_input("relatorio_data_inicio", data_inicio_padrao)
-    _normalizar_estado_date_input("relatorio_data_fim", data_fim_padrao)
-
+    _normalizar_estado_date_input("relatorio_data_fim",    data_fim_padrao)
+ 
     professor_autor_padrao = str(registro_relatorio.get("professor_autor", "")).strip()
-    coordenador_padrao = coordenador_auto_turma or str(registro_relatorio.get("coordenador_sala", "")).strip()
-
+    coordenador_padrao     = coordenador_auto_turma or str(registro_relatorio.get("coordenador_sala", "")).strip()
+ 
     opcoes_professores = professores_lista + (["Digitar manualmente"] if professores_lista else [])
-    idx_autor = opcoes_professores.index(professor_autor_padrao) if professor_autor_padrao in opcoes_professores else (len(opcoes_professores) - 1 if opcoes_professores else 0)
-
+    idx_autor = (
+        opcoes_professores.index(professor_autor_padrao)
+        if professor_autor_padrao in opcoes_professores
+        else (len(opcoes_professores) - 1 if opcoes_professores else 0)
+    )
+ 
     col_form_1, col_form_2 = st.columns(2)
     with col_form_1:
-        editor_sel = st.selectbox("👨‍🏫 Professor que está editando", opcoes_professores if opcoes_professores else ["Digitar manualmente"], index=idx_autor, key="relatorio_editor_sel")
+        editor_sel = st.selectbox(
+            "👨‍🏫 Professor que está editando",
+            opcoes_professores if opcoes_professores else ["Digitar manualmente"],
+            index=idx_autor,
+            key="relatorio_editor_sel"
+        )
         if editor_sel == "Digitar manualmente" or not professores_lista:
             editor_manual = st.text_input(
-                "Nome do professor editor",
-                value=professor_autor_padrao,
+                "Nome do professor editor", value=professor_autor_padrao,
                 key="relatorio_editor_manual"
             )
         else:
             editor_manual = ""
-        data_inicio = st.date_input("📅 Data inicial", value=data_inicio_padrao, key="relatorio_data_inicio")
+        data_inicio = st.date_input("📅 Data inicial", value=data_inicio_padrao,
+                                     key="relatorio_data_inicio")
         frequencia = st.number_input(
-            "📊 Frequência (%)",
-            min_value=0.0,
-            max_value=100.0,
+            "📊 Frequência (%)", min_value=0.0, max_value=100.0,
             value=float(registro_relatorio.get("frequencia_percentual", 100) or 100),
-            step=1.0,
-            key="relatorio_frequencia"
+            step=1.0, key="relatorio_frequencia"
         )
     with col_form_2:
-        st.text_input(
-            "🧭 Coordenador(a) da sala",
-            value=coordenador_padrao,
-            disabled=True,
-            key="relatorio_coord_auto"
-        )
+        st.text_input("🧭 Coordenador(a) da sala", value=coordenador_padrao,
+                      disabled=True, key="relatorio_coord_auto")
         if not coordenador_padrao:
-            st.caption("Cadastre o coordenador desta turma em '📋 Gerenciar Turmas' para preenchimento automático.")
+            st.caption("Cadastre o coordenador desta turma em '📋 Gerenciar Turmas'.")
         else:
-            st.caption("Coordenador preenchido automaticamente pela turma selecionada.")
+            st.caption("Preenchido automaticamente pela turma selecionada.")
         componente_curricular = st.text_input(
             "📘 Componente curricular / área",
             value=str(registro_relatorio.get("componente_curricular", "")).strip(),
             placeholder="Ex: Língua Portuguesa, Matemática, acompanhamento geral",
             key="relatorio_componente"
         )
-        data_fim = st.date_input("📅 Data final", value=data_fim_padrao, min_value=data_inicio, key="relatorio_data_fim")
+        data_fim = st.date_input("📅 Data final", value=data_fim_padrao,
+                                  min_value=data_inicio, key="relatorio_data_fim")
         situacao_geral = st.selectbox(
             "🧩 Situação geral",
             ["Em acompanhamento", "Evoluindo bem", "Atenção", "Atenção imediata", "Necessita intervenção"],
-            index=["Em acompanhamento", "Evoluindo bem", "Atenção", "Atenção imediata", "Necessita intervenção"].index(
+            index=["Em acompanhamento", "Evoluindo bem", "Atenção", "Atenção imediata",
+                   "Necessita intervenção"].index(
                 str(registro_relatorio.get("situacao_geral", "Em acompanhamento")).strip()
-                if str(registro_relatorio.get("situacao_geral", "Em acompanhamento")).strip() in ["Em acompanhamento", "Evoluindo bem", "Atenção", "Atenção imediata", "Necessita intervenção"]
+                if str(registro_relatorio.get("situacao_geral", "Em acompanhamento")).strip()
+                in ["Em acompanhamento", "Evoluindo bem", "Atenção", "Atenção imediata",
+                    "Necessita intervenção"]
                 else "Em acompanhamento"
             ),
             key="relatorio_situacao"
         )
-
-    professor_editor = editor_manual.strip() if editor_sel == "Digitar manualmente" or not professores_lista else editor_sel
+ 
+    professor_editor = (
+        editor_manual.strip()
+        if editor_sel == "Digitar manualmente" or not professores_lista
+        else editor_sel
+    )
     coordenador_sala = coordenador_padrao.strip()
-
-    pontos_automaticos = gerar_pontos_atencao_automaticos(df_ocorrencias, turma_sel, aluno_ra, aluno_nome, data_inicio, data_fim)
+ 
+    pontos_automaticos = gerar_pontos_atencao_automaticos(
+        df_ocorrencias, turma_sel, aluno_ra, aluno_nome, data_inicio, data_fim
+    )
     if pontos_automaticos:
-        st.markdown("""
-        <div style="background:linear-gradient(135deg,#fff7ed,#fffbeb);border:1.5px solid #fdba74;border-left:5px solid #ea580c;border-radius:16px;padding:1rem 1.25rem;margin:1rem 0;">
-            <div style="font-weight:800;color:#9a3412;margin-bottom:0.35rem;">🚨 Pontos de atenção sugeridos automaticamente</div>
-            <div style="color:#9a3412;font-size:0.86rem;">O sistema encontrou ocorrências graves ou gravíssimas dentro do período selecionado para este estudante.</div>
+        st.markdown(\"""
+        <div style="background:linear-gradient(135deg,#fff7ed,#fffbeb);border:1.5px solid #fdba74;
+                    border-left:5px solid #ea580c;border-radius:16px;padding:1rem 1.25rem;margin:1rem 0;">
+            <div style="font-weight:800;color:#9a3412;margin-bottom:.35rem;">
+                🚨 Pontos de atenção sugeridos automaticamente
+            </div>
+            <div style="color:#9a3412;font-size:.86rem;">
+                Ocorrências graves ou gravíssimas encontradas no período.
+            </div>
         </div>
-        """, unsafe_allow_html=True)
+        \""", unsafe_allow_html=True)
         for item in pontos_automaticos:
             st.markdown(f"- {item}")
     else:
-        st.info("Nenhuma ocorrência grave/gravíssima foi localizada para o período selecionado.")
-
+        st.info("Nenhuma ocorrência grave/gravíssima localizada no período.")
+ 
     indicacao_grave = st.checkbox(
-        "⚠️ O professor deseja sinalizar um ponto grave adicional neste relatório",
+        "⚠️ Sinalizar um ponto grave adicional neste relatório",
         value=bool(registro_relatorio.get("indicacao_grave_professor", False)),
         key="relatorio_indicacao_grave"
     )
@@ -5030,7 +5534,7 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
         placeholder="Explique o fato grave, o impacto e a urgência do acompanhamento.",
         key="relatorio_ponto_grave"
     )
-
+ 
     desenvolvimento_academico = st.text_area(
         "📚 Desenvolvimento acadêmico",
         value=str(registro_relatorio.get("desenvolvimento_academico", "")).strip(),
@@ -5049,53 +5553,58 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
         "🛠️ Estratégias e encaminhamentos",
         value=str(registro_relatorio.get("estrategias_adotadas", "")).strip(),
         height=120,
-        placeholder="Ações do professor, combinados, contatos com família, encaminhamentos e próximos passos.",
+        placeholder="Ações do professor, combinados, contatos com família, próximos passos.",
         key="relatorio_estrategias"
     )
     pontos_atencao_manuais = st.text_area(
         "🔎 Pontos de atenção complementares",
         value=str(registro_relatorio.get("pontos_atencao", "")).strip(),
         height=120,
-        placeholder="Liste os pontos que merecem monitoramento contínuo nesta turma.",
+        placeholder="Liste pontos que merecem monitoramento contínuo.",
         key="relatorio_pontos_manuais"
     )
-
+ 
     col_salvar, col_excluir = st.columns([2, 1])
     with col_salvar:
-        if st.button("💾 Salvar relatório", type="primary", use_container_width=True, key="relatorio_salvar_btn"):
+        if st.button("💾 Salvar relatório", type="primary",
+                     use_container_width=True, key="relatorio_salvar_btn"):
             if not professor_editor:
                 st.error("Informe o professor que está registrando a edição.")
             elif not coordenador_sala:
-                st.error("Cadastre o coordenador desta turma em '📋 Gerenciar Turmas' antes de salvar o relatório.")
+                st.error("Cadastre o coordenador desta turma em '📋 Gerenciar Turmas'.")
             elif indicacao_grave and not descricao_ponto_grave.strip():
                 st.error("Descreva o ponto grave sinalizado pelo professor.")
             elif data_fim < data_inicio:
                 st.error("A data final não pode ser anterior à data inicial.")
             else:
                 payload_relatorio = {
-                    "turma": turma_sel,
-                    "ra": aluno_ra,
-                    "aluno": aluno_nome,
-                    "data_inicio": str(data_inicio),
-                    "data_fim": str(data_fim),
-                    "professor_autor": str(registro_relatorio.get("professor_autor", professor_editor)).strip() or professor_editor,
+                    "turma":                    turma_sel,
+                    "ra":                       aluno_ra,
+                    "aluno":                    aluno_nome,
+                    "data_inicio":              str(data_inicio),
+                    "data_fim":                 str(data_fim),
+                    "professor_autor":          str(registro_relatorio.get("professor_autor", professor_editor)).strip() or professor_editor,
                     "professor_responsavel_sala": "",
-                    "coordenador_sala": coordenador_sala,
-                    "componente_curricular": componente_curricular,
-                    "situacao_geral": situacao_geral,
-                    "frequencia_percentual": frequencia,
+                    "coordenador_sala":         coordenador_sala,
+                    "componente_curricular":    componente_curricular,
+                    "situacao_geral":           situacao_geral,
+                    "frequencia_percentual":    frequencia,
                     "desenvolvimento_academico": desenvolvimento_academico,
                     "observacoes_comportamentais": observacoes_comportamentais,
-                    "estrategias_adotadas": estrategias_adotadas,
-                    "pontos_atencao": pontos_atencao_manuais,
+                    "estrategias_adotadas":     estrategias_adotadas,
+                    "pontos_atencao":           pontos_atencao_manuais,
                     "pontos_atencao_automaticos": pontos_automaticos,
                     "indicacao_grave_professor": indicacao_grave,
-                    "descricao_ponto_grave": descricao_ponto_grave.strip(),
-                    "ultima_edicao_por": professor_editor,
-                    "created_at": registro_relatorio.get("created_at", datetime.now().isoformat()),
+                    "descricao_ponto_grave":    descricao_ponto_grave.strip(),
+                    "ultima_edicao_por":        professor_editor,
+                    "professor_tutor":          professor_tutor_auto,
+                    "eletiva":                  eletiva_auto,
+                    "created_at":               registro_relatorio.get("created_at", datetime.now().isoformat()),
                 }
                 if registro_relatorio and registro_relatorio.get("id"):
-                    sucesso, base = atualizar_relatorio_estudante(registro_relatorio.get("id"), payload_relatorio)
+                    sucesso, base = atualizar_relatorio_estudante(
+                        registro_relatorio.get("id"), payload_relatorio
+                    )
                     if sucesso:
                         st.session_state.relatorio_feedback = {
                             "tipo": "success",
@@ -5112,7 +5621,8 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
                         st.rerun()
     with col_excluir:
         if registro_relatorio and registro_relatorio.get("id"):
-            if st.button("🗑️ Excluir relatório", use_container_width=True, key="relatorio_excluir_btn"):
+            if st.button("🗑️ Excluir relatório",
+                         use_container_width=True, key="relatorio_excluir_btn"):
                 sucesso, base = excluir_relatorio_estudante(registro_relatorio.get("id"))
                 if sucesso:
                     st.session_state.relatorio_feedback = {
@@ -5120,39 +5630,178 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
                         "msg": f"Relatório #{registro_relatorio.get('id')} excluído ({base})."
                     }
                     st.rerun()
-
+ 
+    # ── Impressão PDF ─────────────────────────────────
     st.markdown("---")
-    st.markdown("""
-    <div style="display:flex;align-items:center;gap:0.5rem;margin:0.25rem 0 0.75rem 0;padding-bottom:0.5rem;border-bottom:2px solid #e2e8f0;position:relative;">
-        <div style="position:absolute;bottom:-2px;left:0;width:45px;height:2px;background:linear-gradient(90deg,#0f766e,transparent);border-radius:4px;"></div>
-        <span>📚</span>
-        <h3 style="margin:0;font-family:'Nunito',sans-serif;font-size:1rem;color:#0f172a;">Relatórios da turma</h3>
+    st.markdown(\"""
+    <div style="display:flex;align-items:center;gap:.5rem;margin:.25rem 0 .75rem 0;
+                padding-bottom:.5rem;border-bottom:2px solid #e2e8f0;position:relative;">
+        <div style="position:absolute;bottom:-2px;left:0;width:45px;height:2px;
+                    background:linear-gradient(90deg,#0f766e,transparent);border-radius:4px;"></div>
+        <span>🖨️</span>
+        <h3 style="margin:0;font-family:'Nunito',sans-serif;font-size:1rem;color:#0f172a;">
+            Imprimir Relatório em PDF
+        </h3>
     </div>
-    """, unsafe_allow_html=True)
-
+    \""", unsafe_allow_html=True)
+ 
+    if registro_relatorio and registro_relatorio.get("id"):
+        # Monta payload completo para PDF do relatório salvo
+        payload_pdf = dict(registro_relatorio)
+        payload_pdf["professor_tutor"] = str(registro_relatorio.get("professor_tutor", "") or professor_tutor_auto).strip()
+        payload_pdf["eletiva"]         = str(registro_relatorio.get("eletiva", "") or eletiva_auto).strip()
+ 
+        # Busca ocorrências do aluno no período registrado
+        df_ocorr_pdf = pd.DataFrame()
+        if not df_ocorrencias.empty:
+            df_tmp = df_ocorrencias.copy()
+            df_tmp["_dt"] = pd.to_datetime(df_tmp.get("data", ""), format="%d/%m/%Y %H:%M", errors="coerce")
+            ini_ts = pd.Timestamp(str(registro_relatorio.get("data_inicio", data_inicio)))
+            fim_ts = pd.Timestamp(str(registro_relatorio.get("data_fim", data_fim)))
+            mask = (
+                (df_tmp.get("ra", pd.Series(dtype=str)).astype(str).str.strip() == aluno_ra) &
+                (df_tmp["_dt"].between(ini_ts, fim_ts + pd.Timedelta(days=1), inclusive="both"))
+            )
+            df_ocorr_pdf = df_tmp[mask].drop(columns=["_dt"], errors="ignore")
+ 
+        if st.button("🖨️ Gerar PDF deste Relatório", type="primary",
+                     use_container_width=True, key="btn_imprimir_relatorio"):
+            try:
+                pdf_buffer = gerar_pdf_relatorio_estudante(payload_pdf, df_ocorr_pdf)
+                nome_arquivo = (
+                    f"Relatorio_{aluno_ra}_{aluno_nome.replace(' ', '_')}"
+                    f"_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+                )
+                st.download_button(
+                    "📥 Baixar PDF do Relatório",
+                    data=pdf_buffer,
+                    file_name=nome_arquivo,
+                    mime="application/pdf",
+                    use_container_width=True,
+                    key="download_relatorio_pdf"
+                )
+                st.success("✅ PDF gerado com sucesso!")
+            except Exception as e:
+                st.error(f"❌ Erro ao gerar PDF: {e}")
+    else:
+        # Permite imprimir mesmo sem ter salvo (usando dados atuais do formulário)
+        st.info(
+            "Salve o relatório para habilitar a impressão, "
+            "ou use o botão abaixo para gerar PDF com os dados do formulário atual."
+        )
+        if st.button("🖨️ Gerar PDF (dados atuais)", use_container_width=True,
+                     key="btn_imprimir_relatorio_novo"):
+            payload_novo = {
+                "turma":                      turma_sel,
+                "ra":                         aluno_ra,
+                "aluno":                      aluno_nome,
+                "data_inicio":                str(data_inicio),
+                "data_fim":                   str(data_fim),
+                "professor_autor":            professor_editor,
+                "coordenador_sala":           coordenador_sala,
+                "componente_curricular":      componente_curricular,
+                "situacao_geral":             situacao_geral,
+                "frequencia_percentual":      frequencia,
+                "desenvolvimento_academico":  desenvolvimento_academico,
+                "observacoes_comportamentais": observacoes_comportamentais,
+                "estrategias_adotadas":       estrategias_adotadas,
+                "pontos_atencao":             pontos_atencao_manuais,
+                "pontos_atencao_automaticos": pontos_automaticos,
+                "indicacao_grave_professor":  indicacao_grave,
+                "descricao_ponto_grave":      descricao_ponto_grave.strip(),
+                "ultima_edicao_por":          professor_editor,
+                "professor_tutor":            professor_tutor_auto,
+                "eletiva":                    eletiva_auto,
+            }
+            df_ocorr_novo = pd.DataFrame()
+            if not df_ocorrencias.empty:
+                df_tmp2 = df_ocorrencias.copy()
+                df_tmp2["_dt"] = pd.to_datetime(
+                    df_tmp2.get("data", ""), format="%d/%m/%Y %H:%M", errors="coerce"
+                )
+                ini_ts = pd.Timestamp(data_inicio)
+                fim_ts = pd.Timestamp(data_fim)
+                mask = (
+                    (df_tmp2.get("ra", pd.Series(dtype=str)).astype(str).str.strip() == aluno_ra) &
+                    (df_tmp2["_dt"].between(ini_ts, fim_ts + pd.Timedelta(days=1), inclusive="both"))
+                )
+                df_ocorr_novo = df_tmp2[mask].drop(columns=["_dt"], errors="ignore")
+            try:
+                pdf_buffer = gerar_pdf_relatorio_estudante(payload_novo, df_ocorr_novo)
+                nome_arquivo = (
+                    f"Relatorio_{aluno_ra}_{aluno_nome.replace(' ', '_')}"
+                    f"_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+                )
+                st.download_button(
+                    "📥 Baixar PDF",
+                    data=pdf_buffer,
+                    file_name=nome_arquivo,
+                    mime="application/pdf",
+                    use_container_width=True,
+                    key="download_relatorio_pdf_novo"
+                )
+                st.success("✅ PDF gerado!")
+            except Exception as e:
+                st.error(f"❌ Erro ao gerar PDF: {e}")
+ 
+    st.markdown("---")
+    st.markdown(\"""
+    <div style="display:flex;align-items:center;gap:.5rem;margin:.25rem 0 .75rem 0;
+                padding-bottom:.5rem;border-bottom:2px solid #e2e8f0;position:relative;">
+        <div style="position:absolute;bottom:-2px;left:0;width:45px;height:2px;
+                    background:linear-gradient(90deg,#0f766e,transparent);border-radius:4px;"></div>
+        <span>📚</span>
+        <h3 style="margin:0;font-family:'Nunito',sans-serif;font-size:1rem;color:#0f172a;">
+            Relatórios da turma
+        </h3>
+    </div>
+    \""", unsafe_allow_html=True)
+ 
     if relatorios_turma.empty:
         st.info("Nenhum relatório cadastrado para esta turma ainda.")
     else:
         df_lista = relatorios_turma.copy()
         df_lista["alerta"] = df_lista.apply(
-            lambda row: "Sim" if _valor_booleano_seguro(row.get("indicacao_grave_professor", False)) or len(row.get("pontos_atencao_automaticos", [])) > 0 else "Não",
+            lambda row: "Sim"
+            if _valor_booleano_seguro(row.get("indicacao_grave_professor", False))
+            or len(row.get("pontos_atencao_automaticos", [])) > 0
+            else "Não",
             axis=1
         )
         if "updated_at" in df_lista.columns:
-            df_lista["updated_at"] = pd.to_datetime(df_lista["updated_at"], errors="coerce").dt.strftime("%d/%m/%Y %H:%M")
+            df_lista["updated_at"] = pd.to_datetime(
+                df_lista["updated_at"], errors="coerce"
+            ).dt.strftime("%d/%m/%Y %H:%M")
+ 
+        # Enriquece com tutor e eletiva (lookup rápido)
+        def _buscar_tutor(row):
+            return str(row.get("professor_tutor", "")).strip() or obter_professor_tutor_do_aluno(
+                str(row.get("aluno", "")), str(row.get("turma", "")), str(row.get("ra", "")), TUTORIA
+            )
+        def _buscar_eletiva(row):
+            return str(row.get("eletiva", "")).strip() or obter_eletiva_do_aluno(
+                str(row.get("aluno", "")), str(row.get("turma", "")), str(row.get("ra", "")), ELETIVAS
+            )
+        df_lista["Tutor(a)"]  = df_lista.apply(_buscar_tutor, axis=1)
+        df_lista["Eletiva"]   = df_lista.apply(_buscar_eletiva, axis=1)
+ 
         colunas_relatorio = [
             coluna for coluna in [
                 "id", "aluno", "ra", "data_inicio", "data_fim", "situacao_geral",
-                "coordenador_sala", "ultima_edicao_por", "updated_at", "alerta"
+                "Tutor(a)", "Eletiva", "coordenador_sala",
+                "ultima_edicao_por", "updated_at", "alerta"
             ] if coluna in df_lista.columns
         ]
-        st.dataframe(df_lista[colunas_relatorio].sort_values(["data_fim", "aluno"], ascending=[False, True]), use_container_width=True, hide_index=True)
-
+        st.dataframe(
+            df_lista[colunas_relatorio].sort_values(["data_fim", "aluno"], ascending=[False, True]),
+            use_container_width=True, hide_index=True
+        )
+ 
         csv_relatorios = df_lista.copy()
         if "pontos_atencao_automaticos" in csv_relatorios.columns:
-            csv_relatorios["pontos_atencao_automaticos"] = csv_relatorios["pontos_atencao_automaticos"].apply(
-                lambda itens: " | ".join(itens) if isinstance(itens, list) else str(itens)
-            )
+            csv_relatorios["pontos_atencao_automaticos"] = csv_relatorios[
+                "pontos_atencao_automaticos"
+            ].apply(lambda itens: " | ".join(itens) if isinstance(itens, list) else str(itens))
         st.download_button(
             "📥 Exportar relatórios da turma em CSV",
             data=csv_relatorios.to_csv(index=False).encode("utf-8-sig"),
@@ -5160,9 +5809,81 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
             mime="text/csv",
             use_container_width=True
         )
-
-    st.caption("Os relatórios usam o Supabase quando a tabela `relatorios_estudantes` estiver criada. Até lá, o sistema faz fallback local em `data/relatorios_estudantes_local.json`.")
-
+ 
+        # ── Impressão em lote (todos da turma) ───────
+        st.markdown("---")
+        st.subheader("📦 Imprimir Todos os Relatórios da Turma (ZIP)")
+        if st.button("📦 Gerar ZIP com PDFs da Turma", use_container_width=True,
+                     key="btn_zip_relatorios_turma"):
+            zip_buffer = BytesIO()
+            gerados = 0
+            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+                for _, row in relatorios_turma.iterrows():
+                    payload_lote = row.to_dict()
+                    payload_lote["professor_tutor"] = (
+                        str(payload_lote.get("professor_tutor", "")).strip()
+                        or obter_professor_tutor_do_aluno(
+                            str(payload_lote.get("aluno", "")),
+                            str(payload_lote.get("turma", "")),
+                            str(payload_lote.get("ra", "")),
+                            TUTORIA,
+                        )
+                    )
+                    payload_lote["eletiva"] = (
+                        str(payload_lote.get("eletiva", "")).strip()
+                        or obter_eletiva_do_aluno(
+                            str(payload_lote.get("aluno", "")),
+                            str(payload_lote.get("turma", "")),
+                            str(payload_lote.get("ra", "")),
+                            ELETIVAS,
+                        )
+                    )
+                    # Ocorrências do aluno no período
+                    df_ocorr_lote = pd.DataFrame()
+                    if not df_ocorrencias.empty:
+                        df_tmp3 = df_ocorrencias.copy()
+                        df_tmp3["_dt"] = pd.to_datetime(
+                            df_tmp3.get("data", ""), format="%d/%m/%Y %H:%M", errors="coerce"
+                        )
+                        ra_lote  = str(payload_lote.get("ra", "")).strip()
+                        ini_lote = pd.Timestamp(str(payload_lote.get("data_inicio", ""))) \
+                            if payload_lote.get("data_inicio") else pd.Timestamp("1900-01-01")
+                        fim_lote = pd.Timestamp(str(payload_lote.get("data_fim", ""))) \
+                            if payload_lote.get("data_fim") else pd.Timestamp("2100-12-31")
+                        mask_l = (
+                            (df_tmp3.get("ra", pd.Series(dtype=str)).astype(str).str.strip() == ra_lote) &
+                            (df_tmp3["_dt"].between(ini_lote, fim_lote + pd.Timedelta(days=1), inclusive="both"))
+                        )
+                        df_ocorr_lote = df_tmp3[mask_l].drop(columns=["_dt"], errors="ignore")
+                    try:
+                        pdf_lote = gerar_pdf_relatorio_estudante(payload_lote, df_ocorr_lote)
+                        nome_pdf = (
+                            f"Relatorio_{str(payload_lote.get('ra', '')).strip()}"
+                            f"_{str(payload_lote.get('aluno', '')).replace(' ', '_')}.pdf"
+                        )
+                        zf.writestr(nome_pdf, pdf_lote.getvalue())
+                        gerados += 1
+                    except Exception:
+                        pass
+            if gerados:
+                zip_buffer.seek(0)
+                st.download_button(
+                    "📥 Baixar ZIP com todos os PDFs",
+                    data=zip_buffer,
+                    file_name=f"Relatorios_{gerar_chave_segura(turma_sel)}_{datetime.now().strftime('%Y%m%d_%H%M')}.zip",
+                    mime="application/zip",
+                    use_container_width=True,
+                    key="download_zip_relatorios"
+                )
+                st.success(f"✅ {gerados} PDF(s) gerado(s)!")
+            else:
+                st.warning("Nenhum PDF foi gerado.")
+ 
+    st.caption(
+        "Os relatórios usam o Supabase quando a tabela `relatorios_estudantes` estiver criada. "
+        "Fallback local em `data/relatorios_estudantes_local.json`."
+    )
+"""
 # ======================================================
 # PÁGINA 📥 IMPORTAR ALUNOS
 # ======================================================
