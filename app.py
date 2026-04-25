@@ -8153,10 +8153,9 @@ elif menu == "🫂 Tutoria":
         if st.session_state.get("tutoria_edit_loaded_for") != st.session_state["tutoria_tutor_edicao"]:
             _carregar_campos_edicao_tutoria(st.session_state["tutoria_tutor_edicao"])
 
-    with tab_novo_tutor:
+   with tab_novo_tutor:
     col_n1, col_n2 = st.columns(2)
     with col_n1:
-        # Busca a lista de nomes únicos, ordenados, ignorando nulos
         professores_lista = []
         if not df_professores.empty and "nome" in df_professores.columns:
             professores_lista = sorted(df_professores["nome"].dropna().astype(str).unique().tolist())
@@ -8168,30 +8167,32 @@ elif menu == "🫂 Tutoria":
             nome_novo_tutor = ""
         
         espaco_novo_tutor = st.text_input("Espaço usado", key="tutoria_novo_espaco", placeholder="Ex: Sala 04 / Pátio / Sala de Leitura")
+    
     with col_n2:
         tipo_novo_tutor = st.selectbox("Perfil", PERFIS_TUTORIA, key="tutoria_novo_tipo")
         horario_novo_tutor = st.text_input("Horário", key="tutoria_novo_horario", placeholder="Ex: 13:10 às 14:00")
+    
     dia_novo_tutor = st.text_input("Dia", key="tutoria_novo_dia", placeholder="Ex: Quarta-feira")
     
     if st.button("✅ Cadastrar Responsável", key="btn_cadastrar_tutor_tutoria", type="primary"):
-        # O restante do código permanece igual...
-            nome_novo_tutor = str(nome_novo_tutor = st.text_inputnome_novo_tutor).strip()
-            if not nome_novo_tutor:
-                st.warning("Informe o nome do responsável.")
-            elif any(normalizar_texto(nome_novo_tutor) == normalizar_texto(nome_existente) for nome_existente in TUTORIA.keys()):
-                st.warning("Já existe um cadastro com esse nome.")
-            else:
-                TUTORIA[nome_novo_tutor] = {
-                    "nome": nome_novo_tutor,
-                    "tipo": normalizar_perfil_tutoria(tipo_novo_tutor),
-                    "espaco": str(espaco_novo_tutor).strip(),
-                    "horario": str(horario_novo_tutor).strip(),
-                    "dia": str(dia_novo_tutor).strip(),
-                    "alunos": []
-                }
-                _salvar_estado_tutoria("local")
-                st.success("✅ Cadastro realizado com sucesso.")
-                st.rerun()
+        # IMPORTANTE: garantir que o código aqui esteja indentado (4 espaços)
+        nome_novo_tutor = str(nome_novo_tutor).strip()   # ← linha corrigida
+        if not nome_novo_tutor:
+            st.warning("Informe o nome do responsável.")
+        elif any(normalizar_texto(nome_novo_tutor) == normalizar_texto(nome_existente) for nome_existente in TUTORIA.keys()):
+            st.warning("Já existe um cadastro com esse nome.")
+        else:
+            TUTORIA[nome_novo_tutor] = {
+                "nome": nome_novo_tutor,
+                "tipo": normalizar_perfil_tutoria(tipo_novo_tutor),
+                "espaco": str(espaco_novo_tutor).strip(),
+                "horario": str(horario_novo_tutor).strip(),
+                "dia": str(dia_novo_tutor).strip(),
+                "alunos": []
+            }
+            _salvar_estado_tutoria("local")
+            st.success("✅ Cadastro realizado com sucesso.")
+            st.rerun()
 
    with tab_editar_tutor:
     if not TUTORIA:
