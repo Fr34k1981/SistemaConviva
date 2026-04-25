@@ -2446,8 +2446,28 @@ def preparar_base_alunos_ativos_tutoria(df_alunos: pd.DataFrame) -> pd.DataFrame
     return base
 
 
+def _nome_para_busca_aproximada(valor: str) -> str:
+    """Normaliza nomes para capturar variações comuns: Thalita/Talita, Henzo/Enzo, Yago/Iago, Manuella/Manuela."""
+    texto = normalizar_texto(valor)
+    substituicoes = [
+        ("TH", "T"),
+        ("H", ""),
+        ("Y", "I"),
+        ("LL", "L"),
+        ("PH", "F"),
+        ("K", "C"),
+    ]
+    for antigo, novo in substituicoes:
+        texto = texto.replace(antigo, novo)
+    return texto
+
+
 def buscar_estudante_ativo_mais_proximo(nome_digitado: str, serie_digitada: str, df_alunos: pd.DataFrame) -> dict | None:
-    """Busca o estudante ativo mais próximo no cadastro do Supabase com base no que foi digitado."""
+    """Busca o estudante ativo mais próximo no Supabase.
+
+    Regra principal: turma compatível aumenta a confiança. Assim, grafias como
+    Talita/Thalita, Enzo/Henzo, Iago/Yago e Manuela/Manuella são aceitas quando a sala bate.
+    """
     base = preparar_base_alunos_ativos_tutoria(df_alunos)
     if base.empty:
         return None
@@ -2455,6 +2475,7 @@ def buscar_estudante_ativo_mais_proximo(nome_digitado: str, serie_digitada: str,
     nome_original = str(nome_digitado or "").strip()
     serie_original = formatar_turma_eletiva(serie_digitada)
     nome_norm = normalizar_texto(nome_original)
+    nome_aprox = _nome_para_busca_aproximada(nome_original)
     serie_norm = turma_para_comparacao(serie_original)
     ra_digitado = "".join(ch for ch in nome_original if ch.isdigit())
 
@@ -2469,6 +2490,8 @@ def buscar_estudante_ativo_mais_proximo(nome_digitado: str, serie_digitada: str,
 
     melhor = None
     melhor_score = 0.0
+    melhor_serie_ok = False
+
     for _, aluno in base.iterrows():
         nome_base = aluno.get("nome_norm", "")
         turma_base = aluno.get("turma_norm", "")
@@ -2479,22 +2502,30 @@ def buscar_estudante_ativo_mais_proximo(nome_digitado: str, serie_digitada: str,
         if serie_norm:
             serie_ok = serie_compativel_turma(serie_original, aluno.get("turma", "")) or serie_norm == turma_base
 
-        score = SequenceMatcher(None, nome_norm, nome_base).ratio()
-        if nome_base.startswith(nome_norm):
+        nome_base_aprox = _nome_para_busca_aproximada(nome_base)
+        score = max(
+            SequenceMatcher(None, nome_norm, nome_base).ratio(),
+            SequenceMatcher(None, nome_aprox, nome_base_aprox).ratio(),
+        )
+
+        if nome_base.startswith(nome_norm) or nome_base_aprox.startswith(nome_aprox):
             score = max(score, 0.96)
-        elif nome_norm in nome_base:
+        elif nome_norm in nome_base or nome_aprox in nome_base_aprox:
             score = max(score, 0.90)
 
         if serie_norm and serie_ok:
-            score += 0.08
+            score += 0.15
         elif serie_norm and not serie_ok:
-            score -= 0.20
+            score -= 0.35
 
         if score > melhor_score:
             melhor_score = score
             melhor = aluno
+            melhor_serie_ok = serie_ok
 
-    if melhor is None or melhor_score < 0.78:
+    limite = 0.68 if serie_norm and melhor_serie_ok else 0.82
+
+    if melhor is None or melhor_score < limite:
         return None
 
     return {
@@ -2503,7 +2534,6 @@ def buscar_estudante_ativo_mais_proximo(nome_digitado: str, serie_digitada: str,
         "ra": melhor.get("ra", ""),
         "score": round(float(melhor_score), 3),
     }
-
 
 def resolver_estudantes_tutoria(novos_estudantes: list, df_alunos: pd.DataFrame) -> tuple[list, list]:
     """Resolve os estudantes digitados contra a lista ativa do Supabase."""
@@ -8310,32 +8340,68 @@ elif menu == "🫂 Tutoria":
         _carregar_campos_edicao_tutoria(selecionado)
 
     def _normalizar_linha_lista_tutoria(linha: str, serie_padrao: str = ""):
+        """
+        Lê uma linha colada na tutoria e identifica nome + turma.
+        Aceita:
+        1<TAB>Alice Elizabete<TAB>9 A
+        2 Allana 9A
+        Alice Elizabete; 9 A
+        Alice Elizabete - 9º A
+        """
         bruto = str(linha or "").strip().lstrip("•-").strip()
         if not bruto:
             return None
-        nome = bruto
-        serie = str(serie_padrao or "").strip()
 
+        serie = formatar_turma_eletiva(serie_padrao)
+
+        def _parece_turma(valor: str) -> bool:
+            valor = str(valor or "").strip()
+            if not valor:
+                return False
+            return bool(re.fullmatch(r"\d{1,2}\s*(?:º|ª)?\s*(?:ANO|SERIE|SÉRIE)?\s*[A-Za-z]?", valor, flags=re.I))
+
+        def _limpar_numero_lista(valor: str) -> str:
+            return re.sub(r"^\s*\d{1,3}\s*[.)ºª-]?\s+", "", str(valor or "")).strip()
+
+        def _montar(nome: str, turma: str = ""):
+            nome = _limpar_numero_lista(nome)
+            turma_final = formatar_turma_eletiva(turma or serie)
+            if not nome:
+                return None
+            return {"nome": nome, "serie": turma_final}
+
+        # Modelo de planilha: número | nome | turma
         if "\t" in bruto:
-            partes_tab = [p.strip() for p in bruto.split("\t")]
-            if len(partes_tab) >= 3:
-                possivel_serie = partes_tab[0]
-                possivel_nome = partes_tab[2]
-                if possivel_nome:
-                    nome = possivel_nome
-                if possivel_serie:
-                    serie = possivel_serie
-                return {"nome": nome, "serie": formatar_turma_eletiva(serie)}
+            partes = [p.strip() for p in bruto.split("\t") if str(p).strip()]
+            if len(partes) >= 3:
+                if partes[0].isdigit():
+                    return _montar(partes[1], partes[2])
+                if _parece_turma(partes[-1]):
+                    return _montar(" ".join(partes[:-1]), partes[-1])
+                return _montar(partes[0], partes[1] if len(partes) > 1 else serie)
+            if len(partes) == 2:
+                if partes[0].isdigit():
+                    return _montar(partes[1], serie)
+                if _parece_turma(partes[1]):
+                    return _montar(partes[0], partes[1])
+                return _montar(" ".join(partes), serie)
 
-        for sep in [";", "\t", "|", " - ", " – ", ","]:
+        # Separadores comuns
+        for sep in [";", "|", " – ", " - ", ","]:
             if sep in bruto:
-                partes = [p.strip() for p in bruto.split(sep, 1)]
-                if partes and partes[0]:
-                    nome = partes[0]
-                    if len(partes) > 1 and partes[1]:
-                        serie = partes[1]
-                    break
-        return {"nome": nome, "serie": formatar_turma_eletiva(serie)}
+                partes = [p.strip() for p in bruto.split(sep) if p.strip()]
+                if len(partes) >= 2 and _parece_turma(partes[-1]):
+                    return _montar(" ".join(partes[:-1]), partes[-1])
+                if len(partes) >= 2:
+                    return _montar(partes[0], partes[1])
+
+        # Modelo com espaços: 2 Allana 9A / 20 Gabriel Costa 9º A
+        sem_numero = _limpar_numero_lista(bruto)
+        m = re.match(r"^(?P<nome>.+?)\s+(?P<turma>\d{1,2}\s*(?:º|ª)?\s*[A-Za-z])$", sem_numero, flags=re.I)
+        if m:
+            return _montar(m.group("nome"), m.group("turma"))
+
+        return _montar(sem_numero, serie)
 
     def _apagar_registro_supabase_tutoria(tutor: str, nome: str, serie: str = ""):
         tutor_q = requests.utils.quote(str(tutor), safe="")
@@ -9001,51 +9067,122 @@ elif menu == "🫂 Tutoria":
                     )
 
     st.markdown("---")
-    st.subheader("🔎 Estudantes Sem Professor Na Tutoria")
-    st.caption("Selecione turmas do sistema para identificar alunos que ainda não estão vinculados a nenhum professor(a).")
+    st.subheader("🔎 Estudantes Sem Tutor")
+    st.caption("Mostra estudantes ativos do Supabase que ainda não aparecem em nenhuma lista de tutoria. É possível ver no geral ou por sala.")
+
     if not df_alunos.empty and "nome" in df_alunos.columns and "turma" in df_alunos.columns:
-        turmas_base = sorted([t for t in df_alunos["turma"].dropna().astype(str).str.strip().unique().tolist() if t])
-        turmas_pesquisa = st.multiselect("Turmas para pesquisar", turmas_base, default=turmas_base, key="tutoria_turmas_pesquisa_nao_localizados")
-        if turmas_pesquisa:
-            frames = []
-            for tutor_item in sorted(TUTORIA.keys()):
-                df_tmp = montar_dataframe_tutoria(tutor_item, df_alunos, TUTORIA)
-                if not df_tmp.empty:
-                    frames.append(df_tmp)
-            df_geral_tutoria = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+        base_ativa_tutoria = preparar_base_alunos_ativos_tutoria(df_alunos)
 
-            vinculados = set()
-            if not df_geral_tutoria.empty:
-                df_vinc = df_geral_tutoria[
-                    (df_geral_tutoria["Status"] == "Encontrado")
-                    & (df_geral_tutoria["Aluno Cadastrado"].astype(str).str.strip() != "")
-                    & (df_geral_tutoria["Professor(a)"].astype(str).str.strip() != "")
-                ].copy()
-                for _, r in df_vinc.iterrows():
-                    vinculados.add((normalizar_texto(r.get("Aluno Cadastrado", "")), normalizar_texto(r.get("Turma no Sistema", ""))))
+        frames = []
+        for tutor_item in sorted(TUTORIA.keys()):
+            df_tmp = montar_dataframe_tutoria(tutor_item, df_alunos, TUTORIA)
+            if not df_tmp.empty:
+                frames.append(df_tmp)
+        df_geral_tutoria = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
-            base_turmas = df_alunos[df_alunos["turma"].astype(str).isin(turmas_pesquisa)].copy()
-            base_turmas["nome_norm"] = base_turmas["nome"].astype(str).apply(normalizar_texto)
-            base_turmas["turma_norm"] = base_turmas["turma"].astype(str).apply(normalizar_texto)
+        vinculados = set()
+        if not df_geral_tutoria.empty:
+            df_vinc = df_geral_tutoria[
+                (df_geral_tutoria["Status"] == "Encontrado")
+                & (df_geral_tutoria["Aluno Cadastrado"].astype(str).str.strip() != "")
+                & (df_geral_tutoria["Professor(a)"].astype(str).str.strip() != "")
+            ].copy()
+            for _, r in df_vinc.iterrows():
+                ra_vinc = "".join(ch for ch in str(r.get("RA", "")) if ch.isdigit())
+                if ra_vinc:
+                    vinculados.add(("RA", ra_vinc))
+                vinculados.add((
+                    "NOME_TURMA",
+                    normalizar_texto(r.get("Aluno Cadastrado", "")),
+                    turma_para_comparacao(r.get("Turma no Sistema", ""))
+                ))
 
-            sem_tutor = []
-            for _, aluno in base_turmas.iterrows():
-                chave = (aluno.get("nome_norm", ""), aluno.get("turma_norm", ""))
-                if chave not in vinculados:
-                    sem_tutor.append({
-                        "Nome": aluno.get("nome", ""),
-                        "Turma": aluno.get("turma", ""),
-                        "RA": aluno.get("ra", ""),
-                        "Situação": aluno.get("situacao", ""),
-                        "Professor(a)": ""
-                    })
+        sem_tutor = []
+        for _, aluno in base_ativa_tutoria.iterrows():
+            ra = "".join(ch for ch in str(aluno.get("ra", "")) if ch.isdigit())
+            chave_ra = ("RA", ra) if ra else None
+            chave_nome_turma = (
+                "NOME_TURMA",
+                normalizar_texto(aluno.get("nome", "")),
+                turma_para_comparacao(aluno.get("turma", ""))
+            )
+            if (chave_ra and chave_ra in vinculados) or chave_nome_turma in vinculados:
+                continue
 
-            df_pendentes = pd.DataFrame(sem_tutor)
-            st.metric("Estudantes sem professor na tutoria", len(df_pendentes))
-            if df_pendentes.empty:
-                st.success("Todos os estudantes das turmas selecionadas já possuem professor na tutoria.")
+            sem_tutor.append({
+                "Nome": aluno.get("nome", ""),
+                "Turma": formatar_turma_eletiva(aluno.get("turma", "")),
+                "RA": aluno.get("ra", ""),
+                "Situação": aluno.get("situacao", aluno.get("situação", aluno.get("status", ""))),
+            })
+
+        df_sem_tutor = pd.DataFrame(sem_tutor)
+        if not df_sem_tutor.empty:
+            df_sem_tutor = df_sem_tutor.sort_values(["Turma", "Nome"]).reset_index(drop=True)
+
+        total_ativos = len(base_ativa_tutoria)
+        total_sem_tutor = len(df_sem_tutor)
+        total_com_tutor = max(total_ativos - total_sem_tutor, 0)
+
+        col_st1, col_st2, col_st3 = st.columns(3)
+        col_st1.metric("Ativos no Supabase", total_ativos)
+        col_st2.metric("Com tutor", total_com_tutor)
+        col_st3.metric("Sem tutor", total_sem_tutor)
+
+        aba_geral_sem_tutor, aba_sala_sem_tutor = st.tabs(["📌 Geral", "🏫 Por sala"])
+
+        with aba_geral_sem_tutor:
+            if df_sem_tutor.empty:
+                st.success("Todos os estudantes ativos já possuem tutor cadastrado.")
             else:
-                st.dataframe(df_pendentes, use_container_width=True, hide_index=True)
+                st.dataframe(df_sem_tutor, use_container_width=True, hide_index=True)
+                csv_sem_tutor = df_sem_tutor.to_csv(index=False).encode("utf-8-sig")
+                st.download_button(
+                    "⬇️ Baixar lista geral em CSV",
+                    data=csv_sem_tutor,
+                    file_name=f"estudantes_sem_tutor_geral_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                    mime="text/csv",
+                    key="download_sem_tutor_geral_csv"
+                )
+
+        with aba_sala_sem_tutor:
+            if df_sem_tutor.empty:
+                st.success("Não há estudantes sem tutor para agrupar por sala.")
+            else:
+                turmas_sem_tutor = sorted(df_sem_tutor["Turma"].dropna().astype(str).unique().tolist())
+                turma_sem_tutor_sel = st.selectbox(
+                    "Selecione a sala/turma",
+                    options=["Todas"] + turmas_sem_tutor,
+                    key="turma_sem_tutor_select"
+                )
+
+                resumo_sem_tutor = (
+                    df_sem_tutor.groupby("Turma")
+                    .size()
+                    .reset_index(name="Sem tutor")
+                    .sort_values("Turma")
+                )
+                st.dataframe(resumo_sem_tutor, use_container_width=True, hide_index=True)
+
+                if turma_sem_tutor_sel == "Todas":
+                    df_sala = df_sem_tutor
+                else:
+                    df_sala = df_sem_tutor[df_sem_tutor["Turma"] == turma_sem_tutor_sel]
+
+                st.markdown(f"**Total exibido:** {len(df_sala)} estudante(s)")
+                st.dataframe(df_sala, use_container_width=True, hide_index=True)
+
+                csv_sala = df_sala.to_csv(index=False).encode("utf-8-sig")
+                nome_arquivo_sala = gerar_chave_segura(turma_sem_tutor_sel) if turma_sem_tutor_sel != "Todas" else "TODAS"
+                st.download_button(
+                    "⬇️ Baixar sala selecionada em CSV",
+                    data=csv_sala,
+                    file_name=f"estudantes_sem_tutor_{nome_arquivo_sala}_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                    mime="text/csv",
+                    key="download_sem_tutor_sala_csv"
+                )
+    else:
+        st.info("Para mostrar estudantes sem tutor, a tabela de alunos precisa ter pelo menos as colunas nome e turma.")
 
     if alunos_raw:
         st.markdown("---")
