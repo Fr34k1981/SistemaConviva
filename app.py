@@ -1596,6 +1596,7 @@ if 'pagina_atual' not in st.session_state:
 menu_items = [
     {"nome": "Dashboard", "icone": "🏠"},
     {"nome": "Registrar Ocorrência", "icone": "📝"},
+    {"nome": "Relatório dos Estudantes", "icone": "🧾"},
     {"nome": "Histórico de Ocorrências", "icone": "📋"},
     {"nome": "Comunicado aos Pais", "icone": "📄"},
     {"nome": "Lista de Alunos", "icone": "👥"},
@@ -2806,6 +2807,221 @@ def consolidar_categoria_ocorrencia(infracoes: list[str]) -> str:
         vistos.add(chave)
         categorias.append(nome)
     return " / ".join(categorias)
+
+# ======================================================
+# RELATÓRIOS DOS ESTUDANTES
+# ======================================================
+
+RELATORIOS_LOCAL_PATH = os.path.join(os.getcwd(), "data", "relatorios_estudantes_local.json")
+
+def _garantir_arquivo_relatorios_local():
+    os.makedirs(os.path.dirname(RELATORIOS_LOCAL_PATH), exist_ok=True)
+    if not os.path.exists(RELATORIOS_LOCAL_PATH):
+        with open(RELATORIOS_LOCAL_PATH, "w", encoding="utf-8") as arquivo:
+            json.dump([], arquivo, ensure_ascii=False, indent=2)
+
+def _carregar_relatorios_local() -> list[dict]:
+    _garantir_arquivo_relatorios_local()
+    try:
+        with open(RELATORIOS_LOCAL_PATH, "r", encoding="utf-8") as arquivo:
+            dados = json.load(arquivo)
+        return dados if isinstance(dados, list) else []
+    except Exception:
+        return []
+
+def _salvar_relatorios_local(registros: list[dict]) -> bool:
+    _garantir_arquivo_relatorios_local()
+    with open(RELATORIOS_LOCAL_PATH, "w", encoding="utf-8") as arquivo:
+        json.dump(registros, arquivo, ensure_ascii=False, indent=2)
+    return True
+
+def _limpar_cache_relatorios():
+    try:
+        carregar_relatorios_estudantes.clear()
+    except Exception:
+        pass
+
+def _padronizar_relatorio_registro(registro: dict) -> dict:
+    agora_iso = datetime.now().isoformat()
+    base = {
+        "id": registro.get("id"),
+        "turma": str(registro.get("turma", "")).strip(),
+        "ra": str(registro.get("ra", "")).strip(),
+        "aluno": str(registro.get("aluno", "")).strip(),
+        "data_inicio": str(registro.get("data_inicio", "")).strip(),
+        "data_fim": str(registro.get("data_fim", "")).strip(),
+        "professor_autor": str(registro.get("professor_autor", "")).strip(),
+        "professor_responsavel_sala": str(registro.get("professor_responsavel_sala", "")).strip(),
+        "coordenador_sala": str(registro.get("coordenador_sala", "")).strip(),
+        "componente_curricular": str(registro.get("componente_curricular", "")).strip(),
+        "situacao_geral": str(registro.get("situacao_geral", "Em acompanhamento")).strip(),
+        "frequencia_percentual": float(registro.get("frequencia_percentual", 100) or 0),
+        "desenvolvimento_academico": str(registro.get("desenvolvimento_academico", "")).strip(),
+        "observacoes_comportamentais": str(registro.get("observacoes_comportamentais", "")).strip(),
+        "estrategias_adotadas": str(registro.get("estrategias_adotadas", "")).strip(),
+        "pontos_atencao": str(registro.get("pontos_atencao", "")).strip(),
+        "pontos_atencao_automaticos": registro.get("pontos_atencao_automaticos", []),
+        "indicacao_grave_professor": bool(registro.get("indicacao_grave_professor", False)),
+        "descricao_ponto_grave": str(registro.get("descricao_ponto_grave", "")).strip(),
+        "ultima_edicao_por": str(registro.get("ultima_edicao_por", registro.get("professor_autor", ""))).strip(),
+        "created_at": str(registro.get("created_at", agora_iso)).strip() or agora_iso,
+        "updated_at": str(registro.get("updated_at", agora_iso)).strip() or agora_iso,
+    }
+    if not isinstance(base["pontos_atencao_automaticos"], list):
+        try:
+            base["pontos_atencao_automaticos"] = json.loads(base["pontos_atencao_automaticos"])
+        except Exception:
+            base["pontos_atencao_automaticos"] = []
+    return base
+
+def _proximo_id_relatorio_local(registros: list[dict]) -> int:
+    ids = []
+    for item in registros:
+        try:
+            ids.append(int(item.get("id", 0)))
+        except Exception:
+            continue
+    return (max(ids) if ids else 0) + 1
+
+@st.cache_data(ttl=300)
+def carregar_relatorios_estudantes() -> pd.DataFrame:
+    if SUPABASE_VALID:
+        try:
+            return _supabase_get_dataframe(
+                "relatorios_estudantes?select=*&order=data_fim.desc,id.desc",
+                "carregar relatórios dos estudantes"
+            )
+        except Exception as e:
+            logger.warning(f"Fallback local de relatórios ativado: {e}")
+    return pd.DataFrame(_carregar_relatorios_local())
+
+def salvar_relatorio_estudante(relatorio: dict) -> tuple[bool, str]:
+    relatorio = _padronizar_relatorio_registro(relatorio)
+    if not relatorio.get("aluno"):
+        raise ErroValidacao("aluno", "Selecione um estudante para salvar o relatório.")
+
+    relatorio["updated_at"] = datetime.now().isoformat()
+
+    if SUPABASE_VALID:
+        try:
+            payload = dict(relatorio)
+            if payload.get("id") in ("", None):
+                payload.pop("id", None)
+            sucesso = _supabase_mutation("POST", "relatorios_estudantes", payload, "salvar relatório do estudante")
+            if sucesso:
+                _limpar_cache_relatorios()
+                return True, "supabase"
+        except Exception as e:
+            logger.warning(f"Salvando relatório em base local por indisponibilidade do Supabase: {e}")
+
+    registros = [_padronizar_relatorio_registro(item) for item in _carregar_relatorios_local()]
+    if not relatorio.get("id"):
+        relatorio["id"] = _proximo_id_relatorio_local(registros)
+    registros.append(relatorio)
+    _salvar_relatorios_local(registros)
+    _limpar_cache_relatorios()
+    return True, "local"
+
+def atualizar_relatorio_estudante(id_relatorio, dados: dict) -> tuple[bool, str]:
+    if not id_relatorio:
+        raise ErroValidacao("id", "Informe um relatório válido para edição.")
+
+    dados = dict(dados)
+    dados["updated_at"] = datetime.now().isoformat()
+
+    if SUPABASE_VALID:
+        try:
+            sucesso = _supabase_mutation(
+                "PATCH",
+                f"relatorios_estudantes?id=eq.{id_relatorio}",
+                dados,
+                "atualizar relatório do estudante"
+            )
+            if sucesso:
+                _limpar_cache_relatorios()
+                return True, "supabase"
+        except Exception as e:
+            logger.warning(f"Atualizando relatório em base local por indisponibilidade do Supabase: {e}")
+
+    registros = [_padronizar_relatorio_registro(item) for item in _carregar_relatorios_local()]
+    atualizado = False
+    for idx, item in enumerate(registros):
+        if str(item.get("id")) == str(id_relatorio):
+            novo = dict(item)
+            novo.update(dados)
+            registros[idx] = _padronizar_relatorio_registro(novo)
+            atualizado = True
+            break
+    if not atualizado:
+        return False, "local"
+    _salvar_relatorios_local(registros)
+    _limpar_cache_relatorios()
+    return True, "local"
+
+def excluir_relatorio_estudante(id_relatorio) -> tuple[bool, str]:
+    if not id_relatorio:
+        raise ErroValidacao("id", "Informe um relatório válido para exclusão.")
+
+    if SUPABASE_VALID:
+        try:
+            sucesso = _supabase_mutation(
+                "DELETE",
+                f"relatorios_estudantes?id=eq.{id_relatorio}",
+                None,
+                "excluir relatório do estudante"
+            )
+            if sucesso:
+                _limpar_cache_relatorios()
+                return True, "supabase"
+        except Exception as e:
+            logger.warning(f"Excluindo relatório em base local por indisponibilidade do Supabase: {e}")
+
+    registros = _carregar_relatorios_local()
+    restantes = [item for item in registros if str(item.get("id")) != str(id_relatorio)]
+    if len(restantes) == len(registros):
+        return False, "local"
+    _salvar_relatorios_local(restantes)
+    _limpar_cache_relatorios()
+    return True, "local"
+
+def gerar_pontos_atencao_automaticos(df_ocorrencias: pd.DataFrame, turma: str, ra: str, aluno: str, data_inicio, data_fim) -> list[str]:
+    if df_ocorrencias.empty:
+        return []
+
+    df_base = df_ocorrencias.copy()
+    if "data" in df_base.columns:
+        df_base["data_ref"] = pd.to_datetime(df_base["data"], format="%d/%m/%Y %H:%M", errors="coerce")
+    else:
+        df_base["data_ref"] = pd.NaT
+
+    data_inicio_ts = pd.Timestamp(data_inicio)
+    data_fim_ts = pd.Timestamp(data_fim) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+
+    filtro = pd.Series([True] * len(df_base))
+    if "turma" in df_base.columns and turma:
+        filtro &= df_base["turma"].astype(str).str.strip() == str(turma).strip()
+    if "ra" in df_base.columns and ra:
+        filtro &= df_base["ra"].astype(str).str.strip() == str(ra).strip()
+    elif "aluno" in df_base.columns and aluno:
+        filtro &= df_base["aluno"].astype(str).str.strip() == str(aluno).strip()
+    if "gravidade" in df_base.columns:
+        filtro &= df_base["gravidade"].astype(str).str.strip().isin(["Grave", "Gravíssima"])
+    if "data_ref" in df_base.columns:
+        filtro &= df_base["data_ref"].between(data_inicio_ts, data_fim_ts, inclusive="both")
+
+    encontrados = []
+    for _, row in df_base[filtro].sort_values("data_ref", ascending=False).iterrows():
+        data_txt = row["data_ref"].strftime("%d/%m/%Y") if pd.notna(row["data_ref"]) else str(row.get("data", "Sem data"))
+        categoria = str(row.get("categoria", "Sem categoria")).strip()
+        gravidade = str(row.get("gravidade", "")).strip()
+        professor = str(row.get("professor", "")).strip()
+        partes = [data_txt, categoria]
+        if gravidade:
+            partes.append(gravidade)
+        if professor:
+            partes.append(f"Prof. {professor}")
+        encontrados.append(" - ".join(partes))
+    return encontrados
 # ======================================================
 # AGENDAMENTO - FUNÇÕES SUPABASE
 # ======================================================
@@ -3499,6 +3715,7 @@ def _init_session_state():
         "adicionar_outra_infracao": False,
         "infracoes_adicionais": [],
         "mensagem_exclusao": None,
+        "relatorio_feedback": None,
         
         # Estados de Professores
         "editando_prof": None,
@@ -3673,6 +3890,7 @@ FONTE_TUTORIA = st.session_state.FONTE_TUTORIA
 ROTAS_MENU_SUPORTADAS = {
     normalizar_texto("🏠 Dashboard"),
     normalizar_texto("📝 Registrar Ocorrência"),
+    normalizar_texto("🧾 Relatório dos Estudantes"),
     normalizar_texto("📋 Histórico de Ocorrências"),
     normalizar_texto("📄 Comunicado aos Pais"),
     normalizar_texto("👥 Lista de Alunos"),
@@ -4449,6 +4667,367 @@ elif "HISTORICO DE OCORRENCIA" in normalizar_texto(menu):
                 st.session_state.editando_id = None
                 st.session_state.dados_edicao = None
                 st.rerun()
+
+# ======================================================
+# PÁGINA 🧾 RELATÓRIO DOS ESTUDANTES
+# ======================================================
+
+elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
+    page_header("🧾 Relatório dos Estudantes", "Registre acompanhamentos por turma com edição por professor, datas e pontos de atenção", "#0f766e")
+
+    feedback_relatorio = st.session_state.get("relatorio_feedback")
+    if feedback_relatorio:
+        tipo_feedback = feedback_relatorio.get("tipo", "success")
+        mensagem_feedback = feedback_relatorio.get("msg", "")
+        if tipo_feedback == "success":
+            st.success(mensagem_feedback)
+        elif tipo_feedback == "warning":
+            st.warning(mensagem_feedback)
+        else:
+            st.info(mensagem_feedback)
+        st.session_state.relatorio_feedback = None
+
+    if df_alunos.empty:
+        st.info("📭 Cadastre ou importe estudantes antes de criar relatórios por turma.")
+        st.stop()
+
+    df_relatorios = carregar_relatorios_estudantes()
+    if not df_relatorios.empty and "pontos_atencao_automaticos" in df_relatorios.columns:
+        def _normalizar_pontos_auto(valor):
+            if isinstance(valor, list):
+                return valor
+            if valor in (None, "", float("nan")):
+                return []
+            if isinstance(valor, str):
+                texto = valor.strip()
+                if not texto:
+                    return []
+                try:
+                    carregado = json.loads(texto)
+                    return carregado if isinstance(carregado, list) else []
+                except Exception:
+                    return [texto]
+            return []
+        df_relatorios["pontos_atencao_automaticos"] = df_relatorios["pontos_atencao_automaticos"].apply(_normalizar_pontos_auto)
+
+    turmas_disponiveis = sorted([
+        turma for turma in df_alunos["turma"].dropna().astype(str).str.strip().unique().tolist() if turma
+    ])
+    turma_sel = st.selectbox("🏫 Turma", turmas_disponiveis, key="relatorio_turma")
+
+    alunos_turma = (
+        df_alunos[df_alunos["turma"].astype(str).str.strip() == turma_sel]
+        .copy()
+        .sort_values("nome")
+    )
+    alunos_turma["aluno_label"] = alunos_turma.apply(
+        lambda row: f"{str(row.get('nome', '')).strip()} • RA {str(row.get('ra', '')).strip()}",
+        axis=1
+    )
+
+    relatorios_turma = df_relatorios.copy()
+    if not relatorios_turma.empty and "turma" in relatorios_turma.columns:
+        relatorios_turma = relatorios_turma[relatorios_turma["turma"].astype(str).str.strip() == turma_sel].copy()
+
+    def _valor_booleano_seguro(valor) -> bool:
+        if isinstance(valor, bool):
+            return valor
+        return normalizar_texto(valor) in {"TRUE", "SIM", "YES", "1"}
+
+    total_alertas = 0
+    if not relatorios_turma.empty:
+        if "indicacao_grave_professor" in relatorios_turma.columns:
+            total_alertas = int(relatorios_turma["indicacao_grave_professor"].apply(_valor_booleano_seguro).sum())
+        if "pontos_atencao_automaticos" in relatorios_turma.columns:
+            total_alertas += int(relatorios_turma["pontos_atencao_automaticos"].apply(lambda itens: len(itens) > 0).sum())
+
+    col_metric_1, col_metric_2, col_metric_3 = st.columns(3)
+    col_metric_1.metric("👥 Estudantes da turma", len(alunos_turma))
+    col_metric_2.metric("🧾 Relatórios cadastrados", len(relatorios_turma))
+    col_metric_3.metric("🚨 Sinalizações de atenção", total_alertas)
+
+    professores_lista = []
+    coordenadores_lista = []
+    if not df_professores.empty and "nome" in df_professores.columns:
+        professores_lista = sorted([
+            nome for nome in df_professores["nome"].dropna().astype(str).str.strip().unique().tolist() if nome
+        ])
+        if "cargo" in df_professores.columns:
+            coordenadores_lista = sorted([
+                str(row.get("nome", "")).strip()
+                for _, row in df_professores.iterrows()
+                if "COORDEN" in normalizar_texto(row.get("cargo", ""))
+                and str(row.get("nome", "")).strip()
+            ])
+
+    modo_relatorio = "Novo relatório"
+    if not relatorios_turma.empty:
+        modo_relatorio = st.radio(
+            "Modo",
+            ["Novo relatório", "Editar relatório existente"],
+            horizontal=True,
+            key="relatorio_modo"
+        )
+
+    registro_relatorio = {}
+    if modo_relatorio == "Editar relatório existente" and not relatorios_turma.empty:
+        opcoes_relatorios = []
+        mapa_relatorios = {}
+        for _, row in relatorios_turma.sort_values(["data_fim", "aluno"], ascending=[False, True]).iterrows():
+            data_ini_txt = str(row.get("data_inicio", "")).strip()
+            data_fim_txt = str(row.get("data_fim", "")).strip()
+            aluno_txt = str(row.get("aluno", "")).strip()
+            autor_txt = str(row.get("ultima_edicao_por", row.get("professor_autor", ""))).strip()
+            label = f"#{row.get('id')} • {aluno_txt} • {data_ini_txt} a {data_fim_txt}"
+            if autor_txt:
+                label += f" • {autor_txt}"
+            opcoes_relatorios.append(label)
+            mapa_relatorios[label] = row.to_dict()
+        escolha_relatorio = st.selectbox("Selecione o relatório", opcoes_relatorios, key="relatorio_existente_sel")
+        registro_relatorio = mapa_relatorios.get(escolha_relatorio, {})
+
+    aluno_padrao = ""
+    if registro_relatorio:
+        aluno_padrao = f"{str(registro_relatorio.get('aluno', '')).strip()} • RA {str(registro_relatorio.get('ra', '')).strip()}"
+    elif not alunos_turma.empty:
+        aluno_padrao = alunos_turma.iloc[0]["aluno_label"]
+
+    opcoes_alunos = alunos_turma["aluno_label"].tolist()
+    indice_aluno = opcoes_alunos.index(aluno_padrao) if aluno_padrao in opcoes_alunos else 0
+    aluno_label_sel = st.selectbox("🎓 Estudante", opcoes_alunos, index=indice_aluno, key="relatorio_aluno_sel")
+    aluno_info = alunos_turma[alunos_turma["aluno_label"] == aluno_label_sel].iloc[0]
+    aluno_nome = str(aluno_info.get("nome", "")).strip()
+    aluno_ra = str(aluno_info.get("ra", "")).strip()
+
+    def _parse_data_relatorio(valor, padrao):
+        try:
+            return pd.to_datetime(valor).date()
+        except Exception:
+            return padrao
+
+    hoje = datetime.now().date()
+    data_inicio_padrao = _parse_data_relatorio(registro_relatorio.get("data_inicio"), hoje - timedelta(days=30))
+    data_fim_padrao = _parse_data_relatorio(registro_relatorio.get("data_fim"), hoje)
+
+    professor_autor_padrao = str(registro_relatorio.get("professor_autor", "")).strip()
+    professor_resp_padrao = str(registro_relatorio.get("professor_responsavel_sala", "")).strip()
+    coordenador_padrao = str(registro_relatorio.get("coordenador_sala", "")).strip()
+
+    opcoes_professores = professores_lista + (["Digitar manualmente"] if professores_lista else [])
+    idx_autor = opcoes_professores.index(professor_autor_padrao) if professor_autor_padrao in opcoes_professores else (len(opcoes_professores) - 1 if opcoes_professores else 0)
+    idx_resp = opcoes_professores.index(professor_resp_padrao) if professor_resp_padrao in opcoes_professores else (len(opcoes_professores) - 1 if opcoes_professores else 0)
+    opcoes_coord = coordenadores_lista + (["Digitar manualmente"] if coordenadores_lista else ["Digitar manualmente"])
+    idx_coord = opcoes_coord.index(coordenador_padrao) if coordenador_padrao in opcoes_coord else (len(opcoes_coord) - 1 if opcoes_coord else 0)
+
+    col_form_1, col_form_2 = st.columns(2)
+    with col_form_1:
+        editor_sel = st.selectbox("👨‍🏫 Professor que está editando", opcoes_professores if opcoes_professores else ["Digitar manualmente"], index=idx_autor, key="relatorio_editor_sel")
+        editor_manual = st.text_input(
+            "Nome do professor editor",
+            value=professor_autor_padrao if editor_sel == "Digitar manualmente" or not professores_lista else "",
+            key="relatorio_editor_manual"
+        )
+        professor_resp_sel = st.selectbox("🪪 Professor responsável pela sala", opcoes_professores if opcoes_professores else ["Digitar manualmente"], index=idx_resp, key="relatorio_prof_resp_sel")
+        professor_resp_manual = st.text_input(
+            "Nome do responsável da sala",
+            value=professor_resp_padrao if professor_resp_sel == "Digitar manualmente" or not professores_lista else "",
+            key="relatorio_prof_resp_manual"
+        )
+        data_inicio = st.date_input("📅 Data inicial", value=data_inicio_padrao, key="relatorio_data_inicio")
+        frequencia = st.number_input(
+            "📊 Frequência (%)",
+            min_value=0.0,
+            max_value=100.0,
+            value=float(registro_relatorio.get("frequencia_percentual", 100) or 100),
+            step=1.0,
+            key="relatorio_frequencia"
+        )
+    with col_form_2:
+        coordenador_sel = st.selectbox("🧭 Coordenador(a) da sala", opcoes_coord, index=idx_coord, key="relatorio_coord_sel")
+        coordenador_manual = st.text_input(
+            "Nome do coordenador(a)",
+            value=coordenador_padrao if coordenador_sel == "Digitar manualmente" else "",
+            key="relatorio_coord_manual"
+        )
+        componente_curricular = st.text_input(
+            "📘 Componente curricular / área",
+            value=str(registro_relatorio.get("componente_curricular", "")).strip(),
+            placeholder="Ex: Língua Portuguesa, Matemática, acompanhamento geral",
+            key="relatorio_componente"
+        )
+        data_fim = st.date_input("📅 Data final", value=data_fim_padrao, min_value=data_inicio, key="relatorio_data_fim")
+        situacao_geral = st.selectbox(
+            "🧩 Situação geral",
+            ["Em acompanhamento", "Evoluindo bem", "Atenção", "Atenção imediata", "Necessita intervenção"],
+            index=["Em acompanhamento", "Evoluindo bem", "Atenção", "Atenção imediata", "Necessita intervenção"].index(
+                str(registro_relatorio.get("situacao_geral", "Em acompanhamento")).strip()
+                if str(registro_relatorio.get("situacao_geral", "Em acompanhamento")).strip() in ["Em acompanhamento", "Evoluindo bem", "Atenção", "Atenção imediata", "Necessita intervenção"]
+                else "Em acompanhamento"
+            ),
+            key="relatorio_situacao"
+        )
+
+    professor_editor = editor_manual.strip() if editor_sel == "Digitar manualmente" or not professores_lista else editor_sel
+    professor_responsavel = professor_resp_manual.strip() if professor_resp_sel == "Digitar manualmente" or not professores_lista else professor_resp_sel
+    coordenador_sala = coordenador_manual.strip() if coordenador_sel == "Digitar manualmente" else coordenador_sel
+
+    pontos_automaticos = gerar_pontos_atencao_automaticos(df_ocorrencias, turma_sel, aluno_ra, aluno_nome, data_inicio, data_fim)
+    if pontos_automaticos:
+        st.markdown("""
+        <div style="background:linear-gradient(135deg,#fff7ed,#fffbeb);border:1.5px solid #fdba74;border-left:5px solid #ea580c;border-radius:16px;padding:1rem 1.25rem;margin:1rem 0;">
+            <div style="font-weight:800;color:#9a3412;margin-bottom:0.35rem;">🚨 Pontos de atenção sugeridos automaticamente</div>
+            <div style="color:#9a3412;font-size:0.86rem;">O sistema encontrou ocorrências graves ou gravíssimas dentro do período selecionado para este estudante.</div>
+        </div>
+        """, unsafe_allow_html=True)
+        for item in pontos_automaticos:
+            st.markdown(f"- {item}")
+    else:
+        st.info("Nenhuma ocorrência grave/gravíssima foi localizada para o período selecionado.")
+
+    indicacao_grave = st.checkbox(
+        "⚠️ O professor deseja sinalizar um ponto grave adicional neste relatório",
+        value=bool(registro_relatorio.get("indicacao_grave_professor", False)),
+        key="relatorio_indicacao_grave"
+    )
+    descricao_ponto_grave = st.text_area(
+        "Descrição do ponto grave",
+        value=str(registro_relatorio.get("descricao_ponto_grave", "")).strip(),
+        height=90,
+        placeholder="Explique o fato grave, o impacto e a urgência do acompanhamento.",
+        key="relatorio_ponto_grave"
+    )
+
+    desenvolvimento_academico = st.text_area(
+        "📚 Desenvolvimento acadêmico",
+        value=str(registro_relatorio.get("desenvolvimento_academico", "")).strip(),
+        height=120,
+        placeholder="Descreva avanços, dificuldades e evidências de aprendizagem.",
+        key="relatorio_desenvolvimento"
+    )
+    observacoes_comportamentais = st.text_area(
+        "🧠 Observações comportamentais e socioemocionais",
+        value=str(registro_relatorio.get("observacoes_comportamentais", "")).strip(),
+        height=120,
+        placeholder="Registre postura em sala, convivência, autorregulação e participação.",
+        key="relatorio_comportamental"
+    )
+    estrategias_adotadas = st.text_area(
+        "🛠️ Estratégias e encaminhamentos",
+        value=str(registro_relatorio.get("estrategias_adotadas", "")).strip(),
+        height=120,
+        placeholder="Ações do professor, combinados, contatos com família, encaminhamentos e próximos passos.",
+        key="relatorio_estrategias"
+    )
+    pontos_atencao_manuais = st.text_area(
+        "🔎 Pontos de atenção complementares",
+        value=str(registro_relatorio.get("pontos_atencao", "")).strip(),
+        height=120,
+        placeholder="Liste os pontos que merecem monitoramento contínuo nesta turma.",
+        key="relatorio_pontos_manuais"
+    )
+
+    col_salvar, col_excluir = st.columns([2, 1])
+    with col_salvar:
+        if st.button("💾 Salvar relatório", type="primary", use_container_width=True, key="relatorio_salvar_btn"):
+            if not professor_editor:
+                st.error("Informe o professor que está registrando a edição.")
+            elif not professor_responsavel:
+                st.error("Informe o professor responsável pela sala.")
+            elif indicacao_grave and not descricao_ponto_grave.strip():
+                st.error("Descreva o ponto grave sinalizado pelo professor.")
+            elif data_fim < data_inicio:
+                st.error("A data final não pode ser anterior à data inicial.")
+            else:
+                payload_relatorio = {
+                    "turma": turma_sel,
+                    "ra": aluno_ra,
+                    "aluno": aluno_nome,
+                    "data_inicio": str(data_inicio),
+                    "data_fim": str(data_fim),
+                    "professor_autor": str(registro_relatorio.get("professor_autor", professor_editor)).strip() or professor_editor,
+                    "professor_responsavel_sala": professor_responsavel,
+                    "coordenador_sala": coordenador_sala,
+                    "componente_curricular": componente_curricular,
+                    "situacao_geral": situacao_geral,
+                    "frequencia_percentual": frequencia,
+                    "desenvolvimento_academico": desenvolvimento_academico,
+                    "observacoes_comportamentais": observacoes_comportamentais,
+                    "estrategias_adotadas": estrategias_adotadas,
+                    "pontos_atencao": pontos_atencao_manuais,
+                    "pontos_atencao_automaticos": pontos_automaticos,
+                    "indicacao_grave_professor": indicacao_grave,
+                    "descricao_ponto_grave": descricao_ponto_grave.strip(),
+                    "ultima_edicao_por": professor_editor,
+                    "created_at": registro_relatorio.get("created_at", datetime.now().isoformat()),
+                }
+                if registro_relatorio and registro_relatorio.get("id"):
+                    sucesso, base = atualizar_relatorio_estudante(registro_relatorio.get("id"), payload_relatorio)
+                    if sucesso:
+                        st.session_state.relatorio_feedback = {
+                            "tipo": "success",
+                            "msg": f"Relatório de {aluno_nome} atualizado com sucesso ({base})."
+                        }
+                        st.rerun()
+                else:
+                    sucesso, base = salvar_relatorio_estudante(payload_relatorio)
+                    if sucesso:
+                        st.session_state.relatorio_feedback = {
+                            "tipo": "success",
+                            "msg": f"Relatório de {aluno_nome} criado com sucesso ({base})."
+                        }
+                        st.rerun()
+    with col_excluir:
+        if registro_relatorio and registro_relatorio.get("id"):
+            if st.button("🗑️ Excluir relatório", use_container_width=True, key="relatorio_excluir_btn"):
+                sucesso, base = excluir_relatorio_estudante(registro_relatorio.get("id"))
+                if sucesso:
+                    st.session_state.relatorio_feedback = {
+                        "tipo": "warning",
+                        "msg": f"Relatório #{registro_relatorio.get('id')} excluído ({base})."
+                    }
+                    st.rerun()
+
+    st.markdown("---")
+    st.markdown("""
+    <div style="display:flex;align-items:center;gap:0.5rem;margin:0.25rem 0 0.75rem 0;padding-bottom:0.5rem;border-bottom:2px solid #e2e8f0;position:relative;">
+        <div style="position:absolute;bottom:-2px;left:0;width:45px;height:2px;background:linear-gradient(90deg,#0f766e,transparent);border-radius:4px;"></div>
+        <span>📚</span>
+        <h3 style="margin:0;font-family:'Nunito',sans-serif;font-size:1rem;color:#0f172a;">Relatórios da turma</h3>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if relatorios_turma.empty:
+        st.info("Nenhum relatório cadastrado para esta turma ainda.")
+    else:
+        df_lista = relatorios_turma.copy()
+        df_lista["alerta"] = df_lista.apply(
+            lambda row: "Sim" if _valor_booleano_seguro(row.get("indicacao_grave_professor", False)) or len(row.get("pontos_atencao_automaticos", [])) > 0 else "Não",
+            axis=1
+        )
+        if "updated_at" in df_lista.columns:
+            df_lista["updated_at"] = pd.to_datetime(df_lista["updated_at"], errors="coerce").dt.strftime("%d/%m/%Y %H:%M")
+        colunas_relatorio = [
+            coluna for coluna in [
+                "id", "aluno", "ra", "data_inicio", "data_fim", "situacao_geral",
+                "professor_responsavel_sala", "coordenador_sala", "ultima_edicao_por", "updated_at", "alerta"
+            ] if coluna in df_lista.columns
+        ]
+        st.dataframe(df_lista[colunas_relatorio].sort_values(["data_fim", "aluno"], ascending=[False, True]), use_container_width=True, hide_index=True)
+
+        csv_relatorios = df_lista.copy()
+        if "pontos_atencao_automaticos" in csv_relatorios.columns:
+            csv_relatorios["pontos_atencao_automaticos"] = csv_relatorios["pontos_atencao_automaticos"].apply(
+                lambda itens: " | ".join(itens) if isinstance(itens, list) else str(itens)
+            )
+        st.download_button(
+            "📥 Exportar relatórios da turma em CSV",
+            data=csv_relatorios.to_csv(index=False).encode("utf-8-sig"),
+            file_name=f"relatorios_estudantes_{gerar_chave_segura(turma_sel).lower()}_{datetime.now().strftime('%Y%m%d')}.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
+
+    st.caption("Os relatórios usam o Supabase quando a tabela `relatorios_estudantes` estiver criada. Até lá, o sistema faz fallback local em `data/relatorios_estudantes_local.json`.")
 
 # ======================================================
 # PÁGINA 📥 IMPORTAR ALUNOS

@@ -1,0 +1,20 @@
+name: Keep Streamlit Awake
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+jobs:
+  ping-app:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping deployed app
+        env:
+          STREAMLIT_APP_URL: ${{ secrets.STREAMLIT_APP_URL }}
+        run: |
+          if [ -z "$STREAMLIT_APP_URL" ]; then
+            echo "Configure o secret STREAMLIT_APP_URL com a URL pública do app."
+            exit 1
+          fi
+          curl -fsSL --retry 3 --retry-delay 5 "$STREAMLIT_APP_URL" > /dev/null
