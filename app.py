@@ -3098,46 +3098,71 @@ def excluir_relatorio_estudante(id_relatorio) -> tuple[bool, str]:
     _limpar_cache_relatorios()
     return True, "local"
 
-    def obter_professor_tutor_do_aluno(
+    from difflib import SequenceMatcher
+
+def obter_professor_tutor_do_aluno(
     nome_aluno: str,
     turma_aluno: str,
     ra_aluno: str,
     tutoria_dict: dict,
 ) -> str:
-    """
-    Retorna o nome do professor tutor vinculado ao aluno.
-    Busca por RA (prioridade), nome exato e, por último, fuzzy.
-    """
     nome_norm = normalizar_texto(nome_aluno)
-    ra_norm   = "".join(ch for ch in str(ra_aluno or "") if ch.isdigit())
+    # Garante que RA seja apenas números
+    ra_norm = "".join(ch for ch in str(ra_aluno or "") if ch.isdigit())
     turma_norm = normalizar_texto(turma_aluno)
  
     melhor_tutor = ""
     melhor_score = 0.0
  
-    for tutor, dados in (tutoria_dict or {}).items():
-        for item in dados.get("alunos", []):
-            # --- match por RA ---
+    # Verifica se o dict existe
+    if not tutoria_dict:
+        return ""
+
+    for tutor, dados in tutoria_dict.items():
+        if not dados or "alunos" not in dados:
+            continue
+
+        for item in dados["alunos"]:
+            # --- 1. Prioridade Máxima: RA ---
             ra_item = "".join(ch for ch in str(item.get("ra", "")) if ch.isdigit())
             if ra_norm and ra_item and ra_norm == ra_item:
-                return tutor
+                return tutor # RA é único, achou, volta imediatamente
  
-            # --- match por nome ---
+            # --- 2. Verificação de Nome ---
             item_norm = normalizar_texto(item.get("nome", ""))
             if not item_norm:
                 continue
  
-            # Verifica compatibilidade de série
+            # --- 3. Lógica de Série Mais Segura ---
+            # Tenta verificar se é exatamente a mesma string ou se contém
             serie_item = normalizar_texto(item.get("serie", ""))
-            serie_ok = (not serie_item) or (not turma_norm) or (serie_item in turma_norm) or (turma_norm in serie_item)
- 
+            serie_ok = False
+            
+            if not serie_item or not turma_norm:
+                serie_ok = True # Se não tem info de série, assume ok
+            elif serie_item == turma_norm:
+                serie_ok = True
+            # Lógica de substring apenas se for número curto (ex: "7" em "7A")
+            # Evita que "8" case com "18"
+            elif len(serie_item) < 3 and len(turma_norm) < 5: 
+                 if serie_item in turma_norm or turma_norm in serie_item:
+                     serie_ok = True
+
+            if not serie_ok:
+                continue # Pula se a série não bater, economiza processamento
+
+            # --- 4. Comparação Fuzzy ---
+            if nome_norm == item_norm:
+                return tutor # Exato e série ok, retorna
+            
             score = SequenceMatcher(None, nome_norm, item_norm).ratio()
-            if nome_norm == item_norm and serie_ok:
-                return tutor                     # match exato imediato
-            if score > melhor_score and serie_ok:
+            
+            # Atualiza melhor score, mas NÃO retorna ainda (para achar o melhor)
+            if score > melhor_score:
                 melhor_score = score
                 melhor_tutor = tutor
- 
+
+    # Retorna apenas se o score for muito alto
     return melhor_tutor if melhor_score >= 0.85 else ""
  
  
