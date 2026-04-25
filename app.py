@@ -2446,14 +2446,49 @@ def preparar_base_alunos_ativos_tutoria(df_alunos: pd.DataFrame) -> pd.DataFrame
     return base.reset_index(drop=True)
 
 def _nome_para_busca_aproximada(valor: str) -> str:
-    """Normaliza nomes para capturar variacoes comuns: Thalita/Talita, Henzo/Enzo, Yago/Iago, Manuella/Manuela."""
+    """
+    Cria uma versao fonetica simples para nomes brasileiros.
+
+    A ideia e priorizar a sonoridade, nao a grafia:
+    Elizabete/Elisabete, Thalita/Talita, Henzo/Enzo, Iago/Yago,
+    Manuela/Manuella, Felipe/Phelipe, Kauan/Cauan etc.
+    """
     texto = normalizar_texto(valor)
-    for antigo, novo in [("TH", "T"), ("H", ""), ("Y", "I"), ("LL", "L"), ("PH", "F"), ("K", "C"), ("W", "V")]:
+
+    trocas = [
+        ("PH", "F"),
+        ("TH", "T"),
+        ("Y", "I"),
+        ("W", "V"),
+        ("K", "C"),
+        ("QU", "C"),
+        ("Q", "C"),
+        ("Ç", "S"),
+        ("CE", "SE"),
+        ("CI", "SI"),
+        ("SC", "S"),
+        ("SÇ", "S"),
+        ("SS", "S"),
+        ("XC", "S"),
+        ("Z", "S"),
+        ("CH", "X"),
+        ("LH", "LI"),
+        ("NH", "NI"),
+        ("H", ""),
+    ]
+    for antigo, novo in trocas:
         texto = texto.replace(antigo, novo)
+
+    texto = re.sub(r"[^A-Z0-9 ]", " ", texto)
+    texto = re.sub(r"\s+", " ", texto).strip()
+
+    # Reduz letras repetidas: ALLANA -> ALANA, MANUELLA -> MANUELA.
+    texto = re.sub(r"([A-Z])\1+", r"\1", texto)
     return texto
 
 
 def _score_nome_tutoria(nome_digitado: str, nome_base: str) -> float:
+    """Pontua semelhanca considerando escrita, fonetica e tokens do nome."""
     nome_norm = normalizar_texto(nome_digitado)
     base_norm = normalizar_texto(nome_base)
     nome_aprox = _nome_para_busca_aproximada(nome_digitado)
@@ -2465,23 +2500,40 @@ def _score_nome_tutoria(nome_digitado: str, nome_base: str) -> float:
         SequenceMatcher(None, nome_norm, base_norm).ratio(),
         SequenceMatcher(None, nome_aprox, base_aprox).ratio(),
     )
+
     if base_norm.startswith(nome_norm) or base_aprox.startswith(nome_aprox):
-        score = max(score, 0.96)
+        score = max(score, 0.97)
     elif nome_norm in base_norm or nome_aprox in base_aprox:
-        score = max(score, 0.92)
+        score = max(score, 0.93)
 
     tokens_digitados = [t for t in nome_aprox.split() if len(t) >= 2]
     tokens_base = [t for t in base_aprox.split() if len(t) >= 2]
-    if tokens_digitados and tokens_base:
-        acertos = 0
-        for token in tokens_digitados:
-            if any(token == tb or token in tb or tb in token or SequenceMatcher(None, token, tb).ratio() >= 0.82 for tb in tokens_base):
-                acertos += 1
-        if acertos:
-            score_tokens = acertos / max(len(tokens_digitados), 1)
-            score = max(score, min(0.98, 0.55 + score_tokens * 0.40))
-    return float(score)
 
+    if tokens_digitados and tokens_base:
+        pontos = 0.0
+        for token in tokens_digitados:
+            melhor_token = 0.0
+            for tb in tokens_base:
+                s = SequenceMatcher(None, token, tb).ratio()
+                if token == tb:
+                    s = 1.0
+                elif token in tb or tb in token:
+                    s = max(s, 0.90)
+                melhor_token = max(melhor_token, s)
+            pontos += melhor_token
+
+        score_tokens = pontos / max(len(tokens_digitados), 1)
+        score = max(score, score_tokens)
+
+        primeiro_digitado = tokens_digitados[0]
+        primeiro_base = tokens_base[0]
+        score_primeiro = SequenceMatcher(None, primeiro_digitado, primeiro_base).ratio()
+        if primeiro_digitado == primeiro_base or primeiro_digitado in primeiro_base or primeiro_base in primeiro_digitado:
+            score_primeiro = max(score_primeiro, 0.94)
+        if score_primeiro >= 0.78:
+            score = max(score, 0.70 + min(score_primeiro, 1.0) * 0.25)
+
+    return float(min(score, 1.0))
 
 def buscar_estudante_ativo_mais_proximo(nome_digitado: str, serie_digitada: str, df_alunos: pd.DataFrame) -> dict | None:
     """Busca o estudante ativo mais proximo no Supabase usando turma como confirmacao forte."""
@@ -2531,8 +2583,8 @@ def buscar_estudante_ativo_mais_proximo(nome_digitado: str, serie_digitada: str,
             melhor = aluno
             melhor_serie_ok = serie_ok
 
-    limite_nome = 0.48 if serie_norm and melhor_serie_ok else 0.72
-    limite_final = 0.68 if serie_norm and melhor_serie_ok else 0.78
+    limite_nome = 0.42 if serie_norm and melhor_serie_ok else 0.72
+    limite_final = 0.60 if serie_norm and melhor_serie_ok else 0.78
     if melhor is None or melhor_score_nome < limite_nome or melhor_score_final < limite_final:
         return None
 
@@ -2541,7 +2593,7 @@ def buscar_estudante_ativo_mais_proximo(nome_digitado: str, serie_digitada: str,
         "serie": melhor.get("turma", ""),
         "ra": melhor.get("ra", ""),
         "score": round(float(min(melhor_score_final, 1.0)), 3),
-        "status_busca": "Encontrado por nome aproximado e turma compativel" if melhor_serie_ok else "Encontrado por nome aproximado",
+        "status_busca": "Encontrado por sonoridade do nome e turma compativel" if melhor_serie_ok else "Encontrado por sonoridade do nome",
     }
 
 def resolver_estudantes_tutoria(novos_estudantes: list, df_alunos: pd.DataFrame) -> tuple[list, list]:
@@ -2564,7 +2616,7 @@ def resolver_estudantes_tutoria(novos_estudantes: list, df_alunos: pd.DataFrame)
                 "status_busca": encontrado.get("status_busca", ""),
             })
         else:
-            nao_encontrados.append({"nome": nome_digitado, "serie": serie_digitada, "motivo": "Nao localizado com seguranca entre estudantes ativos do Supabase"})
+            nao_encontrados.append({"nome": nome_digitado, "serie": serie_digitada, "motivo": "Nao localizado com seguranca por sonoridade entre estudantes ativos do Supabase"})
     return resolvidos, nao_encontrados
 
 # ======================================================
@@ -8440,8 +8492,8 @@ elif menu == "🫂 Tutoria":
                 melhor = aluno
                 melhor_serie_ok = serie_ok
 
-        limite_nome = 0.48 if serie_norm and melhor_serie_ok else 0.72
-        limite_final = 0.68 if serie_norm and melhor_serie_ok else 0.78
+        limite_nome = 0.42 if serie_norm and melhor_serie_ok else 0.72
+        limite_final = 0.60 if serie_norm and melhor_serie_ok else 0.78
         if melhor is None or melhor_score_nome < limite_nome or melhor_score_final < limite_final:
             return None
 
@@ -8450,7 +8502,7 @@ elif menu == "🫂 Tutoria":
             "serie": melhor.get("turma", ""),
             "ra": melhor.get("ra", ""),
             "score": round(float(min(melhor_score_final, 1.0)), 3),
-            "status_busca": "Encontrado por nome aproximado e turma compativel" if melhor_serie_ok else "Encontrado por nome aproximado",
+            "status_busca": "Encontrado por sonoridade do nome e turma compativel" if melhor_serie_ok else "Encontrado por sonoridade do nome",
         }
 
     def resolver_estudantes_tutoria(novos_estudantes: list, df_alunos: pd.DataFrame) -> tuple[list, list]:
@@ -8473,7 +8525,7 @@ elif menu == "🫂 Tutoria":
                     "status_busca": encontrado.get("status_busca", ""),
                 })
             else:
-                nao_encontrados.append({"nome": nome_digitado, "serie": serie_digitada, "motivo": "Nao localizado com seguranca entre estudantes ativos do Supabase"})
+                nao_encontrados.append({"nome": nome_digitado, "serie": serie_digitada, "motivo": "Nao localizado com seguranca por sonoridade entre estudantes ativos do Supabase"})
         return resolvidos, nao_encontrados
 
     def montar_validacao_visual_tutoria(resolvidos: list, nao_encontrados: list) -> tuple[pd.DataFrame, pd.DataFrame]:
