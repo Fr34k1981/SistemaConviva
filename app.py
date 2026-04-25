@@ -3921,8 +3921,7 @@ def gerar_pdf_comunicado(aluno_data: dict, ocorrencia_data: dict, medidas_aplica
     doc.build(elementos)
     buffer.seek(0)
     return buffer
-
-    def gerar_pdf_relatorio_estudante(registro: dict, df_ocorrencias_aluno: pd.DataFrame) -> BytesIO:
+def gerar_pdf_relatorio_estudante(registro: dict, df_ocorrencias_aluno: pd.DataFrame) -> BytesIO:
     """
     Gera PDF completo do relatório do estudante com:
     - Cabeçalho da escola (logo se disponível)
@@ -3954,7 +3953,6 @@ def gerar_pdf_comunicado(aluno_data: dict, ocorrencia_data: dict, medidas_aplica
 
     estilos = getSampleStyleSheet()
 
-    # --- Cores ---
     COR_PRIMARIA   = colors.HexColor("#1d4ed8")
     COR_SECUNDARIA = colors.HexColor("#0f766e")
     COR_ALERTA     = colors.HexColor("#dc2626")
@@ -3964,7 +3962,6 @@ def gerar_pdf_comunicado(aluno_data: dict, ocorrencia_data: dict, medidas_aplica
     COR_TEXTO      = colors.HexColor("#0f172a")
     COR_SUBTEXTO   = colors.HexColor("#475569")
 
-    # --- Estilos customizados ---
     def _estilo(nome, **kwargs):
         base = kwargs.pop("base", "Normal")
         estilo = ParagraphStyle(nome, parent=estilos[base], **kwargs)
@@ -3987,7 +3984,7 @@ def gerar_pdf_comunicado(aluno_data: dict, ocorrencia_data: dict, medidas_aplica
 
     elementos = []
 
-    # --- Logo / Cabeçalho ---
+    # Logo / cabeçalho
     logo_path = os.path.join("assets", "images", "eliane_dantas.png")
     if os.path.exists(logo_path):
         try:
@@ -4005,7 +4002,7 @@ def gerar_pdf_comunicado(aluno_data: dict, ocorrencia_data: dict, medidas_aplica
     elementos.append(Paragraph("RELATÓRIO DE ACOMPANHAMENTO DO ESTUDANTE", est_titulo))
     elementos.append(HRFlowable(width="100%", thickness=1, color=COR_BORDA, spaceAfter=8))
 
-    # --- Dados do aluno com fallback para todas as chaves ---
+    # Dados do aluno
     aluno           = str(registro.get("aluno", "")).strip()
     ra              = str(registro.get("ra", "")).strip()
     turma           = str(registro.get("turma", "")).strip()
@@ -4022,7 +4019,6 @@ def gerar_pdf_comunicado(aluno_data: dict, ocorrencia_data: dict, medidas_aplica
     componente      = str(registro.get("componente_curricular", "")).strip() or "—"
     editor          = str(registro.get("ultima_edicao_por", registro.get("professor_autor", ""))).strip() or "—"
 
-    # Formatação das datas
     try:
         data_ini_fmt = pd.to_datetime(data_inicio, errors="coerce").strftime("%d/%m/%Y")
     except Exception:
@@ -4032,7 +4028,6 @@ def gerar_pdf_comunicado(aluno_data: dict, ocorrencia_data: dict, medidas_aplica
     except Exception:
         data_fim_fmt = data_fim
 
-    # Tabela de identificação
     dados_id = [
         [Paragraph("<b>Estudante</b>", est_label),    Paragraph(aluno, est_valor),
          Paragraph("<b>RA</b>", est_label),           Paragraph(ra, est_valor)],
@@ -4058,7 +4053,7 @@ def gerar_pdf_comunicado(aluno_data: dict, ocorrencia_data: dict, medidas_aplica
     elementos.append(tab_id)
     elementos.append(Spacer(1, 0.4 * cm))
 
-    # --- Indicadores ---
+    # Indicadores
     freq_cor = COR_SECUNDARIA if frequencia >= 75 else COR_AVISO if frequencia >= 60 else COR_ALERTA
     freq_txt = f"{frequencia:.1f}%"
 
@@ -4112,7 +4107,7 @@ def gerar_pdf_comunicado(aluno_data: dict, ocorrencia_data: dict, medidas_aplica
     elementos.append(tab_ind)
     elementos.append(Spacer(1, 0.5 * cm))
 
-    # --- Seções de texto ---
+    # Seções de texto
     def _secao(titulo: str, conteudo: str, cor_titulo=COR_PRIMARIA):
         if not conteudo or not str(conteudo).strip():
             return
@@ -4142,7 +4137,7 @@ def gerar_pdf_comunicado(aluno_data: dict, ocorrencia_data: dict, medidas_aplica
                registro.get("descricao_ponto_grave", ""),
                cor_titulo=COR_ALERTA)
 
-    # Pontos automáticos (ocorrências graves)
+    # Pontos automáticos
     pontos_auto = registro.get("pontos_atencao_automaticos", [])
     if isinstance(pontos_auto, list) and pontos_auto:
         elementos.append(HRFlowable(width="100%", thickness=1, color=COR_BORDA, spaceAfter=4))
@@ -4155,7 +4150,7 @@ def gerar_pdf_comunicado(aluno_data: dict, ocorrencia_data: dict, medidas_aplica
             elementos.append(Paragraph(f"• {item}", est_corpo))
         elementos.append(Spacer(1, 0.15 * cm))
 
-    # --- Histórico de ocorrências (tabela) ---
+    # Histórico de ocorrências
     if not df_ocorrencias_aluno.empty:
         elementos.append(HRFlowable(width="100%", thickness=1, color=COR_BORDA, spaceAfter=4))
         elementos.append(Paragraph(
@@ -4177,7 +4172,6 @@ def gerar_pdf_comunicado(aluno_data: dict, ocorrencia_data: dict, medidas_aplica
         linhas_ocorr = [cabecalho_ocorr]
 
         df_sorted = df_ocorrencias_aluno.copy()
-        # Tenta converter coluna 'data' para datetime
         if "data" in df_sorted.columns:
             df_sorted["_dt"] = pd.to_datetime(df_sorted["data"], format="%d/%m/%Y %H:%M", errors="coerce")
             df_sorted = df_sorted.sort_values("_dt", ascending=False).head(15)
@@ -4194,7 +4188,6 @@ def gerar_pdf_comunicado(aluno_data: dict, ocorrencia_data: dict, medidas_aplica
             }.get(grav, COR_TEXTO)
 
             data_str = str(row.get("data", ""))
-            # Se a data tiver hora, exibe apenas a parte da data
             if " " in data_str:
                 data_str = data_str.split()[0]
 
@@ -4230,7 +4223,7 @@ def gerar_pdf_comunicado(aluno_data: dict, ocorrencia_data: dict, medidas_aplica
             ))
         elementos.append(Spacer(1, 0.4 * cm))
 
-    # --- Assinatura / Rodapé ---
+    # Assinaturas e rodapé
     elementos.append(Spacer(1, 0.6 * cm))
     elementos.append(HRFlowable(width="100%", thickness=1, color=COR_BORDA, spaceAfter=6))
 
@@ -4258,152 +4251,6 @@ def gerar_pdf_comunicado(aluno_data: dict, ocorrencia_data: dict, medidas_aplica
         est_rodape,
     ))
 
-    doc.build(elementos)
-    buffer.seek(0)
-    return buffer
- 
-    # ── Seções de texto ───────────────────────────────
-    def _secao(titulo: str, conteudo: str, cor_titulo=COR_PRIMARIA):
-        if not str(conteudo or "").strip():
-            return
-        elementos.append(HRFlowable(width="100%", thickness=1, color=COR_BORDA, spaceAfter=4))
-        elementos.append(Paragraph(titulo, _estilo(
-            f"sec_{titulo[:8]}", base="Heading2",
-            fontSize=9, textColor=cor_titulo, fontName="Helvetica-Bold",
-            spaceAfter=3, spaceBefore=4, leading=12,
-        )))
-        for linha in str(conteudo).strip().splitlines():
-            linha = linha.strip()
-            if linha:
-                elementos.append(Paragraph(linha, est_corpo))
-        elementos.append(Spacer(1, 0.15 * cm))
- 
-    _secao("📚 Desenvolvimento Acadêmico",
-           registro.get("desenvolvimento_academico", ""))
- 
-    _secao("🧠 Observações Comportamentais e Socioemocionais",
-           registro.get("observacoes_comportamentais", ""))
- 
-    _secao("🛠️ Estratégias e Encaminhamentos",
-           registro.get("estrategias_adotadas", ""))
- 
-    _secao("🔎 Pontos de Atenção Complementares",
-           registro.get("pontos_atencao", ""))
- 
-    # Ponto grave do professor
-    if alerta_prof and str(registro.get("descricao_ponto_grave", "")).strip():
-        _secao("⚠ Ponto Grave Sinalizado pelo Professor",
-               registro.get("descricao_ponto_grave", ""),
-               cor_titulo=COR_ALERTA)
- 
-    # Pontos automáticos (ocorrências graves)
-    pontos_auto = registro.get("pontos_atencao_automaticos", [])
-    if isinstance(pontos_auto, list) and pontos_auto:
-        elementos.append(HRFlowable(width="100%", thickness=1, color=COR_BORDA, spaceAfter=4))
-        elementos.append(Paragraph(
-            "🚨 Ocorrências Graves/Gravíssimas no Período",
-            _estilo("sec_auto", base="Heading2", fontSize=9, textColor=COR_ALERTA,
-                    fontName="Helvetica-Bold", spaceAfter=3, spaceBefore=4, leading=12),
-        ))
-        for item in pontos_auto:
-            elementos.append(Paragraph(f"• {item}", est_corpo))
-        elementos.append(Spacer(1, 0.15 * cm))
- 
-    # ── Ocorrências do período (tabela resumida) ──────
-    if not df_ocorrencias_aluno.empty:
-        elementos.append(HRFlowable(width="100%", thickness=1, color=COR_BORDA, spaceAfter=4))
-        elementos.append(Paragraph(
-            "📋 Histórico de Ocorrências no Período",
-            _estilo("sec_ocorr", base="Heading2", fontSize=9, textColor=COR_PRIMARIA,
-                    fontName="Helvetica-Bold", spaceAfter=4, spaceBefore=4, leading=12),
-        ))
- 
-        cabecalho_ocorr = [
-            Paragraph("<b>Data</b>", _estilo("th1", fontSize=8, fontName="Helvetica-Bold",
-                                              textColor=colors.white, alignment=TA_CENTER)),
-            Paragraph("<b>Categoria</b>", _estilo("th2", fontSize=8, fontName="Helvetica-Bold",
-                                                    textColor=colors.white)),
-            Paragraph("<b>Gravidade</b>", _estilo("th3", fontSize=8, fontName="Helvetica-Bold",
-                                                    textColor=colors.white, alignment=TA_CENTER)),
-            Paragraph("<b>Professor</b>", _estilo("th4", fontSize=8, fontName="Helvetica-Bold",
-                                                    textColor=colors.white)),
-        ]
-        linhas_ocorr = [cabecalho_ocorr]
- 
-        df_sorted = df_ocorrencias_aluno.copy()
-        df_sorted["_dt"] = pd.to_datetime(df_sorted.get("data", ""), format="%d/%m/%Y %H:%M", errors="coerce")
-        df_sorted = df_sorted.sort_values("_dt", ascending=False).head(15)
- 
-        for _, row in df_sorted.iterrows():
-            grav = str(row.get("gravidade", "")).strip()
-            grav_cor = {
-                "Gravíssima": COR_ALERTA,
-                "Grave":      COR_AVISO,
-                "Média":      colors.HexColor("#0891b2"),
-                "Leve":       COR_SECUNDARIA,
-            }.get(grav, COR_TEXTO)
- 
-            linhas_ocorr.append([
-                Paragraph(str(row.get("data", ""))[:10], _estilo(f"td_d{_}", fontSize=8,
-                                                                    alignment=TA_CENTER)),
-                Paragraph(str(row.get("categoria", ""))[:60], _estilo(f"td_c{_}", fontSize=8)),
-                Paragraph(grav, _estilo(f"td_g{_}", fontSize=8, textColor=grav_cor,
-                                         fontName="Helvetica-Bold", alignment=TA_CENTER)),
-                Paragraph(str(row.get("professor", ""))[:30], _estilo(f"td_p{_}", fontSize=8)),
-            ])
- 
-        tab_ocorr = Table(linhas_ocorr, colWidths=[2.8 * cm, 7.5 * cm, 2.5 * cm, 5.2 * cm],
-                          repeatRows=1)
-        tab_ocorr.setStyle(TableStyle([
-            ("BACKGROUND",   (0, 0), (-1, 0), COR_PRIMARIA),
-            ("TEXTCOLOR",    (0, 0), (-1, 0), colors.white),
-            ("FONTNAME",     (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("FONTSIZE",     (0, 0), (-1, 0), 8),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, COR_CINZA_CLR]),
-            ("BOX",          (0, 0), (-1, -1), 1, COR_BORDA),
-            ("INNERGRID",    (0, 0), (-1, -1), 0.3, COR_BORDA),
-            ("TOPPADDING",   (0, 0), (-1, -1), 4),
-            ("BOTTOMPADDING",(0, 0), (-1, -1), 4),
-            ("LEFTPADDING",  (0, 0), (-1, -1), 5),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 5),
-            ("VALIGN",       (0, 0), (-1, -1), "MIDDLE"),
-        ]))
-        elementos.append(tab_ocorr)
-        if len(df_ocorrencias_aluno) > 15:
-            elementos.append(Paragraph(
-                f"* Exibindo as 15 mais recentes de {len(df_ocorrencias_aluno)} ocorrências no período.",
-                _estilo("nota", fontSize=7, textColor=COR_SUBTEXTO),
-            ))
-        elementos.append(Spacer(1, 0.4 * cm))
- 
-    # ── Assinatura / Rodapé ───────────────────────────
-    elementos.append(Spacer(1, 0.6 * cm))
-    elementos.append(HRFlowable(width="100%", thickness=1, color=COR_BORDA, spaceAfter=6))
- 
-    dados_assinatura = [
-        [
-            Paragraph("_______________________________\nProfessor(a) Responsável\n" + editor,
-                       _estilo("ass1", fontSize=8, alignment=TA_CENTER, leading=12)),
-            Paragraph("_______________________________\nCoordenador(a) de Sala\n" + coordenador,
-                       _estilo("ass2", fontSize=8, alignment=TA_CENTER, leading=12)),
-            Paragraph("_______________________________\nDiretor(a) / Gestão\n ",
-                       _estilo("ass3", fontSize=8, alignment=TA_CENTER, leading=12)),
-        ]
-    ]
-    tab_ass = Table(dados_assinatura, colWidths=[6 * cm, 6 * cm, 6 * cm])
-    tab_ass.setStyle(TableStyle([
-        ("ALIGN",      (0, 0), (-1, -1), "CENTER"),
-        ("TOPPADDING", (0, 0), (-1, -1), 4),
-        ("BOTTOMPADDING",(0,0),(-1,-1), 4),
-    ]))
-    elementos.append(tab_ass)
-    elementos.append(Spacer(1, 0.3 * cm))
-    elementos.append(Paragraph(
-        f"Documento gerado pelo Sistema Conviva 179 em {datetime.now().strftime('%d/%m/%Y às %H:%M')} — "
-        f"E.E. ELIANE APARECIDA DANTAS DA SILVA PROFESSORA - PEI",
-        est_rodape,
-    ))
- 
     doc.build(elementos)
     buffer.seek(0)
     return buffer
