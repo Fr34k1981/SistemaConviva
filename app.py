@@ -8630,7 +8630,13 @@ elif menu == "🫂 Tutoria":
 
         return _montar(sem_numero, serie_padrao_formatada)
 
-        border-radius:16px; padding:1.1rem 1.5rem; margin-bottom:1.25rem;
+    st.markdown("""
+    <div style="
+        background:linear-gradient(135deg,#f0fdfa,#ecfeff);
+        border:1px solid #99f6e4;
+        border-radius:16px;
+        padding:1.1rem 1.5rem;
+        margin-bottom:1.25rem;
         box-shadow:0 4px 12px rgba(15,118,110,0.08);
     ">
         <div style="display:flex;align-items:center;gap:0.5rem;">
