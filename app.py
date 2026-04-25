@@ -4188,6 +4188,85 @@ def gerar_pdf_tutoria(contexto: str, df_tutoria: pd.DataFrame) -> BytesIO:
     buffer.seek(0)
     return buffer
 
+
+def gerar_pdf_estudantes_sem_tutor(contexto: str, df_sem_tutor: pd.DataFrame) -> BytesIO:
+    """Gera PDF dos estudantes que ainda estão sem tutoria.
+
+    Usa as colunas já montadas na seção Estudantes Sem Tutor:
+    Nome, Turma, Etapa, Turno, RA e Situação.
+    """
+    buffer = BytesIO()
+    doc = _criar_documento_pdf(buffer)
+    estilos = getSampleStyleSheet()
+    elementos = []
+    _adicionar_logo(elementos)
+
+    titulo_style = ParagraphStyle(
+        'TituloSemTutor',
+        parent=estilos['Heading1'],
+        fontSize=12,
+        alignment=TA_CENTER,
+        spaceAfter=0.2 * cm,
+        textColor=colors.HexColor("#7c2d12")
+    )
+    elementos.append(Paragraph("ESTUDANTES SEM TUTORIA", titulo_style))
+    elementos.append(Spacer(1, 0.1 * cm))
+    elementos.append(Paragraph(f"<b>Filtro:</b> {html.escape(str(contexto))}", estilos['Normal']))
+    elementos.append(Paragraph(f"<b>Total de estudantes:</b> {len(df_sem_tutor)}", estilos['Normal']))
+    elementos.append(Spacer(1, 0.2 * cm))
+
+    cabecalho = ["Nome", "Turma", "Turno", "Etapa", "RA", "Situação"]
+    linhas = []
+    if df_sem_tutor is not None and not df_sem_tutor.empty:
+        for _, row in df_sem_tutor.iterrows():
+            linhas.append([
+                str(row.get("Nome", ""))[:42],
+                str(row.get("Turma", ""))[:14],
+                str(row.get("Turno", ""))[:16],
+                str(row.get("Etapa", ""))[:20],
+                str(row.get("RA", ""))[:14],
+                str(row.get("Situação", ""))[:18],
+            ])
+
+    if not linhas:
+        elementos.append(Paragraph("Nenhum estudante encontrado para este filtro.", estilos['Normal']))
+    else:
+        tabela = Table([cabecalho] + linhas, colWidths=[6.4 * cm, 2.3 * cm, 2.4 * cm, 3.0 * cm, 2.3 * cm, 2.6 * cm], repeatRows=1)
+        tabela.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#7c2d12")),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 7),
+            ('FONTSIZE', (0, 1), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 5),
+            ('TOPPADDING', (0, 0), (-1, 0), 5),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 3),
+            ('TOPPADDING', (0, 1), (-1, -1), 3),
+            ('GRID', (0, 0), (-1, -1), 0.35, colors.grey),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+        for i in range(1, len(linhas) + 1):
+            bg = colors.whitesmoke if i % 2 == 0 else colors.HexColor("#fff7ed")
+            tabela.setStyle(TableStyle([('BACKGROUND', (0, i), (-1, i), bg)]))
+        elementos.append(tabela)
+
+    elementos.append(Spacer(1, 0.2 * cm))
+    estilo_rodape = ParagraphStyle(
+        'RodapeSemTutor',
+        parent=estilos['Normal'],
+        fontSize=7,
+        alignment=TA_CENTER,
+        textColor=colors.grey
+    )
+    elementos.append(Paragraph(f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}", estilo_rodape))
+    elementos.append(Paragraph(f"Sistema Conviva 179 - {ESCOLA_NOME}", estilo_rodape))
+
+    doc.build(elementos)
+    buffer.seek(0)
+    return buffer
+
+
 def ler_csv_flexivel(arquivo_upload) -> pd.DataFrame:
     bruto = arquivo_upload.getvalue()
     ultimo_erro = None
@@ -6323,56 +6402,157 @@ elif "IMPORTAR ALUNOS" in normalizar_texto(menu):
 
     if arquivo_upload is not None:
         try:
-            df_import = pd.read_csv(arquivo_upload, sep=";", encoding="utf-8-sig", dtype=str)
-            st.success(f"✅ Arquivo lido! {len(df_import)} alunos encontrados.")
+            # =========================================================
+            # IMPORTAÇÃO SEDUC — LEITURA PADRÃO AUTOMÁTICA
+            # =========================================================
+            # O CSV da SEDUC costuma vir com linhas vazias antes do cabeçalho:
+            # ;;; 
+            # ;;;
+            # Nome do Aluno;RA;Dig. RA;Situação do Aluno
+            # Por isso, a leitura é feita sem cabeçalho e o sistema localiza
+            # automaticamente a linha onde estão Nome do Aluno, RA e Situação.
+
+            arquivo_upload.seek(0)
+            df_raw = pd.read_csv(
+                arquivo_upload,
+                sep=";",
+                encoding="utf-8-sig",
+                dtype=str,
+                header=None,
+                keep_default_na=False
+            )
+
+            # Remove linhas/colunas totalmente vazias.
+            df_raw = df_raw.replace(r"^\s*$", "", regex=True)
+            df_raw = df_raw.loc[~df_raw.apply(lambda linha: all(str(v).strip() == "" for v in linha), axis=1)]
+            df_raw = df_raw.loc[:, ~df_raw.apply(lambda col: all(str(v).strip() == "" for v in col), axis=0)]
+            df_raw = df_raw.reset_index(drop=True)
+
+            def _normalizar_coluna_importacao(valor: str) -> str:
+                texto = normalizar_texto(str(valor or ""))
+                texto = texto.replace(".", " ").replace("_", " ").replace("-", " ")
+                return " ".join(texto.split())
+
+            def _linha_parece_cabecalho_seduc(linha) -> bool:
+                valores = [_normalizar_coluna_importacao(v) for v in linha.tolist()]
+                tem_nome = any(("NOME" in v and "ALUNO" in v) or v == "NOME" for v in valores)
+                tem_ra = any((v == "RA" or v.endswith(" RA") or " RA " in f" {v} ") and "DIG" not in v for v in valores)
+                return tem_nome and tem_ra
+
+            header_idx = None
+            for idx_linha, linha in df_raw.head(12).iterrows():
+                if _linha_parece_cabecalho_seduc(linha):
+                    header_idx = idx_linha
+                    break
+
+            if header_idx is not None:
+                novas_colunas = []
+                usados = {}
+                for idx_col, valor in enumerate(df_raw.iloc[header_idx].tolist()):
+                    nome_coluna = str(valor or "").strip()
+                    if not nome_coluna:
+                        nome_coluna = f"Coluna {idx_col + 1}"
+                    if nome_coluna in usados:
+                        usados[nome_coluna] += 1
+                        nome_coluna = f"{nome_coluna} {usados[nome_coluna]}"
+                    else:
+                        usados[nome_coluna] = 1
+                    novas_colunas.append(nome_coluna)
+
+                df_import = df_raw.iloc[header_idx + 1:].copy()
+                df_import.columns = novas_colunas
+            else:
+                # Fallback para CSVs que já venham com cabeçalho correto na primeira linha.
+                arquivo_upload.seek(0)
+                df_import = pd.read_csv(
+                    arquivo_upload,
+                    sep=";",
+                    encoding="utf-8-sig",
+                    dtype=str,
+                    keep_default_na=False
+                )
+
+            # Limpeza final dos dados.
+            df_import = df_import.replace(r"^\s*$", "", regex=True)
+            df_import = df_import.loc[~df_import.apply(lambda linha: all(str(v).strip() == "" for v in linha), axis=1)]
+            df_import = df_import.reset_index(drop=True)
+
+            # Remove eventual repetição do cabeçalho dentro do corpo.
+            if len(df_import) > 0:
+                primeira_coluna = df_import.columns[0]
+                df_import = df_import[
+                    df_import[primeira_coluna].apply(lambda v: "NOME DO ALUNO" not in normalizar_texto(v))
+                ].reset_index(drop=True)
+
+            colunas = df_import.columns.tolist()
+
+            def _detectar_coluna_ra(colunas_df: list[str]) -> str | None:
+                for col in colunas_df:
+                    col_norm = _normalizar_coluna_importacao(col)
+                    if "DIG" in col_norm:
+                        continue
+                    if col_norm == "RA" or col_norm.endswith(" RA") or " RA " in f" {col_norm} ":
+                        return col
+
+                # Fallback por conteúdo: RA costuma ser numérico e ter 7+ dígitos.
+                for col in colunas_df:
+                    col_norm = _normalizar_coluna_importacao(col)
+                    if "DIG" in col_norm:
+                        continue
+                    amostra = df_import[col].dropna().astype(str).head(12)
+                    qtd_ra = 0
+                    for val in amostra:
+                        digitos = "".join(c for c in str(val) if c.isdigit())
+                        if len(digitos) >= 7:
+                            qtd_ra += 1
+                    if qtd_ra >= 3:
+                        return col
+                return None
+
+            def _detectar_coluna_nome(colunas_df: list[str]) -> str | None:
+                for col in colunas_df:
+                    col_norm = _normalizar_coluna_importacao(col)
+                    if ("NOME" in col_norm and "ALUNO" in col_norm) or col_norm == "NOME":
+                        return col
+
+                # Fallback por conteúdo: nomes costumam ter letras e espaços.
+                melhor_col = None
+                melhor_pontos = -1
+                for col in colunas_df:
+                    pontos = 0
+                    for val in df_import[col].dropna().astype(str).head(12):
+                        texto_val = str(val).strip()
+                        if len(texto_val) >= 6 and any(ch.isalpha() for ch in texto_val) and not texto_val.isdigit():
+                            pontos += 1
+                    if pontos > melhor_pontos:
+                        melhor_pontos = pontos
+                        melhor_col = col
+                return melhor_col if melhor_pontos >= 3 else None
+
+            def _detectar_coluna_situacao(colunas_df: list[str]) -> str | None:
+                for col in colunas_df:
+                    col_norm = _normalizar_coluna_importacao(col)
+                    if "SITUACAO" in col_norm or "STATUS" in col_norm:
+                        return col
+                return None
+
+            col_ra = _detectar_coluna_ra(colunas)
+            col_nome = _detectar_coluna_nome(colunas)
+            col_situacao = _detectar_coluna_situacao(colunas)
+
+            st.success(f"✅ Arquivo lido no padrão SEDUC! {len(df_import)} estudantes encontrados.")
             st.write("### 👀 Pré-visualização dos dados:")
             st.dataframe(df_import.head(10), use_container_width=True)
 
-            colunas = df_import.columns.tolist()
-            col_ra = None
-            col_nome = None
-            col_situacao = None
+            # Mostra a identificação de colunas de forma discreta.
+            with st.expander("🔍 Colunas identificadas automaticamente", expanded=False):
+                st.write(f"**Nome:** {col_nome or 'não identificado'}")
+                st.write(f"**RA:** {col_ra or 'não identificado'}")
+                st.write(f"**Situação:** {col_situacao or 'não encontrada — será usado Ativo'}")
 
-            for col in colunas:
-                col_lower = col.lower()
-                if "dig" in col_lower or "dígito" in col_lower:
-                    continue
-                if "ra" in col_lower and col_ra is None:
-                    amostra = df_import[col].dropna().head(5)
-                    for val in amostra:
-                        digitos = "".join(c for c in str(val) if c.isdigit())
-                        if len(digitos) >= 9:
-                            col_ra = col
-                            break
-
-            for col in colunas:
-                col_lower = col.lower()
-                if "nome" in col_lower and "aluno" in col_lower:
-                    col_nome = col
-                    break
-
-            for col in colunas:
-                col_lower = col.lower()
-                if "situa" in col_lower or "status" in col_lower:
-                    col_situacao = col
-                    break
-
-            st.write("### 🔍 Colunas identificadas:")
-            if col_ra:
-                st.success(f"✅ **RA:** {col_ra}")
-            else:
-                st.error("❌ **RA:** NÃO ENCONTRADO")
-            if col_nome:
-                st.success(f"✅ **Nome:** {col_nome}")
-            else:
-                st.error("❌ **Nome:** NÃO ENCONTRADO")
-            if col_situacao:
-                st.info(f"📊 **Situação:** {col_situacao}")
-            else:
-                st.warning("📊 **Situação:** Não encontrada (usará 'Ativo')")
-
+            # Só pede seleção manual se realmente não conseguir identificar.
             if col_ra is None or col_nome is None:
-                st.warning("⚠️ Selecione manualmente as colunas:")
+                st.warning("⚠️ Não foi possível identificar automaticamente todas as colunas. Selecione manualmente:")
                 col1, col2 = st.columns(2)
                 with col1:
                     col_ra = st.selectbox("Coluna do RA:", colunas)
@@ -6385,16 +6565,18 @@ elif "IMPORTAR ALUNOS" in normalizar_texto(menu):
             st.markdown("---")
 
             df_alunos_existente = carregar_alunos()
-            if turma_alunos:
-                turmas_existentes = df_alunos_existente["turma"].unique().tolist() if not df_alunos_existente.empty else []
-                if turma_alunos in turmas_existentes:
-                    st.warning(f"⚠️ A turma **{turma_alunos}** já existe! Alunos serão atualizados se já estiverem nesta turma.")
+            turma_alunos_padronizada = formatar_turma_eletiva(turma_alunos)
+
+            if turma_alunos_padronizada:
+                turmas_existentes = df_alunos_existente["turma"].unique().tolist() if not df_alunos_existente.empty and "turma" in df_alunos_existente.columns else []
+                if turma_alunos_padronizada in turmas_existentes:
+                    st.warning(f"⚠️ A turma **{turma_alunos_padronizada}** já existe. Estudantes com o mesmo RA serão atualizados.")
 
             if st.button("🚀 IMPORTAR ALUNOS", type="primary", use_container_width=True):
-                if not turma_alunos:
-                    st.error("❌ Digite o nome da turma!")
+                if not turma_alunos_padronizada:
+                    st.error("❌ Digite o nome da turma.")
                 elif col_ra is None or col_nome is None:
-                    st.error("❌ É necessário identificar as colunas de RA e Nome!")
+                    st.error("❌ É necessário identificar as colunas de RA e Nome.")
                 else:
                     novos = 0
                     atualizados = 0
@@ -6407,62 +6589,70 @@ elif "IMPORTAR ALUNOS" in normalizar_texto(menu):
 
                     for i, (_, row) in enumerate(df_import.iterrows()):
                         try:
-                            ra_valor = row[col_ra]
-                            if pd.isna(ra_valor):
-                                erros += 1
-                                continue
+                            ra_valor = row.get(col_ra, "")
+                            ra_str = "".join(c for c in str(ra_valor or "") if c.isdigit())
 
-                            ra_str = "".join(c for c in str(ra_valor) if c.isdigit())
                             if not ra_str or len(ra_str) < 5:
                                 erros += 1
                                 continue
 
-                            nome_valor = row[col_nome]
-                            if pd.isna(nome_valor):
-                                erros += 1
-                                continue
+                            nome_valor = row.get(col_nome, "")
+                            nome_str = str(nome_valor or "").strip()
 
-                            nome_str = str(nome_valor).strip()
-                            if not nome_str or nome_str == "nan":
+                            if not nome_str or normalizar_texto(nome_str) in ("NAN", "NONE", "NOME DO ALUNO"):
                                 erros += 1
                                 continue
 
                             sit_str = "Ativo"
                             if col_situacao:
-                                sit_valor = row[col_situacao]
-                                if not pd.isna(sit_valor):
-                                    sit_str = str(sit_valor).strip()
-                                    sit_lower = sit_str.lower()
-                                    if "transfer" in sit_lower or "baixa" in sit_lower:
-                                        sit_str = "Transferido"
-                                    elif "ativo" in sit_lower:
-                                        sit_str = "Ativo"
-                                    elif "inativo" in sit_lower:
-                                        sit_str = "Inativo"
-                                    elif "remanej" in sit_lower:
-                                        sit_str = "Remanejado"
+                                sit_valor = row.get(col_situacao, "")
+                                if str(sit_valor or "").strip():
+                                    sit_original = str(sit_valor).strip()
+                                    sit_lower = normalizar_texto(sit_original)
 
-                            aluno = {"ra": ra_str, "nome": nome_str, "turma": turma_alunos, "situacao": sit_str}
-                            existe = df_alunos_existente[df_alunos_existente["ra"] == ra_str] if not df_alunos_existente.empty else pd.DataFrame()
+                                    if "TRANSFER" in sit_lower:
+                                        sit_str = "Transferido"
+                                    elif "REMANEJ" in sit_lower:
+                                        sit_str = "Remanejado"
+                                    elif "BAIX" in sit_lower:
+                                        sit_str = "Baixado"
+                                    elif "INATIV" in sit_lower:
+                                        sit_str = "Inativo"
+                                    elif "ATIV" in sit_lower:
+                                        sit_str = "Ativo"
+                                    else:
+                                        sit_str = sit_original
+
+                            aluno = {
+                                "ra": ra_str,
+                                "nome": nome_str,
+                                "turma": turma_alunos_padronizada,
+                                "situacao": sit_str
+                            }
+
+                            existe = (
+                                df_alunos_existente[df_alunos_existente["ra"].astype(str) == ra_str]
+                                if not df_alunos_existente.empty and "ra" in df_alunos_existente.columns
+                                else pd.DataFrame()
+                            )
 
                             if not existe.empty:
-                                turma_antiga = existe.iloc[0].get("turma", "")
-                                if turma_antiga == turma_alunos:
-                                    if atualizar_aluno(ra_str, aluno):
-                                        atualizados += 1
-                                    else:
-                                        erros += 1
+                                if atualizar_aluno(ra_str, aluno):
+                                    atualizados += 1
                                 else:
-                                    ignorados += 1
+                                    erros += 1
                             else:
                                 if salvar_aluno(aluno):
                                     novos += 1
                                 else:
                                     erros += 1
-                        except Exception:
+
+                        except Exception as e:
+                            logger.error(f"Erro ao importar aluno da linha {i}: {e}")
                             erros += 1
 
-                        progress.progress((i + 1) / total)
+                        if total:
+                            progress.progress((i + 1) / total)
                         status.text(f"Processando... {i + 1}/{total} | ✅ Novos: {novos} | 🔄 Atualizados: {atualizados}")
 
                     progress.empty()
@@ -10028,6 +10218,18 @@ elif menu == "🫂 Tutoria":
                     key="download_sem_tutor_geral_csv"
                 )
 
+                pdf_sem_tutor_geral = gerar_pdf_estudantes_sem_tutor(
+                    f"Geral | Turno: {filtro_turno_geral} | Etapa: {filtro_etapa_geral}",
+                    df_sem_tutor_exibir
+                )
+                st.download_button(
+                    "🖨️ Baixar lista geral em PDF",
+                    data=pdf_sem_tutor_geral,
+                    file_name=f"estudantes_sem_tutor_geral_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                    mime="application/pdf",
+                    key="download_sem_tutor_geral_pdf"
+                )
+
 
         with aba_turno_sem_tutor:
             if df_sem_tutor.empty:
@@ -10069,6 +10271,18 @@ elif menu == "🫂 Tutoria":
                     key="download_sem_tutor_turno_csv"
                 )
 
+                pdf_sem_tutor_turno = gerar_pdf_estudantes_sem_tutor(
+                    f"Turno/Etapa | {turno_sel}",
+                    df_turno
+                )
+                st.download_button(
+                    "🖨️ Baixar turno selecionado em PDF",
+                    data=pdf_sem_tutor_turno,
+                    file_name=f"estudantes_sem_tutor_{gerar_chave_segura(turno_sel)}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                    mime="application/pdf",
+                    key="download_sem_tutor_turno_pdf"
+                )
+
         with aba_sala_sem_tutor:
             if df_sem_tutor.empty:
                 st.success("Não há estudantes sem tutor para agrupar por sala.")
@@ -10104,6 +10318,18 @@ elif menu == "🫂 Tutoria":
                     file_name=f"estudantes_sem_tutor_{nome_arquivo_sala}_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
                     mime="text/csv",
                     key="download_sem_tutor_sala_csv"
+                )
+
+                pdf_sem_tutor_sala = gerar_pdf_estudantes_sem_tutor(
+                    f"Sala/Turma: {turma_sem_tutor_sel}",
+                    df_sala
+                )
+                st.download_button(
+                    "🖨️ Baixar sala selecionada em PDF",
+                    data=pdf_sem_tutor_sala,
+                    file_name=f"estudantes_sem_tutor_{nome_arquivo_sala}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                    mime="application/pdf",
+                    key="download_sem_tutor_sala_pdf"
                 )
     else:
         st.info("Para mostrar estudantes sem tutor, a tabela de alunos precisa ter pelo menos as colunas nome e turma.")
