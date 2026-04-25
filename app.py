@@ -2529,31 +2529,93 @@ def resolver_estudantes_tutoria(novos_estudantes: list, df_alunos: pd.DataFrame)
     return resolvidos, nao_encontrados
 
 
+# Espaços físicos da tutoria.
+# Atenção: professor/responsável fica no campo "Nome do responsável".
+# Aqui deve aparecer SOMENTE o espaço, sem o nome do professor.
 TUTORIA_ESPACOS_PADRAO = [
-    "Sala 1 - Patrícia", "Sala 2 - Verônica", "Sala 3 - Fagna", "Sala 4 - Elaine",
-    "Sala de Leitura - Giovana", "Sala 5 - Fernanda", "Sala 6 - Lourdes",
-    "Sala de vídeo - Anderson", "Sala 7 - Shirley", "Sala 8 - Rosemeire",
-    "Sala 9 - Rosângela", "Sala 10 - Solange", "Sala 11 - Silvana/Jaqueline",
-    "Pátio - Itatiara", "Pátio - Lucineide", "Pátio - Guilherme C.",
-    "Direção - Renan", "Coordenação - Aleandro", "Informática - Érika",
+    "Sala 1",
+    "Sala 2",
+    "Sala 3",
+    "Sala 4",
+    "Sala de Leitura",
+    "Sala 5",
+    "Sala 6",
+    "Sala de vídeo",
+    "Sala 7",
+    "Sala 8",
+    "Sala 9",
+    "Sala 10",
+    "Sala 11",
+    "Pátio",
+    "Direção",
+    "Coordenação",
+    "Informática",
 ]
+
+# Referência original: qual professor costuma usar cada espaço.
+# Não é usada para preencher o campo "Espaço"; serve apenas para consulta futura.
+TUTORIA_RESPONSAVEL_REFERENCIA_ESPACO = {
+    "Sala 1": ["Patrícia"],
+    "Sala 2": ["Verônica"],
+    "Sala 3": ["Fagna"],
+    "Sala 4": ["Elaine"],
+    "Sala de Leitura": ["Giovana"],
+    "Sala 5": ["Fernanda"],
+    "Sala 6": ["Lourdes"],
+    "Sala de vídeo": ["Anderson"],
+    "Sala 7": ["Shirley"],
+    "Sala 8": ["Rosemeire"],
+    "Sala 9": ["Rosângela"],
+    "Sala 10": ["Solange"],
+    "Sala 11": ["Silvana", "Jaqueline"],
+    "Pátio": ["Itatiara", "Lucineide", "Guilherme C."],
+    "Direção": ["Renan"],
+    "Coordenação": ["Aleandro"],
+    "Informática": ["Érika"],
+}
+
+
+def normalizar_espaco_tutoria(valor: str) -> str:
+    """
+    Padroniza o campo de espaço da tutoria.
+    Se houver cadastro antigo como "Sala 1 - Patrícia", mantém apenas "Sala 1".
+    """
+    texto = str(valor or "").strip()
+    if not texto:
+        return ""
+
+    texto = corrigir_texto_mojibake(texto)
+
+    # Remove nome do responsável quando vier no formato antigo "Espaço - Professor".
+    if " - " in texto:
+        possivel_espaco = texto.split(" - ", 1)[0].strip()
+        if possivel_espaco:
+            texto = possivel_espaco
+
+    mapa_padrao = {normalizar_texto(item): item for item in TUTORIA_ESPACOS_PADRAO}
+    chave = normalizar_texto(texto)
+    return mapa_padrao.get(chave, texto)
 
 
 def obter_opcoes_espacos_tutoria(tutoria_dict: dict) -> list[str]:
     """Lista espaços padrão e inclui novos espaços já cadastrados na tutoria."""
     opcoes = []
     vistos = set()
+
     for espaco in TUTORIA_ESPACOS_PADRAO:
-        chave = normalizar_texto(espaco)
-        if chave not in vistos:
-            opcoes.append(espaco)
+        espaco_limpo = normalizar_espaco_tutoria(espaco)
+        chave = normalizar_texto(espaco_limpo)
+        if espaco_limpo and chave not in vistos:
+            opcoes.append(espaco_limpo)
             vistos.add(chave)
+
     for _, dados in normalizar_base_tutoria(tutoria_dict).items():
-        espaco = str(dados.get("espaco", "")).strip()
+        espaco = normalizar_espaco_tutoria(dados.get("espaco", ""))
         chave = normalizar_texto(espaco)
         if espaco and chave not in vistos:
             opcoes.append(espaco)
             vistos.add(chave)
+
     return opcoes
 
 def gerar_chave_segura(valor: str) -> str:
@@ -8368,7 +8430,7 @@ elif menu == "🫂 Tutoria":
                 espaco_novo_tutor = st.text_input(
                     "Digite o novo espaço",
                     key="tutoria_novo_espaco",
-                    placeholder="Ex: Sala 12 - Nome"
+                    placeholder="Ex: Sala 12"
                 )
             else:
                 espaco_novo_tutor = espaco_novo_tutor_select
@@ -8389,7 +8451,7 @@ elif menu == "🫂 Tutoria":
                 TUTORIA[nome_novo_tutor] = {
                     "nome": nome_novo_tutor,
                     "tipo": normalizar_perfil_tutoria(tipo_novo_tutor),
-                    "espaco": str(espaco_novo_tutor).strip(),
+                    "espaco": normalizar_espaco_tutoria(espaco_novo_tutor),
                     "horario": str(horario_novo_tutor).strip(),
                     "dia": str(dia_novo_tutor).strip(),
                     "alunos": []
