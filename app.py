@@ -4801,7 +4801,10 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
 
     def _parse_data_relatorio(valor, padrao):
         try:
-            return pd.to_datetime(valor).date()
+            data_convertida = pd.to_datetime(valor, errors="coerce")
+            if pd.isna(data_convertida):
+                return padrao
+            return data_convertida.date()
         except Exception:
             return padrao
 
