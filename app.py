@@ -9133,8 +9133,11 @@ elif menu == "🫂 Tutoria":
 
     # ======================================================
     # TUTORIA - EXCLUSÃO/EDIÇÃO VISÍVEL DA LISTA ATUAL
-    # Objetivo: manter os botões de editar, excluir estudante e excluir todos
-    # sempre próximos do responsável selecionado, sem depender de rolar a tela.
+    # ======================================================
+    # TUTORIA - GERENCIAMENTO VISIVEL DA LISTA ATUAL
+    # Objetivo: permitir remover estudante individualmente,
+    # editar dados e excluir todos os estudantes do responsável selecionado.
+    # Esta área fica VISÍVEL na página de Tutoria, não escondida em manutenção.
     # ======================================================
     def _apagar_registro_supabase_tutoria(professora: str, nome: str, serie: str = ""):
         """Remove do Supabase o vínculo de um estudante com uma professora/tutora."""
@@ -9150,32 +9153,56 @@ elif menu == "🫂 Tutoria":
 
     st.markdown("---")
     st.subheader("👥 Estudantes da lista selecionada")
-    st.caption("Use esta área para conferir, editar, excluir um estudante ou limpar toda a lista do responsável selecionado.")
+    st.caption("Aqui você pode remover estudantes desta lista, editar dados e limpar a lista inteira do responsável selecionado.")
 
     alunos_raw = normalizar_alunos_tutoria(tutor_info.get("alunos", []))
     TUTORIA[tutor_sel]["alunos"] = alunos_raw
 
     if alunos_raw:
-        df_alunos_tutor = pd.DataFrame([
-            {
-                "Nome": aluno.get("nome", ""),
-                "Turma": formatar_turma_eletiva(aluno.get("serie", "")),
-                "RA": aluno.get("ra", ""),
-            }
-            for aluno in alunos_raw
-        ])
-        st.dataframe(df_alunos_tutor, use_container_width=True, hide_index=True)
+        st.markdown("#### 📋 Alunos vinculados")
 
-        with st.expander("✏️ Editar ou excluir estudante", expanded=False):
+        for idx_aluno, aluno in enumerate(list(alunos_raw)):
+            nome_aluno_lista = str(aluno.get("nome", "")).strip()
+            serie_aluno_lista = formatar_turma_eletiva(str(aluno.get("serie", "")).strip())
+            ra_aluno_lista = "".join(ch for ch in str(aluno.get("ra", "")) if ch.isdigit())
+
+            col_nome, col_turma, col_ra, col_remover = st.columns([5, 1.2, 1.4, 1.3])
+
+            with col_nome:
+                st.markdown(f"**{idx_aluno + 1}. {nome_aluno_lista}**")
+            with col_turma:
+                st.write(serie_aluno_lista or "-")
+            with col_ra:
+                st.write(ra_aluno_lista or "-")
+            with col_remover:
+                if st.button("🗑️ Remover", key=f"btn_remover_aluno_tutoria_{gerar_chave_segura(tutor_sel)}_{idx_aluno}", type="secondary"):
+                    try:
+                        removido = TUTORIA[tutor_sel]["alunos"].pop(idx_aluno)
+                        _salvar_estado_tutoria("local")
+                        if SUPABASE_VALID:
+                            _apagar_registro_supabase_tutoria(
+                                tutor_sel,
+                                str(removido.get("nome", "")),
+                                str(removido.get("serie", ""))
+                            )
+                        st.success(f"✅ {nome_aluno_lista} foi removido da lista de {tutor_sel}.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Erro ao remover estudante: {e}")
+
+        # ------------------------------------------------------
+        # EDIÇÃO MANUAL DE UM ESTUDANTE DA LISTA
+        # ------------------------------------------------------
+        with st.expander("✏️ Editar dados de um estudante", expanded=False):
             opcoes_estudantes_gerenciar = [
                 f"{a.get('nome', '').strip()} — {formatar_turma_eletiva(a.get('serie', '')).strip()}".strip(" —")
                 for a in alunos_raw
             ]
             idx_gerenciar = st.selectbox(
-                "Selecione o estudante",
+                "Selecione o estudante para editar",
                 options=list(range(len(opcoes_estudantes_gerenciar))),
                 format_func=lambda i: opcoes_estudantes_gerenciar[i],
-                key=f"tutoria_idx_gerenciar_visivel_{gerar_chave_segura(tutor_sel)}"
+                key=f"tutoria_idx_editar_estudante_{gerar_chave_segura(tutor_sel)}"
             )
 
             estudante_sel_gerenciar = alunos_raw[idx_gerenciar]
@@ -9188,100 +9215,78 @@ elif menu == "🫂 Tutoria":
                 novo_nome_gerenciar = st.text_input(
                     "Nome",
                     value=nome_antigo_gerenciar,
-                    key=f"tutoria_nome_gerenciar_visivel_{gerar_chave_segura(tutor_sel)}_{idx_gerenciar}"
+                    key=f"tutoria_nome_editar_estudante_{gerar_chave_segura(tutor_sel)}_{idx_gerenciar}"
                 )
             with col_edit_turma:
                 nova_serie_gerenciar = st.text_input(
                     "Turma",
                     value=serie_antiga_gerenciar,
-                    key=f"tutoria_serie_gerenciar_visivel_{gerar_chave_segura(tutor_sel)}_{idx_gerenciar}"
+                    key=f"tutoria_serie_editar_estudante_{gerar_chave_segura(tutor_sel)}_{idx_gerenciar}"
                 )
             with col_edit_ra:
                 novo_ra_gerenciar = st.text_input(
                     "RA",
                     value=ra_antigo_gerenciar,
-                    key=f"tutoria_ra_gerenciar_visivel_{gerar_chave_segura(tutor_sel)}_{idx_gerenciar}"
+                    key=f"tutoria_ra_editar_estudante_{gerar_chave_segura(tutor_sel)}_{idx_gerenciar}"
                 )
 
-            col_btn_editar, col_btn_excluir = st.columns(2)
-            with col_btn_editar:
-                if st.button("💾 Salvar edição do estudante", type="primary", key=f"btn_tutoria_salvar_edicao_visivel_{gerar_chave_segura(tutor_sel)}"):
-                    novo_nome_gerenciar = str(novo_nome_gerenciar or "").strip()
-                    nova_serie_gerenciar = formatar_turma_eletiva(str(nova_serie_gerenciar or "").strip())
-                    novo_ra_gerenciar = "".join(ch for ch in str(novo_ra_gerenciar or "") if ch.isdigit())
-                    if not novo_nome_gerenciar:
-                        st.warning("Informe um nome válido para salvar.")
-                    else:
-                        try:
-                            novo_registro_aluno = {
-                                "nome": novo_nome_gerenciar,
-                                "serie": nova_serie_gerenciar,
-                            }
-                            if novo_ra_gerenciar:
-                                novo_registro_aluno["ra"] = novo_ra_gerenciar
+            if st.button("💾 Salvar edição do estudante", type="primary", key=f"btn_tutoria_salvar_edicao_estudante_{gerar_chave_segura(tutor_sel)}"):
+                novo_nome_gerenciar = str(novo_nome_gerenciar or "").strip()
+                nova_serie_gerenciar = formatar_turma_eletiva(str(nova_serie_gerenciar or "").strip())
+                novo_ra_gerenciar = "".join(ch for ch in str(novo_ra_gerenciar or "") if ch.isdigit())
 
-                            TUTORIA[tutor_sel]["alunos"][idx_gerenciar] = novo_registro_aluno
-                            _salvar_estado_tutoria("local")
-
-                            if SUPABASE_VALID:
-                                _apagar_registro_supabase_tutoria(tutor_sel, nome_antigo_gerenciar, serie_antiga_gerenciar)
-                                _supabase_request("POST", "tutoria", json=[{
-                                    "professora": tutor_sel,
-                                    "nome_aluno": novo_nome_gerenciar,
-                                    "serie": nova_serie_gerenciar,
-                                    "origem": "edicao_manual"
-                                }])
-                            st.success("✅ Estudante atualizado com sucesso.")
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"Erro ao editar estudante: {e}")
-
-            with col_btn_excluir:
-                confirmar_exclusao_estudante = st.checkbox(
-                    "Confirmar exclusão deste estudante",
-                    key=f"confirmar_exclusao_estudante_visivel_{gerar_chave_segura(tutor_sel)}_{idx_gerenciar}"
-                )
-                if st.button("🗑️ Excluir estudante", type="secondary", key=f"btn_tutoria_excluir_estudante_visivel_{gerar_chave_segura(tutor_sel)}"):
-                    if not confirmar_exclusao_estudante:
-                        st.warning("Marque a confirmação para excluir o estudante.")
-                    else:
-                        try:
-                            removido = TUTORIA[tutor_sel]["alunos"].pop(idx_gerenciar)
-                            _salvar_estado_tutoria("local")
-                            if SUPABASE_VALID:
-                                _apagar_registro_supabase_tutoria(
-                                    tutor_sel,
-                                    str(removido.get("nome", "")),
-                                    str(removido.get("serie", ""))
-                                )
-                            st.success("✅ Estudante excluído com sucesso.")
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"Erro ao excluir estudante: {e}")
-
-        with st.expander("🧹 Excluir todos os estudantes deste responsável", expanded=False):
-            st.warning(f"Esta ação remove todos os estudantes vinculados a {tutor_sel}.")
-            confirmar_excluir_todos_visivel = st.checkbox(
-                f"Confirmo excluir todos os estudantes de {tutor_sel}",
-                key=f"confirmar_excluir_todos_visivel_{gerar_chave_segura(tutor_sel)}"
-            )
-            if st.button("🗑️ Excluir todos da tutoria", type="secondary", key=f"btn_excluir_todos_visivel_{gerar_chave_segura(tutor_sel)}"):
-                if not confirmar_excluir_todos_visivel:
-                    st.warning("Marque a confirmação para excluir todos.")
+                if not novo_nome_gerenciar:
+                    st.warning("Informe um nome válido para salvar.")
                 else:
                     try:
-                        TUTORIA[tutor_sel]["alunos"] = []
+                        novo_registro_aluno = {
+                            "nome": novo_nome_gerenciar,
+                            "serie": nova_serie_gerenciar,
+                        }
+                        if novo_ra_gerenciar:
+                            novo_registro_aluno["ra"] = novo_ra_gerenciar
+
+                        TUTORIA[tutor_sel]["alunos"][idx_gerenciar] = novo_registro_aluno
                         _salvar_estado_tutoria("local")
+
                         if SUPABASE_VALID:
-                            tutor_q = requests.utils.quote(str(tutor_sel), safe="")
-                            _supabase_request("DELETE", f"tutoria?professora=eq.{tutor_q}")
-                        st.success("✅ Todos os estudantes da tutoria foram excluídos.")
+                            _apagar_registro_supabase_tutoria(tutor_sel, nome_antigo_gerenciar, serie_antiga_gerenciar)
+                            _supabase_request("POST", "tutoria", json=[{
+                                "professora": tutor_sel,
+                                "nome_aluno": novo_nome_gerenciar,
+                                "serie": nova_serie_gerenciar,
+                                "origem": "edicao_manual"
+                            }])
+                        st.success("✅ Estudante atualizado com sucesso.")
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Erro ao excluir todos os estudantes: {e}")
+                        st.error(f"Erro ao editar estudante: {e}")
+
+        # ------------------------------------------------------
+        # EXCLUSÃO TOTAL DA LISTA DO RESPONSÁVEL
+        # ------------------------------------------------------
+        st.markdown("#### 🧹 Limpar lista deste responsável")
+        st.warning(f"Atenção: esta ação remove todos os estudantes vinculados a {tutor_sel}.")
+        confirmar_excluir_todos_visivel = st.checkbox(
+            f"Confirmo excluir todos os estudantes de {tutor_sel}",
+            key=f"confirmar_excluir_todos_lista_tutoria_{gerar_chave_segura(tutor_sel)}"
+        )
+        if st.button("🗑️ Excluir todos os estudantes desta lista", type="secondary", key=f"btn_excluir_todos_lista_tutoria_{gerar_chave_segura(tutor_sel)}"):
+            if not confirmar_excluir_todos_visivel:
+                st.warning("Marque a confirmação para excluir todos os estudantes desta lista.")
+            else:
+                try:
+                    TUTORIA[tutor_sel]["alunos"] = []
+                    _salvar_estado_tutoria("local")
+                    if SUPABASE_VALID:
+                        tutor_q = requests.utils.quote(str(tutor_sel), safe="")
+                        _supabase_request("DELETE", f"tutoria?professora=eq.{tutor_q}")
+                    st.success("✅ Todos os estudantes desta lista foram excluídos.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Erro ao excluir todos os estudantes: {e}")
     else:
         st.info("Este responsável ainda não possui estudantes vinculados.")
-
     def _adicionar_estudantes_tutoria(novos_estudantes: list, origem: str, tutor_destino: str | None = None):
         tutor_destino = str(tutor_destino or tutor_sel).strip()
         registro = TUTORIA.setdefault(tutor_destino, estrutura_tutoria_vazia(nome=tutor_destino))
