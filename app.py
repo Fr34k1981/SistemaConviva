@@ -9195,11 +9195,23 @@ elif menu == "🫂 Tutoria":
                 st.rerun()
     col_lista1, col_lista2 = st.columns([2, 1])
     with col_lista1:
-        st.text_input(
-            "Responsável da lista",
-            value=tutor_sel,
-            disabled=True,
-            key="tutoria_tutor_lista_lote_view"
+        # Campo somente informativo.
+        # Nao usar st.text_input com key fixa aqui, porque o Streamlit preserva
+        # o valor antigo e pode mostrar outro responsavel.
+        st.markdown("<div style='font-size:0.82rem;font-weight:700;color:#54467a;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.25rem;'>Responsável da lista</div>", unsafe_allow_html=True)
+        st.markdown(
+            f"""
+            <div style="
+                background:#ffffff;
+                border:1px solid rgba(148,163,184,0.30);
+                border-radius:18px;
+                padding:0.72rem 0.95rem;
+                min-height:44px;
+                color:#2b2140;
+                box-shadow:0 10px 22px rgba(15,23,42,0.05);
+            ">{html.escape(str(tutor_sel))}</div>
+            """,
+            unsafe_allow_html=True
         )
         tutor_lista_lote = tutor_sel
     with col_lista2:
