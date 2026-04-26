@@ -2869,122 +2869,90 @@ def buscar_infracao_fuzzy(busca: str, protocolo: dict) -> dict:
 # ======================================================
 
 PROMPT_IA_CONVIVA_PEDAGOGICA = """
-Você é a IA Conviva Pedagógica, especialista na rede pública do Estado de São Paulo.
+Você é a IA Conviva Pedagógica, uma assistente especialista na rede pública estadual de São Paulo (SEDUC-SP).
 
-Você apoia professores, coordenação e gestão escolar na produção de registros escolares, relatórios, pareceres, ocorrências, comunicados e encaminhamentos pedagógicos.
+Sua missão é apoiar professores, coordenadores, mediadores e gestores na produção de registros, relatórios, pareceres e comunicados às famílias.
+
+PERSPECTIVA E VOZ (GHOSTWRITING) - REGRA DE OURO:
+Você atua como um escritor fantasma para o educador. O texto gerado será lido pela família do estudante ou anexado ao prontuário oficial.
+- NUNCA escreva dando conselhos, ordens ou dicas ao professor.
+- NÃO use construções como "Recomenda-se observar", "O professor deve", "É indicado que o educador", "A escola deve".
+- ESCREVA NA VOZ DA ESCOLA/PROFESSOR, em 1ª pessoa do plural ou 3ª pessoa neutra.
+- Transforme estratégias em ações que a escola já realiza, está realizando ou em orientações de parceria com a família.
+- Exemplo errado: "Recomenda-se colocar o aluno na frente."
+- Exemplo correto: "Como estratégia de acompanhamento, o estudante tem sido posicionado próximo à lousa para favorecer o engajamento."
 
 CONHECIMENTOS DE REFERÊNCIA:
-- Normativas e orientações da SEDUC-SP;
-- Plataforma Conviva Educação, incluindo o Protocolo 179;
-- Estatuto da Criança e do Adolescente (ECA);
-- Lei de Diretrizes e Bases da Educação Nacional (LDB);
-- Educação inclusiva;
-- Práticas pedagógicas humanizadas;
-- Mediação escolar;
-- Elaboração de relatórios e pareceres descritivos escolares.
+- Normativas e orientações da SEDUC-SP e Currículo Paulista;
+- Plataforma Conviva Educação (Protocolo 179 e Placon);
+- Estatuto da Criança e do Adolescente (ECA) e LDB;
+- Política de Educação Especial na Perspectiva Inclusiva e PEI;
+- Comunicação Não Violenta (CNV) e Justiça Restaurativa.
 
-FUNÇÃO:
-Auxiliar na escrita, revisão, organização e qualificação pedagógica de textos escolares com linguagem clara, ética, profissional, humanizada e adequada ao contexto da escola pública.
+LIMITES INEGOCIÁVEIS:
+- Você NÃO substitui diagnósticos médicos ou laudos psicológicos. Nunca use termos como TDAH, Autismo ou outros diagnósticos sem que o usuário afirme ter laudo.
+- Você NÃO inventa fatos.
+- Você NÃO utiliza linguagem punitiva, excludente, capacitista ou julgadora.
 
-LIMITES:
-- Não substitui professor, coordenação, gestão escolar, família, Conselho Tutelar, serviços de saúde ou órgãos oficiais;
-- Não realiza diagnósticos clínicos ou psicológicos;
-- Não inventa fatos;
-- Não acrescenta informações que não foram fornecidas;
-- Não utiliza linguagem ofensiva, discriminatória, punitiva ou julgadora.
+PRINCÍPIOS DA ESCRITA PEDAGÓGICA:
+1. Foco na descrição, não no julgamento: descreva o que o estudante faz, não o que ele é.
+2. Proteção e dignidade: olhar humanizado focado nas potencialidades.
+3. Objetividade e clareza: texto coeso, formal e acessível para a família.
 
-PRINCÍPIOS:
-1. Respeito à dignidade do estudante e da família;
-2. Proteção integral e olhar humanizado, conforme os princípios do ECA;
-3. Formação integral do estudante, conforme os princípios da LDB;
-4. Linguagem pedagógica, respeitosa e não discriminatória;
-5. Escrita objetiva, clara, formal e acessível;
-6. Foco em fatos observáveis, desenvolvimento, acompanhamento e possibilidades de intervenção;
-7. Preservação da imagem do estudante, evitando exposição desnecessária;
-8. Uso de termos adequados ao contexto escolar.
+DIRETRIZES DE TRADUÇÃO PEDAGÓGICA:
+- De "Aluno agitado" para "O estudante demonstra alta demanda motora."
+- De "Aluno agressivo" para "O estudante apresentou comportamento reativo diante de situação de frustração."
+- De "Preguiçoso/Não faz nada" para "O estudante necessita de estímulo para iniciar e manter o engajamento nas atividades propostas."
+- De "Família não liga" para "Ressaltamos a importância de estreitar a parceria com a família no acompanhamento da rotina."
 
-ESTILO DE ESCRITA:
-- Profissional;
-- Claro;
-- Humanizado;
-- Objetivo;
-- Pedagógico;
-- Acolhedor;
-- Sem julgamentos;
-- Sem rótulos;
-- Sem linguagem punitiva;
-- Sem exposição desnecessária.
-
-AO RECEBER UM TEXTO:
-- Corrigir ortografia, gramática, pontuação e concordância;
-- Melhorar a organização das ideias;
-- Transformar linguagem informal ou inadequada em linguagem pedagógica;
-- Humanizar a escrita;
-- Manter o sentido original;
-- Não adicionar fatos novos;
-- Não fazer resumo quando a tarefa for reescrita;
-- Não responder com frases curtas ou superficiais;
-- Gerar versão pronta para uso escolar.
-
-ORIENTAÇÃO IMPORTANTE:
-Quando o texto original for curto, desenvolva um parágrafo completo, coerente e humanizado, ampliando pedagogicamente apenas a ideia apresentada, sem inventar fatos.
-
-NUNCA responda apenas repetindo o texto original.
-NUNCA responda de forma superficial.
-Sempre produza uma reescrita pedagógica completa, consistente e humanizada.
+FLUXO DE TRABALHO:
+1. Analise o texto original.
+2. Corrija ortografia, gramática e remova o tom de desabafo do professor.
+3. Se o texto for curto, desenvolva um parágrafo coerente descrevendo a situação de forma neutra.
+4. Escreva o texto final pronto para ser assinado pelo professor e entregue à família ou gestão.
 """
 
 INSTRUCOES_TAREFAS_IA_RELATORIO = {
     "Corrigir ortografia e gramática": (
-        "Corrija ortografia, acentuação, pontuação e concordância. "
-        "Mantenha o sentido original, preserve os fatos informados e adeque a linguagem ao contexto escolar, "
-        "com tom respeitoso, formal e humanizado."
+        "Faça a revisão ortográfica e gramatical. Mantenha o sentido original, mas garanta que o tom esteja formal "
+        "e adequado para leitura por parte da gestão escolar ou da família do estudante."
     ),
-    "Melhorar escrita pedagógica": (
-        "Reescreva o texto em linguagem pedagógica, profissional, humanizada e objetiva. "
-        "Remova julgamentos, rótulos, termos inadequados ou linguagem punitiva. "
-        "Preserve a ideia central e produza um parágrafo completo, pronto para relatório escolar."
+    "Melhorar escrita pedagógica (Relatório/Família)": (
+        "Reescreva o texto em linguagem técnica, acolhedora e objetiva. "
+        "Assuma a voz do educador relatando o caso. Se houver ações necessárias, descreva-as como medidas que a "
+        "escola está adotando ou como um convite à parceria da família. Não dê instruções diretas ao professor."
     ),
-    "Deixar mais objetivo": (
-        "Reescreva de forma mais direta, clara e adequada ao contexto escolar, "
-        "mantendo as informações essenciais, sem perder o cuidado humanizado e pedagógico."
+    "Transformar em registro de ocorrência (Placon)": (
+        "Transforme os fatos em um registro oficial, neutro e descritivo. "
+        "Foque apenas no que aconteceu, quem estava envolvido e as medidas tomadas no momento, "
+        "sem emitir juízo de valor."
     ),
-    "Transformar em parecer descritivo": (
-        "Transforme o texto em um parecer descritivo escolar, com linguagem formal, humanizada e pedagógica. "
-        "Baseie-se apenas nas informações fornecidas, sem diagnóstico clínico, sem julgamento e sem tom punitivo."
+    "Transformar em parecer descritivo de aprendizagem": (
+        "Elabore um parecer descritivo de aprendizagem. Escreva na voz da escola, focando nas potencialidades e, "
+        "em seguida, nas habilidades em desenvolvimento. Finalize mencionando como a escola está mediando esses desafios."
     ),
-    "Sugerir encaminhamentos pedagógicos": (
-        "Elabore encaminhamentos pedagógicos possíveis no contexto escolar, considerando acolhimento, acompanhamento, "
-        "orientação, mediação e estratégias de apoio. "
-        "Não realize diagnósticos clínicos e não invente fatos."
+    "Sugerir comunicados ou encaminhamentos para a Família": (
+        "Transforme o relato em um texto direcionado aos responsáveis, como comunicado ou encaminhamento. "
+        "Use tom empático, de convite ao diálogo e parceria. Destaque o que a escola tem feito e o que "
+        "se espera do apoio familiar em casa."
     ),
     "Gerar escrita corrida do relatório": (
-        "Organize as informações em texto corrido de relatório escolar, com estrutura clara, coesa, formal, "
-        "humanizada e adequada aos registros pedagógicos da escola pública."
+        "Organize as informações em texto corrido de relatório escolar. Escreva na voz da escola, sem orientar o professor, "
+        "descrevendo o acompanhamento realizado, as observações pedagógicas e a parceria esperada com a família quando pertinente."
     ),
 }
 
 TERMOS_OFENSIVOS_RELATORIO = [
-    "idiota",
-    "burro",
-    "burra",
-    "preguiçoso",
-    "preguiçosa",
-    "relaxado",
-    "relaxada",
-    "desleixado",
-    "desleixada",
-    "incapaz",
-    "insuportável",
-    "insuportavel",
-    "problema",
-    "mau aluno",
-    "má aluna",
-    "não quer nada",
-    "não faz nada",
-    "atrapalha",
-    "indisciplinado",
-    "indisciplinada",
+    "idiota", "burro", "burra", "imbecil", "retardado", "louco", "louca", "doido", "surto",
+    "preguiçoso", "preguiçosa", "relaxado", "relaxada", "desleixado", "desleixada",
+    "insuportável", "insuportavel", "problema", "problemático", "problemática",
+    "mau aluno", "má aluna", "mau caráter", "malcriado", "malcriada", "rebelde",
+    "agressivo", "agressiva", "violento", "violenta", "indisciplinado", "indisciplinada",
+    "baderneiro", "baderneira", "fofoqueiro", "mentiroso", "mentirosa", "manipulador",
+    "não quer nada com nada", "não faz nada", "só atrapalha", "não tem jeito",
+    "caso perdido", "não presta atenção em nada", "vive no mundo da lua",
+    "incapaz", "atrasado", "lento", "sem capacidade", "não consegue aprender",
+    "anormal", "deficiente", "família desestruturada", "pais que não ligam", "mãe ausente", "largado",
 ]
 
 # ======================================================
@@ -3022,12 +2990,12 @@ def _escolher_tarefa_ia_automatica(campo_escolhido: str, texto_base: str = "") -
     """Escolhe uma tarefa padrão coerente com o campo selecionado."""
     campo = str(campo_escolhido or "").lower()
     if "encaminhamento" in campo or "estratég" in campo or "estrateg" in campo:
-        return "Sugerir encaminhamentos pedagógicos"
+        return "Sugerir comunicados ou encaminhamentos para a Família"
     if "escrita corrida" in campo:
         return "Gerar escrita corrida do relatório"
     if "ponto grave" in campo or "grave" in campo:
-        return "Melhorar escrita pedagógica"
-    return "Melhorar escrita pedagógica"
+        return "Transformar em registro de ocorrência (Placon)"
+    return "Melhorar escrita pedagógica (Relatório/Família)"
 
 
 def montar_escrita_corrida_relatorio(contexto_relatorio: dict, textos_campos: dict) -> str:
@@ -3104,26 +3072,28 @@ def _resposta_pedagogica_local(texto: str, tarefa: str) -> str:
     texto_bruto = str(texto or "").lower()
     if "preguicos" in texto_norm or "pregui" in texto_norm or "pregui" in texto_bruto:
         return (
-            "O estudante demonstra necessidade de acompanhamento para iniciar, manter e concluir as atividades propostas. "
-            "Recomenda-se observar em quais momentos apresenta maior dificuldade de engajamento, oferecer orientações claras "
-            "e etapas menores para a realização das tarefas, registrar os avanços observados e manter estratégias de incentivo "
-            "à participação, com acompanhamento contínuo pela equipe escolar."
+            "O estudante tem demonstrado necessidade de estímulo para iniciar, manter e concluir as atividades propostas. "
+            "No acompanhamento realizado pela escola, temos oferecido orientações objetivas, organização das tarefas em etapas "
+            "menores e incentivo à participação nas atividades. Ressaltamos a importância da parceria com a família para fortalecer "
+            "a rotina de estudos, a realização das atividades e o acompanhamento contínuo de seu desenvolvimento escolar."
         )
     if "idiota" in texto_norm or "burro" in texto_norm or "incapaz" in texto_norm:
         return (
-            "O estudante apresenta necessidade de acompanhamento pedagógico para fortalecer sua participação e seu desenvolvimento "
-            "nas atividades escolares. Recomenda-se registrar fatos observáveis, identificar as habilidades que precisam de apoio, "
-            "propor intervenções adequadas ao seu ritmo de aprendizagem e acompanhar sua evolução de forma contínua e respeitosa."
+            "O estudante tem apresentado necessidade de acompanhamento pedagógico para fortalecer sua participação e seu desenvolvimento "
+            "nas atividades escolares. A escola tem observado as habilidades que ainda estão em desenvolvimento e realizado intervenções "
+            "adequadas ao seu ritmo de aprendizagem, mantendo o acompanhamento de sua evolução de forma contínua, respeitosa e colaborativa "
+            "com a família."
         )
-    if tarefa == "Sugerir encaminhamentos pedagógicos":
+    if tarefa == "Sugerir comunicados ou encaminhamentos para a Família":
         return (
-            "Recomenda-se acompanhar o estudante de forma sistemática, registrar as observações relevantes, propor combinados claros, "
-            "oferecer apoio pedagógico durante as atividades e dialogar com a coordenação quando houver necessidade de novas estratégias. "
-            "Caso a situação persista, é indicado envolver os responsáveis e manter registros datados das ações realizadas."
+            "A escola seguirá acompanhando o estudante de forma sistemática, com registros das observações relevantes, combinados claros "
+            "e apoio pedagógico durante as atividades. Solicitamos a parceria da família no acompanhamento da rotina, na organização dos "
+            "estudos e no diálogo contínuo com a equipe escolar, para que as estratégias adotadas possam contribuir para seu desenvolvimento."
         )
     return (
-        "Com as informações disponíveis, registra-se a necessidade de acompanhamento pedagógico do estudante, com atenção aos fatos "
-        "observáveis, às estratégias já adotadas e aos próximos encaminhamentos necessários para apoiar seu desenvolvimento escolar."
+        "Com as informações disponíveis, registramos que o estudante necessita de acompanhamento pedagógico, considerando os fatos observáveis "
+        "e as estratégias já adotadas pela escola. A equipe seguirá acompanhando seu desenvolvimento e manterá diálogo com a família sempre que "
+        "necessário para fortalecer a parceria no processo educativo."
     )
 
 
@@ -3162,6 +3132,8 @@ FORMATO OBRIGATÓRIO:
 - Produza um parágrafo pedagógico completo, claro e útil para relatório escolar.
 - Não explique que a frase original é inadequada; apenas entregue a reescrita.
 - Não invente fatos, diagnósticos ou informações não fornecidas.
+- Não escreva recomendações para o professor. Escreva como escola/professor falando com a família ou registrando no prontuário.
+- Evite "recomenda-se". Prefira "a escola tem acompanhado", "temos observado", "será mantido acompanhamento", "solicitamos a parceria da família".
 """.strip()
 
     payload = {
