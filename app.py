@@ -2949,6 +2949,7 @@ TERMOS_OFENSIVOS_RELATORIO = [
     "insuportável", "insuportavel", "problema", "problemático", "problemática",
     "mau aluno", "má aluna", "mau caráter", "malcriado", "malcriada", "rebelde",
     "agressivo", "agressiva", "violento", "violenta", "indisciplinado", "indisciplinada",
+    "briguento", "briguenta", "briga muito", "vive brigando", "arruma briga",
     "baderneiro", "baderneira", "fofoqueiro", "mentiroso", "mentirosa", "manipulador",
     "não quer nada com nada", "não faz nada", "só atrapalha", "não tem jeito",
     "caso perdido", "não presta atenção em nada", "vive no mundo da lua",
@@ -3034,7 +3035,7 @@ def _texto_tem_termo_inadequado(texto: str) -> bool:
     texto_bruto = str(texto or "").lower()
     return (
         any(normalizar_texto(termo) in texto_norm for termo in TERMOS_OFENSIVOS_RELATORIO)
-        or any(fragmento in texto_bruto for fragmento in ("pregui", "idiota", "burro", "incapaz", "relaxad", "desleixad"))
+        or any(fragmento in texto_bruto for fragmento in ("pregui", "idiota", "burro", "incapaz", "relaxad", "desleixad", "brigu"))
     )
 
 
@@ -3067,10 +3068,32 @@ def _limpar_markdown_ia(texto: str) -> str:
     return texto.strip()
 
 
+def _saida_parece_incompleta(texto: str) -> bool:
+    texto = str(texto or "").strip()
+    if not texto:
+        return True
+    if len(texto) < 90:
+        return True
+    if texto[-1] not in ".!?":
+        return True
+    finais_fracos = (
+        " que", " para", " com", " de", " do", " da", " das", " dos", " e", " ou",
+        " pois", " porque", " quando", " conforme", " durante"
+    )
+    return texto.lower().endswith(finais_fracos)
+
+
 def _resposta_pedagogica_local(texto: str, tarefa: str) -> str:
     """Resposta útil quando a API falha ou devolve algo fraco."""
     texto_norm = normalizar_texto(texto or "")
     texto_bruto = str(texto or "").lower()
+    if "brigu" in texto_bruto:
+        return (
+            "O estudante tem apresentado desafios nas interações com os colegas, especialmente em situações que exigem diálogo, "
+            "escuta e resolução de conflitos. A escola tem acompanhado essas situações por meio de mediação, orientação sobre convivência "
+            "e retomada dos combinados coletivos, buscando favorecer relações mais respeitosas no ambiente escolar. Solicitamos a parceria "
+            "da família no diálogo sobre atitudes de respeito, autocontrole e formas adequadas de resolver desacordos."
+        )
     if "preguicos" in texto_norm or "pregui" in texto_norm or "pregui" in texto_bruto:
         return (
             "O estudante tem demonstrado necessidade de estímulo para iniciar, manter e concluir as atividades propostas. "
@@ -3145,7 +3168,7 @@ FORMATO OBRIGATÓRIO:
         "generationConfig": {
             "temperature": 0.25,
             "topP": 0.85,
-            "maxOutputTokens": 500,
+            "maxOutputTokens": 900,
         },
     }
 
@@ -3175,7 +3198,13 @@ FORMATO OBRIGATÓRIO:
             partes = candidatos[0].get("content", {}).get("parts", [])
             saida = "\n".join(str(p.get("text", "")) for p in partes if p.get("text"))
             saida = _limpar_markdown_ia(saida)
-            if saida and normalizar_texto(saida) != normalizar_texto(texto):
+            finish_reason = str(candidatos[0].get("finishReason", "") or "")
+            if (
+                saida
+                and normalizar_texto(saida) != normalizar_texto(texto)
+                and finish_reason != "MAX_TOKENS"
+                and not _saida_parece_incompleta(saida)
+            ):
                 return saida
         return _resposta_pedagogica_local(texto, tarefa)
     except Exception as e:
@@ -3227,6 +3256,12 @@ def render_ia_conviva_relatorio(contexto_relatorio: dict):
         key=f"ia_conviva_texto_editavel_{gerar_chave_segura(campo_escolhido)}"
     )
 
+    consulta_atual = f"{campo_escolhido}|{texto_para_ia}"
+    if st.session_state.get("ia_conviva_ultima_consulta") != consulta_atual:
+        st.session_state.pop("ia_conviva_resultado_relatorio", None)
+        st.session_state.pop("ia_conviva_resultado_area", None)
+        st.session_state.pop("ia_conviva_campo_destino", None)
+
     if st.button(
         "✨ Melhorar escrita com IA",
         type="primary",
@@ -3244,30 +3279,42 @@ def render_ia_conviva_relatorio(contexto_relatorio: dict):
                 )
 
             st.session_state["ia_conviva_resultado_relatorio"] = resultado
+            st.session_state["ia_conviva_resultado_area"] = resultado
             st.session_state["ia_conviva_campo_destino"] = chave_campo
+            st.session_state["ia_conviva_ultima_consulta"] = consulta_atual
 
     resultado = st.session_state.get("ia_conviva_resultado_relatorio", "")
     campo_destino = st.session_state.get("ia_conviva_campo_destino", chave_campo)
 
     if resultado:
+        if st.session_state.get("ia_conviva_resultado_area") != resultado:
+            st.session_state["ia_conviva_resultado_area"] = resultado
         st.text_area(
             "Sugestão da IA",
-            value=resultado,
             height=220,
             key="ia_conviva_resultado_area"
         )
 
-        if st.button(
-            "✅ Aplicar sugestão no campo",
-            use_container_width=True,
-            key="ia_conviva_aplicar_sugestao_btn"
-        ):
-            st.session_state["ia_conviva_aplicar_pendente"] = {
-                "campo": campo_destino,
-                "texto": resultado
-            }
-            st.success("Sugestão preparada para aplicar ao campo.")
-            st.rerun()
+        col_aplicar, col_nova = st.columns([1, 1])
+        with col_aplicar:
+            if st.button(
+                "✅ Aplicar sugestão no campo",
+                use_container_width=True,
+                key="ia_conviva_aplicar_sugestao_btn"
+            ):
+                st.session_state["ia_conviva_aplicar_pendente"] = {
+                    "campo": campo_destino,
+                    "texto": st.session_state.get("ia_conviva_resultado_area", resultado)
+                }
+                st.success("Sugestão preparada para aplicar ao campo.")
+                st.rerun()
+        with col_nova:
+            if st.button("🔄 Nova consulta", use_container_width=True, key="ia_conviva_nova_consulta_btn"):
+                st.session_state.pop("ia_conviva_resultado_relatorio", None)
+                st.session_state.pop("ia_conviva_resultado_area", None)
+                st.session_state.pop("ia_conviva_campo_destino", None)
+                st.session_state.pop("ia_conviva_ultima_consulta", None)
+                st.rerun()
 
 # ======================================================
 # SISTEMA DE NOTIFICAÇÕES
