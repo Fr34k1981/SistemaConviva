@@ -3027,7 +3027,8 @@ def salvar_aluno(aluno: dict) -> bool:
 
 @com_tratamento_erro
 def atualizar_aluno(ra: str, dados: dict) -> bool:
-    sucesso = _supabase_mutation("PATCH", f"alunos?ra=eq.{ra}", dados, "atualizar aluno")
+    ra_url = requests.utils.quote(str(ra), safe="")
+    sucesso = _supabase_mutation("PATCH", f"alunos?ra=eq.{ra_url}", dados, "atualizar aluno")
     if sucesso:
         carregar_alunos.clear()
     return sucesso
@@ -3036,7 +3037,8 @@ def atualizar_aluno(ra: str, dados: dict) -> bool:
 def excluir_alunos_por_turma(turma: str) -> bool:
     if not turma:
         raise ErroValidacao("turma", "Turma não pode ser vazia")
-    sucesso = _supabase_mutation("DELETE", f"alunos?turma=eq.{turma}", None, "excluir alunos da turma")
+    turma_url = requests.utils.quote(str(turma), safe="")
+    sucesso = _supabase_mutation("DELETE", f"alunos?turma=eq.{turma_url}", None, "excluir alunos da turma")
     if sucesso:
         carregar_alunos.clear()
     return sucesso
@@ -4987,6 +4989,7 @@ if menu == "🏠 Dashboard":
     # Validação de status por RA (evita duplicidade e conta somente ativos reais)
     total_ativos = 0
     total_transferidos = 0
+    total_transferidos_turno1 = 0
     total_remanejados = 0
     total_inativos = 0
     total_outros_status = 0
@@ -5014,11 +5017,15 @@ if menu == "🏠 Dashboard":
         base_sem_ra = base[base["ra_norm"] == ""].copy()
         base_status = pd.concat([base_valid_ra, base_sem_ra], ignore_index=True)
 
-        for s in base_status["situacao"].fillna("").astype(str).str.strip():
+        for _, linha_status in base_status.iterrows():
+            s = str(linha_status.get("situacao", "") or "").strip()
             status_brutos[s if s else "(vazio)"] = status_brutos.get(s if s else "(vazio)", 0) + 1
             s_norm = normalizar_texto(s)
+            turma_status = str(linha_status.get("turma", "") or "").strip()
             if any(k in s_norm for k in ["TRANSFER", "BAIXA"]):
                 total_transferidos += 1
+                if classificar_turno_tutoria(turma_status) == "Turno 1":
+                    total_transferidos_turno1 += 1
             elif any(k in s_norm for k in ["REMANEJ", "REALOC", "RELOC"]):
                 total_remanejados += 1
             elif any(k in s_norm for k in ["INATIV", "DESLIG", "CANCEL", "EVADI", "ABANDON"]):
@@ -5065,7 +5072,7 @@ if menu == "🏠 Dashboard":
         col_v2.metric("Transferidos", total_transferidos)
         col_v3.metric("Remanej./Realoc.", total_remanejados)
         col_v4.metric("Inativos/Outros", total_inativos + total_outros_status)
-        col_v5.metric("Duplicados de RA", total_duplicados_ra)
+        col_v5.metric("Transferidos - Turno 1", total_transferidos_turno1)
         if status_brutos:
             df_status = pd.DataFrame(
                 [{"Situação Original": k, "Quantidade": v} for k, v in sorted(status_brutos.items(), key=lambda x: (-x[1], x[0]))]
@@ -5079,7 +5086,7 @@ if menu == "🏠 Dashboard":
         (col2, "linear-gradient(135deg,#dc2626 0%,#ef4444 100%)", "⚠️", total_ocorrencias, "Ocorrências", f"{gravissimas} gravíssimas", "0.08s"),
         (col3, "linear-gradient(135deg,#0891b2 0%,#06b6d4 100%)", "👨‍🏫", total_professores, "Professores", "cadastrados", "0.16s"),
         (col4, "linear-gradient(135deg,#059669 0%,#10b981 100%)", "🏫", turmas_ativas, "Turmas Ativas", "com alunos ativos", "0.24s"),
-        (col5, "linear-gradient(135deg,#7c3aed 0%,#8b5cf6 100%)", "🔎", total_duplicados_ra, "Duplicados de RA", "para saneamento", "0.32s"),
+        (col5, "linear-gradient(135deg,#7c3aed 0%,#8b5cf6 100%)", "🔁", total_transferidos_turno1, "Transferidos T1", "6º ao 9º + 3º A/B", "0.32s"),
     ]
 
     for col, grad, icon, value, label, sub, delay in cards_data:
@@ -6879,27 +6886,45 @@ elif "GERENCIAR TURMAS" in normalizar_texto(menu):
                                 col_situacao = None
 
                     if st.button("🔄 Confirmar Substituição", type="primary"):
-                        excluir_alunos_por_turma(turma)
-                        inseridos = 0
+                        # Segurança: primeiro prepara e valida os registros.
+                        # A turma antiga só é apagada depois que houver alunos válidos para importar.
+                        registros_importacao = []
                         for _, row in df_import.iterrows():
                             ra = "".join(c for c in str(row[col_ra]) if c.isdigit())
                             nome = str(row[col_nome]).strip()
-                            if not ra or not nome:
+                            if not ra or not nome or nome.lower() in {"nan", "none", "nome do aluno"}:
                                 continue
 
                             situacao = "Ativo"
                             if col_situacao:
                                 sit_valor = str(row[col_situacao]).strip()
-                                if "transfer" in sit_valor.lower():
+                                sit_norm = normalizar_texto(sit_valor)
+                                if "TRANSFER" in sit_norm:
                                     situacao = "Transferido"
-                                elif "ativo" in sit_valor.lower():
+                                elif "REMANEJ" in sit_norm or "REALOC" in sit_norm or "RELOC" in sit_norm:
+                                    situacao = "Remanejamento"
+                                elif "ATIVO" in sit_norm:
                                     situacao = "Ativo"
+                                elif sit_valor and sit_valor.lower() not in {"nan", "none", "null"}:
+                                    situacao = sit_valor
 
-                            aluno = {"ra": ra, "nome": nome, "turma": turma, "situacao": situacao}
+                            registros_importacao.append({"ra": ra, "nome": nome, "turma": turma, "situacao": situacao})
+
+                        if not registros_importacao:
+                            st.error("❌ Nenhum aluno válido foi identificado no arquivo. A turma atual NÃO foi apagada.")
+                            st.stop()
+
+                        excluir_ok = excluir_alunos_por_turma(turma)
+                        if not excluir_ok:
+                            st.error("❌ Não foi possível limpar a turma atual. A substituição foi cancelada para evitar perda de dados.")
+                            st.stop()
+
+                        inseridos = 0
+                        for aluno in registros_importacao:
                             if salvar_aluno(aluno):
                                 inseridos += 1
 
-                        st.success(f"✅ Turma substituída! {inseridos} aluno(s) importado(s).")
+                        st.success(f"✅ Turma substituída com segurança! {inseridos} aluno(s) importado(s).")
                         st.session_state.turma_para_substituir = None
                         carregar_alunos.clear()
                         st.rerun()
