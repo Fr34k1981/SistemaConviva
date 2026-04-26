@@ -3060,6 +3060,73 @@ def _limpar_texto_para_ia(texto: str) -> str:
     return texto_limpo.strip()
 
 
+def _texto_tem_termo_inadequado(texto: str) -> bool:
+    texto_norm = normalizar_texto(texto or "")
+    texto_bruto = str(texto or "").lower()
+    return (
+        any(normalizar_texto(termo) in texto_norm for termo in TERMOS_OFENSIVOS_RELATORIO)
+        or any(fragmento in texto_bruto for fragmento in ("pregui", "idiota", "burro", "incapaz", "relaxad", "desleixad"))
+    )
+
+
+def _modelos_gemini_para_tentar() -> list[str]:
+    """Tenta primeiro o modelo configurado e depois modelos atuais estáveis."""
+    modelos = [
+        str(GEMINI_MODEL or "").strip(),
+        "gemini-2.5-flash",
+        "gemini-flash-latest",
+        "gemini-3-flash-preview",
+        "gemini-2.0-flash",
+    ]
+    vistos = set()
+    finais = []
+    for modelo in modelos:
+        modelo = modelo.replace("models/", "").strip()
+        if modelo and modelo not in vistos:
+            vistos.add(modelo)
+            finais.append(modelo)
+    return finais
+
+
+def _limpar_markdown_ia(texto: str) -> str:
+    """Remove formatação Markdown que fica ruim dentro dos campos do relatório."""
+    texto = str(texto or "").strip()
+    texto = re.sub(r"\*\*(.*?)\*\*", r"\1", texto)
+    texto = re.sub(r"^\s*#{1,6}\s*", "", texto, flags=re.MULTILINE)
+    texto = re.sub(r"^\s*[-*]\s+", "", texto, flags=re.MULTILINE)
+    texto = re.sub(r"\n{3,}", "\n\n", texto)
+    return texto.strip()
+
+
+def _resposta_pedagogica_local(texto: str, tarefa: str) -> str:
+    """Resposta útil quando a API falha ou devolve algo fraco."""
+    texto_norm = normalizar_texto(texto or "")
+    texto_bruto = str(texto or "").lower()
+    if "preguicos" in texto_norm or "pregui" in texto_norm or "pregui" in texto_bruto:
+        return (
+            "O estudante demonstra necessidade de acompanhamento para iniciar, manter e concluir as atividades propostas. "
+            "Recomenda-se observar em quais momentos apresenta maior dificuldade de engajamento, oferecer orientações claras "
+            "e etapas menores para a realização das tarefas, registrar os avanços observados e manter estratégias de incentivo "
+            "à participação, com acompanhamento contínuo pela equipe escolar."
+        )
+    if "idiota" in texto_norm or "burro" in texto_norm or "incapaz" in texto_norm:
+        return (
+            "O estudante apresenta necessidade de acompanhamento pedagógico para fortalecer sua participação e seu desenvolvimento "
+            "nas atividades escolares. Recomenda-se registrar fatos observáveis, identificar as habilidades que precisam de apoio, "
+            "propor intervenções adequadas ao seu ritmo de aprendizagem e acompanhar sua evolução de forma contínua e respeitosa."
+        )
+    if tarefa == "Sugerir encaminhamentos pedagógicos":
+        return (
+            "Recomenda-se acompanhar o estudante de forma sistemática, registrar as observações relevantes, propor combinados claros, "
+            "oferecer apoio pedagógico durante as atividades e dialogar com a coordenação quando houver necessidade de novas estratégias. "
+            "Caso a situação persista, é indicado envolver os responsáveis e manter registros datados das ações realizadas."
+        )
+    return (
+        "Com as informações disponíveis, registra-se a necessidade de acompanhamento pedagógico do estudante, com atenção aos fatos "
+        "observáveis, às estratégias já adotadas e aos próximos encaminhamentos necessários para apoiar seu desenvolvimento escolar."
+    )
+
+
 def chamar_ia_conviva_online(texto: str, tarefa: str, contexto: str = "") -> str:
     """Chama a API Gemini para gerar sugestão pedagógica."""
     texto = str(texto or "").strip()
@@ -3068,6 +3135,9 @@ def chamar_ia_conviva_online(texto: str, tarefa: str, contexto: str = "") -> str
 
     if not ia_conviva_configurada():
         return "IA não configurada. Configure GEMINI_API_KEY nos Secrets do Streamlit Cloud ou no arquivo .env."
+
+    if _texto_tem_termo_inadequado(texto):
+        return _resposta_pedagogica_local(texto, tarefa)
 
     instrucao = INSTRUCOES_TAREFAS_IA_RELATORIO.get(
         tarefa,
@@ -3086,34 +3156,57 @@ CONTEXTO DO RELATÓRIO:
 TEXTO ORIGINAL:
 {_limpar_texto_para_ia(texto)}
 
-Responda apenas com a versão revisada/pronta para uso escolar, em português do Brasil.
+FORMATO OBRIGATÓRIO:
+- Responda apenas com a versão pronta para uso escolar, em português do Brasil.
+- Não use títulos, listas, bullets, numeração, markdown ou negrito.
+- Produza um parágrafo pedagógico completo, claro e útil para relatório escolar.
+- Não explique que a frase original é inadequada; apenas entregue a reescrita.
+- Não invente fatos, diagnósticos ou informações não fornecidas.
 """.strip()
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
     payload = {
         "contents": [
-            {"role": "user", "parts": [{"text": prompt}]}
+            {"parts": [{"text": prompt}]}
         ],
         "generationConfig": {
-            "temperature": 0.35,
-            "topP": 0.9,
-            "maxOutputTokens": 1200,
+            "temperature": 0.25,
+            "topP": 0.85,
+            "maxOutputTokens": 500,
         },
     }
 
+    ultimo_erro = ""
     try:
-        resposta = requests.post(url, json=payload, timeout=60)
-        if resposta.status_code != 200:
-            return f"Erro ao consultar a IA ({resposta.status_code}). Verifique a chave, o modelo e a cota do Gemini."
-        dados = resposta.json()
-        candidatos = dados.get("candidates") or []
-        if not candidatos:
-            return "A IA não retornou sugestão. Tente novamente com mais texto."
-        partes = candidatos[0].get("content", {}).get("parts", [])
-        saida = "\n".join(str(p.get("text", "")) for p in partes if p.get("text"))
-        return saida.strip() or "A IA não retornou texto aproveitável."
+        for modelo in _modelos_gemini_para_tentar():
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent"
+            resposta = requests.post(
+                url,
+                headers={
+                    "x-goog-api-key": GEMINI_API_KEY,
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=25,
+            )
+            if resposta.status_code != 200:
+                ultimo_erro = f"{resposta.status_code} no modelo {modelo}"
+                if resposta.status_code in (404, 429, 500, 502, 503, 504):
+                    continue
+                break
+            dados = resposta.json()
+            candidatos = dados.get("candidates") or []
+            if not candidatos:
+                ultimo_erro = f"sem candidato no modelo {modelo}"
+                continue
+            partes = candidatos[0].get("content", {}).get("parts", [])
+            saida = "\n".join(str(p.get("text", "")) for p in partes if p.get("text"))
+            saida = _limpar_markdown_ia(saida)
+            if saida and normalizar_texto(saida) != normalizar_texto(texto):
+                return saida
+        return _resposta_pedagogica_local(texto, tarefa)
     except Exception as e:
-        return f"Erro ao conectar com a IA online: {e}"
+        logger.warning(f"Falha ao conectar com IA online: {e}. Último erro: {ultimo_erro}")
+        return _resposta_pedagogica_local(texto, tarefa)
 
 # ======================================================
 # BLOCO VISUAL DA IA NO RELATÓRIO
@@ -3207,7 +3300,9 @@ def render_ia_conviva_relatorio(contexto_relatorio: dict):
                 "texto": resultado
             }
             st.success("Sugestão preparada para aplicar ao campo.")
-            st.rerun()# ======================================================
+            st.rerun()
+
+# ======================================================
 # SISTEMA DE NOTIFICAÇÕES
 # ======================================================
 
