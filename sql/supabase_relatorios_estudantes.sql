@@ -18,10 +18,18 @@ create table if not exists public.relatorios_estudantes (
     pontos_atencao_automaticos jsonb default '[]'::jsonb,
     indicacao_grave_professor boolean default false,
     descricao_ponto_grave text,
+    escrita_corrida_ultima text,
+    escrita_corrida_historico text,
     ultima_edicao_por text,
     created_at timestamptz default now(),
     updated_at timestamptz default now()
 );
+
+alter table public.relatorios_estudantes
+add column if not exists escrita_corrida_ultima text;
+
+alter table public.relatorios_estudantes
+add column if not exists escrita_corrida_historico text;
 
 create index if not exists relatorios_estudantes_idx_turma
 on public.relatorios_estudantes (turma);

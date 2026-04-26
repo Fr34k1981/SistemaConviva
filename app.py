@@ -2904,10 +2904,64 @@ Quando receber um texto bruto:
 4. Manter o sentido original;
 5. Não acrescentar fatos novos;
 6. Gerar uma versão pronta para uso escolar.
+7. Se o texto tiver ofensas, rótulos ou julgamentos sobre o estudante, NÃO repita a ofensa. Reescreva de forma objetiva, respeitosa e pedagógica.
 
 Quando faltar informação, utilize:
 “Com as informações disponíveis, é possível redigir da seguinte forma:”
 """
+
+INSTRUCOES_TAREFAS_IA_RELATORIO = {
+    "Corrigir ortografia e gramática": (
+        "Corrija ortografia, acentuação, pontuação e concordância. "
+        "Mantenha o sentido, mas substitua termos inadequados por linguagem escolar respeitosa."
+    ),
+    "Melhorar escrita pedagógica": (
+        "Reescreva em linguagem pedagógica, profissional, humanizada e objetiva. "
+        "Remova julgamentos, ofensas e rótulos. Não invente fatos."
+    ),
+    "Deixar mais objetivo": (
+        "Reescreva de forma mais direta, clara e escolar, preservando somente as informações essenciais."
+    ),
+    "Transformar em parecer descritivo": (
+        "Transforme em parecer descritivo escolar, com tom formal, evidências informadas e linguagem não punitiva."
+    ),
+    "Sugerir encaminhamentos pedagógicos": (
+        "Não repita o texto bruto. Gere encaminhamentos pedagógicos possíveis para a escola, "
+        "incluindo acompanhamento, registros, combinados, estratégias de sala, diálogo com responsáveis quando pertinente "
+        "e monitoramento. Não faça diagnóstico clínico."
+    ),
+    "Gerar escrita corrida do relatório": (
+        "Organize as informações em texto corrido de relatório escolar, com parágrafos coesos, "
+        "data, estudante, turma, professor responsável, síntese pedagógica, encaminhamentos e pontos de atenção."
+    ),
+}
+
+TERMOS_OFENSIVOS_RELATORIO = [
+    "idiota", "burro", "burra", "preguiçoso", "preguiçosa", "incapaz",
+    "insuportável", "insuportavel", "problema", "mau aluno", "má aluna",
+]
+
+def _texto_tem_termo_ofensivo(texto: str) -> bool:
+    texto_norm = normalizar_texto(texto or "")
+    return any(normalizar_texto(termo) in texto_norm for termo in TERMOS_OFENSIVOS_RELATORIO)
+
+def _normalizar_para_comparacao(texto: str) -> str:
+    return re.sub(r"\s+", " ", normalizar_texto(texto or "")).strip()
+
+def _resposta_local_segura_relatorio(texto: str, tarefa: str) -> str:
+    if tarefa == "Sugerir encaminhamentos pedagógicos":
+        return (
+            "Com as informações disponíveis, recomenda-se registrar a situação de forma objetiva, "
+            "observar o estudante em diferentes momentos da rotina escolar, propor combinados claros, "
+            "oferecer intervenções pedagógicas proporcionais à necessidade identificada e acompanhar a evolução. "
+            "Caso a situação persista, é indicado dialogar com a coordenação e, quando pertinente, com os responsáveis, "
+            "mantendo registros datados das ações realizadas."
+        )
+    return (
+        "Com as informações disponíveis, é possível registrar que o estudante apresenta uma situação que requer "
+        "acompanhamento pedagógico. Recomenda-se descrever fatos observáveis, evitar rótulos pessoais, indicar as "
+        "estratégias já adotadas e acompanhar a evolução com registros objetivos."
+    )
 
 def ia_conviva_configurada() -> bool:
     """Retorna True quando a chave online do Gemini está configurada."""
@@ -2927,9 +2981,14 @@ def chamar_ia_conviva_online(texto: str, tarefa: str, contexto: str = "") -> str
             "nas variáveis de ambiente ou nos Secrets do Streamlit."
         )
 
+    instrucao_tarefa = INSTRUCOES_TAREFAS_IA_RELATORIO.get(tarefa, tarefa)
+
     prompt_usuario = f"""
 Tarefa solicitada:
 {tarefa}
+
+Instruções específicas para esta tarefa:
+{instrucao_tarefa}
 
 Contexto escolar disponível:
 {contexto if contexto else "Não informado."}
@@ -2937,7 +2996,8 @@ Contexto escolar disponível:
 Texto informado:
 {texto}
 
-Responda em português do Brasil, com uma versão pronta para uso escolar.
+Responda em português do Brasil, apenas com o texto pronto para uso escolar.
+Não devolva o texto original sem transformação. Não repita termos ofensivos, apelidos, rótulos ou julgamentos pessoais.
 """.strip()
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
@@ -2976,11 +3036,58 @@ Responda em português do Brasil, com uma versão pronta para uso escolar.
 
         partes = candidatos[0].get("content", {}).get("parts", [])
         texto_resposta = "\n".join(str(parte.get("text", "")).strip() for parte in partes if parte.get("text"))
-        return texto_resposta.strip() or "A IA retornou uma resposta vazia. Tente novamente."
+        texto_resposta = texto_resposta.strip()
+        if (
+            not texto_resposta
+            or _normalizar_para_comparacao(texto_resposta) == _normalizar_para_comparacao(texto)
+            or (_texto_tem_termo_ofensivo(texto) and _texto_tem_termo_ofensivo(texto_resposta))
+        ):
+            return _resposta_local_segura_relatorio(texto, tarefa)
+        return texto_resposta
     except requests.exceptions.Timeout:
         return "A IA demorou para responder. Tente novamente em alguns instantes."
     except Exception as e:
         return f"Erro ao acessar a IA online: {e}"
+
+def _campos_relatorio_ia() -> dict:
+    return {
+        "Desenvolvimento acadêmico": "relatorio_desenvolvimento",
+        "Observações comportamentais": "relatorio_comportamental",
+        "Estratégias e encaminhamentos": "relatorio_estrategias",
+        "Pontos de atenção": "relatorio_pontos_manuais",
+        "Ponto grave": "relatorio_ponto_grave",
+    }
+
+def _textos_campos_relatorio() -> dict:
+    return {
+        rotulo: str(st.session_state.get(chave, "") or "").strip()
+        for rotulo, chave in _campos_relatorio_ia().items()
+    }
+
+def montar_escrita_corrida_relatorio(contexto_relatorio: dict, textos_campos: dict) -> str:
+    linhas = [
+        f"Data do registro: {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+        f"Professor(a): {contexto_relatorio.get('professor_editor', '') or 'Não informado'}",
+        f"Estudante: {contexto_relatorio.get('aluno', '')}",
+        f"RA: {contexto_relatorio.get('ra', '')}",
+        f"Turma: {contexto_relatorio.get('turma', '')}",
+        f"Situação geral: {contexto_relatorio.get('situacao_geral', '')}",
+        f"Frequência: {contexto_relatorio.get('frequencia', '')}%",
+        "",
+    ]
+    for rotulo, texto in textos_campos.items():
+        if texto:
+            linhas.append(f"{rotulo}: {texto}")
+    return "\n".join(linhas).strip()
+
+def adicionar_entrada_historico_escrita_corrida(historico: str, professor: str, texto: str) -> str:
+    texto = str(texto or "").strip()
+    if not texto:
+        return str(historico or "").strip()
+    cabecalho = f"{datetime.now().strftime('%d/%m/%Y %H:%M')} - {professor or 'Professor(a) não informado'}"
+    entrada = f"{cabecalho}\n{texto}"
+    historico = str(historico or "").strip()
+    return f"{historico}\n\n{entrada}".strip() if historico else entrada
 
 def render_ia_conviva_relatorio(contexto_relatorio: dict):
     """Bloco visual da IA dentro do relatório do estudante."""
@@ -2994,36 +3101,25 @@ def render_ia_conviva_relatorio(contexto_relatorio: dict):
             "Os professores não precisam instalar nada nos computadores."
         )
 
-    opcoes_campo = {
-        "Desenvolvimento acadêmico": "relatorio_desenvolvimento",
-        "Observações comportamentais": "relatorio_comportamental",
-        "Estratégias e encaminhamentos": "relatorio_estrategias",
-        "Pontos de atenção": "relatorio_pontos_manuais",
-        "Ponto grave": "relatorio_ponto_grave",
-    }
+    opcoes_campo = _campos_relatorio_ia()
+    opcoes_campo_ia = list(opcoes_campo.keys()) + [
+        "Todos os campos preenchidos",
+        "Escrita corrida do relatório",
+    ]
 
     col_ia1, col_ia2 = st.columns([1, 1])
     with col_ia1:
         campo_escolhido = st.selectbox(
             "Campo que a IA deve revisar",
-            list(opcoes_campo.keys()),
+            opcoes_campo_ia,
             key="ia_conviva_campo_relatorio"
         )
     with col_ia2:
         tarefa_escolhida = st.selectbox(
             "Ação da IA",
-            [
-                "Corrigir ortografia e gramática",
-                "Melhorar escrita pedagógica",
-                "Deixar mais objetivo",
-                "Transformar em parecer descritivo",
-                "Sugerir encaminhamentos pedagógicos",
-            ],
+            list(INSTRUCOES_TAREFAS_IA_RELATORIO.keys()),
             key="ia_conviva_tarefa_relatorio"
         )
-
-    chave_campo = opcoes_campo[campo_escolhido]
-    texto_base = str(st.session_state.get(chave_campo, "")).strip()
 
     contexto_txt = "\n".join([
         f"Estudante: {contexto_relatorio.get('aluno', '')}",
@@ -3036,34 +3132,86 @@ def render_ia_conviva_relatorio(contexto_relatorio: dict):
         f"Frequência: {contexto_relatorio.get('frequencia', '')}%",
     ])
 
-    st.text_area(
+    textos_campos = _textos_campos_relatorio()
+    if campo_escolhido == "Todos os campos preenchidos":
+        texto_base = "\n\n".join(
+            f"{rotulo}: {texto}" for rotulo, texto in textos_campos.items() if texto
+        )
+        chave_campo = ""
+    elif campo_escolhido == "Escrita corrida do relatório":
+        texto_base = montar_escrita_corrida_relatorio(contexto_relatorio, textos_campos)
+        chave_campo = "relatorio_escrita_corrida_atual"
+        tarefa_escolhida = "Gerar escrita corrida do relatório"
+    else:
+        chave_campo = opcoes_campo[campo_escolhido]
+        texto_base = textos_campos.get(campo_escolhido, "")
+
+    texto_para_ia = st.text_area(
         "Texto que será enviado para a IA",
         value=texto_base,
-        height=120,
-        key="ia_conviva_texto_visualizacao",
-        help="Este campo mostra o conteúdo atual do campo selecionado. Edite o campo original acima se quiser alterar o texto-base."
+        height=140,
+        key=f"ia_conviva_texto_editavel_{gerar_chave_segura(campo_escolhido)}",
+        help="Você pode ajustar este texto antes de gerar a sugestão."
     )
 
-    col_b1, col_b2 = st.columns([1, 1])
+    col_b1, col_b2, col_b3 = st.columns([1, 1, 1])
     with col_b1:
         gerar = st.button("✨ Gerar sugestão com IA", type="primary", use_container_width=True, key="ia_conviva_gerar_btn")
     with col_b2:
+        melhorar_todos = st.button("🪄 Melhorar todos os blocos", use_container_width=True, key="ia_conviva_todos_btn")
+    with col_b3:
         limpar = st.button("🧹 Limpar sugestão", use_container_width=True, key="ia_conviva_limpar_btn")
 
     if limpar:
         st.session_state.pop("ia_conviva_resultado_relatorio", None)
         st.session_state.pop("ia_conviva_campo_destino", None)
+        st.session_state.pop("ia_conviva_resultados_multiplos", None)
         st.rerun()
 
     if gerar:
-        with st.spinner("A IA Conviva Pedagógica está preparando a sugestão..."):
-            resultado = chamar_ia_conviva_online(
-                texto=texto_base,
-                tarefa=tarefa_escolhida,
-                contexto=contexto_txt,
-            )
-            st.session_state["ia_conviva_resultado_relatorio"] = resultado
-            st.session_state["ia_conviva_campo_destino"] = chave_campo
+        if not str(texto_para_ia or "").strip():
+            st.warning("Preencha algum texto antes de usar a IA.")
+        else:
+            with st.spinner("A IA Conviva Pedagógica está preparando a sugestão..."):
+                resultado = chamar_ia_conviva_online(
+                    texto=texto_para_ia,
+                    tarefa=tarefa_escolhida,
+                    contexto=contexto_txt,
+                )
+                st.session_state["ia_conviva_resultado_relatorio"] = resultado
+                st.session_state["ia_conviva_campo_destino"] = chave_campo
+                st.session_state.pop("ia_conviva_resultados_multiplos", None)
+
+    if melhorar_todos:
+        campos_preenchidos = {
+            rotulo: texto for rotulo, texto in textos_campos.items() if texto
+        }
+        if not campos_preenchidos:
+            st.warning("Nenhum bloco preenchido para melhorar.")
+        else:
+            resultados = {}
+            with st.spinner("Melhorando todos os blocos preenchidos..."):
+                for rotulo, texto in campos_preenchidos.items():
+                    resultados[opcoes_campo[rotulo]] = chamar_ia_conviva_online(
+                        texto=texto,
+                        tarefa="Melhorar escrita pedagógica",
+                        contexto=f"{contexto_txt}\nCampo revisado: {rotulo}",
+                    )
+            st.session_state["ia_conviva_resultados_multiplos"] = resultados
+            st.session_state.pop("ia_conviva_resultado_relatorio", None)
+
+    resultados_multiplos = st.session_state.get("ia_conviva_resultados_multiplos", {})
+    if resultados_multiplos:
+        st.markdown("#### Sugestões para todos os blocos")
+        for chave, texto in resultados_multiplos.items():
+            rotulo = next((nome for nome, key in opcoes_campo.items() if key == chave), chave)
+            st.text_area(rotulo, value=texto, height=130, key=f"ia_resultado_multi_{chave}")
+        if st.button("✅ Aplicar sugestões em todos os blocos", use_container_width=True, key="ia_conviva_aplicar_todos_btn"):
+            for chave, texto in resultados_multiplos.items():
+                st.session_state[chave] = texto
+            st.session_state.pop("ia_conviva_resultados_multiplos", None)
+            st.success("Sugestões aplicadas aos blocos preenchidos.")
+            st.rerun()
 
     resultado = st.session_state.get("ia_conviva_resultado_relatorio", "")
     campo_destino = st.session_state.get("ia_conviva_campo_destino", chave_campo)
@@ -3074,8 +3222,12 @@ def render_ia_conviva_relatorio(contexto_relatorio: dict):
             height=220,
             key="ia_conviva_resultado_area"
         )
-        if st.button("✅ Usar sugestão no campo selecionado", use_container_width=True, key="ia_conviva_usar_sugestao_btn"):
-            st.session_state[campo_destino] = resultado
+        texto_botao = "✅ Usar sugestão no campo selecionado"
+        if campo_destino == "relatorio_escrita_corrida_atual":
+            texto_botao = "✅ Usar como escrita corrida"
+        if st.button(texto_botao, use_container_width=True, key="ia_conviva_usar_sugestao_btn"):
+            if campo_destino:
+                st.session_state[campo_destino] = resultado
             st.success("Sugestão aplicada ao campo do relatório.")
             st.rerun()
 
@@ -3632,6 +3784,8 @@ def _padronizar_relatorio_registro(registro: dict) -> dict:
         "pontos_atencao_automaticos": registro.get("pontos_atencao_automaticos", []),
         "indicacao_grave_professor": bool(registro.get("indicacao_grave_professor", False)),
         "descricao_ponto_grave": str(registro.get("descricao_ponto_grave", "")).strip(),
+        "escrita_corrida_ultima": str(registro.get("escrita_corrida_ultima", "")).strip(),
+        "escrita_corrida_historico": str(registro.get("escrita_corrida_historico", "")).strip(),
         "ultima_edicao_por": str(registro.get("ultima_edicao_por", registro.get("professor_autor", ""))).strip(),
         "created_at": str(registro.get("created_at", agora_iso)).strip() or agora_iso,
         "updated_at": str(registro.get("updated_at", agora_iso)).strip() or agora_iso,
@@ -3676,10 +3830,21 @@ def salvar_relatorio_estudante(relatorio: dict) -> tuple[bool, str]:
             payload = dict(relatorio)
             if payload.get("id") in ("", None):
                 payload.pop("id", None)
-            sucesso = _supabase_mutation("POST", "relatorios_estudantes", payload, "salvar relatório do estudante")
-            if sucesso:
-                _limpar_cache_relatorios()
-                return True, "supabase"
+            try:
+                sucesso = _supabase_mutation("POST", "relatorios_estudantes", payload, "salvar relatório do estudante")
+                if sucesso:
+                    _limpar_cache_relatorios()
+                    return True, "supabase"
+            except Exception:
+                payload_sem_extras = dict(payload)
+                payload_sem_extras.pop("escrita_corrida_ultima", None)
+                payload_sem_extras.pop("escrita_corrida_historico", None)
+                if payload_sem_extras != payload:
+                    sucesso = _supabase_mutation("POST", "relatorios_estudantes", payload_sem_extras, "salvar relatório do estudante")
+                    if sucesso:
+                        _limpar_cache_relatorios()
+                        return True, "supabase"
+                raise
         except Exception as e:
             logger.warning(f"Salvando relatório em base local por indisponibilidade do Supabase: {e}")
 
@@ -3700,15 +3865,31 @@ def atualizar_relatorio_estudante(id_relatorio, dados: dict) -> tuple[bool, str]
 
     if SUPABASE_VALID:
         try:
-            sucesso = _supabase_mutation(
-                "PATCH",
-                f"relatorios_estudantes?id=eq.{id_relatorio}",
-                dados,
-                "atualizar relatório do estudante"
-            )
-            if sucesso:
-                _limpar_cache_relatorios()
-                return True, "supabase"
+            try:
+                sucesso = _supabase_mutation(
+                    "PATCH",
+                    f"relatorios_estudantes?id=eq.{id_relatorio}",
+                    dados,
+                    "atualizar relatório do estudante"
+                )
+                if sucesso:
+                    _limpar_cache_relatorios()
+                    return True, "supabase"
+            except Exception:
+                dados_sem_extras = dict(dados)
+                dados_sem_extras.pop("escrita_corrida_ultima", None)
+                dados_sem_extras.pop("escrita_corrida_historico", None)
+                if dados_sem_extras != dados:
+                    sucesso = _supabase_mutation(
+                        "PATCH",
+                        f"relatorios_estudantes?id=eq.{id_relatorio}",
+                        dados_sem_extras,
+                        "atualizar relatório do estudante"
+                    )
+                    if sucesso:
+                        _limpar_cache_relatorios()
+                        return True, "supabase"
+                raise
         except Exception as e:
             logger.warning(f"Atualizando relatório em base local por indisponibilidade do Supabase: {e}")
 
@@ -4865,6 +5046,10 @@ def gerar_pdf_relatorio_estudante(registro: dict, df_ocorrencias_aluno: pd.DataF
            registro.get("estrategias_adotadas", ""))
     _secao("🔎 Pontos de Atenção Complementares",
            registro.get("pontos_atencao", ""))
+    _secao("📝 Escrita Corrida do Acompanhamento",
+           registro.get("escrita_corrida_ultima", ""))
+    _secao("📅 Histórico de Escritas Corridas",
+           registro.get("escrita_corrida_historico", ""))
 
     if alerta_prof and str(registro.get("descricao_ponto_grave", "")).strip():
         _secao("⚠ Ponto Grave Sinalizado pelo Professor",
@@ -5987,6 +6172,10 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
         st.stop()
  
     df_relatorios = carregar_relatorios_estudantes()
+    relatorio_suporta_escrita_corrida = (
+        not SUPABASE_VALID
+        or "escrita_corrida_historico" in df_relatorios.columns
+    )
     if not df_relatorios.empty and "pontos_atencao_automaticos" in df_relatorios.columns:
         def _normalizar_pontos_auto(valor):
             if isinstance(valor, list):
@@ -6339,6 +6528,103 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
             "situacao_geral": situacao_geral,
             "frequencia": frequencia,
         })
+
+    st.markdown("---")
+    st.markdown("""
+    <div style="display:flex;align-items:center;gap:.5rem;margin:.25rem 0 .75rem 0;
+                padding-bottom:.5rem;border-bottom:2px solid #e2e8f0;position:relative;">
+        <div style="position:absolute;bottom:-2px;left:0;width:45px;height:2px;
+                    background:linear-gradient(90deg,#7c3aed,transparent);border-radius:4px;"></div>
+        <span>📝</span>
+        <h3 style="margin:0;font-family:'Nunito',sans-serif;font-size:1rem;color:#0f172a;">
+            Escrita corrida do acompanhamento
+        </h3>
+    </div>
+    """, unsafe_allow_html=True)
+
+    chave_escrita_base = gerar_chave_segura(f"{turma_sel}_{aluno_ra}_{registro_relatorio.get('id', 'novo')}")
+    chave_escrita_atual = f"relatorio_escrita_corrida_atual_{chave_escrita_base}"
+    chave_escrita_historico = f"relatorio_escrita_corrida_historico_{chave_escrita_base}"
+    if chave_escrita_atual not in st.session_state:
+        st.session_state[chave_escrita_atual] = str(registro_relatorio.get("escrita_corrida_ultima", "")).strip()
+    if chave_escrita_historico not in st.session_state:
+        st.session_state[chave_escrita_historico] = str(registro_relatorio.get("escrita_corrida_historico", "")).strip()
+
+    if st.session_state.get("relatorio_escrita_corrida_atual") and not st.session_state.get(chave_escrita_atual):
+        st.session_state[chave_escrita_atual] = st.session_state.pop("relatorio_escrita_corrida_atual")
+
+    col_ec1, col_ec2 = st.columns([1, 1])
+    with col_ec1:
+        gerar_escrita = st.button(
+            "✨ Gerar escrita corrida dos blocos",
+            use_container_width=True,
+            key="btn_gerar_escrita_corrida"
+        )
+    with col_ec2:
+        adicionar_escrita = st.button(
+            "➕ Adicionar ao histórico com data",
+            use_container_width=True,
+            key="btn_adicionar_escrita_corrida"
+        )
+
+    if gerar_escrita:
+        textos_para_escrita = {
+            "Desenvolvimento acadêmico": st.session_state.get("relatorio_desenvolvimento", ""),
+            "Observações comportamentais": st.session_state.get("relatorio_comportamental", ""),
+            "Estratégias e encaminhamentos": st.session_state.get("relatorio_estrategias", ""),
+            "Pontos de atenção": st.session_state.get("relatorio_pontos_manuais", ""),
+            "Ponto grave": st.session_state.get("relatorio_ponto_grave", ""),
+        }
+        base_escrita = montar_escrita_corrida_relatorio(
+            {
+                "aluno": aluno_nome,
+                "ra": aluno_ra,
+                "turma": turma_sel,
+                "professor_editor": professor_editor,
+                "situacao_geral": situacao_geral,
+                "frequencia": frequencia,
+            },
+            textos_para_escrita
+        )
+        if not base_escrita.strip():
+            st.warning("Preencha ao menos um bloco do relatório para gerar a escrita corrida.")
+        else:
+            with st.spinner("Gerando escrita corrida do relatório..."):
+                st.session_state[chave_escrita_atual] = chamar_ia_conviva_online(
+                    texto=base_escrita,
+                    tarefa="Gerar escrita corrida do relatório",
+                    contexto=(
+                        f"Estudante: {aluno_nome}\nRA: {aluno_ra}\nTurma: {turma_sel}\n"
+                        f"Professor editor: {professor_editor}\nSituação geral: {situacao_geral}\n"
+                        f"Frequência: {frequencia}%"
+                    )
+                )
+
+    if adicionar_escrita:
+        st.session_state[chave_escrita_historico] = adicionar_entrada_historico_escrita_corrida(
+            st.session_state.get(chave_escrita_historico, ""),
+            professor_editor,
+            st.session_state.get(chave_escrita_atual, "")
+        )
+        st.success("Escrita adicionada ao histórico com data e professor.")
+
+    escrita_corrida_atual = st.text_area(
+        "Escrita corrida atual",
+        height=180,
+        key=chave_escrita_atual,
+        placeholder="Gere pela IA ou escreva aqui um relato corrido do acompanhamento."
+    )
+    escrita_corrida_historico = st.text_area(
+        "Histórico de escritas corridas",
+        height=220,
+        key=chave_escrita_historico,
+        placeholder="Cada entrada será adicionada abaixo da anterior, com data e professor."
+    )
+    if not relatorio_suporta_escrita_corrida:
+        st.caption(
+            "A escrita corrida fica disponível na tela. Para salvar esse histórico no Supabase, "
+            "atualize a tabela `relatorios_estudantes` com as novas colunas do arquivo SQL."
+        )
  
     col_salvar, col_excluir = st.columns([2, 1])
     with col_salvar:
@@ -6377,6 +6663,8 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
                     "eletiva":                  eletiva_auto,
                     "created_at":               registro_relatorio.get("created_at", datetime.now().isoformat()),
                 }
+                payload_relatorio["escrita_corrida_ultima"] = escrita_corrida_atual.strip()
+                payload_relatorio["escrita_corrida_historico"] = escrita_corrida_historico.strip()
                 if registro_relatorio and registro_relatorio.get("id"):
                     sucesso, base = atualizar_relatorio_estudante(
                         registro_relatorio.get("id"), payload_relatorio
@@ -6424,6 +6712,8 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
         payload_pdf = dict(registro_relatorio)
         payload_pdf["professor_tutor"] = str(registro_relatorio.get("professor_tutor", "") or professor_tutor_auto).strip()
         payload_pdf["eletiva"]         = str(registro_relatorio.get("eletiva", "") or eletiva_auto).strip()
+        payload_pdf["escrita_corrida_ultima"] = escrita_corrida_atual.strip()
+        payload_pdf["escrita_corrida_historico"] = escrita_corrida_historico.strip()
  
         df_ocorr_pdf = pd.DataFrame()
         if not df_ocorrencias.empty:
@@ -6484,6 +6774,8 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
                 "ultima_edicao_por":          professor_editor,
                 "professor_tutor":            professor_tutor_auto,
                 "eletiva":                    eletiva_auto,
+                "escrita_corrida_ultima":     escrita_corrida_atual.strip(),
+                "escrita_corrida_historico":  escrita_corrida_historico.strip(),
             }
             df_ocorr_novo = pd.DataFrame()
             if not df_ocorrencias.empty:
