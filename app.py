@@ -1622,7 +1622,7 @@ div[data-testid="stForm"]:hover {
 # ======================================================
 # DADOS DA ESCOLA
 # ======================================================
-ESCOLA_NOME = "ELIANE APARECIDA DANTAS DA SILVA PROFESSORA - PEI"
+ESCOLA_NOME = "ELIANE AP. DANTAS DA SILVA PROFESSORA - PEI"
 ESCOLA_SUBTITULO = "Escola dos Sonhos • Escola Estadual"
 ESCOLA_ENDERECO = "VALTER DE SOUZA COSTA, 147 - RUA JARDIM PRIMAVERA - Ferraz de Vasconcelos - São Paulo"
 ESCOLA_CEP = "CEP: 08535-310"
