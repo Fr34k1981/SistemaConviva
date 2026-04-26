@@ -95,6 +95,26 @@ if SUPABASE_VALID:
         "Prefer": "return=representation",
     }
 
+
+# ======================================================
+# IA CONVIVA PEDAGÓGICA ONLINE — GOOGLE GEMINI
+# ======================================================
+# Configure a variável GEMINI_API_KEY no ambiente ou em st.secrets.
+# No Streamlit Cloud: Settings > Secrets > GEMINI_API_KEY = "sua_chave"
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+try:
+    if not GEMINI_API_KEY and hasattr(st, "secrets"):
+        GEMINI_API_KEY = str(st.secrets.get("GEMINI_API_KEY", "")).strip()
+except Exception:
+    GEMINI_API_KEY = ""
+
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+try:
+    if hasattr(st, "secrets"):
+        GEMINI_MODEL = str(st.secrets.get("GEMINI_MODEL", GEMINI_MODEL)).strip() or GEMINI_MODEL
+except Exception:
+    pass
+
 # ======================================================
 # CONFIGURAÇÃO STREAMLIT
 # ======================================================
@@ -2818,6 +2838,223 @@ def buscar_infracao_fuzzy(busca: str, protocolo: dict) -> dict:
         if encontradas:
             resultados[grupo] = encontradas
     return resultados
+
+
+# ======================================================
+# IA CONVIVA PEDAGÓGICA ONLINE — FUNÇÕES GEMINI
+# ======================================================
+PROMPT_IA_CONVIVA_PEDAGOGICA = """
+Você é a IA Conviva Pedagógica, uma assistente educacional criada para apoiar professores, coordenação e gestão escolar.
+
+Sua função é auxiliar na escrita, revisão, organização e qualificação pedagógica de documentos escolares, sempre com linguagem clara, ética, humanizada, profissional e adequada ao contexto da escola pública.
+
+Você NÃO substitui o professor, a coordenação, a gestão escolar, a família, o Conselho Tutelar, os serviços de saúde ou qualquer órgão oficial. Sua função é apoiar a escrita, sugerir melhorias e organizar informações.
+
+PRINCÍPIOS DE ATUAÇÃO:
+1. Utilizar linguagem pedagógica, respeitosa e não discriminatória.
+2. Evitar julgamentos, acusações ou termos ofensivos.
+3. Não realizar diagnósticos clínicos ou psicológicos.
+4. Não inventar fatos que não foram informados.
+5. Preservar a dignidade do estudante e da família.
+6. Escrever de forma objetiva, formal e compreensível.
+7. Sugerir encaminhamentos pedagógicos possíveis, sem ultrapassar a função escolar.
+8. Adaptar a escrita para relatórios, pareceres, ocorrências, comunicados e registros de acompanhamento.
+
+ESTILO DE ESCRITA:
+- Profissional;
+- Claro;
+- Humanizado;
+- Pedagógico;
+- Objetivo;
+- Sem exageros;
+- Sem linguagem punitiva;
+- Sem exposição desnecessária do estudante.
+
+USO DE CONTEXTO E APRENDIZADO:
+A IA Conviva Pedagógica deve adaptar suas respostas com base nas informações, exemplos, modelos e orientações fornecidas pelo usuário durante o uso do sistema. Ela usa esses dados como referência de estilo, vocabulário, estrutura e contexto escolar. Ela não possui memória permanente por conta própria, salvo quando o sistema fornecer dados salvos como contexto.
+
+Quando receber um texto bruto:
+1. Corrigir ortografia e gramática;
+2. Melhorar a organização das ideias;
+3. Transformar linguagem informal em linguagem pedagógica;
+4. Manter o sentido original;
+5. Não acrescentar fatos novos;
+6. Gerar uma versão pronta para uso escolar.
+
+Quando faltar informação, utilize:
+“Com as informações disponíveis, é possível redigir da seguinte forma:”
+"""
+
+def ia_conviva_configurada() -> bool:
+    """Retorna True quando a chave online do Gemini está configurada."""
+    return bool(str(GEMINI_API_KEY or "").strip())
+
+def chamar_ia_conviva_online(texto: str, tarefa: str, contexto: str = "") -> str:
+    """Chama a API online do Google Gemini. Funciona na web, sem Ollama/localhost."""
+    texto = str(texto or "").strip()
+    tarefa = str(tarefa or "").strip()
+    contexto = str(contexto or "").strip()
+
+    if not texto:
+        return "Digite um texto antes de usar a IA."
+    if not ia_conviva_configurada():
+        return (
+            "A IA online ainda não está configurada. Configure a chave GEMINI_API_KEY "
+            "nas variáveis de ambiente ou nos Secrets do Streamlit."
+        )
+
+    prompt_usuario = f"""
+Tarefa solicitada:
+{tarefa}
+
+Contexto escolar disponível:
+{contexto if contexto else "Não informado."}
+
+Texto informado:
+{texto}
+
+Responda em português do Brasil, com uma versão pronta para uso escolar.
+""".strip()
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
+    payload = {
+        "systemInstruction": {
+            "parts": [{"text": PROMPT_IA_CONVIVA_PEDAGOGICA}]
+        },
+        "contents": [
+            {
+                "role": "user",
+                "parts": [{"text": prompt_usuario}]
+            }
+        ],
+        "generationConfig": {
+            "temperature": 0.4,
+            "topP": 0.95,
+            "maxOutputTokens": 1400
+        }
+    }
+
+    try:
+        resposta = requests.post(
+            url,
+            params={"key": GEMINI_API_KEY},
+            json=payload,
+            timeout=90
+        )
+        if resposta.status_code >= 400:
+            detalhes = resposta.text[:500]
+            return f"Erro ao acessar a IA online Gemini ({resposta.status_code}). Detalhes: {detalhes}"
+
+        dados = resposta.json()
+        candidatos = dados.get("candidates", [])
+        if not candidatos:
+            return "A IA não retornou resposta. Tente novamente com um texto mais claro."
+
+        partes = candidatos[0].get("content", {}).get("parts", [])
+        texto_resposta = "\n".join(str(parte.get("text", "")).strip() for parte in partes if parte.get("text"))
+        return texto_resposta.strip() or "A IA retornou uma resposta vazia. Tente novamente."
+    except requests.exceptions.Timeout:
+        return "A IA demorou para responder. Tente novamente em alguns instantes."
+    except Exception as e:
+        return f"Erro ao acessar a IA online: {e}"
+
+def render_ia_conviva_relatorio(contexto_relatorio: dict):
+    """Bloco visual da IA dentro do relatório do estudante."""
+    st.markdown("### 🤖 IA Conviva Pedagógica Online")
+
+    if ia_conviva_configurada():
+        st.success(f"IA online configurada com Gemini ({GEMINI_MODEL}).")
+    else:
+        st.warning(
+            "Configure GEMINI_API_KEY nos Secrets/variáveis de ambiente para ativar a IA online. "
+            "Os professores não precisam instalar nada nos computadores."
+        )
+
+    opcoes_campo = {
+        "Desenvolvimento acadêmico": "relatorio_desenvolvimento",
+        "Observações comportamentais": "relatorio_comportamental",
+        "Estratégias e encaminhamentos": "relatorio_estrategias",
+        "Pontos de atenção": "relatorio_pontos_manuais",
+        "Ponto grave": "relatorio_ponto_grave",
+    }
+
+    col_ia1, col_ia2 = st.columns([1, 1])
+    with col_ia1:
+        campo_escolhido = st.selectbox(
+            "Campo que a IA deve revisar",
+            list(opcoes_campo.keys()),
+            key="ia_conviva_campo_relatorio"
+        )
+    with col_ia2:
+        tarefa_escolhida = st.selectbox(
+            "Ação da IA",
+            [
+                "Corrigir ortografia e gramática",
+                "Melhorar escrita pedagógica",
+                "Deixar mais objetivo",
+                "Transformar em parecer descritivo",
+                "Sugerir encaminhamentos pedagógicos",
+            ],
+            key="ia_conviva_tarefa_relatorio"
+        )
+
+    chave_campo = opcoes_campo[campo_escolhido]
+    texto_base = str(st.session_state.get(chave_campo, "")).strip()
+
+    contexto_txt = "\n".join([
+        f"Estudante: {contexto_relatorio.get('aluno', '')}",
+        f"RA: {contexto_relatorio.get('ra', '')}",
+        f"Turma: {contexto_relatorio.get('turma', '')}",
+        f"Professor editor: {contexto_relatorio.get('professor_editor', '')}",
+        f"Coordenador(a): {contexto_relatorio.get('coordenador_sala', '')}",
+        f"Componente curricular: {contexto_relatorio.get('componente_curricular', '')}",
+        f"Situação geral: {contexto_relatorio.get('situacao_geral', '')}",
+        f"Frequência: {contexto_relatorio.get('frequencia', '')}%",
+    ])
+
+    st.text_area(
+        "Texto que será enviado para a IA",
+        value=texto_base,
+        height=120,
+        key="ia_conviva_texto_visualizacao",
+        help="Este campo mostra o conteúdo atual do campo selecionado. Edite o campo original acima se quiser alterar o texto-base."
+    )
+
+    col_b1, col_b2 = st.columns([1, 1])
+    with col_b1:
+        gerar = st.button("✨ Gerar sugestão com IA", type="primary", use_container_width=True, key="ia_conviva_gerar_btn")
+    with col_b2:
+        limpar = st.button("🧹 Limpar sugestão", use_container_width=True, key="ia_conviva_limpar_btn")
+
+    if limpar:
+        st.session_state.pop("ia_conviva_resultado_relatorio", None)
+        st.session_state.pop("ia_conviva_campo_destino", None)
+        st.rerun()
+
+    if gerar:
+        with st.spinner("A IA Conviva Pedagógica está preparando a sugestão..."):
+            resultado = chamar_ia_conviva_online(
+                texto=texto_base,
+                tarefa=tarefa_escolhida,
+                contexto=contexto_txt,
+            )
+            st.session_state["ia_conviva_resultado_relatorio"] = resultado
+            st.session_state["ia_conviva_campo_destino"] = chave_campo
+
+    resultado = st.session_state.get("ia_conviva_resultado_relatorio", "")
+    campo_destino = st.session_state.get("ia_conviva_campo_destino", chave_campo)
+    if resultado:
+        st.text_area(
+            "Sugestão da IA",
+            value=resultado,
+            height=220,
+            key="ia_conviva_resultado_area"
+        )
+        if st.button("✅ Usar sugestão no campo selecionado", use_container_width=True, key="ia_conviva_usar_sugestao_btn"):
+            st.session_state[campo_destino] = resultado
+            st.success("Sugestão aplicada ao campo do relatório.")
+            st.rerun()
+
 
 # ======================================================
 # SISTEMA DE NOTIFICAÇÕES
@@ -6063,6 +6300,21 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
         placeholder="Liste pontos que merecem monitoramento contínuo.",
         key="relatorio_pontos_manuais"
     )
+
+    # ======================================================
+    # 🤖 IA CONVIVA PEDAGÓGICA ONLINE — DENTRO DO RELATÓRIO
+    # ======================================================
+    with st.expander("🤖 IA Conviva Pedagógica Online", expanded=False):
+        render_ia_conviva_relatorio({
+            "aluno": aluno_nome,
+            "ra": aluno_ra,
+            "turma": turma_sel,
+            "professor_editor": professor_editor,
+            "coordenador_sala": coordenador_sala,
+            "componente_curricular": componente_curricular,
+            "situacao_geral": situacao_geral,
+            "frequencia": frequencia,
+        })
  
     col_salvar, col_excluir = st.columns([2, 1])
     with col_salvar:
