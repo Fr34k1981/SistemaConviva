@@ -17,7 +17,16 @@ import json
 import zipfile
 import pytz
 import unicodedata
+
+# 👇 IMPORT DO DOTENV
 from dotenv import load_dotenv
+
+# 👇 CARREGA O .env
+load_dotenv()
+
+# 👇 PEGA AS VARIÁVEIS
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
 
 # ======================================================
 # REPORTLAB (PDF)
