@@ -139,6 +139,83 @@ def _obter_config_secreta(nome: str, padrao: str = "") -> str:
 GEMINI_API_KEY = _obter_config_secreta("GEMINI_API_KEY", "")
 GEMINI_MODEL = _obter_config_secreta("GEMINI_MODEL", "gemini-2.5-flash")
 
+
+# ------------------------------------------------------
+# FUNCOES DE SUPORTE DA IA CONVIVA PEDAGOGICA ONLINE
+# ------------------------------------------------------
+def ia_conviva_configurada() -> bool:
+    """Retorna True quando a chave do Gemini foi configurada corretamente."""
+    return bool(str(GEMINI_API_KEY or "").strip())
+
+
+def _extrair_texto_resposta_gemini(dados: dict) -> str:
+    """Extrai texto da resposta REST do Gemini com seguranca."""
+    try:
+        candidates = dados.get("candidates", [])
+        if not candidates:
+            return "A IA nao retornou uma sugestao. Tente novamente."
+        parts = candidates[0].get("content", {}).get("parts", [])
+        textos = [str(p.get("text", "")).strip() for p in parts if str(p.get("text", "")).strip()]
+        return "\n\n".join(textos).strip() or "A IA nao retornou texto utilizavel."
+    except Exception:
+        return "Nao foi possivel interpretar a resposta da IA."
+
+
+def chamar_ia_conviva_online(texto: str, tarefa: str = "Melhorar escrita pedagogica", contexto: str = "") -> str:
+    """Chama a IA online Gemini para apoiar a escrita pedagogica."""
+    texto = str(texto or "").strip()
+    tarefa = str(tarefa or "Melhorar escrita pedagogica").strip()
+    contexto = str(contexto or "").strip()
+
+    if not texto:
+        return "Digite algum texto antes de solicitar apoio da IA."
+
+    if not ia_conviva_configurada():
+        return "Configure GEMINI_API_KEY nos Secrets do Streamlit Cloud ou no arquivo .env para ativar a IA online."
+
+    prompt = f"""
+Voce e a IA Conviva Pedagogica, uma assistente educacional criada para apoiar professores,
+coordenacao e gestao escolar na escrita de registros escolares.
+
+Principios obrigatorios:
+- Use linguagem pedagogica, clara, formal, humanizada e respeitosa.
+- Nao invente fatos que nao foram informados.
+- Nao faca diagnostico clinico ou psicologico.
+- Preserve a dignidade do estudante e da familia.
+- Evite termos ofensivos, acusatorios ou punitivos.
+- Quando faltar informacao, escreva: "Com as informacoes disponiveis...".
+
+Tarefa solicitada:
+{tarefa}
+
+Contexto do relatorio:
+{contexto}
+
+Texto informado:
+{texto}
+
+Entregue uma versao pronta para uso escolar.
+""".strip()
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": 0.35,
+            "topP": 0.9,
+            "maxOutputTokens": 2048,
+        },
+    }
+
+    try:
+        resposta = requests.post(url, json=payload, timeout=90)
+        if resposta.status_code != 200:
+            detalhe = resposta.text[:900]
+            return f"Erro ao consultar a IA Gemini ({resposta.status_code}). Verifique a chave, o modelo e a cota. Detalhes: {detalhe}"
+        return _extrair_texto_resposta_gemini(resposta.json())
+    except Exception as e:
+        return f"Erro ao conectar com a IA online: {e}"
+
 # ======================================================
 # CONFIGURAÇÃO STREAMLIT
 # ======================================================
@@ -6332,7 +6409,7 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
             "coordenador_sala": coordenador_sala,
             "componente_curricular": componente_curricular,
             "situacao_geral": situacao_geral,
-            "frequencia": frequencia,
+            "frequencia": locals().get("frequencia", st.session_state.get("relatorio_frequencia", registro_relatorio.get("frequencia_percentual", 100) or 100)),
         })
 
     st.markdown("---")
@@ -6388,7 +6465,7 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
                 "turma": turma_sel,
                 "professor_editor": professor_editor,
                 "situacao_geral": situacao_geral,
-                "frequencia": frequencia,
+                "frequencia": locals().get("frequencia", st.session_state.get("relatorio_frequencia", registro_relatorio.get("frequencia_percentual", 100) or 100)),
             },
             textos_para_escrita
         )
@@ -6402,7 +6479,7 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
                     contexto=(
                         f"Estudante: {aluno_nome}\nRA: {aluno_ra}\nTurma: {turma_sel}\n"
                         f"Professor editor: {professor_editor}\nSituação geral: {situacao_geral}\n"
-                        f"Frequência: {frequencia}%"
+                        f"Frequência: {locals().get('frequencia', st.session_state.get('relatorio_frequencia', registro_relatorio.get('frequencia_percentual', 100) or 100))}%"
                     )
                 )
 
