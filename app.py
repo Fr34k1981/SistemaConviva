@@ -139,83 +139,6 @@ def _obter_config_secreta(nome: str, padrao: str = "") -> str:
 GEMINI_API_KEY = _obter_config_secreta("GEMINI_API_KEY", "")
 GEMINI_MODEL = _obter_config_secreta("GEMINI_MODEL", "gemini-2.5-flash")
 
-
-# ------------------------------------------------------
-# FUNCOES DE SUPORTE DA IA CONVIVA PEDAGOGICA ONLINE
-# ------------------------------------------------------
-def ia_conviva_configurada() -> bool:
-    """Retorna True quando a chave do Gemini foi configurada corretamente."""
-    return bool(str(GEMINI_API_KEY or "").strip())
-
-
-def _extrair_texto_resposta_gemini(dados: dict) -> str:
-    """Extrai texto da resposta REST do Gemini com seguranca."""
-    try:
-        candidates = dados.get("candidates", [])
-        if not candidates:
-            return "A IA nao retornou uma sugestao. Tente novamente."
-        parts = candidates[0].get("content", {}).get("parts", [])
-        textos = [str(p.get("text", "")).strip() for p in parts if str(p.get("text", "")).strip()]
-        return "\n\n".join(textos).strip() or "A IA nao retornou texto utilizavel."
-    except Exception:
-        return "Nao foi possivel interpretar a resposta da IA."
-
-
-def chamar_ia_conviva_online(texto: str, tarefa: str = "Melhorar escrita pedagogica", contexto: str = "") -> str:
-    """Chama a IA online Gemini para apoiar a escrita pedagogica."""
-    texto = str(texto or "").strip()
-    tarefa = str(tarefa or "Melhorar escrita pedagogica").strip()
-    contexto = str(contexto or "").strip()
-
-    if not texto:
-        return "Digite algum texto antes de solicitar apoio da IA."
-
-    if not ia_conviva_configurada():
-        return "Configure GEMINI_API_KEY nos Secrets do Streamlit Cloud ou no arquivo .env para ativar a IA online."
-
-    prompt = f"""
-Voce e a IA Conviva Pedagogica, uma assistente educacional criada para apoiar professores,
-coordenacao e gestao escolar na escrita de registros escolares.
-
-Principios obrigatorios:
-- Use linguagem pedagogica, clara, formal, humanizada e respeitosa.
-- Nao invente fatos que nao foram informados.
-- Nao faca diagnostico clinico ou psicologico.
-- Preserve a dignidade do estudante e da familia.
-- Evite termos ofensivos, acusatorios ou punitivos.
-- Quando faltar informacao, escreva: "Com as informacoes disponiveis...".
-
-Tarefa solicitada:
-{tarefa}
-
-Contexto do relatorio:
-{contexto}
-
-Texto informado:
-{texto}
-
-Entregue uma versao pronta para uso escolar.
-""".strip()
-
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "temperature": 0.35,
-            "topP": 0.9,
-            "maxOutputTokens": 2048,
-        },
-    }
-
-    try:
-        resposta = requests.post(url, json=payload, timeout=90)
-        if resposta.status_code != 200:
-            detalhe = resposta.text[:900]
-            return f"Erro ao consultar a IA Gemini ({resposta.status_code}). Verifique a chave, o modelo e a cota. Detalhes: {detalhe}"
-        return _extrair_texto_resposta_gemini(resposta.json())
-    except Exception as e:
-        return f"Erro ao conectar com a IA online: {e}"
-
 # ======================================================
 # CONFIGURAÇÃO STREAMLIT
 # ======================================================
@@ -1622,7 +1545,7 @@ div[data-testid="stForm"]:hover {
 # ======================================================
 # DADOS DA ESCOLA
 # ======================================================
-ESCOLA_NOME = "ELIANE AP. DANTAS DA SILVA PROFESSORA - PEI"
+ESCOLA_NOME = "ELIANE APARECIDA DANTAS DA SILVA PROFESSORA - PEI"
 ESCOLA_SUBTITULO = "Escola dos Sonhos • Escola Estadual"
 ESCOLA_ENDERECO = "VALTER DE SOUZA COSTA, 147 - RUA JARDIM PRIMAVERA - Ferraz de Vasconcelos - São Paulo"
 ESCOLA_CEP = "CEP: 08535-310"
@@ -3022,6 +2945,135 @@ TERMOS_OFENSIVOS_RELATORIO = [
     "mau aluno",
     "má aluna",
 ]
+
+
+# ======================================================
+# IA CONVIVA — FUNÇÕES AUXILIARES DO RELATÓRIO
+# ======================================================
+# Estas funções precisam existir ANTES de render_ia_conviva_relatorio().
+# Sem elas o Streamlit quebra com NameError em _campos_relatorio_ia().
+
+def ia_conviva_configurada() -> bool:
+    """Retorna True quando a chave da IA online está configurada."""
+    return bool(str(GEMINI_API_KEY or "").strip())
+
+
+def _campos_relatorio_ia() -> dict:
+    """Mapeia os campos visuais do relatório para as chaves do session_state."""
+    return {
+        "Desenvolvimento acadêmico": "relatorio_desenvolvimento",
+        "Observações comportamentais e socioemocionais": "relatorio_comportamental",
+        "Estratégias e encaminhamentos": "relatorio_estrategias",
+        "Pontos de atenção complementares": "relatorio_pontos_manuais",
+        "Descrição do ponto grave": "relatorio_ponto_grave",
+    }
+
+
+def _textos_campos_relatorio() -> dict:
+    """Lê os textos atuais digitados no formulário de relatório."""
+    campos = _campos_relatorio_ia()
+    return {
+        nome_campo: str(st.session_state.get(chave, "") or "").strip()
+        for nome_campo, chave in campos.items()
+    }
+
+
+def _escolher_tarefa_ia_automatica(campo_escolhido: str, texto_base: str = "") -> str:
+    """Escolhe uma tarefa padrão coerente com o campo selecionado."""
+    campo = str(campo_escolhido or "").lower()
+    if "encaminhamento" in campo or "estratég" in campo or "estrateg" in campo:
+        return "Sugerir encaminhamentos pedagógicos"
+    if "escrita corrida" in campo:
+        return "Gerar escrita corrida do relatório"
+    if "ponto grave" in campo or "grave" in campo:
+        return "Melhorar escrita pedagógica"
+    return "Melhorar escrita pedagógica"
+
+
+def montar_escrita_corrida_relatorio(contexto_relatorio: dict, textos_campos: dict) -> str:
+    """Monta um texto-base com os dados do relatório para a IA transformar em escrita corrida."""
+    contexto_relatorio = contexto_relatorio or {}
+    aluno = str(contexto_relatorio.get("aluno", "") or "").strip() or "Estudante não informado"
+    turma = str(contexto_relatorio.get("turma", "") or "").strip() or "Turma não informada"
+    situacao = str(contexto_relatorio.get("situacao_geral", "") or "").strip()
+    frequencia = str(contexto_relatorio.get("frequencia", "") or "").strip()
+
+    partes = [f"Estudante: {aluno}", f"Turma: {turma}"]
+    if situacao:
+        partes.append(f"Situação geral: {situacao}")
+    if frequencia:
+        partes.append(f"Frequência: {frequencia}")
+
+    for titulo, texto in (textos_campos or {}).items():
+        texto = str(texto or "").strip()
+        if texto:
+            partes.append(f"{titulo}: {texto}")
+
+    return "\n".join(partes).strip()
+
+
+def _limpar_texto_para_ia(texto: str) -> str:
+    """Remove termos claramente inadequados antes de enviar para a IA, sem alterar o registro original."""
+    texto_limpo = str(texto or "")
+    for termo in TERMOS_OFENSIVOS_RELATORIO:
+        texto_limpo = re.sub(re.escape(termo), "[termo inadequado]", texto_limpo, flags=re.IGNORECASE)
+    return texto_limpo.strip()
+
+
+def chamar_ia_conviva_online(texto: str, tarefa: str, contexto: str = "") -> str:
+    """Chama a API Gemini para gerar sugestão pedagógica."""
+    texto = str(texto or "").strip()
+    if not texto:
+        return "Digite um texto antes de usar a IA."
+
+    if not ia_conviva_configurada():
+        return "IA não configurada. Configure GEMINI_API_KEY nos Secrets do Streamlit Cloud ou no arquivo .env."
+
+    instrucao = INSTRUCOES_TAREFAS_IA_RELATORIO.get(
+        tarefa,
+        str(tarefa or "Melhore a escrita em linguagem pedagógica.")
+    )
+
+    prompt = f"""
+{PROMPT_IA_CONVIVA_PEDAGOGICA}
+
+TAREFA:
+{instrucao}
+
+CONTEXTO DO RELATÓRIO:
+{contexto or 'Não informado'}
+
+TEXTO ORIGINAL:
+{_limpar_texto_para_ia(texto)}
+
+Responda apenas com a versão revisada/pronta para uso escolar, em português do Brasil.
+""".strip()
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
+    payload = {
+        "contents": [
+            {"role": "user", "parts": [{"text": prompt}]}
+        ],
+        "generationConfig": {
+            "temperature": 0.35,
+            "topP": 0.9,
+            "maxOutputTokens": 1200,
+        },
+    }
+
+    try:
+        resposta = requests.post(url, json=payload, timeout=60)
+        if resposta.status_code != 200:
+            return f"Erro ao consultar a IA ({resposta.status_code}). Verifique a chave, o modelo e a cota do Gemini."
+        dados = resposta.json()
+        candidatos = dados.get("candidates") or []
+        if not candidatos:
+            return "A IA não retornou sugestão. Tente novamente com mais texto."
+        partes = candidatos[0].get("content", {}).get("parts", [])
+        saida = "\n".join(str(p.get("text", "")) for p in partes if p.get("text"))
+        return saida.strip() or "A IA não retornou texto aproveitável."
+    except Exception as e:
+        return f"Erro ao conectar com a IA online: {e}"
 
 # ======================================================
 # BLOCO VISUAL DA IA NO RELATÓRIO
@@ -6479,7 +6531,7 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
                     contexto=(
                         f"Estudante: {aluno_nome}\nRA: {aluno_ra}\nTurma: {turma_sel}\n"
                         f"Professor editor: {professor_editor}\nSituação geral: {situacao_geral}\n"
-                        f"Frequência: {locals().get('frequencia', st.session_state.get('relatorio_frequencia', registro_relatorio.get('frequencia_percentual', 100) or 100))}%"
+                        f"Frequência: {frequencia}%"
                     )
                 )
 
