@@ -3480,6 +3480,218 @@ def excluir_relatorio_estudante(id_relatorio) -> tuple[bool, str]:
     _limpar_cache_relatorios()
     return True, "local"
 
+# ======================================================
+# RELATÓRIOS — RASCUNHO AUTOMÁTICO E IA CONVIVA PEDAGÓGICA
+# ======================================================
+# Objetivo deste bloco:
+# 1) Evitar perda de textos quando o usuário sai da página ou troca de tela.
+# 2) Integrar uma IA local gratuita via Ollama, sem custo de API.
+# 3) Manter a identidade da IA Conviva Pedagógica com linguagem escolar, ética e humanizada.
+
+RELATORIOS_RASCUNHOS_LOCAL_PATH = os.path.join(os.getcwd(), "data", "relatorios_estudantes_rascunhos.json")
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "mistral")
+
+CAMPOS_TEXTO_RELATORIO = {
+    "Desenvolvimento acadêmico": "relatorio_desenvolvimento",
+    "Observações comportamentais e socioemocionais": "relatorio_comportamental",
+    "Estratégias e encaminhamentos": "relatorio_estrategias",
+    "Pontos de atenção complementares": "relatorio_pontos_manuais",
+    "Descrição do ponto grave": "relatorio_ponto_grave",
+}
+
+PROMPT_IA_CONVIVA_PEDAGOGICA = """
+Você é a IA Conviva Pedagógica, uma assistente educacional criada para apoiar professores, coordenação e gestão escolar.
+
+Sua função é auxiliar na escrita, revisão, organização e qualificação pedagógica de documentos escolares, sempre com linguagem clara, ética, humanizada, profissional e adequada ao contexto da escola pública.
+
+Você NÃO substitui o professor, a coordenação, a gestão escolar, a família, o Conselho Tutelar, os serviços de saúde ou qualquer órgão oficial. Sua função é apoiar a escrita, sugerir melhorias e organizar informações.
+
+PRINCÍPIOS DE ATUAÇÃO:
+1. Utilizar linguagem pedagógica, respeitosa e não discriminatória.
+2. Evitar julgamentos, acusações ou termos ofensivos.
+3. Não realizar diagnósticos clínicos ou psicológicos.
+4. Não inventar fatos que não foram informados.
+5. Preservar a dignidade do estudante e da família.
+6. Escrever de forma objetiva, formal e compreensível.
+7. Sugerir encaminhamentos pedagógicos possíveis, sem ultrapassar a função escolar.
+8. Adaptar a escrita para diferentes contextos escolares.
+
+ESTILO DE ESCRITA:
+- Profissional;
+- Claro;
+- Humanizado;
+- Pedagógico;
+- Objetivo;
+- Sem exageros;
+- Sem linguagem punitiva;
+- Sem exposição desnecessária do estudante.
+
+USO DE CONTEXTO E APRENDIZADO:
+A IA Conviva Pedagógica deve adaptar suas respostas com base nas informações, exemplos, modelos e orientações fornecidas pelo usuário durante o uso do sistema.
+Ela deve utilizar esses dados como referência de estilo de escrita, vocabulário pedagógico, estrutura de relatórios e práticas escolares.
+Importante: a IA NÃO possui memória permanente por conta própria. Ela só utiliza informações disponíveis na conversa, no formulário ou armazenadas no sistema.
+Ela pode ser continuamente aprimorada com novos exemplos e modelos inseridos no sistema.
+
+QUANDO RECEBER UM TEXTO BRUTO:
+1. Corrigir ortografia e gramática.
+2. Melhorar a organização das ideias.
+3. Transformar linguagem informal em pedagógica.
+4. Manter o sentido original.
+5. Não acrescentar fatos novos.
+6. Gerar uma versão pronta para uso escolar.
+
+SITUAÇÕES SENSÍVEIS:
+Em casos de sofrimento emocional, violência, evasão, conflitos familiares ou negligência, use linguagem cuidadosa, sugira acolhimento e escuta qualificada, recomende registro formal e acione equipe gestora/rede de proteção quando cabível. Não emita diagnóstico e não minimize riscos.
+
+Quando faltar informação, utilize: "Com as informações disponíveis, é possível redigir da seguinte forma:"
+
+Missão: apoiar a escola na construção de registros pedagógicos mais claros, humanos, responsáveis e organizados.
+""".strip()
+
+
+def _garantir_arquivo_rascunhos_relatorio():
+    _garantir_arquivo_json_local(RELATORIOS_RASCUNHOS_LOCAL_PATH, {})
+
+
+def _carregar_rascunhos_relatorio() -> dict:
+    _garantir_arquivo_rascunhos_relatorio()
+    try:
+        with open(RELATORIOS_RASCUNHOS_LOCAL_PATH, "r", encoding="utf-8") as arquivo:
+            dados = json.load(arquivo)
+        return dados if isinstance(dados, dict) else {}
+    except Exception:
+        return {}
+
+
+def _salvar_rascunhos_relatorio(dados: dict) -> bool:
+    _garantir_arquivo_rascunhos_relatorio()
+    with open(RELATORIOS_RASCUNHOS_LOCAL_PATH, "w", encoding="utf-8") as arquivo:
+        json.dump(dados, arquivo, ensure_ascii=False, indent=2)
+    return True
+
+
+def chave_rascunho_relatorio(turma: str, ra: str, aluno: str) -> str:
+    ra_limpo = "".join(ch for ch in str(ra or "") if ch.isdigit())
+    aluno_limpo = gerar_chave_segura(aluno)
+    turma_limpa = gerar_chave_segura(turma)
+    return f"{turma_limpa}|{ra_limpo or aluno_limpo}"
+
+
+def carregar_rascunho_relatorio(turma: str, ra: str, aluno: str) -> dict:
+    chave = chave_rascunho_relatorio(turma, ra, aluno)
+    return _carregar_rascunhos_relatorio().get(chave, {})
+
+
+def salvar_rascunho_relatorio(turma: str, ra: str, aluno: str, dados: dict) -> bool:
+    chave = chave_rascunho_relatorio(turma, ra, aluno)
+    rascunhos = _carregar_rascunhos_relatorio()
+    dados = dict(dados or {})
+    dados["turma"] = str(turma or "").strip()
+    dados["ra"] = str(ra or "").strip()
+    dados["aluno"] = str(aluno or "").strip()
+    dados["updated_at"] = datetime.now().isoformat()
+    rascunhos[chave] = dados
+    return _salvar_rascunhos_relatorio(rascunhos)
+
+
+def excluir_rascunho_relatorio(turma: str, ra: str, aluno: str) -> bool:
+    chave = chave_rascunho_relatorio(turma, ra, aluno)
+    rascunhos = _carregar_rascunhos_relatorio()
+    if chave in rascunhos:
+        del rascunhos[chave]
+        _salvar_rascunhos_relatorio(rascunhos)
+        return True
+    return False
+
+
+def aplicar_rascunho_relatorio_na_tela(rascunho: dict):
+    if not rascunho:
+        return
+    mapa = {
+        "desenvolvimento_academico": "relatorio_desenvolvimento",
+        "observacoes_comportamentais": "relatorio_comportamental",
+        "estrategias_adotadas": "relatorio_estrategias",
+        "pontos_atencao": "relatorio_pontos_manuais",
+        "descricao_ponto_grave": "relatorio_ponto_grave",
+    }
+    for campo_payload, chave_widget in mapa.items():
+        if campo_payload in rascunho:
+            st.session_state[chave_widget] = str(rascunho.get(campo_payload, "") or "")
+    if "indicacao_grave_professor" in rascunho:
+        st.session_state["relatorio_indicacao_grave"] = bool(rascunho.get("indicacao_grave_professor", False))
+
+
+def texto_existe_para_rascunho(dados: dict) -> bool:
+    campos = [
+        "desenvolvimento_academico",
+        "observacoes_comportamentais",
+        "estrategias_adotadas",
+        "pontos_atencao",
+        "descricao_ponto_grave",
+    ]
+    return any(str(dados.get(c, "") or "").strip() for c in campos)
+
+
+def ollama_disponivel() -> tuple[bool, str]:
+    try:
+        resp = requests.get(f"{OLLAMA_URL}/api/tags", timeout=5)
+        if resp.status_code == 200:
+            return True, "Ollama disponível"
+        return False, f"Ollama respondeu com status {resp.status_code}"
+    except Exception as e:
+        return False, str(e)
+
+
+def melhorar_texto_com_ia_conviva(texto: str, acao: str, campo: str, contexto: dict | None = None) -> str:
+    texto = str(texto or "").strip()
+    if not texto:
+        raise ErroValidacao("texto", "Digite um texto antes de usar a IA.")
+
+    contexto = contexto or {}
+    instrucoes = {
+        "Corrigir ortografia": "Corrija ortografia, concordância e pontuação, mantendo o sentido original.",
+        "Melhorar escrita pedagógica": "Reescreva com linguagem pedagógica, clara, humanizada, objetiva e profissional.",
+        "Deixar mais objetivo": "Reescreva de forma mais objetiva, sem perder informações importantes.",
+        "Parecer descritivo": "Transforme em parecer descritivo pedagógico, adequado para registro escolar.",
+        "Encaminhamentos": "Reescreva em formato de encaminhamentos pedagógicos claros e viáveis.",
+    }
+    instrucao = instrucoes.get(acao, instrucoes["Melhorar escrita pedagógica"])
+
+    prompt = f"""
+{PROMPT_IA_CONVIVA_PEDAGOGICA}
+
+CONTEXTO DO RELATÓRIO:
+- Estudante: {contexto.get('aluno', 'estudante')}
+- Turma: {contexto.get('turma', '')}
+- Campo do relatório: {campo}
+- Situação geral: {contexto.get('situacao_geral', '')}
+
+TAREFA SOLICITADA:
+{instrucao}
+
+REGRAS PARA A RESPOSTA:
+- Não invente fatos.
+- Não acrescente informações que não estejam no texto original.
+- Não faça diagnóstico médico, psicológico ou clínico.
+- Mantenha tom profissional, claro, pedagógico e humanizado.
+- Entregue apenas o texto reescrito, pronto para uso escolar.
+
+TEXTO ORIGINAL:
+{texto}
+""".strip()
+
+    resp = requests.post(
+        f"{OLLAMA_URL}/api/generate",
+        json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False},
+        timeout=180,
+    )
+    if resp.status_code >= 400:
+        raise ErroOperacaoDB("usar IA Conviva Pedagógica", f"Ollama retornou status {resp.status_code}: {resp.text[:300]}")
+    dados = resp.json()
+    return str(dados.get("response", "")).strip()
+
+
     from difflib import SequenceMatcher
 
 def obter_professor_tutor_do_aluno(
@@ -6010,6 +6222,98 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
     else:
         st.info("Nenhuma ocorrência grave/gravíssima localizada no período.")
  
+
+    # ======================================================
+    # RASCUNHO AUTOMÁTICO + IA CONVIVA PEDAGÓGICA
+    # ======================================================
+    # Esta área fica recolhida para não poluir o formulário.
+    # Ela permite restaurar textos, descartar rascunhos e melhorar campos com IA local gratuita.
+    contexto_relatorio_atual = f"{turma_sel}|{aluno_ra}|{registro_relatorio.get('id', 'novo')}"
+    if st.session_state.get("_relatorio_contexto_atual") != contexto_relatorio_atual:
+        st.session_state["_relatorio_contexto_atual"] = contexto_relatorio_atual
+        for chave_limpar in list(CAMPOS_TEXTO_RELATORIO.values()) + ["relatorio_indicacao_grave"]:
+            st.session_state.pop(chave_limpar, None)
+        rascunho_inicial = carregar_rascunho_relatorio(turma_sel, aluno_ra, aluno_nome)
+        if rascunho_inicial and not registro_relatorio:
+            aplicar_rascunho_relatorio_na_tela(rascunho_inicial)
+
+    rascunho_existente = carregar_rascunho_relatorio(turma_sel, aluno_ra, aluno_nome)
+
+    with st.expander("🤖 IA Conviva Pedagógica e rascunho automático", expanded=False):
+        st.markdown("""
+        Esta área ajuda a **não perder o texto do relatório** e permite melhorar a escrita com uma IA local gratuita.
+
+        Para usar gratuitamente, instale o **Ollama** no computador/servidor e execute um modelo, por exemplo: `ollama run mistral`.
+        O sistema tentará acessar `http://localhost:11434`.
+        """)
+
+        if rascunho_existente:
+            atualizado_em = str(rascunho_existente.get("updated_at", "")).replace("T", " ")[:19]
+            st.info(f"💾 Existe rascunho salvo para este estudante. Última atualização: {atualizado_em}")
+        else:
+            st.caption("💾 Nenhum rascunho salvo para este estudante ainda. O autossalvamento será ativado ao digitar.")
+
+        col_rasc_1, col_rasc_2, col_rasc_3 = st.columns(3)
+        with col_rasc_1:
+            if st.button("↩️ Restaurar rascunho", use_container_width=True, key="relatorio_restaurar_rascunho_btn"):
+                if rascunho_existente:
+                    aplicar_rascunho_relatorio_na_tela(rascunho_existente)
+                    st.success("Rascunho restaurado.")
+                    st.rerun()
+                else:
+                    st.warning("Não há rascunho salvo para restaurar.")
+        with col_rasc_2:
+            if st.button("🗑️ Descartar rascunho", use_container_width=True, key="relatorio_descartar_rascunho_btn"):
+                if excluir_rascunho_relatorio(turma_sel, aluno_ra, aluno_nome):
+                    st.success("Rascunho descartado.")
+                    st.rerun()
+                else:
+                    st.info("Não havia rascunho salvo.")
+        with col_rasc_3:
+            if st.button("🔌 Verificar IA local", use_container_width=True, key="relatorio_verificar_ollama_btn"):
+                ok_ia, msg_ia = ollama_disponivel()
+                if ok_ia:
+                    st.success(f"IA local disponível. Modelo configurado: {OLLAMA_MODEL}")
+                else:
+                    st.warning(f"IA local indisponível agora: {msg_ia}")
+
+        st.markdown("---")
+        campo_ia = st.selectbox(
+            "Campo que a IA deve melhorar",
+            list(CAMPOS_TEXTO_RELATORIO.keys()),
+            key="relatorio_ia_campo"
+        )
+        acao_ia = st.selectbox(
+            "Tipo de ajuste",
+            ["Melhorar escrita pedagógica", "Corrigir ortografia", "Deixar mais objetivo", "Parecer descritivo", "Encaminhamentos"],
+            key="relatorio_ia_acao"
+        )
+        chave_campo_ia = CAMPOS_TEXTO_RELATORIO[campo_ia]
+        valores_padrao_ia = {
+            "relatorio_desenvolvimento": str(registro_relatorio.get("desenvolvimento_academico", "")).strip(),
+            "relatorio_comportamental": str(registro_relatorio.get("observacoes_comportamentais", "")).strip(),
+            "relatorio_estrategias": str(registro_relatorio.get("estrategias_adotadas", "")).strip(),
+            "relatorio_pontos_manuais": str(registro_relatorio.get("pontos_atencao", "")).strip(),
+            "relatorio_ponto_grave": str(registro_relatorio.get("descricao_ponto_grave", "")).strip(),
+        }
+        texto_base_ia = str(st.session_state.get(chave_campo_ia, valores_padrao_ia.get(chave_campo_ia, "")) or "")
+
+        if st.button("✨ Melhorar campo selecionado com IA", type="primary", use_container_width=True, key="relatorio_ia_gerar_btn"):
+            try:
+                with st.spinner("A IA Conviva Pedagógica está revisando o texto..."):
+                    texto_melhorado = melhorar_texto_com_ia_conviva(
+                        texto_base_ia,
+                        acao_ia,
+                        campo_ia,
+                        contexto={"aluno": aluno_nome, "turma": turma_sel, "situacao_geral": situacao_geral}
+                    )
+                st.session_state[chave_campo_ia] = texto_melhorado
+                st.success("Texto melhorado e aplicado ao campo selecionado.")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Não foi possível usar a IA local: {e}")
+                st.caption("Verifique se o Ollama está instalado e rodando. Exemplo: `ollama run mistral`.")
+
     indicacao_grave = st.checkbox(
         "⚠️ Sinalizar um ponto grave adicional neste relatório",
         value=bool(registro_relatorio.get("indicacao_grave_professor", False)),
@@ -6052,6 +6356,29 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
         key="relatorio_pontos_manuais"
     )
  
+
+    # ======================================================
+    # AUTOSSALVAMENTO DO RASCUNHO DO RELATÓRIO
+    # ======================================================
+    # Salva automaticamente os principais campos de texto em arquivo local.
+    # Isso evita perda do texto caso o usuário saia da página antes de salvar o relatório final.
+    payload_rascunho_atual = {
+        "desenvolvimento_academico": desenvolvimento_academico,
+        "observacoes_comportamentais": observacoes_comportamentais,
+        "estrategias_adotadas": estrategias_adotadas,
+        "pontos_atencao": pontos_atencao_manuais,
+        "indicacao_grave_professor": indicacao_grave,
+        "descricao_ponto_grave": descricao_ponto_grave,
+        "situacao_geral": situacao_geral,
+        "componente_curricular": componente_curricular,
+    }
+    if texto_existe_para_rascunho(payload_rascunho_atual):
+        try:
+            salvar_rascunho_relatorio(turma_sel, aluno_ra, aluno_nome, payload_rascunho_atual)
+            st.caption("💾 Rascunho salvo automaticamente.")
+        except Exception as e:
+            st.caption(f"⚠️ Não foi possível salvar o rascunho automático: {e}")
+
     col_salvar, col_excluir = st.columns([2, 1])
     with col_salvar:
         if st.button("💾 Salvar relatório", type="primary",
@@ -6098,6 +6425,7 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
                             "tipo": "success",
                             "msg": f"Relatório de {aluno_nome} atualizado com sucesso ({base})."
                         }
+                        excluir_rascunho_relatorio(turma_sel, aluno_ra, aluno_nome)
                         st.rerun()
                 else:
                     sucesso, base = salvar_relatorio_estudante(payload_relatorio)
@@ -6106,6 +6434,7 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
                             "tipo": "success",
                             "msg": f"Relatório de {aluno_nome} criado com sucesso ({base})."
                         }
+                        excluir_rascunho_relatorio(turma_sel, aluno_ra, aluno_nome)
                         st.rerun()
     with col_excluir:
         if registro_relatorio and registro_relatorio.get("id"):
