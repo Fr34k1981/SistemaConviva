@@ -118,11 +118,11 @@ if SUPABASE_VALID:
 # Não coloque sua chave diretamente neste arquivo.
 # Configure no Streamlit Cloud em Settings > Secrets:
 # GEMINI_API_KEY = "sua_chave_aqui"
-# GEMINI_MODEL = "gemini-1.5-flash"
+# GEMINI_MODEL = "gemini-3-flash-preview"
 #
 # Para rodar localmente, você também pode usar arquivo .env:
 # GEMINI_API_KEY=sua_chave_aqui
-# GEMINI_MODEL=gemini-1.5-flash
+# GEMINI_MODEL=gemini-3-flash-preview
 
 def _obter_config_secreta(nome: str, padrao: str = "") -> str:
     """Busca configuração primeiro no ambiente/.env e depois no st.secrets."""
@@ -137,7 +137,7 @@ def _obter_config_secreta(nome: str, padrao: str = "") -> str:
     return padrao
 
 GEMINI_API_KEY = _obter_config_secreta("GEMINI_API_KEY", "")
-GEMINI_MODEL = _obter_config_secreta("GEMINI_MODEL", "gemini-1.5-flash")
+GEMINI_MODEL = _obter_config_secreta("GEMINI_MODEL", "gemini-3-flash-preview")
 
 # ======================================================
 # CONFIGURAÇÃO STREAMLIT
@@ -2963,6 +2963,35 @@ def _resposta_local_segura_relatorio(texto: str, tarefa: str) -> str:
         "estratégias já adotadas e acompanhar a evolução com registros objetivos."
     )
 
+def _modelos_gemini_para_tentar() -> list[str]:
+    modelos = [
+        str(GEMINI_MODEL or "").strip(),
+        "gemini-3-flash-preview",
+        "gemini-2.5-flash",
+        "gemini-flash-latest",
+        "gemini-2.0-flash",
+    ]
+    vistos = set()
+    resultado = []
+    for modelo in modelos:
+        modelo = modelo.replace("models/", "").strip()
+        if modelo and modelo not in vistos:
+            vistos.add(modelo)
+            resultado.append(modelo)
+    return resultado
+
+def _escolher_tarefa_ia_automatica(campo: str, texto: str) -> str:
+    campo_norm = normalizar_texto(campo)
+    if "ESCRITA CORRIDA" in campo_norm:
+        return "Gerar escrita corrida do relatório"
+    if "ESTRATEGIAS" in campo_norm or "ENCAMINHAMENTOS" in campo_norm:
+        return "Sugerir encaminhamentos pedagógicos"
+    if "PARECER" in campo_norm:
+        return "Transformar em parecer descritivo"
+    if _texto_tem_termo_ofensivo(texto):
+        return "Melhorar escrita pedagógica"
+    return "Melhorar escrita pedagógica"
+
 def ia_conviva_configurada() -> bool:
     """Retorna True quando a chave online do Gemini está configurada."""
     return bool(str(GEMINI_API_KEY or "").strip())
@@ -3000,7 +3029,6 @@ Responda em português do Brasil, apenas com o texto pronto para uso escolar.
 Não devolva o texto original sem transformação. Não repita termos ofensivos, apelidos, rótulos ou julgamentos pessoais.
 """.strip()
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
     payload = {
         "systemInstruction": {
             "parts": [{"text": PROMPT_IA_CONVIVA_PEDAGOGICA}]
@@ -3018,16 +3046,30 @@ Não devolva o texto original sem transformação. Não repita termos ofensivos,
         }
     }
 
-    try:
-        resposta = requests.post(
-            url,
-            params={"key": GEMINI_API_KEY},
-            json=payload,
-            timeout=90
-        )
+    ultimo_erro_modelo = ""
+    for modelo_tentativa in _modelos_gemini_para_tentar():
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo_tentativa}:generateContent"
+        try:
+            resposta = requests.post(
+                url,
+                headers={
+                    "x-goog-api-key": GEMINI_API_KEY,
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=90
+            )
+        except requests.exceptions.Timeout:
+            return "A IA demorou para responder. Tente novamente em alguns instantes."
+        except Exception as e:
+            return f"Erro ao acessar a IA online: {e}"
+
         if resposta.status_code >= 400:
             detalhes = resposta.text[:500]
-            return f"Erro ao acessar a IA online Gemini ({resposta.status_code}). Detalhes: {detalhes}"
+            ultimo_erro_modelo = f"Erro ao acessar a IA online Gemini ({resposta.status_code}). Modelo: {modelo_tentativa}. Detalhes: {detalhes}"
+            if resposta.status_code == 404:
+                continue
+            return ultimo_erro_modelo
 
         dados = resposta.json()
         candidatos = dados.get("candidates", [])
@@ -3044,10 +3086,9 @@ Não devolva o texto original sem transformação. Não repita termos ofensivos,
         ):
             return _resposta_local_segura_relatorio(texto, tarefa)
         return texto_resposta
-    except requests.exceptions.Timeout:
-        return "A IA demorou para responder. Tente novamente em alguns instantes."
-    except Exception as e:
-        return f"Erro ao acessar a IA online: {e}"
+    if ultimo_erro_modelo:
+        return ultimo_erro_modelo
+    return "Não foi possível localizar um modelo Gemini disponível para gerar a resposta."
 
 def _campos_relatorio_ia() -> dict:
     return {
@@ -3107,19 +3148,11 @@ def render_ia_conviva_relatorio(contexto_relatorio: dict):
         "Escrita corrida do relatório",
     ]
 
-    col_ia1, col_ia2 = st.columns([1, 1])
-    with col_ia1:
-        campo_escolhido = st.selectbox(
-            "Campo que a IA deve revisar",
-            opcoes_campo_ia,
-            key="ia_conviva_campo_relatorio"
-        )
-    with col_ia2:
-        tarefa_escolhida = st.selectbox(
-            "Ação da IA",
-            list(INSTRUCOES_TAREFAS_IA_RELATORIO.keys()),
-            key="ia_conviva_tarefa_relatorio"
-        )
+    campo_escolhido = st.selectbox(
+        "Campo que a IA deve revisar",
+        opcoes_campo_ia,
+        key="ia_conviva_campo_relatorio"
+    )
 
     contexto_txt = "\n".join([
         f"Estudante: {contexto_relatorio.get('aluno', '')}",
@@ -3146,6 +3179,9 @@ def render_ia_conviva_relatorio(contexto_relatorio: dict):
         chave_campo = opcoes_campo[campo_escolhido]
         texto_base = textos_campos.get(campo_escolhido, "")
 
+    tarefa_escolhida = _escolher_tarefa_ia_automatica(campo_escolhido, texto_base)
+    st.caption(f"A IA vai identificar e aplicar automaticamente a melhor escrita pedagógica para este texto. Modo usado: {tarefa_escolhida}.")
+
     texto_para_ia = st.text_area(
         "Texto que será enviado para a IA",
         value=texto_base,
@@ -3156,7 +3192,7 @@ def render_ia_conviva_relatorio(contexto_relatorio: dict):
 
     col_b1, col_b2, col_b3 = st.columns([1, 1, 1])
     with col_b1:
-        gerar = st.button("✨ Gerar sugestão com IA", type="primary", use_container_width=True, key="ia_conviva_gerar_btn")
+        gerar = st.button("✨ Melhorar escrita com IA", type="primary", use_container_width=True, key="ia_conviva_gerar_btn")
     with col_b2:
         melhorar_todos = st.button("🪄 Melhorar todos os blocos", use_container_width=True, key="ia_conviva_todos_btn")
     with col_b3:
