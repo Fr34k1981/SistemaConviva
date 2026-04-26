@@ -2864,6 +2864,7 @@ def buscar_infracao_fuzzy(busca: str, protocolo: dict) -> dict:
     return resultados
 
 # ======================================================
+# ======================================================
 # IA CONVIVA PEDAGÓGICA ONLINE — CONFIGURAÇÃO
 # ======================================================
 
@@ -2944,7 +2945,100 @@ TERMOS_OFENSIVOS_RELATORIO = [
     "mau aluno",
     "má aluna",
 ]
+
 # ======================================================
+# BLOCO VISUAL DA IA NO RELATÓRIO
+# ======================================================
+
+def render_ia_conviva_relatorio(contexto_relatorio: dict):
+    """Bloco visual da IA dentro do relatório do estudante."""
+
+    pendente = st.session_state.pop("ia_conviva_aplicar_pendente", None)
+    if pendente:
+        campo = pendente.get("campo")
+        texto = pendente.get("texto", "")
+        if campo:
+            st.session_state[campo] = texto
+
+    st.markdown("### 🤖 IA Conviva Pedagógica Online")
+
+    if ia_conviva_configurada():
+        st.success(f"IA online configurada com Gemini ({GEMINI_MODEL}).")
+    else:
+        st.warning(
+            "Configure GEMINI_API_KEY nos Secrets do Streamlit Cloud ou no arquivo .env para ativar a IA online."
+        )
+
+    opcoes_campo = _campos_relatorio_ia()
+    opcoes_campo_ia = list(opcoes_campo.keys()) + [
+        "Escrita corrida do relatório",
+    ]
+
+    campo_escolhido = st.selectbox(
+        "Campo que a IA deve revisar",
+        opcoes_campo_ia,
+        key="ia_conviva_campo_relatorio"
+    )
+
+    textos_campos = _textos_campos_relatorio()
+
+    if campo_escolhido == "Escrita corrida do relatório":
+        texto_base = montar_escrita_corrida_relatorio(contexto_relatorio, textos_campos)
+        chave_campo = "relatorio_escrita_corrida_atual"
+    else:
+        chave_campo = opcoes_campo[campo_escolhido]
+        texto_base = textos_campos.get(campo_escolhido, "")
+
+    tarefa_escolhida = _escolher_tarefa_ia_automatica(campo_escolhido, texto_base)
+
+    texto_para_ia = st.text_area(
+        "Texto que será enviado para a IA",
+        value=texto_base,
+        height=140,
+        key=f"ia_conviva_texto_editavel_{gerar_chave_segura(campo_escolhido)}"
+    )
+
+    if st.button(
+        "✨ Melhorar escrita com IA",
+        type="primary",
+        use_container_width=True,
+        key="ia_conviva_gerar_btn"
+    ):
+        if not str(texto_para_ia or "").strip():
+            st.warning("Preencha algum texto antes de usar a IA.")
+        else:
+            with st.spinner("A IA Conviva Pedagógica está preparando a sugestão..."):
+                resultado = chamar_ia_conviva_online(
+                    texto=texto_para_ia,
+                    tarefa=tarefa_escolhida,
+                    contexto=str(contexto_relatorio)
+                )
+
+            st.session_state["ia_conviva_resultado_relatorio"] = resultado
+            st.session_state["ia_conviva_campo_destino"] = chave_campo
+
+    resultado = st.session_state.get("ia_conviva_resultado_relatorio", "")
+    campo_destino = st.session_state.get("ia_conviva_campo_destino", chave_campo)
+
+    if resultado:
+        st.text_area(
+            "Sugestão da IA",
+            value=resultado,
+            height=220,
+            key="ia_conviva_resultado_area"
+        )
+
+        if st.button(
+            "✅ Aplicar sugestão no campo",
+            use_container_width=True,
+            key="ia_conviva_aplicar_sugestao_btn"
+        ):
+            st.session_state["ia_conviva_aplicar_pendente"] = {
+                "campo": campo_destino,
+                "texto": resultado
+            }
+            st.success("Sugestão preparada para aplicar ao campo.")
+            st.rerun()# ======================================================
 # SISTEMA DE NOTIFICAÇÕES
 # ======================================================
 
