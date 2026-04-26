@@ -1,6 +1,7 @@
 ﻿import os
 from supabase import create_client, Client
 from dotenv import load_dotenv
+from datetime import datetime
 
 # Carrega variáveis de ambiente
 load_dotenv()
@@ -32,14 +33,26 @@ def get_teachers():
         print(f"Erro ao buscar professores: {e}")
         return []
 
-def save_occurrence(data):
+def save_occurrence(student_name, teacher_name, infringements, description, actions):
     """Salva uma nova ocorrência"""
     try:
+        data = {
+            "nome_aluno": student_name,
+            "nome_professor": teacher_name,
+            "infracoes": infringements,
+            "descricao": description,
+            "acoes_tomadas": actions,
+            "data_ocorrencia": datetime.now().isoformat()
+        }
+        print(f"[DEBUG] Tentando salvar ocorrência: {data}")
         response = supabase.table("ocorrencias").insert(data).execute()
-        return response.data
+        print(f"[DEBUG] Resposta do Supabase: {response}")
+        return True
     except Exception as e:
         print(f"Erro ao salvar ocorrência: {e}")
-        raise e
+        import streamlit as st
+        st.error(f"❌ Erro detalhado: {str(e)}")
+        return False
 
 def get_occurrences():
     """Busca todas as ocorrências"""

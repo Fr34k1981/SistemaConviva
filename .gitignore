@@ -1,54 +1,42 @@
-# Ambiente e configurações sensíveis
+```
+# Environment variables
 .env
 .env.local
-.env.production
-.env.*.local
+.env.*
 
-# Streamlit (NÃO subir secrets locais)
-.streamlit/secrets.toml
-.streamlit/secrets.*.toml
-.streamlit/cache
-.streamlit/.session_state
-
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-dist/
-*.egg-info/
-venv/
+# Dependencies
 .venv/
-env/
-ENV/
-pip-log.txt
-pip-delete-this-directory.txt
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
 
-# IDE
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Logs
+*.log
+
+# Editor/IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
+*.tmp
 
-# CSV (dados dos alunos - não precisa subir)
-*.csv
+# Coverage reports
+.coverage
+coverage/
+htmlcov/
 
-# Backup
-*.BACKUP*
-*.backup
-*~
-app.py.BACKUP_SEGURO_*
-
-# Sistema
+# OS generated files
 .DS_Store
-*.log
-logs/
 Thumbs.db
 
-# Cache
+# Testing
 .pytest_cache/
-.coverage
-htmlcov/
+.mypy_cache/
+```
