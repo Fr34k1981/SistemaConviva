@@ -21,6 +21,7 @@ dist/
 *.egg-info/
 venv/
 .venv/
+.venv-*/
 env/
 ENV/
 pip-log.txt
@@ -41,6 +42,7 @@ pip-delete-this-directory.txt
 *.backup
 *~
 app.py.BACKUP_SEGURO_*
+data/backups/
 
 # Sistema
 .DS_Store

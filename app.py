@@ -17,16 +17,24 @@ import json
 import zipfile
 import pytz
 import unicodedata
+from pathlib import Path
 
 # 👇 IMPORT DO DOTENV
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 
-# 👇 CARREGA O .env
-load_dotenv()
+def carregar_variaveis_ambiente():
+    """Carrega o .env local mesmo quando o Streamlit inicia em outro diretório."""
+    env_do_projeto = Path(__file__).resolve().parent / ".env"
+    if env_do_projeto.exists():
+        load_dotenv(dotenv_path=env_do_projeto, override=False)
+        return
 
-# 👇 PEGA AS VARIÁVEIS
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+    env_encontrado = find_dotenv(usecwd=True)
+    if env_encontrado:
+        load_dotenv(dotenv_path=env_encontrado, override=False)
+
+
+carregar_variaveis_ambiente()
 
 # ======================================================
 # REPORTLAB (PDF)
@@ -88,8 +96,6 @@ except ImportError:
 # ======================================================
 # VARIÁVEIS DE AMBIENTE
 # ======================================================
-load_dotenv()
-
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 SENHA_EXCLUSAO = os.getenv("SENHA_EXCLUSAO", "040600")
