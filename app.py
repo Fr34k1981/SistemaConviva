@@ -118,11 +118,11 @@ if SUPABASE_VALID:
 # Não coloque sua chave diretamente neste arquivo.
 # Configure no Streamlit Cloud em Settings > Secrets:
 # GEMINI_API_KEY = "sua_chave_aqui"
-# GEMINI_MODEL = "gemini-3-flash-preview"
+# GEMINI_MODEL = "gemini-2.5-flash"
 #
 # Para rodar localmente, você também pode usar arquivo .env:
 # GEMINI_API_KEY=sua_chave_aqui
-# GEMINI_MODEL=gemini-3-flash-preview
+# GEMINI_MODEL=gemini-2.5-flash
 
 def _obter_config_secreta(nome: str, padrao: str = "") -> str:
     """Busca configuração primeiro no ambiente/.env e depois no st.secrets."""
@@ -137,7 +137,7 @@ def _obter_config_secreta(nome: str, padrao: str = "") -> str:
     return padrao
 
 GEMINI_API_KEY = _obter_config_secreta("GEMINI_API_KEY", "")
-GEMINI_MODEL = _obter_config_secreta("GEMINI_MODEL", "gemini-3-flash-preview")
+GEMINI_MODEL = _obter_config_secreta("GEMINI_MODEL", "gemini-2.5-flash")
 
 # ======================================================
 # CONFIGURAÇÃO STREAMLIT
@@ -2966,8 +2966,8 @@ def _resposta_local_segura_relatorio(texto: str, tarefa: str) -> str:
 def _modelos_gemini_para_tentar() -> list[str]:
     modelos = [
         str(GEMINI_MODEL or "").strip(),
-        "gemini-3-flash-preview",
         "gemini-2.5-flash",
+        "gemini-3-flash-preview",
         "gemini-flash-latest",
         "gemini-2.0-flash",
     ]
@@ -3067,7 +3067,7 @@ Não devolva o texto original sem transformação. Não repita termos ofensivos,
         if resposta.status_code >= 400:
             detalhes = resposta.text[:500]
             ultimo_erro_modelo = f"Erro ao acessar a IA online Gemini ({resposta.status_code}). Modelo: {modelo_tentativa}. Detalhes: {detalhes}"
-            if resposta.status_code == 404:
+            if resposta.status_code in (404, 429, 500, 502, 503, 504):
                 continue
             return ultimo_erro_modelo
 
