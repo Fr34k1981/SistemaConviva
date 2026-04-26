@@ -2867,6 +2867,7 @@ def buscar_infracao_fuzzy(busca: str, protocolo: dict) -> dict:
 # ======================================================
 # IA CONVIVA PEDAGÓGICA ONLINE — FUNÇÕES GEMINI
 # ======================================================
+
 PROMPT_IA_CONVIVA_PEDAGOGICA = """
 Você é a IA Conviva Pedagógica, uma assistente educacional criada para apoiar professores, coordenação e gestão escolar.
 
@@ -2894,380 +2895,45 @@ ESTILO DE ESCRITA:
 - Sem linguagem punitiva;
 - Sem exposição desnecessária do estudante.
 
-USO DE CONTEXTO E APRENDIZADO:
-A IA Conviva Pedagógica deve adaptar suas respostas com base nas informações, exemplos, modelos e orientações fornecidas pelo usuário durante o uso do sistema. Ela usa esses dados como referência de estilo, vocabulário, estrutura e contexto escolar. Ela não possui memória permanente por conta própria, salvo quando o sistema fornecer dados salvos como contexto.
+USO DE CONTEXTO:
+A IA deve adaptar suas respostas com base nas informações fornecidas pelo usuário.
 
-Quando receber um texto bruto:
-1. Corrigir ortografia e gramática;
-2. Melhorar a organização das ideias;
-3. Transformar linguagem informal em linguagem pedagógica;
-4. Manter o sentido original;
-5. Não acrescentar fatos novos;
-6. Gerar uma versão pronta para uso escolar.
-7. Se o texto tiver ofensas, rótulos ou julgamentos sobre o estudante, NÃO repita a ofensa. Reescreva de forma objetiva, respeitosa e pedagógica.
-
-Quando faltar informação, utilize:
-“Com as informações disponíveis, é possível redigir da seguinte forma:”
+Quando receber um texto:
+- Corrigir erros;
+- Melhorar organização;
+- Tornar pedagógico;
+- Manter sentido original;
+- Não inventar fatos;
+- Gerar versão pronta para uso escolar.
 """
 
 INSTRUCOES_TAREFAS_IA_RELATORIO = {
     "Corrigir ortografia e gramática": (
         "Corrija ortografia, acentuação, pontuação e concordância. "
-        "Mantenha o sentido, mas substitua termos inadequados por linguagem escolar respeitosa."
+        "Mantenha o sentido, mas substitua termos inadequados por linguagem respeitosa."
     ),
     "Melhorar escrita pedagógica": (
-        "Reescreva em linguagem pedagógica, profissional, humanizada e objetiva. "
-        "Remova julgamentos, ofensas e rótulos. Não invente fatos."
+        "Reescreva em linguagem pedagógica, profissional e objetiva. "
+        "Remova julgamentos e rótulos."
     ),
     "Deixar mais objetivo": (
-        "Reescreva de forma mais direta, clara e escolar, preservando somente as informações essenciais."
+        "Reescreva de forma direta, clara e escolar."
     ),
     "Transformar em parecer descritivo": (
-        "Transforme em parecer descritivo escolar, com tom formal, evidências informadas e linguagem não punitiva."
+        "Transforme em parecer descritivo escolar, com linguagem formal e não punitiva."
     ),
     "Sugerir encaminhamentos pedagógicos": (
-        "Não repita o texto bruto. Gere encaminhamentos pedagógicos possíveis para a escola, "
-        "incluindo acompanhamento, registros, combinados, estratégias de sala, diálogo com responsáveis quando pertinente "
-        "e monitoramento. Não faça diagnóstico clínico."
+        "Gere encaminhamentos pedagógicos possíveis sem fazer diagnóstico clínico."
     ),
     "Gerar escrita corrida do relatório": (
-        "Organize as informações em texto corrido de relatório escolar, com parágrafos coesos, "
-        "data, estudante, turma, professor responsável, síntese pedagógica, encaminhamentos e pontos de atenção."
+        "Organize em texto corrido com estrutura de relatório escolar."
     ),
 }
 
 TERMOS_OFENSIVOS_RELATORIO = [
-    "idiota", "burro", "burra", "preguiçoso", "preguiçosa", "incapaz",
-    "insuportável", "insuportavel", "problema", "mau aluno", "má aluna",
+    "idiota", "burro", "burra", "preguiçoso", "preguiçosa",
+    "incapaz", "insuportável", "problema", "mau aluno", "má aluna"
 ]
-
-def _texto_tem_termo_ofensivo(texto: str) -> bool:
-    texto_norm = normalizar_texto(texto or "")
-    return any(normalizar_texto(termo) in texto_norm for termo in TERMOS_OFENSIVOS_RELATORIO)
-
-def _normalizar_para_comparacao(texto: str) -> str:
-    return re.sub(r"\s+", " ", normalizar_texto(texto or "")).strip()
-
-def _resposta_local_segura_relatorio(texto: str, tarefa: str) -> str:
-    if tarefa == "Sugerir encaminhamentos pedagógicos":
-        return (
-            "Com as informações disponíveis, recomenda-se registrar a situação de forma objetiva, "
-            "observar o estudante em diferentes momentos da rotina escolar, propor combinados claros, "
-            "oferecer intervenções pedagógicas proporcionais à necessidade identificada e acompanhar a evolução. "
-            "Caso a situação persista, é indicado dialogar com a coordenação e, quando pertinente, com os responsáveis, "
-            "mantendo registros datados das ações realizadas."
-        )
-    return (
-        "Com as informações disponíveis, é possível registrar que o estudante apresenta uma situação que requer "
-        "acompanhamento pedagógico. Recomenda-se descrever fatos observáveis, evitar rótulos pessoais, indicar as "
-        "estratégias já adotadas e acompanhar a evolução com registros objetivos."
-    )
-
-def _modelos_gemini_para_tentar() -> list[str]:
-    modelos = [
-        str(GEMINI_MODEL or "").strip(),
-        "gemini-2.5-flash",
-        "gemini-3-flash-preview",
-        "gemini-flash-latest",
-        "gemini-2.0-flash",
-    ]
-    vistos = set()
-    resultado = []
-    for modelo in modelos:
-        modelo = modelo.replace("models/", "").strip()
-        if modelo and modelo not in vistos:
-            vistos.add(modelo)
-            resultado.append(modelo)
-    return resultado
-
-def _escolher_tarefa_ia_automatica(campo: str, texto: str) -> str:
-    campo_norm = normalizar_texto(campo)
-    if "ESCRITA CORRIDA" in campo_norm:
-        return "Gerar escrita corrida do relatório"
-    if "ESTRATEGIAS" in campo_norm or "ENCAMINHAMENTOS" in campo_norm:
-        return "Sugerir encaminhamentos pedagógicos"
-    if "PARECER" in campo_norm:
-        return "Transformar em parecer descritivo"
-    if _texto_tem_termo_ofensivo(texto):
-        return "Melhorar escrita pedagógica"
-    return "Melhorar escrita pedagógica"
-
-def ia_conviva_configurada() -> bool:
-    """Retorna True quando a chave online do Gemini está configurada."""
-    return bool(str(GEMINI_API_KEY or "").strip())
-
-def chamar_ia_conviva_online(texto: str, tarefa: str, contexto: str = "") -> str:
-    """Chama a API online do Google Gemini. Funciona na web, sem Ollama/localhost."""
-    texto = str(texto or "").strip()
-    tarefa = str(tarefa or "").strip()
-    contexto = str(contexto or "").strip()
-
-    if not texto:
-        return "Digite um texto antes de usar a IA."
-    if not ia_conviva_configurada():
-        return (
-            "A IA online ainda não está configurada. Configure a chave GEMINI_API_KEY "
-            "nas variáveis de ambiente ou nos Secrets do Streamlit."
-        )
-
-    instrucao_tarefa = INSTRUCOES_TAREFAS_IA_RELATORIO.get(tarefa, tarefa)
-
-    prompt_usuario = f"""
-Tarefa solicitada:
-{tarefa}
-
-Instruções específicas para esta tarefa:
-{instrucao_tarefa}
-
-Contexto escolar disponível:
-{contexto if contexto else "Não informado."}
-
-Texto informado:
-{texto}
-
-Responda em português do Brasil, apenas com o texto pronto para uso escolar.
-Não devolva o texto original sem transformação. Não repita termos ofensivos, apelidos, rótulos ou julgamentos pessoais.
-""".strip()
-
-    payload = {
-        "systemInstruction": {
-            "parts": [{"text": PROMPT_IA_CONVIVA_PEDAGOGICA}]
-        },
-        "contents": [
-            {
-                "role": "user",
-                "parts": [{"text": prompt_usuario}]
-            }
-        ],
-        "generationConfig": {
-            "temperature": 0.4,
-            "topP": 0.95,
-            "maxOutputTokens": 1400
-        }
-    }
-
-    ultimo_erro_modelo = ""
-    for modelo_tentativa in _modelos_gemini_para_tentar():
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo_tentativa}:generateContent"
-        try:
-            resposta = requests.post(
-                url,
-                headers={
-                    "x-goog-api-key": GEMINI_API_KEY,
-                    "Content-Type": "application/json",
-                },
-                json=payload,
-                timeout=90
-            )
-        except requests.exceptions.Timeout:
-            return "A IA demorou para responder. Tente novamente em alguns instantes."
-        except Exception as e:
-            return f"Erro ao acessar a IA online: {e}"
-
-        if resposta.status_code >= 400:
-            detalhes = resposta.text[:500]
-            ultimo_erro_modelo = f"Erro ao acessar a IA online Gemini ({resposta.status_code}). Modelo: {modelo_tentativa}. Detalhes: {detalhes}"
-            if resposta.status_code in (404, 429, 500, 502, 503, 504):
-                continue
-            return ultimo_erro_modelo
-
-        dados = resposta.json()
-        candidatos = dados.get("candidates", [])
-        if not candidatos:
-            return "A IA não retornou resposta. Tente novamente com um texto mais claro."
-
-        partes = candidatos[0].get("content", {}).get("parts", [])
-        texto_resposta = "\n".join(str(parte.get("text", "")).strip() for parte in partes if parte.get("text"))
-        texto_resposta = texto_resposta.strip()
-        if (
-            not texto_resposta
-            or _normalizar_para_comparacao(texto_resposta) == _normalizar_para_comparacao(texto)
-            or (_texto_tem_termo_ofensivo(texto) and _texto_tem_termo_ofensivo(texto_resposta))
-        ):
-            return _resposta_local_segura_relatorio(texto, tarefa)
-        return texto_resposta
-    if ultimo_erro_modelo:
-        return ultimo_erro_modelo
-    return "Não foi possível localizar um modelo Gemini disponível para gerar a resposta."
-
-def _campos_relatorio_ia() -> dict:
-    return {
-        "Desenvolvimento acadêmico": "relatorio_desenvolvimento",
-        "Observações comportamentais": "relatorio_comportamental",
-        "Estratégias e encaminhamentos": "relatorio_estrategias",
-        "Pontos de atenção": "relatorio_pontos_manuais",
-        "Ponto grave": "relatorio_ponto_grave",
-    }
-
-def _textos_campos_relatorio() -> dict:
-    return {
-        rotulo: str(st.session_state.get(chave, "") or "").strip()
-        for rotulo, chave in _campos_relatorio_ia().items()
-    }
-
-def montar_escrita_corrida_relatorio(contexto_relatorio: dict, textos_campos: dict) -> str:
-    linhas = [
-        f"Data do registro: {datetime.now().strftime('%d/%m/%Y %H:%M')}",
-        f"Professor(a): {contexto_relatorio.get('professor_editor', '') or 'Não informado'}",
-        f"Estudante: {contexto_relatorio.get('aluno', '')}",
-        f"RA: {contexto_relatorio.get('ra', '')}",
-        f"Turma: {contexto_relatorio.get('turma', '')}",
-        f"Situação geral: {contexto_relatorio.get('situacao_geral', '')}",
-        f"Frequência: {contexto_relatorio.get('frequencia', '')}%",
-        "",
-    ]
-    for rotulo, texto in textos_campos.items():
-        if texto:
-            linhas.append(f"{rotulo}: {texto}")
-    return "\n".join(linhas).strip()
-
-def adicionar_entrada_historico_escrita_corrida(historico: str, professor: str, texto: str) -> str:
-    texto = str(texto or "").strip()
-    if not texto:
-        return str(historico or "").strip()
-    cabecalho = f"{datetime.now().strftime('%d/%m/%Y %H:%M')} - {professor or 'Professor(a) não informado'}"
-    entrada = f"{cabecalho}\n{texto}"
-    historico = str(historico or "").strip()
-    return f"{historico}\n\n{entrada}".strip() if historico else entrada
-
-def render_ia_conviva_relatorio(contexto_relatorio: dict):
-    """Bloco visual da IA dentro do relatório do estudante."""
-    st.markdown("### 🤖 IA Conviva Pedagógica Online")
-
-    if ia_conviva_configurada():
-        st.success(f"IA online configurada com Gemini ({GEMINI_MODEL}).")
-    else:
-        st.warning(
-            "Configure GEMINI_API_KEY nos Secrets do Streamlit Cloud ou no arquivo .env para ativar a IA online. "
-            "Os professores não precisam instalar nada nos computadores."
-        )
-
-    opcoes_campo = _campos_relatorio_ia()
-    opcoes_campo_ia = list(opcoes_campo.keys()) + [
-        "Todos os campos preenchidos",
-        "Escrita corrida do relatório",
-    ]
-
-    campo_escolhido = st.selectbox(
-        "Campo que a IA deve revisar",
-        opcoes_campo_ia,
-        key="ia_conviva_campo_relatorio"
-    )
-
-    contexto_txt = "\n".join([
-        f"Estudante: {contexto_relatorio.get('aluno', '')}",
-        f"RA: {contexto_relatorio.get('ra', '')}",
-        f"Turma: {contexto_relatorio.get('turma', '')}",
-        f"Professor editor: {contexto_relatorio.get('professor_editor', '')}",
-        f"Coordenador(a): {contexto_relatorio.get('coordenador_sala', '')}",
-        f"Componente curricular: {contexto_relatorio.get('componente_curricular', '')}",
-        f"Situação geral: {contexto_relatorio.get('situacao_geral', '')}",
-        f"Frequência: {contexto_relatorio.get('frequencia', '')}%",
-    ])
-
-    textos_campos = _textos_campos_relatorio()
-    if campo_escolhido == "Todos os campos preenchidos":
-        texto_base = "\n\n".join(
-            f"{rotulo}: {texto}" for rotulo, texto in textos_campos.items() if texto
-        )
-        chave_campo = ""
-    elif campo_escolhido == "Escrita corrida do relatório":
-        texto_base = montar_escrita_corrida_relatorio(contexto_relatorio, textos_campos)
-        chave_campo = "relatorio_escrita_corrida_atual"
-        tarefa_escolhida = "Gerar escrita corrida do relatório"
-    else:
-        chave_campo = opcoes_campo[campo_escolhido]
-        texto_base = textos_campos.get(campo_escolhido, "")
-
-    tarefa_escolhida = _escolher_tarefa_ia_automatica(campo_escolhido, texto_base)
-    st.caption(f"A IA vai identificar e aplicar automaticamente a melhor escrita pedagógica para este texto. Modo usado: {tarefa_escolhida}.")
-
-    texto_para_ia = st.text_area(
-        "Texto que será enviado para a IA",
-        value=texto_base,
-        height=140,
-        key=f"ia_conviva_texto_editavel_{gerar_chave_segura(campo_escolhido)}",
-        help="Você pode ajustar este texto antes de gerar a sugestão."
-    )
-
-    col_b1, col_b2, col_b3 = st.columns([1, 1, 1])
-    with col_b1:
-        gerar = st.button("✨ Melhorar escrita com IA", type="primary", use_container_width=True, key="ia_conviva_gerar_btn")
-    with col_b2:
-        melhorar_todos = st.button("🪄 Melhorar todos os blocos", use_container_width=True, key="ia_conviva_todos_btn")
-    with col_b3:
-        limpar = st.button("🧹 Limpar sugestão", use_container_width=True, key="ia_conviva_limpar_btn")
-
-    if limpar:
-        st.session_state.pop("ia_conviva_resultado_relatorio", None)
-        st.session_state.pop("ia_conviva_campo_destino", None)
-        st.session_state.pop("ia_conviva_resultados_multiplos", None)
-        st.rerun()
-
-    if gerar:
-        if not str(texto_para_ia or "").strip():
-            st.warning("Preencha algum texto antes de usar a IA.")
-        else:
-            with st.spinner("A IA Conviva Pedagógica está preparando a sugestão..."):
-                resultado = chamar_ia_conviva_online(
-                    texto=texto_para_ia,
-                    tarefa=tarefa_escolhida,
-                    contexto=contexto_txt,
-                )
-                st.session_state["ia_conviva_resultado_relatorio"] = resultado
-                st.session_state["ia_conviva_campo_destino"] = chave_campo
-                st.session_state.pop("ia_conviva_resultados_multiplos", None)
-
-    if melhorar_todos:
-        campos_preenchidos = {
-            rotulo: texto for rotulo, texto in textos_campos.items() if texto
-        }
-        if not campos_preenchidos:
-            st.warning("Nenhum bloco preenchido para melhorar.")
-        else:
-            resultados = {}
-            with st.spinner("Melhorando todos os blocos preenchidos..."):
-                for rotulo, texto in campos_preenchidos.items():
-                    resultados[opcoes_campo[rotulo]] = chamar_ia_conviva_online(
-                        texto=texto,
-                        tarefa="Melhorar escrita pedagógica",
-                        contexto=f"{contexto_txt}\nCampo revisado: {rotulo}",
-                    )
-            st.session_state["ia_conviva_resultados_multiplos"] = resultados
-            st.session_state.pop("ia_conviva_resultado_relatorio", None)
-
-    resultados_multiplos = st.session_state.get("ia_conviva_resultados_multiplos", {})
-    if resultados_multiplos:
-        st.markdown("#### Sugestões para todos os blocos")
-        for chave, texto in resultados_multiplos.items():
-            rotulo = next((nome for nome, key in opcoes_campo.items() if key == chave), chave)
-            st.text_area(rotulo, value=texto, height=130, key=f"ia_resultado_multi_{chave}")
-        if st.button("✅ Aplicar sugestões em todos os blocos", use_container_width=True, key="ia_conviva_aplicar_todos_btn"):
-            for chave, texto in resultados_multiplos.items():
-                st.session_state[chave] = texto
-            st.session_state.pop("ia_conviva_resultados_multiplos", None)
-            st.success("Sugestões aplicadas aos blocos preenchidos.")
-            st.rerun()
-
-    resultado = st.session_state.get("ia_conviva_resultado_relatorio", "")
-    campo_destino = st.session_state.get("ia_conviva_campo_destino", chave_campo)
-    if resultado:
-        st.text_area(
-            "Sugestão da IA",
-            value=resultado,
-            height=220,
-            key="ia_conviva_resultado_area"
-        )
-        texto_botao = "✅ Usar sugestão no campo selecionado"
-        if campo_destino == "relatorio_escrita_corrida_atual":
-            texto_botao = "✅ Usar como escrita corrida"
-        if st.button(texto_botao, use_container_width=True, key="ia_conviva_usar_sugestao_btn"):
-            if campo_destino:
-                st.session_state[campo_destino] = resultado
-            st.success("Sugestão aplicada ao campo do relatório.")
-            st.rerun()
-
-
 # ======================================================
 # SISTEMA DE NOTIFICAÇÕES
 # ======================================================
