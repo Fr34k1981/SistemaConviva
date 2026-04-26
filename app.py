@@ -99,21 +99,30 @@ if SUPABASE_VALID:
 # ======================================================
 # IA CONVIVA PEDAGÓGICA ONLINE — GOOGLE GEMINI
 # ======================================================
-# Configure a variável GEMINI_API_KEY no ambiente ou em st.secrets.
-# No Streamlit Cloud: Settings > Secrets > GEMINI_API_KEY = "sua_chave"
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-try:
-    if not GEMINI_API_KEY and hasattr(st, "secrets"):
-        GEMINI_API_KEY = str(st.secrets.get("GEMINI_API_KEY", "")).strip()
-except Exception:
-    GEMINI_API_KEY = ""
+# SEGURANÇA:
+# Não coloque sua chave diretamente neste arquivo.
+# Configure no Streamlit Cloud em Settings > Secrets:
+# GEMINI_API_KEY = "sua_chave_aqui"
+# GEMINI_MODEL = "gemini-1.5-flash"
+#
+# Para rodar localmente, você também pode usar arquivo .env:
+# GEMINI_API_KEY=sua_chave_aqui
+# GEMINI_MODEL=gemini-1.5-flash
 
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
-try:
-    if hasattr(st, "secrets"):
-        GEMINI_MODEL = str(st.secrets.get("GEMINI_MODEL", GEMINI_MODEL)).strip() or GEMINI_MODEL
-except Exception:
-    pass
+def _obter_config_secreta(nome: str, padrao: str = "") -> str:
+    """Busca configuração primeiro no ambiente/.env e depois no st.secrets."""
+    valor = str(os.getenv(nome, "") or "").strip()
+    if valor:
+        return valor
+    try:
+        if hasattr(st, "secrets"):
+            return str(st.secrets.get(nome, padrao) or padrao).strip()
+    except Exception:
+        pass
+    return padrao
+
+GEMINI_API_KEY = _obter_config_secreta("GEMINI_API_KEY", "")
+GEMINI_MODEL = _obter_config_secreta("GEMINI_MODEL", "gemini-1.5-flash")
 
 # ======================================================
 # CONFIGURAÇÃO STREAMLIT
@@ -2966,7 +2975,7 @@ def render_ia_conviva_relatorio(contexto_relatorio: dict):
         st.success(f"IA online configurada com Gemini ({GEMINI_MODEL}).")
     else:
         st.warning(
-            "Configure GEMINI_API_KEY nos Secrets/variáveis de ambiente para ativar a IA online. "
+            "Configure GEMINI_API_KEY nos Secrets do Streamlit Cloud ou no arquivo .env para ativar a IA online. "
             "Os professores não precisam instalar nada nos computadores."
         )
 
