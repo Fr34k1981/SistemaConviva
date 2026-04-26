@@ -2910,6 +2910,7 @@ FLUXO DE TRABALHO:
 2. Corrija ortografia, gramática e remova o tom de desabafo do professor.
 3. Se o texto for curto, desenvolva um parágrafo coerente descrevendo a situação de forma neutra.
 4. Escreva o texto final pronto para ser assinado pelo professor e entregue à família ou gestão.
+5. Escreva sempre em português do Brasil. Datas devem aparecer em formato brasileiro, como 26/04/2026, nunca em inglês.
 """
 
 INSTRUCOES_TAREFAS_IA_RELATORIO = {
@@ -3134,6 +3135,7 @@ FORMATO OBRIGATÓRIO:
 - Não invente fatos, diagnósticos ou informações não fornecidas.
 - Não escreva recomendações para o professor. Escreva como escola/professor falando com a família ou registrando no prontuário.
 - Evite "recomenda-se". Prefira "a escola tem acompanhado", "temos observado", "será mantido acompanhamento", "solicitamos a parceria da família".
+- Datas devem ser escritas em português do Brasil e no formato DD/MM/AAAA.
 """.strip()
 
     payload = {
@@ -3186,13 +3188,6 @@ FORMATO OBRIGATÓRIO:
 
 def render_ia_conviva_relatorio(contexto_relatorio: dict):
     """Bloco visual da IA dentro do relatório do estudante."""
-
-    pendente = st.session_state.pop("ia_conviva_aplicar_pendente", None)
-    if pendente:
-        campo = pendente.get("campo")
-        texto = pendente.get("texto", "")
-        if campo:
-            st.session_state[campo] = texto
 
     st.markdown("### 🤖 IA Conviva Pedagógica Online")
 
@@ -5876,7 +5871,7 @@ elif "REGISTRAR OCORR" in normalizar_texto(menu):
 
     c1, c2 = st.columns(2)
     with c1:
-        data_fato = st.date_input("Data do fato", value=agora.date(), key="data_fato")
+        data_fato = st.date_input("Data do fato", value=agora.date(), key="data_fato", format="DD/MM/YYYY")
     with c2:
         hora_fato = st.time_input("Hora do fato", value=agora.time(), key="hora_fato")
 
@@ -6073,7 +6068,7 @@ elif "HISTORICO DE OCORRENCIA" in normalizar_texto(menu):
             hoje = datetime.now().date()
             dt_min = hoje
             dt_max = hoje
-        periodo = st.date_input("Per?odo", value=(dt_min, dt_max), min_value=dt_min, max_value=dt_max, key="hist_periodo")
+        periodo = st.date_input("Per?odo", value=(dt_min, dt_max), min_value=dt_min, max_value=dt_max, key="hist_periodo", format="DD/MM/YYYY")
 
     df_view = df_ocorrencias.copy()
     if filtro_turma != "Todas":
@@ -6452,7 +6447,7 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
         else:
             editor_manual = ""
         data_inicio = st.date_input("📅 Data inicial", value=data_inicio_padrao,
-                                     key="relatorio_data_inicio")
+                                     key="relatorio_data_inicio", format="DD/MM/YYYY")
         frequencia = st.number_input(
             "📊 Frequência (%)", min_value=0.0, max_value=100.0,
             value=float(registro_relatorio.get("frequencia_percentual", 100) or 100),
@@ -6472,7 +6467,7 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
             key="relatorio_componente"
         )
         data_fim = st.date_input("📅 Data final", value=data_fim_padrao,
-                                  min_value=data_inicio, key="relatorio_data_fim")
+                                  min_value=data_inicio, key="relatorio_data_fim", format="DD/MM/YYYY")
         situacao_geral = st.selectbox(
             "🧩 Situação geral",
             ["Em acompanhamento", "Evoluindo bem", "Atenção", "Atenção imediata", "Necessita intervenção"],
@@ -6519,6 +6514,14 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
         value=bool(registro_relatorio.get("indicacao_grave_professor", False)),
         key="relatorio_indicacao_grave"
     )
+
+    sugestao_pendente = st.session_state.pop("ia_conviva_aplicar_pendente", None)
+    if sugestao_pendente:
+        campo_pendente = sugestao_pendente.get("campo")
+        texto_pendente = sugestao_pendente.get("texto", "")
+        if campo_pendente:
+            st.session_state[campo_pendente] = texto_pendente
+
     descricao_ponto_grave = st.text_area(
         "Descrição do ponto grave",
         value=str(registro_relatorio.get("descricao_ponto_grave", "")).strip(),
@@ -8009,9 +8012,9 @@ elif menu == "📊 Gráficos e Indicadores":
     elif filtro_periodo == "Personalizado":
         col1, col2 = st.columns(2)
         with col1:
-            data_ini = st.date_input("Data inicial", value=agora.date() - timedelta(days=30))
+            data_ini = st.date_input("Data inicial", value=agora.date() - timedelta(days=30), format="DD/MM/YYYY")
         with col2:
-            data_fim = st.date_input("Data final", value=agora.date())
+            data_fim = st.date_input("Data final", value=agora.date(), format="DD/MM/YYYY")
         df_filtro = df_filtro[(df_filtro["data_dt"].dt.date >= data_ini) & (df_filtro["data_dt"].dt.date <= data_fim)]
 
     if filtro_turma != "Todas":
@@ -8223,8 +8226,8 @@ elif menu == "🖨️ Imprimir PDF":
     st.subheader("🔍 Filtros")
     col1, col2 = st.columns(2)
     with col1:
-        data_inicio = st.date_input("📅 Data inicial", value=datetime.now() - timedelta(days=30))
-        data_fim = st.date_input("📅 Data final", value=datetime.now())
+        data_inicio = st.date_input("📅 Data inicial", value=datetime.now() - timedelta(days=30), format="DD/MM/YYYY")
+        data_fim = st.date_input("📅 Data final", value=datetime.now(), format="DD/MM/YYYY")
     with col2:
         alunos_disp = sorted(df_ocorrencias["aluno"].unique().tolist())
         professores_disp = sorted(df_ocorrencias["professor"].unique().tolist())
@@ -11809,7 +11812,7 @@ elif menu == "📅 Agendamento de Espaços":
                 with col2:
                     prioridade = st.selectbox("⭐ Prioridade:", [""] + PRIORIDADES_ESTENDIDAS + ["NORMAL"])
                     espaco = st.selectbox("📍 Espaço:", [""] + ESPACOS_AGEND)
-                    data = st.date_input("📅 Data:", min_value=datetime.now().date() + timedelta(days=1))
+                    data = st.date_input("📅 Data:", min_value=datetime.now().date() + timedelta(days=1), format="DD/MM/YYYY")
                 
                 horario1 = st.selectbox("1ª Aula:", [""] + HORARIOS_AGEND)
                 horario2 = st.selectbox("2ª Aula (opcional):", [""] + HORARIOS_AGEND)
@@ -11920,9 +11923,9 @@ elif menu == "📅 Agendamento de Espaços":
         
         col1, col2, col3 = st.columns(3)
         with col1:
-            data_ini = st.date_input("Data início:", datetime.now().date() - timedelta(days=30), key="meus_ini")
+            data_ini = st.date_input("Data início:", datetime.now().date() - timedelta(days=30), key="meus_ini", format="DD/MM/YYYY")
         with col2:
-            data_fim = st.date_input("Data fim:", datetime.now().date() + timedelta(days=60), key="meus_fim")
+            data_fim = st.date_input("Data fim:", datetime.now().date() + timedelta(days=60), key="meus_fim", format="DD/MM/YYYY")
         with col3:
             st.markdown("<br>", unsafe_allow_html=True)
             buscar_btn = st.button("🔍 Buscar", key="btn_buscar_agend", type="primary", use_container_width=True)
@@ -12039,7 +12042,7 @@ elif menu == "📅 Agendamento de Espaços":
                 
                 data_ref = st.date_input("📅 Data de referência para verificar disponibilidade:", 
                                         value=datetime.now().date() + timedelta(days=7),
-                                        key="data_ref")
+                                        key="data_ref", format="DD/MM/YYYY")
                 
                 for hora in horarios_aulas:
                     with st.expander(f"🕐 {hora}", expanded=False):
@@ -12115,9 +12118,9 @@ elif menu == "📅 Agendamento de Espaços":
                 # Período letivo
                 col1, col2 = st.columns(2)
                 with col1:
-                    data_inicio = st.date_input("📅 Data de início:", value=datetime(2026, 2, 1).date(), key="grade_inicio")
+                    data_inicio = st.date_input("📅 Data de início:", value=datetime(2026, 2, 1).date(), key="grade_inicio", format="DD/MM/YYYY")
                 with col2:
-                    data_fim = st.date_input("📅 Data de término:", value=datetime(2026, 12, 20).date(), key="grade_fim")
+                    data_fim = st.date_input("📅 Data de término:", value=datetime(2026, 12, 20).date(), key="grade_fim", format="DD/MM/YYYY")
                 
                 frequencia = st.radio(
                     "🔄 Frequência:",
@@ -12278,7 +12281,8 @@ elif menu == "📅 Agendamento de Espaços":
         data_grade_dia = st.date_input(
             "Data da grade diária:",
             datetime.now().date(),
-            key="grade_dia_data_espacos"
+            key="grade_dia_data_espacos",
+            format="DD/MM/YYYY"
         )
         horarios_grade_dia = [
             "07:00-07:50",
@@ -12405,9 +12409,9 @@ elif menu == "📅 Agendamento de Espaços":
         with col1:
             espaco_sel = st.selectbox("📍 Espaço:", ESPACOS_AGEND, key="viz_espaco")
         with col2:
-            data_ini = st.date_input("Data início:", datetime.now().date(), key="viz_ini")
+            data_ini = st.date_input("Data início:", datetime.now().date(), key="viz_ini", format="DD/MM/YYYY")
         with col3:
-            data_fim = st.date_input("Data fim:", datetime.now().date() + timedelta(days=30), key="viz_fim")
+            data_fim = st.date_input("Data fim:", datetime.now().date() + timedelta(days=30), key="viz_fim", format="DD/MM/YYYY")
         
         if st.button("🔍 Carregar Agenda", type="primary", use_container_width=True):
             df = carregar_agendamentos_filtrado(data_ini.strftime("%Y-%m-%d"), data_fim.strftime("%Y-%m-%d"), espaco=espaco_sel)
@@ -12526,9 +12530,9 @@ elif menu == "📅 Agendamento de Espaços":
         
         col1, col2 = st.columns(2)
         with col1:
-            data_ini = st.date_input("Data início:", datetime.now().date(), key="dash_ini")
+            data_ini = st.date_input("Data início:", datetime.now().date(), key="dash_ini", format="DD/MM/YYYY")
         with col2:
-            data_fim = st.date_input("Data fim:", datetime.now().date() + timedelta(days=7), key="dash_fim")
+            data_fim = st.date_input("Data fim:", datetime.now().date() + timedelta(days=7), key="dash_fim", format="DD/MM/YYYY")
         
         if st.button("📊 Carregar Dashboard", type="primary"):
             df = carregar_agendamentos_filtrado(data_ini.strftime("%Y-%m-%d"), data_fim.strftime("%Y-%m-%d"))
@@ -12615,9 +12619,9 @@ elif menu == "📅 Agendamento de Espaços":
         
         col1, col2 = st.columns(2)
         with col1:
-            data_ini = st.date_input("Data início:", datetime.now().date() - timedelta(days=30), key="rel_ini")
+            data_ini = st.date_input("Data início:", datetime.now().date() - timedelta(days=30), key="rel_ini", format="DD/MM/YYYY")
         with col2:
-            data_fim = st.date_input("Data fim:", datetime.now().date() + timedelta(days=30), key="rel_fim")
+            data_fim = st.date_input("Data fim:", datetime.now().date() + timedelta(days=30), key="rel_fim", format="DD/MM/YYYY")
         
         if st.button("📊 Gerar Relatório", key="btn_rel", type="primary"):
             df = carregar_agendamentos_filtrado(data_ini.strftime("%Y-%m-%d"), data_fim.strftime("%Y-%m-%d"))
@@ -12678,9 +12682,9 @@ elif menu == "📅 Agendamento de Espaços":
             
             col1, col2 = st.columns(2)
             with col1:
-                data_ini = st.date_input("Início:", datetime.now().date(), key="gest_ini")
+                data_ini = st.date_input("Início:", datetime.now().date(), key="gest_ini", format="DD/MM/YYYY")
             with col2:
-                data_fim = st.date_input("Fim:", datetime.now().date() + timedelta(days=30), key="gest_fim")
+                data_fim = st.date_input("Fim:", datetime.now().date() + timedelta(days=30), key="gest_fim", format="DD/MM/YYYY")
             
             if st.button("🔍 Carregar Agendamentos", type="primary"):
                 df = carregar_agendamentos_filtrado(data_ini.strftime("%Y-%m-%d"), data_fim.strftime("%Y-%m-%d"))
