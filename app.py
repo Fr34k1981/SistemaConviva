@@ -458,6 +458,18 @@ button {
     margin: 0 auto;
 }
 
+.school-dashboard-photo {
+    width: min(100%, 760px);
+    height: 150px;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+    margin: 0 auto 1.25rem auto;
+    border-radius: 20px;
+    border: 1.5px solid rgba(255,255,255,0.88);
+    box-shadow: 0 16px 30px rgba(49,33,95,0.16);
+}
+
 .school-name {
     font-family: 'Nunito', sans-serif !important;
     font-size: clamp(1.8rem, 2.6vw, 2.45rem);
@@ -2897,12 +2909,15 @@ LIMITES INEGOCIÁVEIS:
 PRINCÍPIOS DA ESCRITA PEDAGÓGICA:
 1. Foco na descrição, não no julgamento: descreva o que o estudante faz, não o que ele é.
 2. Proteção e dignidade: olhar humanizado focado nas potencialidades.
-3. Objetividade e clareza: texto coeso, formal e acessível para a família.
+3. Objetividade e clareza: texto coeso, formal, natural e acessível para a família.
+4. Escreva como uma escola real escreveria: sem exagerar, sem linguagem robótica e sem termos técnicos desnecessários.
+5. Quando a situação envolver convivência, regras, excesso de fala ou conduta inadequada, seja direto: fale em combinados de convivência, regimento escolar, falas excessivas, atitudes em desacordo com a rotina escolar e necessidade de parceria da família.
 
 DIRETRIZES DE TRADUÇÃO PEDAGÓGICA:
-- De "Aluno agitado" para "O estudante demonstra alta demanda motora."
-- De "Aluno agressivo" para "O estudante apresentou comportamento reativo diante de situação de frustração."
-- De "Preguiçoso/Não faz nada" para "O estudante necessita de estímulo para iniciar e manter o engajamento nas atividades propostas."
+- De "Aluno agitado" para "O estudante tem apresentado dificuldade para manter-se atento e respeitar os combinados da rotina."
+- De "Aluno agressivo" para "O estudante apresentou atitude em desacordo com os combinados de convivência."
+- De "Preguiçoso/Não faz nada" para "O estudante necessita de acompanhamento para iniciar e concluir as atividades propostas."
+- De "Barulhento/fala demais" para "O estudante tem mantido falas frequentes e em volume excessivo, em desacordo com os combinados da rotina escolar."
 - De "Família não liga" para "Ressaltamos a importância de estreitar a parceria com a família no acompanhamento da rotina."
 
 FLUXO DE TRABALHO:
@@ -2919,9 +2934,10 @@ INSTRUCOES_TAREFAS_IA_RELATORIO = {
         "e adequado para leitura por parte da gestão escolar ou da família do estudante."
     ),
     "Melhorar escrita pedagógica (Relatório/Família)": (
-        "Reescreva o texto em linguagem técnica, acolhedora e objetiva. "
-        "Assuma a voz do educador relatando o caso. Se houver ações necessárias, descreva-as como medidas que a "
-        "escola está adotando ou como um convite à parceria da família. Não dê instruções diretas ao professor."
+        "Reescreva o texto em linguagem pedagógica simples, acolhedora e objetiva, sem ficar técnico demais. "
+        "Assuma a voz da escola relatando o caso para a família ou prontuário. Diga apenas o que realmente precisa "
+        "ser comunicado. Se houver ações necessárias, descreva-as como acompanhamento da escola ou convite à parceria "
+        "da família. Não dê instruções diretas ao professor."
     ),
     "Transformar em registro de ocorrência (Placon)": (
         "Transforme os fatos em um registro oficial, neutro e descritivo. "
@@ -2929,8 +2945,8 @@ INSTRUCOES_TAREFAS_IA_RELATORIO = {
         "sem emitir juízo de valor."
     ),
     "Transformar em parecer descritivo de aprendizagem": (
-        "Elabore um parecer descritivo de aprendizagem. Escreva na voz da escola, focando nas potencialidades e, "
-        "em seguida, nas habilidades em desenvolvimento. Finalize mencionando como a escola está mediando esses desafios."
+        "Elabore um parecer descritivo de aprendizagem. Escreva na voz da escola, com linguagem natural e objetiva, "
+        "mencionando potencialidades, pontos que precisam de acompanhamento e como a escola vem acompanhando."
     ),
     "Sugerir comunicados ou encaminhamentos para a Família": (
         "Transforme o relato em um texto direcionado aos responsáveis, como comunicado ou encaminhamento. "
@@ -2950,6 +2966,8 @@ TERMOS_OFENSIVOS_RELATORIO = [
     "mau aluno", "má aluna", "mau caráter", "malcriado", "malcriada", "rebelde",
     "agressivo", "agressiva", "violento", "violenta", "indisciplinado", "indisciplinada",
     "briguento", "briguenta", "briga muito", "vive brigando", "arruma briga",
+    "barulhento", "barulhenta", "fala demais", "conversa demais", "conversa excessiva",
+    "excesso de fala", "falas excessivas", "desrespeitoso", "desrespeitosa",
     "baderneiro", "baderneira", "fofoqueiro", "mentiroso", "mentirosa", "manipulador",
     "não quer nada com nada", "não faz nada", "só atrapalha", "não tem jeito",
     "caso perdido", "não presta atenção em nada", "vive no mundo da lua",
@@ -3035,7 +3053,7 @@ def _texto_tem_termo_inadequado(texto: str) -> bool:
     texto_bruto = str(texto or "").lower()
     return (
         any(normalizar_texto(termo) in texto_norm for termo in TERMOS_OFENSIVOS_RELATORIO)
-        or any(fragmento in texto_bruto for fragmento in ("pregui", "idiota", "burro", "incapaz", "relaxad", "desleixad", "brigu"))
+        or any(fragmento in texto_bruto for fragmento in ("pregui", "idiota", "burro", "incapaz", "relaxad", "desleixad", "brigu", "barulh", "excess", "desrespeit"))
     )
 
 
@@ -3087,26 +3105,29 @@ def _resposta_pedagogica_local(texto: str, tarefa: str) -> str:
     """Resposta útil quando a API falha ou devolve algo fraco."""
     texto_norm = normalizar_texto(texto or "")
     texto_bruto = str(texto or "").lower()
+    sujeito = "A estudante" if ("a estudante" in texto_bruto or "aluna" in texto_bruto) else "O estudante"
+    if "barulh" in texto_bruto or "fala demais" in texto_bruto or "conversa demais" in texto_bruto or "excesso" in texto_bruto:
+        return (
+            f"{sujeito} tem mantido comportamento em desacordo com o regimento escolar, com falas frequentes, "
+            "em volume excessivo e em dissonância com os combinados de convivência. A escola tem realizado orientações "
+            "e solicita a parceria da família para reforçar atitudes de respeito e adequação à rotina escolar."
+        )
     if "brigu" in texto_bruto:
         return (
-            "O estudante tem apresentado desafios nas interações com os colegas, especialmente em situações que exigem diálogo, "
-            "escuta e resolução de conflitos. A escola tem acompanhado essas situações por meio de mediação, orientação sobre convivência "
-            "e retomada dos combinados coletivos, buscando favorecer relações mais respeitosas no ambiente escolar. Solicitamos a parceria "
-            "da família no diálogo sobre atitudes de respeito, autocontrole e formas adequadas de resolver desacordos."
+            f"{sujeito} tem apresentado atitudes em desacordo com os combinados de convivência, especialmente em situações "
+            "de interação com colegas. A escola tem realizado mediações e retomado as orientações previstas no regimento escolar, "
+            "solicitando a parceria da família para reforçar atitudes de respeito e diálogo."
         )
     if "preguicos" in texto_norm or "pregui" in texto_norm or "pregui" in texto_bruto:
         return (
-            "O estudante tem demonstrado necessidade de estímulo para iniciar, manter e concluir as atividades propostas. "
-            "No acompanhamento realizado pela escola, temos oferecido orientações objetivas, organização das tarefas em etapas "
-            "menores e incentivo à participação nas atividades. Ressaltamos a importância da parceria com a família para fortalecer "
-            "a rotina de estudos, a realização das atividades e o acompanhamento contínuo de seu desenvolvimento escolar."
+            f"{sujeito} necessita de acompanhamento para iniciar, manter e concluir as atividades propostas. A escola tem "
+            "realizado orientações durante a rotina e solicita a parceria da família para fortalecer a organização dos estudos "
+            "e a realização das atividades."
         )
     if "idiota" in texto_norm or "burro" in texto_norm or "incapaz" in texto_norm:
         return (
-            "O estudante tem apresentado necessidade de acompanhamento pedagógico para fortalecer sua participação e seu desenvolvimento "
-            "nas atividades escolares. A escola tem observado as habilidades que ainda estão em desenvolvimento e realizado intervenções "
-            "adequadas ao seu ritmo de aprendizagem, mantendo o acompanhamento de sua evolução de forma contínua, respeitosa e colaborativa "
-            "com a família."
+            f"{sujeito} necessita de acompanhamento pedagógico para fortalecer sua participação nas atividades escolares. "
+            "A escola seguirá acompanhando seu desenvolvimento de forma respeitosa e manterá diálogo com a família sempre que necessário."
         )
     if tarefa == "Sugerir comunicados ou encaminhamentos para a Família":
         return (
@@ -3154,6 +3175,9 @@ FORMATO OBRIGATÓRIO:
 - Responda apenas com a versão pronta para uso escolar, em português do Brasil.
 - Não use títulos, listas, bullets, numeração, markdown ou negrito.
 - Produza um parágrafo pedagógico completo, claro e útil para relatório escolar.
+- Use linguagem simples, humana e direta. Evite parecer texto de robô.
+- Evite termos genéricos ou técnicos demais, como "engajamento", "alta demanda motora", "ambiente de aprendizagem" e "habilidades em desenvolvimento", salvo quando forem indispensáveis.
+- Se o texto original tratar de fala excessiva, barulho, briga ou conduta, prefira linguagem regimental clara: combinados de convivência, regimento escolar, falas excessivas, atitudes em desacordo com a rotina escolar.
 - Não explique que a frase original é inadequada; apenas entregue a reescrita.
 - Não invente fatos, diagnósticos ou informações não fornecidas.
 - Não escreva recomendações para o professor. Escreva como escola/professor falando com a família ou registrando no prontuário.
@@ -3205,6 +3229,18 @@ FORMATO OBRIGATÓRIO:
                 and finish_reason != "MAX_TOKENS"
                 and not _saida_parece_incompleta(saida)
             ):
+                saida_norm = normalizar_texto(saida)
+                texto_norm_original = normalizar_texto(texto)
+                saida_robotica = any(
+                    termo in saida_norm
+                    for termo in ("ENGAJAMENTO", "AMBIENTE DE APRENDIZAGEM", "ALTA DEMANDA MOTORA", "HABILIDADES EM DESENVOLVIMENTO")
+                )
+                caso_regimental = any(
+                    termo in texto_norm_original
+                    for termo in ("BARULH", "BRIGU", "BRIGA", "FALA DEMAIS", "EXCESS", "DESRESPEIT")
+                )
+                if saida_robotica and caso_regimental:
+                    return _resposta_pedagogica_local(texto, tarefa)
                 return saida
         return _resposta_pedagogica_local(texto, tarefa)
     except Exception as e:
@@ -5481,12 +5517,25 @@ exibir_assistente_sidebar()
 # PÁGINA 🏠 DASHBOARD - COMPLETO E COLORIDO
 # ======================================================
 
+def formatar_data_extenso_pt(data_ref=None) -> str:
+    data_ref = data_ref or datetime.now()
+    dias = [
+        "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira",
+        "sexta-feira", "sábado", "domingo"
+    ]
+    meses = [
+        "janeiro", "fevereiro", "março", "abril", "maio", "junho",
+        "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"
+    ]
+    return f"{dias[data_ref.weekday()]}, {data_ref.day:02d} de {meses[data_ref.month - 1]} de {data_ref.year}"
+
 if menu == "🏠 Dashboard":
     # ── Header Premium da Escola ──────────────────────────────
     st.markdown(f"""
     <div class="main-header animate-fade-in">
         <div class="pattern"></div>
         <div class="school-header-inner">
+            <img class="school-dashboard-photo" src="data:image/jpeg;base64,{ESCOLA_IMAGEM_MENU_BASE64}" alt="Foto da escola">
             <div class="school-name">🏫 {ESCOLA_NOME}</div>
             <div class="school-subtitle">{ESCOLA_SUBTITULO}</div>
             <div class="school-info-chips">
@@ -5518,7 +5567,7 @@ if menu == "🏠 Dashboard":
             ">{saudacao}! Bem-vindo ao Sistema Conviva 179</div>
             <div style="color: #5b5679; font-size: 0.9rem;">
                 Gerencie ocorrências, alunos e agendamentos de forma inteligente.
-                &nbsp;·&nbsp; <b style="color: #7c3aed;">{datetime.now().strftime('%A, %d de %B de %Y')}</b>
+                &nbsp;·&nbsp; <b style="color: #7c3aed;">{formatar_data_extenso_pt()}</b>
             </div>
         </div>
     </div>
