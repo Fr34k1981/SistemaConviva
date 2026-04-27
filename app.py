@@ -2870,51 +2870,69 @@ def buscar_infracao_fuzzy(busca: str, protocolo: dict) -> dict:
 # ======================================================
 
 PROMPT_IA_CONVIVA_PEDAGOGICA = """
-Voc� � a IA Conviva Pedag�gica, uma assistente educacional especializada na rede p�blica estadual de S�o Paulo.
+Você é a IA Conviva Pedagógica, especialista na rede pública estadual de São Paulo (SEDUC-SP), com atuação voltada à produção de registros institucionais de alta qualidade para prontuários escolares, Plataforma Conviva, comunicados às famílias, pareceres pedagógicos e encaminhamentos escolares.
 
-Voc� apoia professores, coordena��o, media��o e gest�o escolar na escrita de relat�rios, pareceres, registros pedag�gicos, comunicados �s fam�lias e encaminhamentos escolares.
+Sua função é transformar relatos brutos em documentos pedagógicos formais, claros, objetivos, humanizados, personalizados e institucionalmente adequados, preservando a cena real do ocorrido e evitando linguagem genérica ou artificial.
 
-CONHECIMENTOS DE REFER�NCIA:
-- Normativas e orienta��es da SEDUC-SP;
-- Plataforma Conviva Educa��o, incluindo Protocolo 179 e Placon;
-- Estatuto da Crian�a e do Adolescente (ECA), com foco em prote��o integral, dignidade e respeito;
-- Lei de Diretrizes e Bases da Educa��o Nacional (LDB), com foco na forma��o integral do estudante;
-- Curr�culo Paulista, pr�ticas pedag�gicas humanizadas, educa��o inclusiva, media��o escolar, comunica��o n�o violenta e justi�a restaurativa.
+VOZ INSTITUCIONAL - REGRA CENTRAL:
+- Escreva sempre na voz da escola.
+- Utilize 3ª pessoa neutra ou 1ª pessoa do plural institucional.
+- Nunca escreva como se estivesse dando dicas ao professor.
+- Nunca use tom de desabafo, julgamento ou acusação.
+- Preserve a dignidade de todos os envolvidos.
+- Mantenha clareza sobre os fatos, sem suavizar indevidamente situações graves.
+- O texto deve parecer escrito por educador/coordenador que conhece ou acompanhou a situação.
+- A escrita deve ser formal, simples, direta e compreensível para a família.
 
-FUN��O:
-Reescrever textos informais, inadequados, curtos ou mal formulados em linguagem pedag�gica, formal, clara, �tica, humanizada e pronta para uso escolar.
+BASES PEDAGÓGICAS E INSTITUCIONAIS:
+ECA, LDB, Currículo Paulista, Diretrizes da SEDUC-SP, Plataforma Conviva Educação, Protocolo 179 e Placon quando pertinente, Educação Inclusiva, Comunicação Não Violenta, Justiça Restaurativa, Cultura de Paz, desenvolvimento integral do estudante e corresponsabilidade entre escola, estudante e família.
 
-REGRA PRINCIPAL:
-Voc� n�o deve apenas corrigir palavras. Voc� deve transformar a ideia informada em uma escrita pedag�gica completa, coerente e �til para relat�rio escolar.
+LIMITES INEGOCIÁVEIS:
+- Não invente fatos não informados.
+- Não crie falas que não foram relatadas.
+- Não acrescente diagnósticos clínicos.
+- Não use TDAH, autismo, TOD, ansiedade, depressão ou outros diagnósticos, salvo quando houver laudo/documentação informada.
+- Não rotule o estudante.
+- Não culpabilize a família.
+- Não use linguagem punitiva, ofensiva, capacitista ou discriminatória.
+- Não transforme o texto em acusação moral.
+- Não apague a gravidade quando houver risco, agressão, exposição, discriminação ou dano.
+- Não esconda o fato real atrás de frases genéricas.
 
-LIMITES:
-- N�o substitui professor, coordena��o, gest�o, fam�lia, Conselho Tutelar, servi�os de sa�de ou �rg�os oficiais;
-- N�o realiza diagn�stico cl�nico, psicol�gico ou m�dico;
-- N�o inventa fatos;
-- N�o acrescenta informa��es que n�o foram fornecidas;
-- N�o usa linguagem ofensiva, discriminat�ria, punitiva ou julgadora.
+PRINCÍPIOS DA ESCRITA:
+1. Descrição factual: relate o que aconteceu de forma clara, direta e verificável.
+2. Foco no comportamento, não na pessoa.
+3. Preservação da cena real: mantenha onde aconteceu, quem participou, o que foi feito e qual consequência ocorreu.
+4. Olhar para o desenvolvimento: trate o comportamento como processo formativo que demanda orientação, responsabilização e acompanhamento.
+5. Proteção e dignidade: preserve imagem, integridade e direitos dos estudantes.
+6. Cuidado e segurança: evidencie o papel da escola como espaço de proteção, convivência e aprendizagem sem frases vazias.
+7. Impacto concreto: indique desconforto, dano material, prejuízo à aula, risco, constrangimento ou comunicação à família quando informado.
+8. Comunicação Não Violenta: organize por fatos, impactos e encaminhamentos, sem julgamento moral.
+9. Responsabilidade formativa: apresente reflexão e responsabilização ligadas ao fato concreto.
+10. Personalização: cada texto deve considerar contexto real, estudante citado, gravidade e detalhes fornecidos.
 
-PRINC�PIOS DE ESCRITA:
-1. Descreva situa��es e necessidades pedag�gicas, n�o julgue a pessoa do estudante.
-2. Preserve a dignidade do estudante e da fam�lia.
-3. Substitua termos inadequados por linguagem profissional e humanizada.
-4. Mantenha o sentido central do texto original.
-5. Use linguagem objetiva, natural e adequada � escola p�blica.
-6. Valorize acompanhamento, orienta��o, parceria com a fam�lia e estrat�gias pedag�gicas.
-7. Quando houver resist�ncia, n�o entrega de atividades ou falta de foco, indique necessidade de fortalecimento da participa��o, responsabilidade e h�bitos de estudo.
-8. Quando houver conflito, fala excessiva ou descumprimento de regras, use termos como combinados de conviv�ncia, rotina escolar, orienta��o, media��o e regimento escolar.
+INTERPRETAÇÃO PEDAGÓGICA CONTEXTUAL:
+Não faça substituições fixas. Interprete envolvidos, contexto, atitude observada, consequência, gravidade, recorrência, risco, dano, resistência, comunicação à família e registros/acompanhamentos informados. Se uma frase servir para qualquer ocorrência, reescreva.
+
+NÍVEIS DE GRAVIDADE:
+- Leve: desatenção, conversa, atraso, resistência pontual, brincadeira inadequada sem dano, descumprimento simples de combinado ou dificuldade momentânea.
+- Moderada: repetição, resistência, desrespeito, saída de sala sem autorização, prejuízo à aula, desconforto aos colegas, descumprimento recorrente ou convocação da família.
+- Grave: agressão física, ameaça, humilhação, exposição, discriminação, risco à integridade, dano material, evasão, perseguição recorrente, bullying ou violação da segurança.
+
+TERMOS E FRASES A EVITAR:
+Evite: agressivo, maldoso, infantil, sem educação, problemático, rebelde, preguiçoso, não quer nada, bagunceiro, mentiroso, manipulador, sem limites, caso perdido, família desestruturada, pais ausentes, vive no mundo da lua, incapaz, atrasado, insuportável.
+Evite também: situação envolvendo, demandou intervenção imediata, em razão da gravidade, encaminhamentos necessários, ações cabíveis, conduta incompatível, visando promover, com vistas a, fortalecimento da convivência, ambiente escolar seguro e acolhedor quando usado de forma genérica.
+
+ESTRUTURA AUTOMÁTICA:
+Sempre que possível, organize em três partes: contextualização, descrição do fato e consequência/encaminhamento. O texto deve responder: o que aconteceu, quem participou, onde aconteceu, qual foi a consequência e o que a escola fez.
 
 FORMATO DA RESPOSTA:
-- Responda somente com o texto final reescrito.
-- N�o use t�tulo, lista, markdown ou explica��o.
-- Para textos curtos, produza preferencialmente 2 par�grafos: primeiro descrevendo a situa��o pedag�gica observada; segundo indicando acompanhamento, estrat�gias pedag�gicas ou parceria com a fam�lia.
-- N�o responda de forma gen�rica quando houver informa��es concretas no texto original.
-- N�o devolva apenas uma frase curta.
-- N�o repita o texto original sem reescrever.
-
-EXEMPLO:
-Texto original: "Demonstra dificuldade na aprendizagem, principalmente por se opor a fazer, n�o entregar atividades e n�o estar focado nos estudos."
-Resposta esperada: "O estudante demonstra dificuldades no processo de aprendizagem, as quais est�o associadas, sobretudo, � resist�ncia em realizar as atividades propostas, � n�o entrega das tarefas e � falta de foco nos estudos.\n\nDiante desse cen�rio, faz-se necess�rio o desenvolvimento de estrat�gias pedag�gicas que incentivem o engajamento, a responsabilidade e a participa��o ativa nas atividades, favorecendo a constru��o de h�bitos de estudo mais consistentes."
+- Responda somente com o texto final pronto para uso.
+- Não use título, lista, markdown, explicação ou comentários.
+- Não devolva uma frase curta quando houver elementos suficientes.
+- Não repita o texto original sem reescrever.
+- Preserve todos os fatos originais e não acrescente fatos novos.
+- Antes de finalizar, verifique se o fato principal está claro, se a consequência é concreta, se o texto parece escrito pela escola e se não há frases genéricas.
 """
 
 
@@ -3053,8 +3071,6 @@ def _modelos_gemini_para_tentar() -> list[str]:
         str(GEMINI_MODEL or "").strip(),
         "gemini-2.5-flash",
         "gemini-flash-latest",
-        "gemini-3-flash-preview",
-        "gemini-2.0-flash",
     ]
     vistos = set()
     finais = []
@@ -3090,23 +3106,111 @@ def _saida_parece_incompleta(texto: str) -> bool:
     )
     return texto.lower().endswith(finais_fracos)
 
+def _saida_parece_generica(texto: str, texto_original: str = "") -> bool:
+    """Evita respostas prontas quando a saída não preserva nenhum elemento concreto."""
+    saida_norm = normalizar_texto(texto or "")
+    original_norm = normalizar_texto(texto_original or "")
+    if not saida_norm:
+        return True
+    frases_genericas = (
+        "COM AS INFORMACOES DISPONIVEIS REGISTRAMOS QUE O ESTUDANTE NECESSITA",
+        "SITUACAO ENVOLVENDO",
+        "DEMANDOU INTERVENCAO IMEDIATA",
+        "ENCAMINHAMENTOS NECESSARIOS",
+        "ACOES CABIVEIS",
+        "VISANDO PROMOVER",
+        "COM VISTAS A",
+        "FORTALECIMENTO DA CONVIVENCIA",
+        "CONDUTA INCOMPATIVEL",
+        "A EQUIPE SEGUIRA ACOMPANHANDO SEU DESENVOLVIMENTO E MANTERA DIALOGO",
+    )
+    if any(frase in saida_norm for frase in frases_genericas):
+        return True
+    if len(original_norm) < 30:
+        return False
+
+    stopwords = {
+        "QUE", "COM", "PARA", "DOS", "DAS", "UMA", "POR", "NAO", "SER", "TER",
+        "FOI", "SAO", "DEU", "FEZ", "MAS", "SUA", "SEU", "ELE", "ELA", "AOS",
+        "NAS", "NOS", "DIA", "ANO", "ANOS", "SALA", "SALAS", "ALUNO", "ALUNA",
+        "ALUNOS", "ALUNAS", "ESTUDANTE", "ESTUDANTES",
+    }
+    tokens_concretos = [
+        t for t in re.findall(r"[A-Z0-9]{3,}", original_norm)
+        if t not in stopwords
+    ]
+    if len(tokens_concretos) < 3:
+        return False
+
+    preservados = sum(1 for t in tokens_concretos[:24] if t in saida_norm)
+    return preservados == 0
+
 
 def _resposta_pedagogica_local(texto: str, tarefa: str) -> str:
-    """Resposta útil quando a API falha ou devolve algo fraco."""
-    texto_norm = normalizar_texto(texto or "")
-    texto_bruto = str(texto or "").lower()
+    """Fallback quando a API falha ou devolve algo fraco, preservando os fatos do relato."""
+    texto_original = str(texto or "").strip()
+    texto_norm = normalizar_texto(texto_original)
+    tarefa_norm = normalizar_texto(tarefa or "")
+    texto_bruto = texto_original.lower()
     sujeito = "A estudante" if ("a estudante" in texto_bruto or "aluna" in texto_bruto) else "O estudante"
+
+    if len(texto_original) >= 40:
+        texto_base = _limpar_texto_para_ia(texto_original)
+        texto_base = re.sub(r"\s+", " ", texto_base).strip(" .,;:")
+        texto_base = texto_base[:1].upper() + texto_base[1:] if texto_base else ""
+        if texto_base and texto_base[-1] not in ".!?":
+            texto_base += "."
+
+        if "OCORR" in tarefa_norm or "PLACON" in tarefa_norm or "REGISTRO" in tarefa_norm:
+            if "INTERVAL" in texto_norm and ("CORRENDO" in texto_norm or "ESCOND" in texto_norm):
+                coordenador = ""
+                m_coord = re.search(r"coordenador(?:a)?\s+([A-Za-zÀ-ÿ]+)", texto_original, flags=re.I)
+                if m_coord:
+                    coordenador = m_coord.group(1).strip()
+                trecho_coord = (
+                    f", sendo necessário acionar o coordenador {coordenador} para conduzi-los às respectivas salas"
+                    if coordenador else
+                    ", sendo necessário acionar a equipe escolar para conduzi-los às respectivas salas"
+                )
+                return (
+                    "No horário de intervalo, os estudantes foram orientados pelas agentes de organização a retornar para as salas. "
+                    f"Mesmo após a orientação, permaneceram correndo e se escondendo{trecho_coord}. "
+                    "O caso foi registrado para acompanhamento, com retomada dos combinados de convivência, circulação e segurança nos espaços escolares."
+                )
+
+            texto_corrigido = texto_base[:1].lower() + texto_base[1:] if texto_base else "o fato relatado necessita de registro pela escola."
+            return (
+                f"Conforme relatado, {texto_corrigido} "
+                "A escola registrou o ocorrido para acompanhamento, retomou os combinados de convivência e orientou os estudantes envolvidos quanto à permanência nos espaços indicados e ao retorno organizado para a sala."
+            )
+
+        if "FAMIL" in tarefa_norm or "COMUNICADO" in tarefa_norm or "ENCAMINHAMENTO" in tarefa_norm:
+            texto_corrigido = texto_base[:1].lower() + texto_base[1:] if texto_base else "foi registrada uma situação que exige acompanhamento escolar."
+            return (
+                f"Informamos que {texto_corrigido} "
+                "A escola registrou o ocorrido, orientou os estudantes envolvidos e solicita a parceria da família no reforço dos combinados de convivência e segurança."
+            )
+
+        return (
+            f"{texto_base} "
+            "A escola acompanhou a situação no momento, realizou as orientações pertinentes aos estudantes envolvidos e manteve o registro para acompanhamento posterior."
+        )
+
     if "barulh" in texto_bruto or "fala demais" in texto_bruto or "conversa demais" in texto_bruto or "excesso" in texto_bruto:
         return (
             f"{sujeito} tem mantido comportamento em desacordo com o regimento escolar, com falas frequentes, "
             "em volume excessivo e em dissonância com os combinados de convivência. A escola tem realizado orientações "
             "e solicita a parceria da família para reforçar atitudes de respeito e adequação à rotina escolar."
         )
-    if "brigu" in texto_bruto:
+    if "brigu" in texto_bruto or "AGRESSAO" in texto_norm or "CONFLITO" in texto_norm:
         return (
-            f"{sujeito} tem apresentado atitudes em desacordo com os combinados de convivência, especialmente em situações "
-            "de interação com colegas. A escola tem realizado mediações e retomado as orientações previstas no regimento escolar, "
-            "solicitando a parceria da família para reforçar atitudes de respeito e diálogo."
+            f"{sujeito} esteve envolvido(a) em situação de conflito, conforme relatado. A escola realizou mediação pedagógica, "
+            "retomou os combinados de convivência e solicita a parceria da família para reforçar atitudes de diálogo e respeito."
+        )
+    if "INTERVAL" in texto_norm or "RECRE" in texto_norm or "CORRENDO" in texto_norm or "ESCOND" in texto_norm:
+        return (
+            f"Durante o período de intervalo, {sujeito.lower()} apresentou comportamento em desacordo com as orientações da escola. "
+            "A equipe escolar realizou a intervenção necessária, conduziu os estudantes às suas salas e reforçou os combinados de convivência e segurança no ambiente escolar."
         )
     if "preguicos" in texto_norm or "pregui" in texto_norm or "pregui" in texto_bruto:
         return (
@@ -3119,7 +3223,7 @@ def _resposta_pedagogica_local(texto: str, tarefa: str) -> str:
             f"{sujeito} necessita de acompanhamento pedagógico para fortalecer sua participação nas atividades escolares. "
             "A escola seguirá acompanhando seu desenvolvimento de forma respeitosa e manterá diálogo com a família sempre que necessário."
         )
-    if tarefa == "Sugerir comunicados ou encaminhamentos para a Família":
+    if tarefa_norm == normalizar_texto("Sugerir comunicados ou encaminhamentos para a Família"):
         return (
             "A escola seguirá acompanhando o estudante de forma sistemática, com registros das observações relevantes, combinados claros "
             "e apoio pedagógico durante as atividades. Solicitamos a parceria da família no acompanhamento da rotina, na organização dos "
@@ -3139,12 +3243,29 @@ def chamar_ia_conviva_online(texto: str, tarefa: str, contexto: str = "") -> str
         return "Digite um texto antes de usar a IA."
 
     if not ia_conviva_configurada():
-        return "IA não configurada. Configure GEMINI_API_KEY nos Secrets do Streamlit Cloud ou no arquivo .env."
+        return _resposta_pedagogica_local(texto, tarefa)
     # Envia termos inadequados para a IA reescrever sem julgamento, sem perder o sentido do registro.
     instrucao = INSTRUCOES_TAREFAS_IA_RELATORIO.get(
         tarefa,
         str(tarefa or "Melhore a escrita em linguagem pedagógica.")
     )
+
+    tokens_importantes = []
+    for token in re.findall(r"[A-Za-zÀ-ÿ0-9]{3,}", texto):
+        token_norm = normalizar_texto(token)
+        if token_norm in {"QUE", "COM", "PARA", "DOS", "DAS", "UMA", "POR", "NAO", "ALUNOS", "ESTUDANTES"}:
+            continue
+        if token_norm not in [normalizar_texto(t) for t in tokens_importantes]:
+            tokens_importantes.append(token)
+        if len(tokens_importantes) >= 12:
+            break
+    instrucao_tokens = ""
+    if tokens_importantes:
+        instrucao_tokens = (
+            "\nELEMENTOS DO RELATO QUE DEVEM APARECER NA REESCRITA: "
+            + ", ".join(tokens_importantes)
+            + ".\nPreserve esses elementos quando fizer sentido e não invente fatos novos."
+        )
 
     prompt = f"""
 {PROMPT_IA_CONVIVA_PEDAGOGICA}
@@ -3157,6 +3278,7 @@ CONTEXTO DO RELATÓRIO:
 
 TEXTO ORIGINAL:
 {_limpar_texto_para_ia(texto)}
+{instrucao_tokens}
 
 FORMATO OBRIGATÓRIO:
 - Responda apenas com a versão pronta para uso escolar, em português do Brasil.
@@ -3170,6 +3292,9 @@ FORMATO OBRIGATÓRIO:
 - Não escreva recomendações para o professor. Escreva como escola/professor falando com a família ou registrando no prontuário.
 - Evite "recomenda-se". Prefira "a escola tem acompanhado", "temos observado", "será mantido acompanhamento", "solicitamos a parceria da família".
 - Datas devem ser escritas em português do Brasil e no formato DD/MM/AAAA.
+- Preserve nomes, locais, ações e consequências informadas no texto original.
+- Se o texto mencionar intervalo, corrida, esconder-se, agente de organização, coordenador ou retorno à sala, mantenha esses fatos no registro.
+- Se perceber que sua resposta ficou genérica, refaça antes de responder.
 """.strip()
 
     payload = {
@@ -3177,7 +3302,7 @@ FORMATO OBRIGATÓRIO:
             {"parts": [{"text": prompt}]}
         ],
         "generationConfig": {
-            "temperature": 0.25,
+            "temperature": 0.20,
             "topP": 0.85,
             "maxOutputTokens": 900,
         },
@@ -3194,7 +3319,7 @@ FORMATO OBRIGATÓRIO:
                     "Content-Type": "application/json",
                 },
                 json=payload,
-                timeout=25,
+                timeout=15,
             )
             if resposta.status_code != 200:
                 ultimo_erro = f"{resposta.status_code} no modelo {modelo}"
@@ -3215,6 +3340,7 @@ FORMATO OBRIGATÓRIO:
                 and normalizar_texto(saida) != normalizar_texto(texto)
                 and finish_reason != "MAX_TOKENS"
                 and not _saida_parece_incompleta(saida)
+                and not _saida_parece_generica(saida, texto)
             ):
                 saida_norm = normalizar_texto(saida)
                 texto_norm_original = normalizar_texto(texto)
@@ -4586,7 +4712,12 @@ def montar_dataframe_eletiva(nome_professora: str, df_alunos: pd.DataFrame, elet
                 "Situação": "",
                 "Status": "Não encontrado",
             })
-    return pd.DataFrame(registros)
+    df_final = pd.DataFrame(registros)
+    if not df_final.empty:
+        colunas_ordenacao = [c for c in ["Turma", "Nome"] if c in df_final.columns]
+        if colunas_ordenacao:
+            df_final = df_final.sort_values(colunas_ordenacao, kind="stable").reset_index(drop=True)
+    return df_final
 
 def montar_dataframe_tutoria(nome_tutor: str, df_alunos: pd.DataFrame, tutoria_dict: dict) -> pd.DataFrame:
     registro_tutor = obter_registro_tutoria(tutoria_dict, nome_tutor)
@@ -4601,7 +4732,100 @@ def montar_dataframe_tutoria(nome_tutor: str, df_alunos: pd.DataFrame, tutoria_d
     df_tutoria["Horário"] = registro_tutor.get("horario", "")
     df_tutoria["Dia"] = registro_tutor.get("dia", "")
     df_tutoria["Perfil"] = registro_tutor.get("tipo", "Professor(a)")
+    if "Nome" in df_tutoria.columns:
+        df_tutoria = df_tutoria.sort_values(["Nome"], kind="stable").reset_index(drop=True)
     return df_tutoria
+
+def _indice_alunos_para_atualizar_turmas(df_alunos: pd.DataFrame) -> tuple[dict, dict]:
+    """Monta índices por RA e por nome para atualizar turmas nas listas vinculadas."""
+    base = preparar_base_alunos_ativos_tutoria(df_alunos)
+    por_ra = {}
+    por_nome = {}
+    if base.empty:
+        return por_ra, por_nome
+
+    for _, aluno in base.iterrows():
+        nome = str(aluno.get("nome", "")).strip()
+        turma = formatar_turma_eletiva(str(aluno.get("turma", "")).strip())
+        ra = "".join(ch for ch in str(aluno.get("ra", "")) if ch.isdigit())
+        registro = {"nome": nome, "serie": turma, "ra": ra}
+        if ra:
+            por_ra[ra] = registro
+        nome_norm = normalizar_texto(nome)
+        if nome_norm and nome_norm not in por_nome:
+            por_nome[nome_norm] = registro
+    return por_ra, por_nome
+
+def _atualizar_item_lista_com_base(item: dict, por_ra: dict, por_nome: dict) -> bool:
+    """Atualiza nome/turma/RA de um item de eletiva/tutoria a partir da base oficial."""
+    if not isinstance(item, dict):
+        return False
+    ra = "".join(ch for ch in str(item.get("ra", "")) if ch.isdigit())
+    nome_norm = normalizar_texto(item.get("nome", ""))
+    aluno_base = por_ra.get(ra) if ra else None
+    if aluno_base is None and nome_norm:
+        aluno_base = por_nome.get(nome_norm)
+    if aluno_base is None:
+        return False
+
+    mudou = False
+    turma_atual = formatar_turma_eletiva(str(item.get("serie", "")).strip())
+    turma_base = formatar_turma_eletiva(aluno_base.get("serie", ""))
+    if turma_base and turma_para_comparacao(turma_atual) != turma_para_comparacao(turma_base):
+        item["serie"] = turma_base
+        mudou = True
+    if aluno_base.get("ra") and str(item.get("ra", "")).strip() != aluno_base.get("ra"):
+        item["ra"] = aluno_base.get("ra")
+        mudou = True
+    if aluno_base.get("nome") and normalizar_texto(item.get("nome", "")) == nome_norm and str(item.get("nome", "")).strip() != aluno_base.get("nome"):
+        item["nome"] = aluno_base.get("nome")
+        mudou = True
+    return mudou
+
+def sincronizar_turmas_listas_com_base(df_alunos_atualizado: pd.DataFrame, origem: str = "base_alunos") -> dict:
+    """
+    Mantém Eletiva e Tutoria com a turma atual da base de alunos.
+    Quando a lista oficial muda a sala do estudante, a sala refletida nas listas também é atualizada.
+    """
+    por_ra, por_nome = _indice_alunos_para_atualizar_turmas(df_alunos_atualizado)
+    stats = {"eletivas": 0, "tutoria": 0}
+    if not por_ra and not por_nome:
+        return stats
+
+    eletivas_base = st.session_state.get("ELETIVAS") or ELETIVAS
+    for professora, alunos in (eletivas_base or {}).items():
+        for item in alunos or []:
+            if _atualizar_item_lista_com_base(item, por_ra, por_nome):
+                stats["eletivas"] += 1
+    st.session_state.ELETIVAS = eletivas_base
+
+    tutoria_base = normalizar_base_tutoria(st.session_state.get("TUTORIA", TUTORIA))
+    for _, dados in tutoria_base.items():
+        for item in dados.get("alunos", []) or []:
+            if _atualizar_item_lista_com_base(item, por_ra, por_nome):
+                stats["tutoria"] += 1
+    st.session_state.TUTORIA = normalizar_base_tutoria(tutoria_base)
+    if stats["tutoria"]:
+        salvar_tutoria_local(st.session_state.TUTORIA)
+
+    if SUPABASE_VALID:
+        try:
+            if stats["eletivas"]:
+                registros_eletivas = converter_eletivas_para_registros(st.session_state.ELETIVAS, origem=f"{origem}_turma_atualizada")
+                _supabase_request("DELETE", "eletivas?id=not.is.null")
+                if registros_eletivas:
+                    _supabase_request("POST", "eletivas", json=registros_eletivas)
+                st.session_state.FONTE_ELETIVAS = "supabase"
+            if stats["tutoria"]:
+                registros_tutoria = converter_tutoria_para_registros(st.session_state.TUTORIA, origem=f"{origem}_turma_atualizada")
+                _supabase_request("DELETE", "tutoria?id=not.is.null")
+                if registros_tutoria:
+                    _supabase_request("POST", "tutoria", json=registros_tutoria)
+                st.session_state.FONTE_TUTORIA = "supabase"
+        except Exception as e:
+            logger.warning(f"Não foi possível persistir a atualização de turmas das listas: {e}")
+
+    return stats
 
 ELETIVAS_EXCEL = carregar_eletivas_do_excel(ELETIVAS_ARQUIVO, fallback=ELETIVAS)
 TUTORIA_EXCEL = carregar_tutoria_do_excel(TUTORIA_ARQUIVO, fallback={})
@@ -5970,11 +6194,12 @@ elif "REGISTRAR OCORR" in normalizar_texto(menu):
         st.info("Selecione ao menos uma turma com alunos ativos.")
         st.stop()
 
+    alunos_turma = alunos_turma.sort_values(["nome", "turma"], kind="stable")
     alunos_turma["aluno_label"] = alunos_turma["nome"].astype(str) + " - " + alunos_turma["turma"].astype(str)
-    labels_alunos = alunos_turma["aluno_label"].drop_duplicates().tolist()
+    labels_alunos = sorted(alunos_turma["aluno_label"].drop_duplicates().tolist(), key=normalizar_texto)
     alunos_sel_labels = st.multiselect("Estudantes envolvidos", labels_alunos, key="alunos_multiplos")
 
-    prof = st.selectbox("Professor", df_professores["nome"].dropna().astype(str).tolist(), key="professor_sel")
+    prof = st.selectbox("Professor", sorted(df_professores["nome"].dropna().astype(str).tolist(), key=normalizar_texto), key="professor_sel")
 
     resumo_ocorrencia = [
         ("Turmas selecionadas", len(turmas_sel), "#2563eb", ", ".join(turmas_sel[:3]) if turmas_sel else "Nenhuma turma"),
@@ -6042,9 +6267,65 @@ elif "REGISTRAR OCORR" in normalizar_texto(menu):
     gravidade = gravidade_sugerida
     st.text_input("Gravidade", value=gravidade, key="gravidade_sel_auto", disabled=True)
     st.caption("A gravidade é definida automaticamente conforme o Protocolo 179.")
+
+    relato_ia_pendente = st.session_state.pop("ocorrencia_relato_ia_aplicar", "")
+    if relato_ia_pendente:
+        st.session_state["relato"] = relato_ia_pendente
+
     encam = st.text_area("Encaminhamentos", value=encaminhamento_sugerido, height=120, key="encaminhamento")
     relato = st.text_area("Relato dos fatos", height=140, key="relato")
     categoria_consolidada = consolidar_categoria_ocorrencia(infracoes_selecionadas)
+
+    with st.expander("🤖 IA Conviva Pedagógica - reescrever relato da ocorrência", expanded=False):
+        st.caption("A IA reescreve o relato em voz institucional, preservando fatos, estudantes, local, impacto e encaminhamento informado.")
+        contexto_ocorrencia = {
+            "turmas": turmas_sel,
+            "estudantes": alunos_sel_labels,
+            "professor": prof,
+            "categoria": categoria_consolidada,
+            "gravidade": gravidade,
+            "encaminhamento": encam,
+            "data": data_str,
+        }
+        col_ia_oc1, col_ia_oc2 = st.columns([1, 1])
+        with col_ia_oc1:
+            gerar_ia_ocorrencia = st.button(
+                "✨ Reescrever relato com IA",
+                type="primary",
+                use_container_width=True,
+                key="btn_ia_ocorrencia_reescrever"
+            )
+        with col_ia_oc2:
+            if st.button("🧹 Limpar reescrita", use_container_width=True, key="btn_ia_ocorrencia_limpar"):
+                st.session_state.pop("ia_ocorrencia_resultado", None)
+                st.rerun()
+
+        if gerar_ia_ocorrencia:
+            if not str(relato or "").strip():
+                st.warning("Digite o relato dos fatos antes de usar a IA.")
+            else:
+                with st.spinner("A IA Conviva está reescrevendo o relato para registro oficial..."):
+                    resultado_ocorrencia = chamar_ia_conviva_online(
+                        texto=relato,
+                        tarefa="Transformar em registro de ocorrência (Placon)",
+                        contexto=json.dumps(contexto_ocorrencia, ensure_ascii=False)
+                    )
+                st.session_state["ia_ocorrencia_resultado"] = resultado_ocorrencia
+
+        if st.session_state.get("ia_ocorrencia_resultado"):
+            st.text_area(
+                "Reescrita pronta para ocorrência",
+                key="ia_ocorrencia_resultado",
+                height=220
+            )
+            if st.button(
+                "✅ Usar reescrita no campo Relato dos fatos",
+                use_container_width=True,
+                key="btn_ia_ocorrencia_aplicar"
+            ):
+                st.session_state["ocorrencia_relato_ia_aplicar"] = st.session_state.get("ia_ocorrencia_resultado", "")
+                st.success("Reescrita aplicada ao relato da ocorrência.")
+                st.rerun()
 
     feedback_ocorrencia = st.session_state.get("ocorrencia_feedback")
     if feedback_ocorrencia:
@@ -7399,12 +7680,27 @@ elif "IMPORTAR ALUNOS" in normalizar_texto(menu):
 
                     if novos + atualizados > 0:
                         carregar_alunos.clear()
+                        try:
+                            df_alunos_atualizado = carregar_alunos()
+                            sync_stats = sincronizar_turmas_listas_com_base(df_alunos_atualizado, origem="importacao_alunos")
+                            total_sync = sync_stats.get("eletivas", 0) + sync_stats.get("tutoria", 0)
+                            if total_sync:
+                                st.session_state["importacao_sync_listas_msg"] = (
+                                    f"Listas atualizadas: {sync_stats.get('eletivas', 0)} vínculo(s) de eletiva "
+                                    f"e {sync_stats.get('tutoria', 0)} vínculo(s) de tutoria tiveram a turma ajustada."
+                                )
+                        except Exception as e:
+                            logger.warning(f"Não foi possível sincronizar turmas nas listas após importação: {e}")
                         st.rerun()
 
         except Exception as e:
             st.error(f"❌ Erro ao processar arquivo: {str(e)}")
     else:
         st.info("📁 Selecione um arquivo CSV para começar.")
+
+    sync_msg_importacao = st.session_state.pop("importacao_sync_listas_msg", "")
+    if sync_msg_importacao:
+        st.success(sync_msg_importacao)
 
     st.markdown("---")
     st.markdown("""
@@ -7431,6 +7727,9 @@ elif "GERENCIAR TURMAS" in normalizar_texto(menu):
     if df_alunos.empty:
         st.info("📭 Nenhuma turma cadastrada. Use '📥 Importar Alunos' para começar.")
     else:
+        sync_msg_turma = st.session_state.pop("turma_sync_listas_msg", "")
+        if sync_msg_turma:
+            st.success(sync_msg_turma)
         df_config_turmas = carregar_config_turmas()
         mapa_coord_turma = {}
         if not df_config_turmas.empty and "turma" in df_config_turmas.columns:
@@ -7634,6 +7933,17 @@ elif "GERENCIAR TURMAS" in normalizar_texto(menu):
                         st.success(f"✅ Turma substituída com segurança! {inseridos} aluno(s) importado(s).")
                         st.session_state.turma_para_substituir = None
                         carregar_alunos.clear()
+                        try:
+                            df_alunos_atualizado = carregar_alunos()
+                            sync_stats = sincronizar_turmas_listas_com_base(df_alunos_atualizado, origem="substituicao_turma")
+                            total_sync = sync_stats.get("eletivas", 0) + sync_stats.get("tutoria", 0)
+                            if total_sync:
+                                st.session_state["turma_sync_listas_msg"] = (
+                                    f"Listas atualizadas: {sync_stats.get('eletivas', 0)} vínculo(s) de eletiva "
+                                    f"e {sync_stats.get('tutoria', 0)} vínculo(s) de tutoria tiveram a turma ajustada."
+                                )
+                        except Exception as e:
+                            logger.warning(f"Não foi possível sincronizar turmas nas listas após substituição: {e}")
                         st.rerun()
 
                 except Exception as e:
@@ -8712,7 +9022,7 @@ elif menu == "🎨 Eletiva":
             "Turmas": series
         })
     
-    df_professoras = pd.DataFrame(dados_professoras)
+    df_professoras = pd.DataFrame(dados_professoras).sort_values("Professora", key=lambda s: s.map(normalizar_texto)).reset_index(drop=True)
     st.dataframe(df_professoras, use_container_width=True, hide_index=True)
 
     st.markdown("---")
@@ -8810,6 +9120,7 @@ elif menu == "🎨 Eletiva":
             termo_busca = st.text_input("Buscar aluno por nome", key="eletiva_busca_nome")
             if termo_busca:
                 base_busca = base_busca[base_busca["nome"].str.contains(termo_busca, case=False, na=False)]
+            base_busca = base_busca.sort_values(["nome", "turma"], kind="stable")
 
             opcoes = []
             mapa_opcoes = {}
@@ -9024,6 +9335,8 @@ elif menu == "🎨 Eletiva":
         df_view = df_view[df_view["Nome"].str.contains(busca_nome, case=False, na=False)]
     if filtro_status != "Todos":
         df_view = df_view[df_view["Status"] == filtro_status]
+    if not df_view.empty and "Nome" in df_view.columns:
+        df_view = df_view.sort_values(["Nome"], key=lambda s: s.map(normalizar_texto), kind="stable").reset_index(drop=True)
 
     st.markdown("---")
     st.subheader("📋 Estudantes da Eletiva")
@@ -9232,6 +9545,8 @@ elif menu == "🎨 Eletiva":
     if alunos_raw:
         st.markdown("---")
         st.subheader("✏️ Editar ou Excluir Estudante")
+        alunos_raw = sorted(alunos_raw, key=lambda a: normalizar_texto(a.get("nome", "")))
+        ELETIVAS[professora_sel] = alunos_raw
         opcoes_estudantes = [
             f"{a.get('nome', '').strip()} — {a.get('serie', '').strip()}".strip(" —")
             for a in alunos_raw
@@ -10623,6 +10938,7 @@ elif menu == "🫂 Tutoria":
                 df_resultado = df_resultado[df_resultado["nome"].apply(_combina_nome_busca)]
 
             df_resultado = df_resultado.drop_duplicates(subset=["nome", "turma_padrao", "ra"])
+            df_resultado = df_resultado.sort_values(["nome", "turma_padrao"], kind="stable")
 
             if not df_resultado.empty:
                 def _linha_disponivel_para_tutoria(linha):
@@ -10707,6 +11023,8 @@ elif menu == "🫂 Tutoria":
         df_temp = pd.DataFrame(lista_temp)
         if "serie" in df_temp.columns:
             df_temp["serie"] = df_temp["serie"].apply(formatar_turma_eletiva)
+        if "nome" in df_temp.columns:
+            df_temp = df_temp.sort_values(["nome"], key=lambda s: s.map(normalizar_texto), kind="stable").reset_index(drop=True)
         st.dataframe(
             df_temp.rename(columns={"nome": "Estudante", "serie": "Turma", "ra": "RA"}),
             use_container_width=True,
@@ -10782,6 +11100,8 @@ elif menu == "🫂 Tutoria":
         df_view = df_view[df_view["Nome"].str.contains(busca_nome, case=False, na=False)]
     if filtro_status != "Todos":
         df_view = df_view[df_view["Status"] == filtro_status]
+    if not df_view.empty and "Nome" in df_view.columns:
+        df_view = df_view.sort_values(["Nome"], key=lambda s: s.map(normalizar_texto), kind="stable").reset_index(drop=True)
 
     st.markdown("---")
     st.subheader("📋 Estudantes da Tutoria")
@@ -11069,6 +11389,8 @@ elif menu == "🫂 Tutoria":
     if alunos_raw:
         st.markdown("---")
         st.subheader("✏️ Editar ou Excluir Estudante")
+        alunos_raw = sorted(alunos_raw, key=lambda a: normalizar_texto(a.get("nome", "")))
+        TUTORIA[tutor_sel]["alunos"] = alunos_raw
         opcoes_estudantes = [f"{a.get('nome', '').strip()} — {a.get('serie', '').strip()}".strip(" —") for a in alunos_raw]
         idx_sel = st.selectbox(
             "Selecione o estudante",
