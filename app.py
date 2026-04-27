@@ -3146,12 +3146,36 @@ def _saida_parece_generica(texto: str, texto_original: str = "") -> bool:
     return preservados == 0
 
 
-def _resposta_pedagogica_local(texto: str, tarefa: str) -> str:
+def _extrair_nomes_estudantes_contexto(contexto: str = "") -> list[str]:
+    """Extrai nomes de estudantes do contexto JSON/textual enviado para a IA."""
+    nomes = []
+    try:
+        dados = json.loads(contexto) if isinstance(contexto, str) and contexto.strip().startswith("{") else {}
+        estudantes = dados.get("estudantes", []) if isinstance(dados, dict) else []
+        for item in estudantes or []:
+            nome = str(item or "").split(" - ")[0].strip()
+            if nome and nome not in nomes:
+                nomes.append(nome)
+    except Exception:
+        pass
+    return nomes
+
+def _formatar_lista_nomes(nomes: list[str]) -> str:
+    nomes = [str(n or "").strip() for n in nomes or [] if str(n or "").strip()]
+    if not nomes:
+        return ""
+    if len(nomes) == 1:
+        return nomes[0]
+    return ", ".join(nomes[:-1]) + " e " + nomes[-1]
+
+def _resposta_pedagogica_local(texto: str, tarefa: str, contexto: str = "") -> str:
     """Fallback quando a API falha ou devolve algo fraco, preservando os fatos do relato."""
     texto_original = str(texto or "").strip()
     texto_norm = normalizar_texto(texto_original)
     tarefa_norm = normalizar_texto(tarefa or "")
     texto_bruto = texto_original.lower()
+    nomes_contexto = _extrair_nomes_estudantes_contexto(contexto)
+    nomes_texto = _formatar_lista_nomes(nomes_contexto)
     sujeito = "A estudante" if ("a estudante" in texto_bruto or "aluna" in texto_bruto) else "O estudante"
 
     if len(texto_original) >= 40:
@@ -3173,21 +3197,23 @@ def _resposta_pedagogica_local(texto: str, tarefa: str) -> str:
                     ", sendo necessário acionar a equipe escolar para conduzi-los às respectivas salas"
                 )
                 return (
-                    "No horário de intervalo, os estudantes foram orientados pelas agentes de organização a retornar para as salas. "
+                    f"No horário de intervalo, {'os estudantes ' + nomes_texto if nomes_texto else 'os estudantes'} foram orientados pelas agentes de organização a retornar para as salas. "
                     f"Mesmo após a orientação, permaneceram correndo e se escondendo{trecho_coord}. "
                     "O caso foi registrado para acompanhamento, com retomada dos combinados de convivência, circulação e segurança nos espaços escolares."
                 )
 
             texto_corrigido = texto_base[:1].lower() + texto_base[1:] if texto_base else "o fato relatado necessita de registro pela escola."
+            trecho_nomes = f" envolvendo {nomes_texto}" if nomes_texto else ""
             return (
-                f"Conforme relatado, {texto_corrigido} "
+                f"Conforme relatado{trecho_nomes}, {texto_corrigido} "
                 "A escola registrou o ocorrido para acompanhamento, retomou os combinados de convivência e orientou os estudantes envolvidos quanto à permanência nos espaços indicados e ao retorno organizado para a sala."
             )
 
         if "FAMIL" in tarefa_norm or "COMUNICADO" in tarefa_norm or "ENCAMINHAMENTO" in tarefa_norm:
             texto_corrigido = texto_base[:1].lower() + texto_base[1:] if texto_base else "foi registrada uma situação que exige acompanhamento escolar."
+            trecho_nomes = f" com {nomes_texto}" if nomes_texto else ""
             return (
-                f"Informamos que {texto_corrigido} "
+                f"Informamos que{trecho_nomes} {texto_corrigido} "
                 "A escola registrou o ocorrido, orientou os estudantes envolvidos e solicita a parceria da família no reforço dos combinados de convivência e segurança."
             )
 
@@ -3243,7 +3269,7 @@ def chamar_ia_conviva_online(texto: str, tarefa: str, contexto: str = "") -> str
         return "Digite um texto antes de usar a IA."
 
     if not ia_conviva_configurada():
-        return _resposta_pedagogica_local(texto, tarefa)
+        return _resposta_pedagogica_local(texto, tarefa, contexto)
     # Envia termos inadequados para a IA reescrever sem julgamento, sem perder o sentido do registro.
     instrucao = INSTRUCOES_TAREFAS_IA_RELATORIO.get(
         tarefa,
@@ -3266,6 +3292,14 @@ def chamar_ia_conviva_online(texto: str, tarefa: str, contexto: str = "") -> str
             + ", ".join(tokens_importantes)
             + ".\nPreserve esses elementos quando fizer sentido e não invente fatos novos."
         )
+    nomes_contexto = _extrair_nomes_estudantes_contexto(contexto)
+    instrucao_estudantes = ""
+    if nomes_contexto and any(t in normalizar_texto(tarefa or "") for t in ("OCORR", "PLACON", "REGISTRO")):
+        instrucao_estudantes = (
+            "\nESTUDANTES SELECIONADOS QUE DEVEM SER CITADOS NOMINALMENTE NO REGISTRO: "
+            + _formatar_lista_nomes(nomes_contexto)
+            + ".\nUse os nomes de forma natural no texto, sem criar fatos novos."
+        )
 
     prompt = f"""
 {PROMPT_IA_CONVIVA_PEDAGOGICA}
@@ -3279,6 +3313,7 @@ CONTEXTO DO RELATÓRIO:
 TEXTO ORIGINAL:
 {_limpar_texto_para_ia(texto)}
 {instrucao_tokens}
+{instrucao_estudantes}
 
 FORMATO OBRIGATÓRIO:
 - Responda apenas com a versão pronta para uso escolar, em português do Brasil.
@@ -3293,6 +3328,7 @@ FORMATO OBRIGATÓRIO:
 - Evite "recomenda-se". Prefira "a escola tem acompanhado", "temos observado", "será mantido acompanhamento", "solicitamos a parceria da família".
 - Datas devem ser escritas em português do Brasil e no formato DD/MM/AAAA.
 - Preserve nomes, locais, ações e consequências informadas no texto original.
+- Quando houver estudantes selecionados no contexto, cite seus nomes no registro.
 - Se o texto mencionar intervalo, corrida, esconder-se, agente de organização, coordenador ou retorno à sala, mantenha esses fatos no registro.
 - Se perceber que sua resposta ficou genérica, refaça antes de responder.
 """.strip()
@@ -3353,12 +3389,12 @@ FORMATO OBRIGATÓRIO:
                     for termo in ("BARULH", "BRIGU", "BRIGA", "FALA DEMAIS", "EXCESS", "DESRESPEIT")
                 )
                 if saida_robotica and caso_regimental:
-                    return _resposta_pedagogica_local(texto, tarefa)
+                    return _resposta_pedagogica_local(texto, tarefa, contexto)
                 return saida
-        return _resposta_pedagogica_local(texto, tarefa)
+        return _resposta_pedagogica_local(texto, tarefa, contexto)
     except Exception as e:
         logger.warning(f"Falha ao conectar com IA online: {e}. Último erro: {ultimo_erro}")
-        return _resposta_pedagogica_local(texto, tarefa)
+        return _resposta_pedagogica_local(texto, tarefa, contexto)
 
 # ======================================================
 # BLOCO VISUAL DA IA NO RELATÓRIO
@@ -6195,15 +6231,39 @@ elif "REGISTRAR OCORR" in normalizar_texto(menu):
         st.stop()
 
     alunos_turma = alunos_turma.sort_values(["nome", "turma"], kind="stable")
-    alunos_turma["aluno_label"] = alunos_turma["nome"].astype(str) + " - " + alunos_turma["turma"].astype(str)
-    labels_alunos = sorted(alunos_turma["aluno_label"].drop_duplicates().tolist(), key=normalizar_texto)
-    alunos_sel_labels = st.multiselect("Estudantes envolvidos", labels_alunos, key="alunos_multiplos")
+    alunos_turma["aluno_nome_exibicao"] = alunos_turma["nome"].astype(str).str.strip()
+    alunos_turma["aluno_opcao_id"] = alunos_turma.apply(
+        lambda r: "|".join([
+            "".join(ch for ch in str(r.get("ra", "")) if ch.isdigit()),
+            normalizar_texto(r.get("nome", "")),
+            normalizar_texto(r.get("turma", "")),
+            str(r.name),
+        ]),
+        axis=1
+    )
+    alunos_turma = alunos_turma.drop_duplicates(subset=["aluno_opcao_id"])
+    alunos_opcoes = alunos_turma["aluno_opcao_id"].tolist()
+    mapa_alunos_opcoes = {
+        row["aluno_opcao_id"]: row
+        for _, row in alunos_turma.iterrows()
+    }
+    alunos_sel_ids = st.multiselect(
+        "Estudantes envolvidos",
+        alunos_opcoes,
+        format_func=lambda opcao_id: str(mapa_alunos_opcoes.get(opcao_id, {}).get("aluno_nome_exibicao", opcao_id)),
+        key="alunos_multiplos_ids"
+    )
+    alunos_sel_nomes = [
+        str(mapa_alunos_opcoes.get(opcao_id, {}).get("nome", "")).strip()
+        for opcao_id in alunos_sel_ids
+        if str(mapa_alunos_opcoes.get(opcao_id, {}).get("nome", "")).strip()
+    ]
 
     prof = st.selectbox("Professor", sorted(df_professores["nome"].dropna().astype(str).tolist(), key=normalizar_texto), key="professor_sel")
 
     resumo_ocorrencia = [
         ("Turmas selecionadas", len(turmas_sel), "#2563eb", ", ".join(turmas_sel[:3]) if turmas_sel else "Nenhuma turma"),
-        ("Estudantes envolvidos", len(alunos_sel_labels), "#7c3aed", ", ".join(alunos_sel_labels[:2]) if alunos_sel_labels else "Nenhum estudante"),
+        ("Estudantes envolvidos", len(alunos_sel_ids), "#7c3aed", ", ".join(alunos_sel_nomes[:2]) if alunos_sel_nomes else "Nenhum estudante"),
         ("Professor", 1 if prof else 0, "#dc2626", prof or "Não selecionado")
     ]
     cols_resumo = st.columns(3)
@@ -6247,10 +6307,40 @@ elif "REGISTRAR OCORR" in normalizar_texto(menu):
         infracoes = PROTOCOLO_179[grupo]
 
     infracao_principal = st.selectbox("Infração principal", list(infracoes.keys()), key="infracao_principal")
-    outras_infracoes = st.multiselect("Infrações adicionais", [i for i in infracoes.keys() if i != infracao_principal], key="infracoes_adicionais")
-    infracoes_selecionadas = [infracao_principal] + [i for i in outras_infracoes if i != infracao_principal]
+    mapa_infracoes_todas = {}
+    opcoes_infracoes_adicionais = []
+    for grupo_nome, infracoes_grupo in PROTOCOLO_179.items():
+        for nome_infracao, dados_infracao in infracoes_grupo.items():
+            if nome_infracao == infracao_principal:
+                continue
+            chave = f"{grupo_nome}||{nome_infracao}"
+            mapa_infracoes_todas[chave] = {
+                "nome": nome_infracao,
+                "grupo": grupo_nome,
+                "dados": dados_infracao,
+            }
+            opcoes_infracoes_adicionais.append(chave)
+    opcoes_infracoes_adicionais = sorted(
+        opcoes_infracoes_adicionais,
+        key=lambda chave: normalizar_texto(mapa_infracoes_todas[chave]["nome"])
+    )
+    outras_infracoes_chaves = st.multiselect(
+        "Infrações adicionais",
+        opcoes_infracoes_adicionais,
+        format_func=lambda chave: f"{mapa_infracoes_todas[chave]['nome']} ({mapa_infracoes_todas[chave]['grupo']})",
+        key="infracoes_adicionais_todas"
+    )
+    infracoes_selecionadas = [infracao_principal] + [
+        mapa_infracoes_todas[chave]["nome"]
+        for chave in outras_infracoes_chaves
+        if mapa_infracoes_todas[chave]["nome"] != infracao_principal
+    ]
 
-    dados_infracoes_sel = [infracoes[i] for i in infracoes_selecionadas]
+    dados_infracoes_sel = [infracoes[infracao_principal]] + [
+        mapa_infracoes_todas[chave]["dados"]
+        for chave in outras_infracoes_chaves
+        if mapa_infracoes_todas[chave]["nome"] != infracao_principal
+    ]
     gravidade_sugerida = max(
         [normalizar_gravidade_protocolo(d.get("gravidade", "Leve")) for d in dados_infracoes_sel],
         key=lambda g: ORDEM_GRAVIDADE_PROTOCOLO.get(g, 1)
@@ -6280,7 +6370,7 @@ elif "REGISTRAR OCORR" in normalizar_texto(menu):
         st.caption("A IA reescreve o relato em voz institucional, preservando fatos, estudantes, local, impacto e encaminhamento informado.")
         contexto_ocorrencia = {
             "turmas": turmas_sel,
-            "estudantes": alunos_sel_labels,
+            "estudantes": alunos_sel_nomes,
             "professor": prof,
             "categoria": categoria_consolidada,
             "gravidade": gravidade,
@@ -6343,16 +6433,15 @@ elif "REGISTRAR OCORR" in normalizar_texto(menu):
         st.session_state["ocorrencia_feedback"] = None
 
     if st.button("Salvar Ocorrencia(s)", type="primary"):
-        if not prof or not relato.strip() or not alunos_sel_labels:
+        if not prof or not relato.strip() or not alunos_sel_ids:
             st.error("Preencha professor, estudantes e relato.")
         else:
             salvas = 0
             duplicadas = 0
-            for lbl in alunos_sel_labels:
-                reg = alunos_turma[alunos_turma["aluno_label"] == lbl]
-                if reg.empty:
+            for aluno_id in alunos_sel_ids:
+                if aluno_id not in mapa_alunos_opcoes:
                     continue
-                row = reg.iloc[0]
+                row = mapa_alunos_opcoes[aluno_id]
                 aluno = str(row.get("nome", "")).strip()
                 turma = str(row.get("turma", "")).strip()
                 ra = str(row.get("ra", "")).strip()
