@@ -5776,6 +5776,71 @@ def formatar_data_extenso_pt(data_ref=None) -> str:
     ]
     return f"{dias[data_ref.weekday()]}, {data_ref.day:02d} de {meses[data_ref.month - 1]} de {data_ref.year}"
 
+
+FRASES_INSPIRACAO_LEGIAO = [
+    "Tempo Perdido: hoje tambem e dia de recomecar.",
+    "Sera: toda pergunta pode abrir um caminho.",
+    "Pais e Filhos: cuidado tambem educa.",
+    "Quase sem Querer: pequenas escolhas mudam o dia.",
+    "Eduardo e Monica: cada historia merece escuta.",
+]
+
+
+def _frase_inspiracao_abertura() -> str:
+    indice = datetime.now().toordinal() % len(FRASES_INSPIRACAO_LEGIAO)
+    return FRASES_INSPIRACAO_LEGIAO[indice]
+
+
+def _preparar_ocorrencias_por_data(df_base: pd.DataFrame) -> pd.DataFrame:
+    if df_base is None or df_base.empty or "data" not in df_base.columns:
+        return pd.DataFrame()
+    df = df_base.copy()
+    df["data_dt"] = pd.to_datetime(df["data"], format="%d/%m/%Y %H:%M", errors="coerce")
+    if df["data_dt"].isna().all():
+        df["data_dt"] = pd.to_datetime(df["data"], dayfirst=True, errors="coerce")
+    return df.dropna(subset=["data_dt"])
+
+
+def _resumo_panorama_letivo(df_base: pd.DataFrame, data_ref) -> tuple[str, pd.DataFrame]:
+    df = _preparar_ocorrencias_por_data(df_base)
+    if df.empty:
+        return "Nao ha ocorrencias com data valida para resumir neste periodo.", pd.DataFrame()
+
+    dia = pd.to_datetime(data_ref).date()
+    df_dia = df[df["data_dt"].dt.date == dia].copy()
+    if df_dia.empty:
+        return f"Nao ha ocorrencias registradas em {dia.strftime('%d/%m/%Y')}.", df_dia
+
+    total = len(df_dia)
+    graves = 0
+    if "gravidade" in df_dia.columns:
+        graves = int(df_dia["gravidade"].astype(str).isin(["Grave", "Gravíssima", "Gravissima"]).sum())
+
+    partes = [f"Em {dia.strftime('%d/%m/%Y')}, foram registradas {total} ocorrencia(s) no sistema"]
+    if "aluno" in df_dia.columns:
+        alunos = df_dia["aluno"].dropna().astype(str).str.strip()
+        alunos = alunos[alunos != ""]
+        if not alunos.empty:
+            partes.append(f"envolvendo {alunos.nunique()} estudante(s)")
+    if "turma" in df_dia.columns:
+        turmas = df_dia["turma"].dropna().astype(str).str.strip()
+        turmas = turmas[turmas != ""]
+        if not turmas.empty:
+            partes.append(f"em {turmas.nunique()} turma(s)")
+
+    resumo = ", ".join(partes) + "."
+    if "categoria" in df_dia.columns:
+        categorias = df_dia["categoria"].dropna().astype(str).str.strip()
+        categorias = categorias[categorias != ""]
+        if not categorias.empty:
+            principais = categorias.value_counts().head(3)
+            resumo += " Principais registros: " + "; ".join([f"{cat} ({qtd})" for cat, qtd in principais.items()]) + "."
+    if graves:
+        resumo += f" Atenção: {graves} registro(s) grave(s) ou gravissimo(s) merecem acompanhamento prioritario."
+    else:
+        resumo += " Nao houve registro grave ou gravissimo identificado nesse recorte."
+    return resumo, df_dia
+
 # ======================================================
 # CADERNO DE TUTORIA ONLINE 2026
 # ======================================================
@@ -5918,6 +5983,7 @@ def gerar_pdf_cadernos_professor(professor: str, cadernos: dict) -> BytesIO:
     titulo = ParagraphStyle("TituloCadernoProf", parent=styles["Heading1"], alignment=TA_CENTER, fontSize=14, leading=18, spaceAfter=8)
     normal = ParagraphStyle("NormalCadernoProf", parent=styles["Normal"], fontSize=8, leading=10)
     story = []
+    _adicionar_logo(story)
     story.append(Paragraph("CADERNOS DE TUTORIA — RELATÓRIO DO PROFESSOR", titulo))
     story.append(Paragraph(f"<b>Professor(a):</b> {html.escape(str(professor))}", normal))
     story.append(Paragraph(f"<b>Ano letivo:</b> {ANO_LETIVO_CADERNO_TUTORIA}", normal))
@@ -6090,61 +6156,91 @@ def _linhas_professor_tutoria(registro_tutor: dict) -> list[dict]:
     return sorted(linhas, key=lambda x: (x.get("turma", ""), x.get("nome", "")))
 
 
+def _pdf_texto_caderno(valor, estilo: ParagraphStyle) -> Paragraph:
+    """Cria célula de tabela com quebra de linha segura para textos longos."""
+    texto = html.escape(str(valor or "").strip()).replace("\n", "<br/>")
+    return Paragraph(texto or "&nbsp;", estilo)
+
+
 def gerar_pdf_caderno_tutoria(caderno: dict) -> BytesIO:
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1.2*cm, leftMargin=1.2*cm, topMargin=1.0*cm, bottomMargin=1.0*cm)
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1.0*cm, leftMargin=1.0*cm, topMargin=0.8*cm, bottomMargin=1.0*cm)
     styles = getSampleStyleSheet()
-    titulo = ParagraphStyle("TituloCaderno", parent=styles["Heading1"], alignment=TA_CENTER, fontSize=16, leading=20, spaceAfter=8)
-    subtitulo = ParagraphStyle("SubtituloCaderno", parent=styles["Normal"], alignment=TA_CENTER, fontSize=9, leading=11, spaceAfter=10)
+    titulo = ParagraphStyle("TituloCaderno", parent=styles["Heading1"], alignment=TA_CENTER, fontSize=14, leading=17, spaceAfter=6)
+    secao = ParagraphStyle("SecaoCaderno", parent=styles["Heading2"], alignment=TA_CENTER, fontSize=11, leading=14, spaceBefore=4, spaceAfter=6)
     normal = ParagraphStyle("NormalCaderno", parent=styles["Normal"], fontSize=8, leading=10)
-    cab = ParagraphStyle("CabCaderno", parent=styles["Normal"], fontSize=8, leading=10, alignment=TA_CENTER)
+    celula = ParagraphStyle("CelulaCaderno", parent=styles["Normal"], fontSize=7, leading=8.8, wordWrap="CJK")
+    celula_pequena = ParagraphStyle("CelulaPequenaCaderno", parent=styles["Normal"], fontSize=6.4, leading=8, wordWrap="CJK")
+    rotulo = ParagraphStyle("RotuloCaderno", parent=celula, fontName="Helvetica-Bold")
     story = []
 
-    story.append(Paragraph("GOVERNO DO ESTADO DE SÃO PAULO<br/>SECRETARIA DE ESTADO DA EDUCAÇÃO<br/>UNIDADE REGIONAL DE ENSINO DE SUZANO - SP<br/><b>E.E. PROFª ELIANE AP. DANTAS DA SILVA</b><br/>Programa Ensino Integral - PEI", cab))
-    story.append(Paragraph("Rua: Walter S. Costa, 147 – Jd. Primavera – F. Vasconcelos – SP<br/>Fone WhatsApp: (11) 4675-1855 – e-mail: e918623a@educacao.sp.gov.br", subtitulo))
+    _adicionar_logo(story)
     story.append(Paragraph("CADERNO DE TUTORIA 2026", titulo))
     story.append(Paragraph(f"<b>Tutor(a):</b> {html.escape(str(caderno.get('professor','')))}", normal))
     story.append(Paragraph(f"<b>Estudante:</b> {html.escape(str(caderno.get('estudante','')))} &nbsp;&nbsp; <b>Turma:</b> {html.escape(str(caderno.get('turma','')))}", normal))
     story.append(Spacer(1, 0.25*cm))
 
     ficha = caderno.get("ficha_identificacao", {})
-    story.append(Paragraph("FICHA DE IDENTIFICAÇÃO DO TUTORADO", titulo))
+    story.append(Paragraph("FICHA DE IDENTIFICAÇÃO DO TUTORADO", secao))
     dados_ficha = [
-        ["Nome do Aluno", ficha.get("nome_aluno", ""), "Ano/Série", ficha.get("ano_serie", ""), "Data de Nasc.", ficha.get("data_nascimento", "")],
-        ["Telefone", ficha.get("telefone", ""), "Nome do responsável", ficha.get("nome_responsavel", ""), "Telefone", ficha.get("telefone_responsavel", "")],
+        [_pdf_texto_caderno("Nome do Aluno", rotulo), _pdf_texto_caderno(ficha.get("nome_aluno", ""), celula), _pdf_texto_caderno("Ano/Série", rotulo), _pdf_texto_caderno(ficha.get("ano_serie", ""), celula), _pdf_texto_caderno("Data de Nasc.", rotulo), _pdf_texto_caderno(ficha.get("data_nascimento", ""), celula)],
+        [_pdf_texto_caderno("Telefone", rotulo), _pdf_texto_caderno(ficha.get("telefone", ""), celula), _pdf_texto_caderno("Nome do responsável", rotulo), _pdf_texto_caderno(ficha.get("nome_responsavel", ""), celula), _pdf_texto_caderno("Telefone", rotulo), _pdf_texto_caderno(ficha.get("telefone_responsavel", ""), celula)],
     ]
-    tabela = Table(dados_ficha, colWidths=[2.7*cm, 4.0*cm, 2.2*cm, 3.0*cm, 2.3*cm, 3.0*cm])
-    tabela.setStyle(TableStyle([("GRID", (0,0), (-1,-1), 0.4, colors.grey), ("BACKGROUND", (0,0), (0,-1), colors.whitesmoke), ("FONT", (0,0), (-1,-1), "Helvetica", 7), ("VALIGN", (0,0), (-1,-1), "TOP")]))
+    tabela = Table(dados_ficha, colWidths=[2.4*cm, 5.0*cm, 2.2*cm, 2.3*cm, 2.1*cm, 3.0*cm])
+    tabela.setStyle(TableStyle([
+        ("GRID", (0,0), (-1,-1), 0.4, colors.grey),
+        ("BACKGROUND", (0,0), (0,-1), colors.whitesmoke),
+        ("BACKGROUND", (2,0), (2,-1), colors.whitesmoke),
+        ("BACKGROUND", (4,0), (4,-1), colors.whitesmoke),
+        ("VALIGN", (0,0), (-1,-1), "TOP"),
+        ("LEFTPADDING", (0,0), (-1,-1), 4),
+        ("RIGHTPADDING", (0,0), (-1,-1), 4),
+        ("TOPPADDING", (0,0), (-1,-1), 4),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 4),
+    ]))
     story.append(tabela)
     story.append(Spacer(1, 0.35*cm))
 
-    story.append(Paragraph("RENDIMENTO BIMESTRAL", titulo))
+    story.append(Paragraph("RENDIMENTO BIMESTRAL", secao))
     linhas = [["Componente Curricular", "1º BIM", "2º BIM", "3º BIM", "4º BIM", "Resultado Final"]]
     for disc in DISCIPLINAS_CADERNO_TUTORIA:
         reg = caderno.get("rendimento_bimestral", {}).get(disc, {})
-        linhas.append([disc, reg.get("1º BIM", ""), reg.get("2º BIM", ""), reg.get("3º BIM", ""), reg.get("4º BIM", ""), reg.get("RESULTADO FINAL", "")])
+        linhas.append([
+            _pdf_texto_caderno(disc, celula_pequena),
+            _pdf_texto_caderno(reg.get("1º BIM", ""), celula_pequena),
+            _pdf_texto_caderno(reg.get("2º BIM", ""), celula_pequena),
+            _pdf_texto_caderno(reg.get("3º BIM", ""), celula_pequena),
+            _pdf_texto_caderno(reg.get("4º BIM", ""), celula_pequena),
+            _pdf_texto_caderno(reg.get("RESULTADO FINAL", ""), celula_pequena),
+        ])
     t = Table(linhas, colWidths=[5.3*cm, 2.0*cm, 2.0*cm, 2.0*cm, 2.0*cm, 3.0*cm], repeatRows=1)
     t.setStyle(TableStyle([("GRID", (0,0), (-1,-1), 0.35, colors.grey), ("BACKGROUND", (0,0), (-1,0), colors.lightgrey), ("FONT", (0,0), (-1,-1), "Helvetica", 6.5), ("VALIGN", (0,0), (-1,-1), "MIDDLE")]))
     story.append(t)
     story.append(Spacer(1, 0.35*cm))
 
-    story.append(Paragraph("PARTICIPAÇÃO DOS PAIS NAS REUNIÕES", titulo))
+    story.append(Paragraph("PARTICIPAÇÃO DOS PAIS NAS REUNIÕES", secao))
     part = caderno.get("participacao_pais", {})
     linhas = [["Bimestre", "Data", "Assinatura do Responsável"]]
     for bim in ["1º BIMESTRE", "2º BIMESTRE", "3º BIMESTRE", "4º BIMESTRE"]:
         reg = part.get(bim, {})
-        linhas.append([bim, reg.get("data", ""), reg.get("assinatura_responsavel", "")])
+        linhas.append([_pdf_texto_caderno(bim, celula), _pdf_texto_caderno(reg.get("data", ""), celula), _pdf_texto_caderno(reg.get("assinatura_responsavel", ""), celula)])
     t = Table(linhas, colWidths=[4*cm, 4*cm, 9*cm], repeatRows=1)
     t.setStyle(TableStyle([("GRID", (0,0), (-1,-1), 0.35, colors.grey), ("BACKGROUND", (0,0), (-1,0), colors.lightgrey), ("FONT", (0,0), (-1,-1), "Helvetica", 7)]))
     story.append(t)
     story.append(Spacer(1, 0.35*cm))
 
-    story.append(Paragraph("TUTORIA INDIVIDUAL", titulo))
+    story.append(Paragraph("TUTORIA INDIVIDUAL", secao))
     individuais = caderno.get("tutoria_individual", []) or []
     if individuais:
         linhas = [["Data", "Objetivo", "Pontos positivos", "Pontos de atenção", "Ações / encaminhamentos"]]
         for item in individuais:
-            linhas.append([item.get("data", ""), item.get("objetivo", ""), item.get("pontos_positivos", ""), item.get("pontos_atencao", ""), item.get("acoes_encaminhamentos", "")])
+            linhas.append([
+                _pdf_texto_caderno(item.get("data", ""), celula_pequena),
+                _pdf_texto_caderno(item.get("objetivo", ""), celula_pequena),
+                _pdf_texto_caderno(item.get("pontos_positivos", ""), celula_pequena),
+                _pdf_texto_caderno(item.get("pontos_atencao", ""), celula_pequena),
+                _pdf_texto_caderno(item.get("acoes_encaminhamentos", ""), celula_pequena),
+            ])
         t = Table(linhas, colWidths=[2*cm, 3.2*cm, 4*cm, 4*cm, 4*cm], repeatRows=1)
         t.setStyle(TableStyle([("GRID", (0,0), (-1,-1), 0.35, colors.grey), ("BACKGROUND", (0,0), (-1,0), colors.lightgrey), ("FONT", (0,0), (-1,-1), "Helvetica", 6.2), ("VALIGN", (0,0), (-1,-1), "TOP")]))
         story.append(t)
@@ -6152,13 +6248,19 @@ def gerar_pdf_caderno_tutoria(caderno: dict) -> BytesIO:
         story.append(Paragraph("Nenhum registro individual cadastrado.", normal))
 
     story.append(Spacer(1, 0.35*cm))
-    story.append(Paragraph("TUTORIA COLETIVA", titulo))
+    story.append(Paragraph("TUTORIA COLETIVA", secao))
     coletivas = caderno.get("tutoria_coletiva", []) or []
     if coletivas:
         linhas = [["Data", "Nº", "Objetivo", "Campo", "Constatação e/ou evidência"]]
         for encontro in coletivas:
             for campo in CAMPOS_TUTORIA_COLETIVA:
-                linhas.append([encontro.get("data", ""), encontro.get("numero_encontro", ""), encontro.get("objetivo_encontro", ""), campo, encontro.get("campos", {}).get(campo, "")])
+                linhas.append([
+                    _pdf_texto_caderno(encontro.get("data", ""), celula_pequena),
+                    _pdf_texto_caderno(encontro.get("numero_encontro", ""), celula_pequena),
+                    _pdf_texto_caderno(encontro.get("objetivo_encontro", ""), celula_pequena),
+                    _pdf_texto_caderno(campo, celula_pequena),
+                    _pdf_texto_caderno(encontro.get("campos", {}).get(campo, ""), celula_pequena),
+                ])
         t = Table(linhas, colWidths=[1.7*cm, 1.1*cm, 3.0*cm, 4.2*cm, 7.0*cm], repeatRows=1)
         t.setStyle(TableStyle([("GRID", (0,0), (-1,-1), 0.35, colors.grey), ("BACKGROUND", (0,0), (-1,0), colors.lightgrey), ("FONT", (0,0), (-1,-1), "Helvetica", 5.8), ("VALIGN", (0,0), (-1,-1), "TOP")]))
         story.append(t)
@@ -6465,6 +6567,7 @@ if menu == "🏠 Dashboard":
     # ── Boas-vindas ───────────────────────────────────────────
     hora_atual = datetime.now().hour
     saudacao = "🌅 Bom dia" if hora_atual < 12 else ("☀️ Boa tarde" if hora_atual < 18 else "🌙 Boa noite")
+    frase_abertura = _frase_inspiracao_abertura()
     st.markdown(f"""
     <div style="
         display: flex; align-items: center; gap: 1rem;
@@ -6483,6 +6586,9 @@ if menu == "🏠 Dashboard":
             <div style="color: #5b5679; font-size: 0.9rem;">
                 Gerencie ocorrências, alunos e agendamentos de forma inteligente.
                 &nbsp;·&nbsp; <b style="color: #7c3aed;">{formatar_data_extenso_pt()}</b>
+            </div>
+            <div style="color:#0f766e; font-size:0.86rem; margin-top:0.35rem; font-weight:700;">
+                {html.escape(frase_abertura)}
             </div>
         </div>
     </div>
@@ -6552,6 +6658,17 @@ if menu == "🏠 Dashboard":
         if not df_ocorrencias.empty and "gravidade" in df_ocorrencias.columns else 0
     )
 
+    opcao_panorama = st.radio(
+        "Panorama letivo",
+        ["Hoje", "Dia anterior"],
+        horizontal=True,
+        label_visibility="collapsed",
+        key="dashboard_panorama_periodo",
+    )
+    data_panorama = datetime.now().date() if opcao_panorama == "Hoje" else (datetime.now() - timedelta(days=1)).date()
+    resumo_panorama, df_panorama_dia = _resumo_panorama_letivo(df_ocorrencias, data_panorama)
+    qtd_panorama = len(df_panorama_dia) if df_panorama_dia is not None else 0
+
     st.markdown("""
     <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
         <div style="width:4px; height:22px; background:linear-gradient(180deg,#1d4ed8,#0891b2); border-radius:4px;"></div>
@@ -6564,12 +6681,23 @@ if menu == "🏠 Dashboard":
         <div class="dashboard-callout-content">
             <div>
                 <p class="dashboard-callout-title">Panorama do dia letivo</p>
-                <p class="dashboard-callout-text">Acompanhe alunos, ocorrencias e equipe em um painel mais claro e rapido para consulta.</p>
+                <p class="dashboard-callout-text">{html.escape(resumo_panorama)}</p>
             </div>
-            <div class="dashboard-callout-badge">{datetime.now().strftime('%d/%m/%Y')}</div>
+            <div class="dashboard-callout-badge">{data_panorama.strftime('%d/%m/%Y')} · {qtd_panorama}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+    if qtd_panorama:
+        col_p1, col_p2, col_p3 = st.columns(3)
+        gravidade_dia = df_panorama_dia["gravidade"].value_counts().head(1) if "gravidade" in df_panorama_dia.columns else pd.Series(dtype=int)
+        categoria_dia = df_panorama_dia["categoria"].value_counts().head(1) if "categoria" in df_panorama_dia.columns else pd.Series(dtype=int)
+        turma_dia = df_panorama_dia["turma"].value_counts().head(1) if "turma" in df_panorama_dia.columns else pd.Series(dtype=int)
+        col_p1.metric("Registros no dia", qtd_panorama)
+        col_p2.metric("Mais recorrente", str(categoria_dia.index[0]) if not categoria_dia.empty else "Sem categoria")
+        col_p3.metric("Turma com mais registros", str(turma_dia.index[0]) if not turma_dia.empty else "Sem turma")
+        if not gravidade_dia.empty:
+            st.caption(f"Gravidade mais frequente: {gravidade_dia.index[0]} ({int(gravidade_dia.iloc[0])})")
 
     with st.expander("🔎 Verificação de Situação dos Estudantes", expanded=False):
         st.info("As métricas usam RA único. Transferidos, remanejados/realocados e inativos ficam fora do total ativo.")
