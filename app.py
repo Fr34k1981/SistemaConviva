@@ -6179,9 +6179,21 @@ def render_caderno_tutoria_online(TUTORIA: dict, df_alunos: pd.DataFrame | None 
         st.info("Cadastre primeiro os responsáveis e estudantes na Tutoria para liberar os cadernos online.")
         return
 
+    # CONTROLE DE ACESSO DO CADERNO
+    # Professor(a) ve somente seus tutorados; gestao pode escolher qualquer responsavel.
+    nomes_professores = sorted([str(p).strip() for p in TUTORIA.keys() if str(p).strip()])
+    acesso_ok, usuario_logado, usuario_gestao = render_login_professor_tutoria(nomes_professores)
+    if not acesso_ok:
+        return
+
     cadernos = carregar_cadernos_tutoria_online()
-    nomes_professores = sorted(TUTORIA.keys())
-    professor = st.selectbox("Tutor(a) / responsável pelo caderno", nomes_professores, key="caderno_tutoria_professor")
+
+    if usuario_gestao:
+        professor = st.selectbox("Tutor(a) / responsável pelo caderno", nomes_professores, key="caderno_tutoria_professor")
+    else:
+        professor = usuario_logado
+        st.info(f"Voce esta acessando o caderno como professor(a): {professor}")
+
     registro_tutor = obter_registro_tutoria(TUTORIA, professor)
     estudantes = _linhas_professor_tutoria(registro_tutor)
 
@@ -7227,40 +7239,67 @@ elif "HISTORICO DE OCORRENCIA" in normalizar_texto(menu):
     """, unsafe_allow_html=True)
     col_excluir, col_editar = st.columns(2)
 
+    # Opcoes curtas para evitar sobreposicao visual no selectbox.
+    def _rotulo_ocorrencia_linha(row):
+        aluno = str(row.get("aluno", "")).strip()
+        categoria = str(row.get("categoria", "")).strip()
+        data = str(row.get("data", "")).strip()
+        aluno_curto = (aluno[:38] + "...") if len(aluno) > 41 else aluno
+        categoria_curta = (categoria[:35] + "...") if len(categoria) > 38 else categoria
+        return f"{row.get('id')} - {aluno_curto} - {data} - {categoria_curta}"
+
+    df_acoes = df_view.copy()
+    if not df_acoes.empty and "id" in df_acoes.columns:
+        df_acoes["id"] = pd.to_numeric(df_acoes["id"], errors="coerce").astype("Int64")
+        df_acoes = df_acoes.dropna(subset=["id"]).copy()
+        df_acoes["id"] = df_acoes["id"].astype(int)
+
+    mapa_ocorrencias = {
+        int(row["id"]): _rotulo_ocorrencia_linha(row)
+        for _, row in df_acoes.iterrows()
+        if pd.notna(row.get("id"))
+    }
+    ids_ocorrencias = list(mapa_ocorrencias.keys())
+
     with col_excluir:
         st.markdown("### 🗑️ Excluir Ocorrência")
-        opcoes_excluir = [f"{row['id']} - {row['aluno']} - {row['data']} - {row['categoria']}" for _, row in df_view.iterrows()]
-        
-        if opcoes_excluir:
-            opcao_sel = st.selectbox("Selecione a ocorrência", opcoes_excluir, key="select_excluir")
-            id_excluir = int(opcao_sel.split(" - ")[0])
-            
+        if ids_ocorrencias:
+            id_excluir = st.selectbox(
+                "Selecione a ocorrência",
+                ids_ocorrencias,
+                key="select_excluir_id",
+                format_func=lambda x: mapa_ocorrencias.get(int(x), str(x)),
+            )
             senha = st.text_input("🔒 Digite a senha para excluir", type="password", key="senha_excluir")
-            
             if st.button("🗑️ Excluir Ocorrência", type="secondary"):
                 if senha != SENHA_EXCLUSAO:
                     st.error("❌ Senha incorreta!")
                     show_toast("Senha incorreta para exclusão.", "error")
                 else:
-                    sucesso = excluir_ocorrencia(id_excluir)
+                    sucesso = excluir_ocorrencia(int(id_excluir))
                     if sucesso:
-                        st.session_state.mensagem_exclusao = f"✅ Ocorrência {id_excluir} excluída com sucesso!"
-                        show_toast(f"Ocorrência {id_excluir} excluída.", "success")
+                        st.session_state.mensagem_exclusao = f"✅ Ocorrência {int(id_excluir)} excluída com sucesso!"
+                        show_toast(f"Ocorrência {int(id_excluir)} excluída.", "success")
                         carregar_ocorrencias.clear()
                         st.rerun()
+        else:
+            st.info("Nenhuma ocorrência disponível para exclusão com os filtros atuais.")
 
     with col_editar:
         st.markdown("### ✏️ Editar Ocorrência")
-        opcoes_editar = [f"{row['id']} - {row['aluno']} - {row['data']} - {row['categoria']}" for _, row in df_view.iterrows()]
-        
-        if opcoes_editar:
-            opcao_edit = st.selectbox("Selecione a ocorrência", opcoes_editar, key="select_editar")
-            id_editar = int(opcao_edit.split(" - ")[0])
-            
+        if ids_ocorrencias:
+            id_editar = st.selectbox(
+                "Selecione a ocorrência",
+                ids_ocorrencias,
+                key="select_editar_id",
+                format_func=lambda x: mapa_ocorrencias.get(int(x), str(x)),
+            )
             if st.button("✏️ Carregar para Edição"):
-                st.session_state.editando_id = id_editar
-                st.session_state.dados_edicao = df_view[df_view["id"] == id_editar].iloc[0].to_dict()
+                st.session_state.editando_id = int(id_editar)
+                st.session_state.dados_edicao = df_acoes[df_acoes["id"] == int(id_editar)].iloc[0].to_dict()
                 st.rerun()
+        else:
+            st.info("Nenhuma ocorrência disponível para edição com os filtros atuais.")
 
     if st.session_state.get("editando_id") and st.session_state.get("dados_edicao"):
         dados = st.session_state.dados_edicao
