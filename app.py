@@ -143,7 +143,7 @@ GEMINI_MODEL = _obter_config_secreta("GEMINI_MODEL", "gemini-2.5-flash")
 # CONFIGURAÇÃO STREAMLIT
 # ======================================================
 st.set_page_config(
-    page_title="Sistema Conviva 179 - ELIANE APARECIDA DANTAS DA SILVA PROFESSORA - PEI",
+    page_title="Sistema Conviva 179 - ELIANE AP. DANTAS DA SILVA PROFESSORA - PEI",
     layout="wide",
     page_icon="🏫",
     initial_sidebar_state="expanded"
@@ -1546,7 +1546,7 @@ div[data-testid="stForm"]:hover {
 # ======================================================
 # DADOS DA ESCOLA
 # ======================================================
-ESCOLA_NOME = "ELIANE APARECIDA DANTAS DA SILVA PROFESSORA - PEI"
+ESCOLA_NOME = "ELIANE AP. DANTAS DA SILVA PROFESSORA - PEI"
 ESCOLA_SUBTITULO = "Escola dos Sonhos • Escola Estadual"
 ESCOLA_ENDERECO = "VALTER DE SOUZA COSTA, 147 - RUA JARDIM PRIMAVERA - Ferraz de Vasconcelos - São Paulo"
 ESCOLA_CEP = "CEP: 08535-310"
