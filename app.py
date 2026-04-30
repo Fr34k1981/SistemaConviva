@@ -2268,6 +2268,35 @@ div[data-testid="stForm"] {
     .sed-dashboard-user { text-align: left !important; }
 }
 
+
+
+/* ============================================ */
+/* ========== LIMPEZA VISUAL - SEM DUPLICIDADE ========== */
+/* ============================================ */
+.sed-tool-card {
+    display: none !important;
+}
+.sed-section-title {
+    padding: 0.7rem 0.85rem !important;
+    border-radius: 16px !important;
+    box-shadow: none !important;
+    background: rgba(255,255,255,0.70) !important;
+}
+.sed-section-icon {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 12px !important;
+    font-size: 1.05rem !important;
+}
+.sed-section-heading {
+    font-size: 1.02rem !important;
+}
+.sed-section-subtitle {
+    font-size: 0.84rem !important;
+}
+/* Evita textos muito grandes nos cards/metas do Streamlit */
+[data-testid="stMetricValue"] { font-size: 1.15rem !important; }
+
 </style>
 """, unsafe_allow_html=True)
 # ======================================================
@@ -13059,17 +13088,8 @@ elif menu == "🫂 Tutoria":
         return _supabase_mutation("DELETE", filtro, None, "excluir estudante da tutoria")
 
     st.markdown("---")
-    st.markdown("""
-    <div class="sed-section-title">
-        <div class="sed-section-icon">🛠️</div>
-        <div>
-            <div class="sed-section-kicker">Gestão da Tutoria</div>
-            <div class="sed-section-heading">Gerenciar estudantes da lista selecionada</div>
-            <div class="sed-section-subtitle">As ações de excluir, editar e limpar a lista foram reorganizadas em cards para reduzir poluição visual.</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    st.caption("Use esta área para editar ou excluir estudantes da lista do responsável selecionado.")
+    st.subheader("📋 Estudantes da lista selecionada")
+    st.caption("Ações de editar, excluir estudante e limpar lista ficam em uma única área mais abaixo, evitando duplicidade e poluição visual.")
 
     alunos_raw = normalizar_alunos_tutoria(tutor_info.get("alunos", []))
     if tutor_sel not in TUTORIA:
@@ -13087,155 +13107,6 @@ elif menu == "🫂 Tutoria":
             for idx, aluno in enumerate(alunos_raw)
         ])
         st.dataframe(df_lista_atual, use_container_width=True, hide_index=True)
-
-        col_remover, col_editar, col_limpar = st.columns(3, gap="large")
-
-        with col_remover:
-            st.markdown("""
-            <div class="sed-tool-card">
-                <div class="sed-tool-card-title">🗑️ Excluir estudante</div>
-                <div class="sed-tool-card-subtitle">Remova um único estudante da lista com confirmação visual.</div>
-            </div>
-            """, unsafe_allow_html=True)
-            opcoes_excluir = list(range(len(alunos_raw)))
-            idx_excluir = st.selectbox(
-                "Selecione o estudante que deseja remover",
-                options=opcoes_excluir,
-                format_func=lambda i: f"{alunos_raw[i].get('nome', '')} — {formatar_turma_eletiva(alunos_raw[i].get('serie', ''))}",
-                key=f"tutoria_excluir_idx_{gerar_chave_segura(tutor_sel)}"
-            )
-            aluno_excluir = alunos_raw[idx_excluir]
-            st.warning(
-                f"Você vai remover **{aluno_excluir.get('nome', '')}** "
-                f"({formatar_turma_eletiva(aluno_excluir.get('serie', ''))}) da lista de **{tutor_sel}**."
-            )
-            confirmar_excluir_um = st.checkbox(
-                "Confirmo a exclusão deste estudante",
-                key=f"confirmar_excluir_um_tutoria_{gerar_chave_segura(tutor_sel)}"
-            )
-            if st.button(
-                "🗑️ Excluir estudante selecionado",
-                type="secondary",
-                key=f"btn_excluir_um_tutoria_{gerar_chave_segura(tutor_sel)}",
-                use_container_width=True
-            ):
-                if not confirmar_excluir_um:
-                    st.warning("Marque a confirmação antes de excluir.")
-                else:
-                    try:
-                        removido = TUTORIA[tutor_sel]["alunos"].pop(idx_excluir)
-                        _salvar_estado_tutoria("local")
-                        if SUPABASE_VALID:
-                            _apagar_registro_supabase_tutoria(
-                                tutor_sel,
-                                str(removido.get("nome", "")),
-                                str(removido.get("serie", ""))
-                            )
-                        st.success("✅ Estudante removido da lista.")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Erro ao excluir estudante: {e}")
-
-        with col_editar:
-            st.markdown("""
-            <div class="sed-tool-card">
-                <div class="sed-tool-card-title">✏️ Editar estudante</div>
-                <div class="sed-tool-card-subtitle">Atualize nome, turma e RA em um painel mais organizado.</div>
-            </div>
-            """, unsafe_allow_html=True)
-            opcoes_editar = list(range(len(alunos_raw)))
-            idx_editar = st.selectbox(
-                "Selecione o estudante que deseja editar",
-                options=opcoes_editar,
-                format_func=lambda i: f"{alunos_raw[i].get('nome', '')} — {formatar_turma_eletiva(alunos_raw[i].get('serie', ''))}",
-                key=f"tutoria_editar_idx_{gerar_chave_segura(tutor_sel)}"
-            )
-            aluno_editar = alunos_raw[idx_editar]
-            nome_antigo = str(aluno_editar.get("nome", "")).strip()
-            turma_antiga = formatar_turma_eletiva(str(aluno_editar.get("serie", "")).strip())
-            ra_antigo = "".join(ch for ch in str(aluno_editar.get("ra", "")) if ch.isdigit())
-
-            novo_nome = st.text_input(
-                "Nome",
-                value=nome_antigo,
-                key=f"tutoria_editar_nome_{gerar_chave_segura(tutor_sel)}_{idx_editar}"
-            )
-            col_edit_turma, col_edit_ra = st.columns(2)
-            with col_edit_turma:
-                nova_turma = st.text_input(
-                    "Turma",
-                    value=turma_antiga,
-                    key=f"tutoria_editar_turma_{gerar_chave_segura(tutor_sel)}_{idx_editar}"
-                )
-            with col_edit_ra:
-                novo_ra = st.text_input(
-                    "RA",
-                    value=ra_antigo,
-                    key=f"tutoria_editar_ra_{gerar_chave_segura(tutor_sel)}_{idx_editar}"
-                )
-
-            if st.button(
-                "💾 Salvar edição do estudante",
-                type="primary",
-                key=f"btn_salvar_edicao_estudante_tutoria_{gerar_chave_segura(tutor_sel)}",
-                use_container_width=True
-            ):
-                novo_nome = str(novo_nome or "").strip()
-                nova_turma = formatar_turma_eletiva(str(nova_turma or "").strip())
-                novo_ra = "".join(ch for ch in str(novo_ra or "") if ch.isdigit())
-                if not novo_nome:
-                    st.warning("Informe o nome do estudante.")
-                else:
-                    try:
-                        novo_item = {"nome": novo_nome, "serie": nova_turma}
-                        if novo_ra:
-                            novo_item["ra"] = novo_ra
-                        TUTORIA[tutor_sel]["alunos"][idx_editar] = novo_item
-                        _salvar_estado_tutoria("local")
-                        if SUPABASE_VALID:
-                            _apagar_registro_supabase_tutoria(tutor_sel, nome_antigo, turma_antiga)
-                            _supabase_request("POST", "tutoria", json=[{
-                                "professora": tutor_sel,
-                                "nome_aluno": novo_nome,
-                                "serie": nova_turma,
-                                "origem": "edicao_manual"
-                            }])
-                        st.success("✅ Estudante atualizado.")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Erro ao editar estudante: {e}")
-
-        with col_limpar:
-            st.markdown("""
-            <div class="sed-tool-card">
-                <div class="sed-tool-card-title">🧹 Excluir todos</div>
-                <div class="sed-tool-card-subtitle">Limpe a lista completa do responsável apenas quando necessário.</div>
-            </div>
-            """, unsafe_allow_html=True)
-            st.error(f"Esta ação remove todos os estudantes vinculados a {tutor_sel}.")
-            confirmar_limpar_lista = st.checkbox(
-                f"Confirmo excluir todos os estudantes de {tutor_sel}",
-                key=f"confirmar_limpar_lista_tutoria_{gerar_chave_segura(tutor_sel)}"
-            )
-            if st.button(
-                "🧹 Excluir todos os estudantes desta lista",
-                type="secondary",
-                key=f"btn_limpar_lista_tutoria_{gerar_chave_segura(tutor_sel)}",
-                use_container_width=True
-            ):
-                if not confirmar_limpar_lista:
-                    st.warning("Marque a confirmação antes de excluir todos.")
-                else:
-                    try:
-                        TUTORIA[tutor_sel]["alunos"] = []
-                        _salvar_estado_tutoria("local")
-                        if SUPABASE_VALID:
-                            tutor_q = requests.utils.quote(str(tutor_sel), safe="")
-                            _supabase_request("DELETE", f"tutoria?professora=eq.{tutor_q}")
-                        st.success("✅ Todos os estudantes desta lista foram removidos.")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Erro ao limpar lista: {e}")
     else:
         st.info("Este responsável ainda não possui estudantes vinculados. Use a área de cadastro abaixo para inserir estudantes.")
     def _adicionar_estudantes_tutoria(novos_estudantes: list, origem: str, tutor_destino: str | None = None):
