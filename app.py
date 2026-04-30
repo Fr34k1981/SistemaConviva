@@ -1,4 +1,5 @@
-﻿# ======================================================
+﻿# VERSAO VISUAL DEFINITIVA - SED + UNICORNIO + ARCO-IRIS
+# ======================================================
 # IMPORTS PADRÃO
 # ======================================================
 import streamlit as st
@@ -1692,6 +1693,581 @@ div[data-testid="stForm"]:hover {
     }
     .school-info-chips { display: none; }
 }
+
+
+/* ============================================ */
+/* ========== REFINO SED + ARCO-IRIS ========== */
+/* ============================================ */
+h1 { font-size: 1.85rem !important; line-height: 1.2 !important; }
+h2 { font-size: 1.45rem !important; line-height: 1.22 !important; }
+h3 { font-size: 1.15rem !important; line-height: 1.25 !important; }
+h4, h5, h6 { font-size: 1rem !important; line-height: 1.28 !important; }
+p, li, label, .stMarkdown, .stCaption, .stText {
+    line-height: 1.55 !important;
+}
+label, .stTextInput label, .stTextArea label, .stSelectbox label, .stMultiSelect label, .stDateInput label {
+    font-size: 0.82rem !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+    font-weight: 800 !important;
+    color: #6d28d9 !important;
+}
+.small-muted { color: #6b7280 !important; font-size: 0.85rem !important; }
+
+[data-testid="stMetric"] {
+    background: rgba(255,255,255,0.84) !important;
+    border: 1px solid rgba(216,180,254,0.95) !important;
+    border-radius: 20px !important;
+    padding: 0.85rem 0.95rem !important;
+    box-shadow: 0 12px 28px rgba(168,85,247,0.10) !important;
+}
+[data-testid="stMetricLabel"] {
+    font-size: 0.78rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.08em !important;
+    color: #7c3aed !important;
+    font-weight: 800 !important;
+}
+[data-testid="stMetricValue"] {
+    font-size: 1.25rem !important;
+    line-height: 1.15 !important;
+    color: #2b2140 !important;
+}
+
+[data-baseweb="select"] > div,
+.stDateInput > div > div,
+.stNumberInput > div > div,
+.stTextInput > div > div,
+.stTextArea > div > div,
+.stMultiSelect > div > div {
+    border-radius: 18px !important;
+}
+
+[data-testid="stTabs"] div[role="tablist"] {
+    gap: 0.55rem !important;
+    background: rgba(255,255,255,0.58) !important;
+    padding: 0.55rem !important;
+    border-radius: 24px !important;
+    border: 1px solid rgba(233,213,255,0.95) !important;
+    box-shadow: 0 10px 24px rgba(168,85,247,0.08) !important;
+}
+[data-testid="stTabs"] button[role="tab"] {
+    height: 44px !important;
+    border-radius: 16px !important;
+    padding: 0 0.95rem !important;
+    border: 1px solid transparent !important;
+    background: transparent !important;
+    color: #6b5b95 !important;
+    font-size: 0.94rem !important;
+    font-weight: 700 !important;
+}
+[data-testid="stTabs"] button[aria-selected="true"] {
+    background: linear-gradient(135deg, rgba(255,255,255,0.96), rgba(255,255,255,0.82)) !important;
+    border-color: rgba(217,70,239,0.25) !important;
+    color: #a21caf !important;
+    box-shadow: 0 10px 22px rgba(217,70,239,0.12) !important;
+}
+
+[data-testid="stDataFrame"], [data-testid="stTable"] {
+    background: rgba(255,255,255,0.74) !important;
+    border-radius: 20px !important;
+    border: 1px solid rgba(233,213,255,0.95) !important;
+    overflow: hidden !important;
+    box-shadow: 0 10px 24px rgba(168,85,247,0.08) !important;
+}
+
+.form-panel, .sed-form-card-header, .sed-section-title, .sed-tool-card, .sed-feature-card {
+    animation: fadeInUp 0.3s ease both;
+}
+
+.sed-section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    padding: 1rem 1.05rem;
+    margin: 0.85rem 0 0.95rem 0;
+    border-radius: 24px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.86), rgba(255,247,252,0.82));
+    border: 1px solid rgba(233,213,255,0.95);
+    box-shadow: 0 14px 28px rgba(168,85,247,0.08);
+    backdrop-filter: blur(10px);
+}
+.sed-section-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+    background: var(--grad-school);
+    box-shadow: 0 12px 22px rgba(236,72,153,0.18);
+}
+.sed-section-kicker {
+    font-size: 0.74rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #7c3aed;
+    margin-bottom: 0.12rem;
+}
+.sed-section-heading {
+    font-family: 'Nunito', sans-serif;
+    font-size: 1.12rem;
+    line-height: 1.25;
+    font-weight: 800;
+    color: #2b2140;
+}
+.sed-section-subtitle {
+    font-size: 0.92rem;
+    color: #6b7280;
+    margin-top: 0.2rem;
+}
+.sed-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0.75rem;
+    margin: 0.2rem 0 1rem 0;
+}
+.sed-kpi-item {
+    background: rgba(255,255,255,0.80);
+    border: 1px solid rgba(233,213,255,0.96);
+    border-radius: 20px;
+    padding: 0.85rem 1rem;
+    box-shadow: 0 10px 22px rgba(168,85,247,0.08);
+}
+.sed-kpi-label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #7c3aed;
+    margin-bottom: 0.35rem;
+}
+.sed-kpi-value {
+    display: block;
+    font-size: 1rem;
+    line-height: 1.4;
+    font-weight: 800;
+    color: #312e81;
+    word-break: break-word;
+}
+.sed-feature-card {
+    border-radius: 24px;
+    padding: 1.2rem;
+    background: linear-gradient(135deg, rgba(255,247,251,0.96), rgba(240,249,255,0.96));
+    border: 1px solid rgba(233,213,255,0.96);
+    box-shadow: 0 16px 30px rgba(168,85,247,0.08);
+}
+.sed-feature-card-kicker {
+    font-size: 0.75rem;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #db2777;
+    margin-bottom: 0.35rem;
+}
+.sed-feature-card-title {
+    font-family: 'Nunito', sans-serif;
+    font-size: 1.35rem;
+    line-height: 1.25;
+    font-weight: 900;
+    color: #312e81;
+    margin-bottom: 0.7rem;
+}
+.sed-feature-card-meta {
+    font-size: 0.94rem;
+    color: #4b5563;
+    margin-bottom: 0.45rem;
+}
+.sed-form-card-header {
+    padding: 0.95rem 1rem;
+    margin-bottom: 0.8rem;
+    border-radius: 18px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.88), rgba(248,250,252,0.90));
+    border: 1px solid rgba(233,213,255,0.96);
+    box-shadow: 0 10px 22px rgba(168,85,247,0.07);
+}
+.sed-form-card-title {
+    font-family: 'Nunito', sans-serif;
+    font-size: 1rem;
+    font-weight: 800;
+    color: #2b2140;
+    margin: 0;
+}
+.sed-form-card-subtitle {
+    font-size: 0.9rem;
+    color: #6b7280;
+    margin-top: 0.2rem;
+}
+.sed-tool-card {
+    padding: 1rem;
+    border-radius: 20px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.92), rgba(255,249,252,0.92));
+    border: 1px solid rgba(233,213,255,0.96);
+    box-shadow: 0 12px 24px rgba(168,85,247,0.08);
+    margin-bottom: 0.8rem;
+}
+.sed-tool-card-title {
+    font-family: 'Nunito', sans-serif;
+    font-size: 1rem;
+    font-weight: 800;
+    color: #2b2140;
+    margin-bottom: 0.2rem;
+}
+.sed-tool-card-subtitle {
+    font-size: 0.88rem;
+    line-height: 1.45;
+    color: #6b7280;
+}
+.sed-inline-note {
+    font-size: 0.88rem;
+    color: #6b7280;
+    margin-top: -0.1rem;
+    margin-bottom: 0.35rem;
+}
+
+
+
+/* ====================================================== */
+/* ======= CAMADA FINAL: SED + UNICORNIO + ARCO-IRIS ===== */
+/* ====================================================== */
+:root {
+    --sed-blue: #2f9ddd;
+    --sed-teal: #22c7a8;
+    --sed-green: #23c78a;
+    --uni-pink: #ff7fd1;
+    --uni-yellow: #ffd67f;
+    --uni-mint: #97f7f0;
+    --uni-blue: #9cc7ff;
+    --uni-purple: #d8a0ff;
+    --uni-text: #2b2140;
+    --uni-muted: #6b5f8d;
+    --uni-border: rgba(216,180,254,0.75);
+    --uni-glass: rgba(255,255,255,0.78);
+    --uni-rainbow: linear-gradient(120deg, #ff7fd1 0%, #ffd67f 22%, #97f7f0 45%, #9cc7ff 68%, #d8a0ff 100%);
+}
+
+/* Fundo geral mais delicado, com sensacao de unicornio/arco-iris em todas as paginas */
+.stApp {
+    background:
+        radial-gradient(circle at 5% 9%, rgba(255,127,209,0.24), transparent 32%),
+        radial-gradient(circle at 94% 8%, rgba(156,199,255,0.23), transparent 30%),
+        radial-gradient(circle at 86% 82%, rgba(151,247,240,0.22), transparent 32%),
+        radial-gradient(circle at 18% 92%, rgba(216,160,255,0.22), transparent 34%),
+        linear-gradient(135deg, #fff7fb 0%, #fffaf0 23%, #f3fcff 48%, #f6f2ff 74%, #fff8fd 100%) !important;
+    color: var(--uni-text) !important;
+}
+
+/* Cabecalho do Streamlit mais discreto */
+header[data-testid="stHeader"] {
+    background: rgba(255,255,255,0.62) !important;
+    backdrop-filter: blur(12px) !important;
+    border-bottom: 1px solid rgba(216,180,254,0.25) !important;
+}
+
+/* Container principal com respiro e padrao uniforme */
+.main .block-container {
+    max-width: 1320px !important;
+    padding-top: 1.1rem !important;
+    padding-left: 1.65rem !important;
+    padding-right: 1.65rem !important;
+}
+
+/* Sidebar em estilo SED pastel */
+section[data-testid="stSidebar"] {
+    background:
+        radial-gradient(circle at 20% 4%, rgba(255,127,209,0.25), transparent 28%),
+        radial-gradient(circle at 86% 15%, rgba(151,247,240,0.22), transparent 30%),
+        linear-gradient(180deg, rgba(248,251,255,0.98), rgba(250,245,255,0.96)) !important;
+    border-right: 1px solid rgba(216,180,254,0.72) !important;
+    box-shadow: 8px 0 34px rgba(168,85,247,0.08) !important;
+}
+section[data-testid="stSidebar"]::after {
+    content: "🦄 ✨";
+    position: fixed;
+    left: 214px;
+    bottom: 14px;
+    z-index: 1;
+    width: 58px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border-radius: 18px;
+    background: var(--uni-rainbow);
+    box-shadow: 0 12px 28px rgba(168,85,247,0.22);
+    font-size: 1rem;
+}
+section[data-testid="stSidebar"] div[data-testid="stButton"] > button {
+    min-height: 48px !important;
+    border-radius: 16px !important;
+    background: rgba(255,255,255,0.86) !important;
+    border: 1px solid rgba(216,180,254,0.72) !important;
+    color: #24324f !important;
+    box-shadow: 0 8px 18px rgba(15,23,42,0.05) !important;
+    font-weight: 750 !important;
+}
+section[data-testid="stSidebar"] div[data-testid="stButton"] > button:hover {
+    transform: translateY(-1px) !important;
+    border-color: rgba(217,70,239,0.42) !important;
+    background: linear-gradient(135deg, rgba(255,255,255,0.94), rgba(253,242,255,0.88)) !important;
+    color: #6d28d9 !important;
+}
+section[data-testid="stSidebar"] div[data-testid="stButton"] > button[kind="primary"] {
+    background: linear-gradient(135deg, rgba(224,236,255,0.98), rgba(253,242,255,0.98)) !important;
+    border-color: rgba(96,165,250,0.74) !important;
+    color: #1e3a8a !important;
+    box-shadow: 0 10px 22px rgba(96,165,250,0.16) !important;
+}
+
+/* Cartao da escola no menu lateral mais elegante */
+section[data-testid="stSidebar"] img {
+    border-radius: 20px !important;
+    border: 1px solid rgba(255,255,255,0.85) !important;
+    box-shadow: 0 12px 24px rgba(15,23,42,0.10) !important;
+}
+
+/* Tipografia: reduz exageros e padroniza leitura */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--uni-text) !important;
+    letter-spacing: -0.015em !important;
+}
+h1 { font-size: clamp(1.55rem, 2.2vw, 2rem) !important; }
+h2 { font-size: clamp(1.32rem, 1.7vw, 1.55rem) !important; }
+h3 { font-size: 1.15rem !important; }
+h4 { font-size: 1rem !important; }
+p, span, label, li, div { line-height: 1.52 !important; }
+
+/* Labels padrao institucional */
+.stTextInput label, .stTextArea label, .stSelectbox label, .stMultiSelect label,
+.stDateInput label, .stTimeInput label, .stNumberInput label, .stRadio label, .stCheckbox label {
+    color: #6d28d9 !important;
+    font-size: 0.78rem !important;
+    font-weight: 850 !important;
+    letter-spacing: 0.09em !important;
+}
+
+/* Widgets uniformes */
+.stTextInput input, .stTextArea textarea, .stNumberInput input,
+[data-baseweb="select"] > div:first-child, [data-baseweb="input"] input {
+    border-radius: 17px !important;
+    border: 1px solid rgba(180,198,225,0.82) !important;
+    background: rgba(255,255,255,0.90) !important;
+    box-shadow: 0 8px 20px rgba(15,23,42,0.045) !important;
+    color: #24324f !important;
+}
+.stTextInput input:focus, .stTextArea textarea:focus, .stNumberInput input:focus,
+[data-baseweb="select"] > div:first-child:focus-within {
+    border-color: rgba(217,70,239,0.62) !important;
+    box-shadow: 0 0 0 3px rgba(217,70,239,0.10), 0 10px 22px rgba(168,85,247,0.08) !important;
+}
+
+/* Botoes arco-iris, mas com cara de sistema institucional */
+.stButton > button {
+    border-radius: 17px !important;
+    min-height: 42px !important;
+    box-shadow: 0 10px 22px rgba(168,85,247,0.10) !important;
+    font-weight: 800 !important;
+}
+.stButton > button[kind="primary"] {
+    background: var(--uni-rainbow) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255,255,255,0.64) !important;
+    text-shadow: 0 1px 2px rgba(49,33,95,0.18) !important;
+}
+.stButton > button[kind="secondary"] {
+    background: rgba(255,255,255,0.88) !important;
+    border: 1px solid rgba(216,180,254,0.82) !important;
+    color: #574b90 !important;
+}
+
+/* Expander como card, para paginas menos cheias */
+div[data-testid="stExpander"] {
+    border-radius: 22px !important;
+    border: 1px solid rgba(216,180,254,0.82) !important;
+    background: rgba(255,255,255,0.78) !important;
+    box-shadow: 0 12px 28px rgba(168,85,247,0.08) !important;
+    overflow: hidden !important;
+}
+div[data-testid="stExpander"] summary {
+    background: linear-gradient(135deg, rgba(255,255,255,0.92), rgba(253,242,255,0.72)) !important;
+    color: #312e81 !important;
+    font-weight: 850 !important;
+}
+
+/* Abas em trilha pastel */
+[data-testid="stTabs"] div[role="tablist"] {
+    background: rgba(255,255,255,0.56) !important;
+    border: 1px solid rgba(216,180,254,0.85) !important;
+    padding: 0.55rem !important;
+    border-radius: 24px !important;
+    box-shadow: 0 10px 24px rgba(168,85,247,0.08) !important;
+}
+[data-testid="stTabs"] button[role="tab"] {
+    border-radius: 16px !important;
+    color: #6b5f8d !important;
+    font-weight: 820 !important;
+    font-size: 0.9rem !important;
+    min-height: 42px !important;
+}
+[data-testid="stTabs"] button[aria-selected="true"] {
+    background: linear-gradient(135deg, #ffffff, #fff7fb) !important;
+    color: #a21caf !important;
+    border: 1px solid rgba(217,70,239,0.28) !important;
+    box-shadow: 0 10px 24px rgba(217,70,239,0.12) !important;
+}
+
+/* Formulario vira card uniforme */
+div[data-testid="stForm"] {
+    background: linear-gradient(135deg, rgba(255,255,255,0.88), rgba(248,250,252,0.90)) !important;
+    border: 1px solid rgba(216,180,254,0.82) !important;
+    border-radius: 24px !important;
+    box-shadow: 0 16px 34px rgba(168,85,247,0.08) !important;
+}
+
+/* Tabelas e data editor mais limpos */
+[data-testid="stDataFrame"], [data-testid="stDataEditor"] {
+    border-radius: 22px !important;
+    border: 1px solid rgba(216,180,254,0.82) !important;
+    box-shadow: 0 14px 30px rgba(168,85,247,0.08) !important;
+    overflow: hidden !important;
+    background: rgba(255,255,255,0.82) !important;
+}
+[data-testid="stDataFrame"] [role="columnheader"], [data-testid="stDataEditor"] [role="columnheader"] {
+    background: linear-gradient(180deg, #eff6ff, #fdf2ff) !important;
+    color: #312e81 !important;
+    font-weight: 900 !important;
+}
+
+/* Alertas com vidro pastel */
+.stAlert {
+    border-radius: 20px !important;
+    border: 1px solid rgba(216,180,254,0.75) !important;
+    box-shadow: 0 12px 26px rgba(168,85,247,0.08) !important;
+}
+
+/* Cartoes SED/rainbow reutilizaveis */
+.sed-dashboard-header, .conviva-welcome-sed, .dashboard-panorama,
+.form-panel, .page-banner, .card, .protocolo-info,
+.sed-feature-card, .sed-tool-card, .sed-section-title, .sed-form-card-header {
+    border-radius: 24px !important;
+    border: 1px solid rgba(216,180,254,0.82) !important;
+    background: linear-gradient(135deg, rgba(255,255,255,0.88), rgba(248,250,252,0.88)) !important;
+    box-shadow: 0 16px 34px rgba(168,85,247,0.09) !important;
+}
+.sed-dashboard-header {
+    overflow: hidden !important;
+    position: relative !important;
+}
+.sed-dashboard-header::before {
+    content: "";
+    display: block;
+    height: 7px;
+    background: var(--uni-rainbow);
+}
+.sed-dashboard-mark, .page-banner-icon, .sed-section-icon {
+    background: var(--uni-rainbow) !important;
+    color: white !important;
+    box-shadow: 0 14px 28px rgba(217,70,239,0.18) !important;
+}
+.sed-dashboard-title {
+    background: var(--uni-rainbow);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.sed-dashboard-pill {
+    border-radius: 999px !important;
+    background: linear-gradient(135deg, #3f98d4, #22c7a8) !important;
+    box-shadow: 0 8px 18px rgba(47,157,221,0.16) !important;
+}
+.dashboard-panorama-bar {
+    background: linear-gradient(90deg, #22c7a8, #2f9ddd, #a78bfa) !important;
+}
+.conviva-welcome-sed {
+    border-left: 7px solid transparent !important;
+    border-image: var(--uni-rainbow) 1 !important;
+}
+
+/* Cards compactos para areas operacionais */
+.sed-tool-card, .sed-feature-card {
+    min-height: 92px;
+}
+.sed-tool-card-title, .sed-feature-card-title, .form-panel-title, .sed-form-card-title {
+    color: #312e81 !important;
+    font-weight: 900 !important;
+}
+.sed-tool-card-subtitle, .sed-form-card-subtitle, .form-panel-subtitle,
+.sed-section-subtitle, .sed-feature-card-meta {
+    color: #6b7280 !important;
+    font-size: 0.88rem !important;
+}
+.sed-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+    gap: 0.75rem;
+    margin: 0.2rem 0 1rem 0;
+}
+.sed-kpi-item {
+    background: linear-gradient(135deg, rgba(255,255,255,0.92), rgba(253,242,255,0.74));
+    border: 1px solid rgba(216,180,254,0.82);
+    border-radius: 20px;
+    padding: 0.9rem 1rem;
+    box-shadow: 0 10px 22px rgba(168,85,247,0.08);
+}
+.sed-kpi-label {
+    display: block;
+    color: #7c3aed;
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 0.35rem;
+}
+.sed-kpi-value {
+    display: block;
+    color: #312e81;
+    font-size: 1rem;
+    font-weight: 900;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+/* Metricas Streamlit: evita textos enormes estourando */
+[data-testid="metric-container"] {
+    background: linear-gradient(135deg, rgba(255,255,255,0.88), rgba(253,242,255,0.64)) !important;
+    border: 1px solid rgba(216,180,254,0.82) !important;
+    border-radius: 20px !important;
+    padding: 0.9rem 1rem !important;
+    box-shadow: 0 12px 26px rgba(168,85,247,0.08) !important;
+}
+[data-testid="metric-container"] [data-testid="stMetricValue"] {
+    font-size: 1.15rem !important;
+    line-height: 1.25 !important;
+    overflow-wrap: anywhere !important;
+}
+[data-testid="metric-container"] [data-testid="stMetricLabel"] {
+    color: #7c3aed !important;
+    font-weight: 900 !important;
+}
+
+/* File uploader e downloads */
+[data-testid="stFileUploaderDropzone"] {
+    border-radius: 24px !important;
+    border: 1.5px dashed rgba(217,70,239,0.42) !important;
+    background: rgba(255,255,255,0.70) !important;
+    box-shadow: 0 12px 24px rgba(168,85,247,0.07) !important;
+}
+
+/* Ajuste responsivo */
+@media (max-width: 900px) {
+    .main .block-container { padding-left: 1rem !important; padding-right: 1rem !important; }
+    section[data-testid="stSidebar"]::after { display: none !important; }
+    .sed-dashboard-top { flex-direction: column !important; align-items: flex-start !important; }
+    .sed-dashboard-user { text-align: left !important; }
+}
+
 </style>
 """, unsafe_allow_html=True)
 # ======================================================
@@ -7396,16 +7972,65 @@ def render_caderno_tutoria_online(TUTORIA: dict, df_alunos: pd.DataFrame | None 
     ])
 
     with tab_capa:
-        st.markdown("### Caderno de Tutoria 2026")
-        col1, col2 = st.columns([1, 2])
+        st.markdown("""
+        <div class="sed-section-title">
+            <div class="sed-section-icon">📒</div>
+            <div>
+                <div class="sed-section-kicker">Caderno de Tutoria</div>
+                <div class="sed-section-heading">Capa e visão geral do acompanhamento</div>
+                <div class="sed-section-subtitle">Layout mais limpo, compacto e organizado, mantendo a identidade arco-íris do sistema.</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown(f"""
+        <div class="sed-kpi-grid">
+            <div class="sed-kpi-item">
+                <span class="sed-kpi-label">Tutor(a)</span>
+                <span class="sed-kpi-value">{html.escape(str(professor))}</span>
+            </div>
+            <div class="sed-kpi-item">
+                <span class="sed-kpi-label">Turma</span>
+                <span class="sed-kpi-value">{html.escape(str(aluno.get('turma', '')))}</span>
+            </div>
+            <div class="sed-kpi-item">
+                <span class="sed-kpi-label">Ano letivo</span>
+                <span class="sed-kpi-value">{html.escape(str(caderno.get('ano_letivo', ANO_LETIVO_CADERNO_TUTORIA)))}</span>
+            </div>
+            <div class="sed-kpi-item">
+                <span class="sed-kpi-label">Última atualização</span>
+                <span class="sed-kpi-value">{html.escape(str(caderno.get('atualizado_em') or 'Ainda não salvo'))}</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        col1, col2 = st.columns([1.05, 1.95], gap="large")
         with col1:
-            st.metric("Tutor(a)", professor)
-            st.metric("Turma", aluno.get("turma", ""))
-            st.metric("Ano letivo", caderno.get("ano_letivo", ANO_LETIVO_CADERNO_TUTORIA))
+            st.markdown(f"""
+            <div class="sed-feature-card">
+                <div class="sed-feature-card-kicker">Resumo do tutorado</div>
+                <div class="sed-feature-card-title">{html.escape(str(aluno['nome']))}</div>
+                <div class="sed-feature-card-meta"><b>Turma:</b> {html.escape(str(aluno.get('turma', '')))}</div>
+                <div class="sed-feature-card-meta"><b>Tutor(a):</b> {html.escape(str(professor))}</div>
+                <div class="sed-feature-card-meta"><b>Escola:</b> E.E. Profª Eliane Ap. Dantas da Silva</div>
+                <div class="sed-feature-card-meta"><b>Status:</b> Caderno em acompanhamento contínuo.</div>
+            </div>
+            """, unsafe_allow_html=True)
         with col2:
+            st.markdown("""
+            <div class="sed-form-card-header">
+                <p class="sed-form-card-title">Informações principais da capa</p>
+                <p class="sed-form-card-subtitle">Campos padronizados com melhor leitura e espaçamento mais agradável.</p>
+            </div>
+            """, unsafe_allow_html=True)
             st.text_input("Tutor", value=professor, disabled=True, key=f"capa_tutor_prof_{chave}")
             st.text_input("Escola", value="E.E. Profª Eliane Ap. Dantas da Silva", disabled=True, key=f"capa_escola_prof_{chave}")
-            caderno["observacoes_gerais"] = st.text_area("Observações gerais do caderno", value=caderno.get("observacoes_gerais", ""), height=120, key=f"obs_gerais_prof_{chave}")
+            caderno["observacoes_gerais"] = st.text_area(
+                "Observações gerais do caderno",
+                value=caderno.get("observacoes_gerais", ""),
+                height=120,
+                key=f"obs_gerais_prof_{chave}"
+            )
             if st.button("💾 Salvar capa/observações", type="primary", key=f"salvar_capa_prof_{chave}"):
                 _atualizar_caderno(cadernos, chave, caderno)
                 st.success("Caderno salvo.")
@@ -8426,21 +9051,24 @@ elif "HISTORICO DE OCORRENCIA" in normalizar_texto(menu):
 
     st.markdown("---")
     st.markdown("""
-    <div style="display:flex;align-items:center;gap:0.5rem;margin:1.25rem 0 0.75rem 0;padding-bottom:0.5rem;border-bottom:2px solid #e2e8f0;position:relative;">
-        <div style="position:absolute;bottom:-2px;left:0;width:45px;height:2px;background:linear-gradient(90deg,#d97706,transparent);border-radius:4px;"></div>
-        <span>🛠️</span>
-        <h3 style="margin:0;font-family:'Nunito',sans-serif;font-size:1rem;color:#0f172a;">Ações — Editar / Excluir</h3>
+    <div class="sed-section-title">
+        <div class="sed-section-icon">📝</div>
+        <div>
+            <div class="sed-section-kicker">Histórico de Ocorrências</div>
+            <div class="sed-section-heading">Ações organizadas em cards</div>
+            <div class="sed-section-subtitle">Exclusão e edição agora aparecem em painéis separados, reduzindo a sensação de página cheia.</div>
+        </div>
     </div>
     """, unsafe_allow_html=True)
-    col_excluir, col_editar = st.columns(2)
+    col_excluir, col_editar = st.columns(2, gap="large")
 
     # Opcoes curtas para evitar sobreposicao visual no selectbox.
     def _rotulo_ocorrencia_linha(row):
         aluno = str(row.get("aluno", "")).strip()
         categoria = str(row.get("categoria", "")).strip()
         data = str(row.get("data", "")).strip()
-        aluno_curto = (aluno[:38] + "...") if len(aluno) > 41 else aluno
-        categoria_curta = (categoria[:35] + "...") if len(categoria) > 38 else categoria
+        aluno_curto = (aluno[:34] + "...") if len(aluno) > 37 else aluno
+        categoria_curta = (categoria[:28] + "...") if len(categoria) > 31 else categoria
         return f"{row.get('id')} - {aluno_curto} - {data} - {categoria_curta}"
 
     df_acoes = df_view.copy()
@@ -8457,7 +9085,12 @@ elif "HISTORICO DE OCORRENCIA" in normalizar_texto(menu):
     ids_ocorrencias = list(mapa_ocorrencias.keys())
 
     with col_excluir:
-        st.markdown("### 🗑️ Excluir Ocorrência")
+        st.markdown("""
+        <div class="sed-tool-card">
+            <div class="sed-tool-card-title">🗑️ Excluir ocorrência</div>
+            <div class="sed-tool-card-subtitle">Selecione a ocorrência, informe a senha e confirme a exclusão de forma mais clara.</div>
+        </div>
+        """, unsafe_allow_html=True)
         if ids_ocorrencias:
             id_excluir = st.selectbox(
                 "Selecione a ocorrência",
@@ -8465,8 +9098,8 @@ elif "HISTORICO DE OCORRENCIA" in normalizar_texto(menu):
                 key="select_excluir_id",
                 format_func=lambda x: mapa_ocorrencias.get(int(x), str(x)),
             )
-            senha = st.text_input("🔒 Digite a senha para excluir", type="password", key="senha_excluir")
-            if st.button("🗑️ Excluir Ocorrência", type="secondary"):
+            senha = st.text_input("Digite a senha para excluir", type="password", key="senha_excluir")
+            if st.button("🗑️ Excluir Ocorrência", type="secondary", use_container_width=True):
                 if senha != SENHA_EXCLUSAO:
                     st.error("❌ Senha incorreta!")
                     show_toast("Senha incorreta para exclusão.", "error")
@@ -8481,7 +9114,12 @@ elif "HISTORICO DE OCORRENCIA" in normalizar_texto(menu):
             st.info("Nenhuma ocorrência disponível para exclusão com os filtros atuais.")
 
     with col_editar:
-        st.markdown("### ✏️ Editar Ocorrência")
+        st.markdown("""
+        <div class="sed-tool-card">
+            <div class="sed-tool-card-title">✏️ Editar ocorrência</div>
+            <div class="sed-tool-card-subtitle">Carregue uma ocorrência para edição em um painel separado e mais limpo.</div>
+        </div>
+        """, unsafe_allow_html=True)
         if ids_ocorrencias:
             id_editar = st.selectbox(
                 "Selecione a ocorrência",
@@ -8489,7 +9127,7 @@ elif "HISTORICO DE OCORRENCIA" in normalizar_texto(menu):
                 key="select_editar_id",
                 format_func=lambda x: mapa_ocorrencias.get(int(x), str(x)),
             )
-            if st.button("✏️ Carregar para Edição"):
+            if st.button("✏️ Carregar para Edição", use_container_width=True):
                 st.session_state.editando_id = int(id_editar)
                 st.session_state.dados_edicao = df_acoes[df_acoes["id"] == int(id_editar)].iloc[0].to_dict()
                 st.rerun()
@@ -8498,17 +9136,25 @@ elif "HISTORICO DE OCORRENCIA" in normalizar_texto(menu):
 
     if st.session_state.get("editando_id") and st.session_state.get("dados_edicao"):
         dados = st.session_state.dados_edicao
-        st.markdown("---")
-        st.subheader(f"✏️ Editando Ocorrência ID {st.session_state.editando_id}")
-        
-        novo_relato = st.text_area("📝 Relato", value=str(dados.get("relato", "")), height=120)
-        novo_encam = st.text_area("🔀 Encaminhamentos", value=str(dados.get("encaminhamento", "")), height=120)
-        nova_gravidade = st.selectbox("⚖️ Gravidade", ["Leve", "Média", "Grave", "Gravíssima"],
-                                      index=["Leve", "Média", "Grave", "Gravíssima"].index(dados.get("gravidade", "Leve")))
-        
+        st.markdown("""
+        <div class="sed-form-card-header">
+            <p class="sed-form-card-title">✏️ Painel de edição da ocorrência</p>
+            <p class="sed-form-card-subtitle">Ocorrência carregada para edição. Altere os campos abaixo e salve as mudanças.</p>
+        </div>
+        """, unsafe_allow_html=True)
+        st.caption(f"ID em edição: {st.session_state.editando_id}")
+
+        novo_relato = st.text_area("Relato", value=str(dados.get("relato", "")), height=120)
+        novo_encam = st.text_area("Encaminhamentos", value=str(dados.get("encaminhamento", "")), height=120)
+        nova_gravidade = st.selectbox(
+            "Gravidade",
+            ["Leve", "Média", "Grave", "Gravíssima"],
+            index=["Leve", "Média", "Grave", "Gravíssima"].index(dados.get("gravidade", "Leve"))
+        )
+
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("💾 Salvar Alterações", type="primary"):
+            if st.button("💾 Salvar Alterações", type="primary", use_container_width=True):
                 sucesso = editar_ocorrencia(st.session_state.editando_id, {
                     "relato": novo_relato,
                     "encaminhamento": novo_encam,
@@ -8522,7 +9168,7 @@ elif "HISTORICO DE OCORRENCIA" in normalizar_texto(menu):
                     st.session_state.dados_edicao = None
                     st.rerun()
         with col2:
-            if st.button("❌ Cancelar Edição"):
+            if st.button("❌ Cancelar Edição", use_container_width=True):
                 st.session_state.editando_id = None
                 st.session_state.dados_edicao = None
                 st.rerun()
@@ -12413,7 +13059,16 @@ elif menu == "🫂 Tutoria":
         return _supabase_mutation("DELETE", filtro, None, "excluir estudante da tutoria")
 
     st.markdown("---")
-    st.subheader("🛠️ Gerenciar estudantes da lista selecionada")
+    st.markdown("""
+    <div class="sed-section-title">
+        <div class="sed-section-icon">🛠️</div>
+        <div>
+            <div class="sed-section-kicker">Gestão da Tutoria</div>
+            <div class="sed-section-heading">Gerenciar estudantes da lista selecionada</div>
+            <div class="sed-section-subtitle">As ações de excluir, editar e limpar a lista foram reorganizadas em cards para reduzir poluição visual.</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     st.caption("Use esta área para editar ou excluir estudantes da lista do responsável selecionado.")
 
     alunos_raw = normalizar_alunos_tutoria(tutor_info.get("alunos", []))
@@ -12433,14 +13088,15 @@ elif menu == "🫂 Tutoria":
         ])
         st.dataframe(df_lista_atual, use_container_width=True, hide_index=True)
 
-        aba_remover, aba_editar, aba_limpar = st.tabs([
-            "🗑️ Excluir estudante",
-            "✏️ Editar estudante",
-            "🧹 Excluir todos"
-        ])
+        col_remover, col_editar, col_limpar = st.columns(3, gap="large")
 
-        with aba_remover:
-            st.markdown("#### Excluir um estudante desta lista")
+        with col_remover:
+            st.markdown("""
+            <div class="sed-tool-card">
+                <div class="sed-tool-card-title">🗑️ Excluir estudante</div>
+                <div class="sed-tool-card-subtitle">Remova um único estudante da lista com confirmação visual.</div>
+            </div>
+            """, unsafe_allow_html=True)
             opcoes_excluir = list(range(len(alunos_raw)))
             idx_excluir = st.selectbox(
                 "Selecione o estudante que deseja remover",
@@ -12460,7 +13116,8 @@ elif menu == "🫂 Tutoria":
             if st.button(
                 "🗑️ Excluir estudante selecionado",
                 type="secondary",
-                key=f"btn_excluir_um_tutoria_{gerar_chave_segura(tutor_sel)}"
+                key=f"btn_excluir_um_tutoria_{gerar_chave_segura(tutor_sel)}",
+                use_container_width=True
             ):
                 if not confirmar_excluir_um:
                     st.warning("Marque a confirmação antes de excluir.")
@@ -12479,8 +13136,13 @@ elif menu == "🫂 Tutoria":
                     except Exception as e:
                         st.error(f"Erro ao excluir estudante: {e}")
 
-        with aba_editar:
-            st.markdown("#### Editar dados de um estudante desta lista")
+        with col_editar:
+            st.markdown("""
+            <div class="sed-tool-card">
+                <div class="sed-tool-card-title">✏️ Editar estudante</div>
+                <div class="sed-tool-card-subtitle">Atualize nome, turma e RA em um painel mais organizado.</div>
+            </div>
+            """, unsafe_allow_html=True)
             opcoes_editar = list(range(len(alunos_raw)))
             idx_editar = st.selectbox(
                 "Selecione o estudante que deseja editar",
@@ -12493,13 +13155,12 @@ elif menu == "🫂 Tutoria":
             turma_antiga = formatar_turma_eletiva(str(aluno_editar.get("serie", "")).strip())
             ra_antigo = "".join(ch for ch in str(aluno_editar.get("ra", "")) if ch.isdigit())
 
-            col_edit_nome, col_edit_turma, col_edit_ra = st.columns([3, 1, 1])
-            with col_edit_nome:
-                novo_nome = st.text_input(
-                    "Nome",
-                    value=nome_antigo,
-                    key=f"tutoria_editar_nome_{gerar_chave_segura(tutor_sel)}_{idx_editar}"
-                )
+            novo_nome = st.text_input(
+                "Nome",
+                value=nome_antigo,
+                key=f"tutoria_editar_nome_{gerar_chave_segura(tutor_sel)}_{idx_editar}"
+            )
+            col_edit_turma, col_edit_ra = st.columns(2)
             with col_edit_turma:
                 nova_turma = st.text_input(
                     "Turma",
@@ -12516,7 +13177,8 @@ elif menu == "🫂 Tutoria":
             if st.button(
                 "💾 Salvar edição do estudante",
                 type="primary",
-                key=f"btn_salvar_edicao_estudante_tutoria_{gerar_chave_segura(tutor_sel)}"
+                key=f"btn_salvar_edicao_estudante_tutoria_{gerar_chave_segura(tutor_sel)}",
+                use_container_width=True
             ):
                 novo_nome = str(novo_nome or "").strip()
                 nova_turma = formatar_turma_eletiva(str(nova_turma or "").strip())
@@ -12543,8 +13205,13 @@ elif menu == "🫂 Tutoria":
                     except Exception as e:
                         st.error(f"Erro ao editar estudante: {e}")
 
-        with aba_limpar:
-            st.markdown("#### Excluir todos os estudantes desta lista")
+        with col_limpar:
+            st.markdown("""
+            <div class="sed-tool-card">
+                <div class="sed-tool-card-title">🧹 Excluir todos</div>
+                <div class="sed-tool-card-subtitle">Limpe a lista completa do responsável apenas quando necessário.</div>
+            </div>
+            """, unsafe_allow_html=True)
             st.error(f"Esta ação remove todos os estudantes vinculados a {tutor_sel}.")
             confirmar_limpar_lista = st.checkbox(
                 f"Confirmo excluir todos os estudantes de {tutor_sel}",
@@ -12553,7 +13220,8 @@ elif menu == "🫂 Tutoria":
             if st.button(
                 "🧹 Excluir todos os estudantes desta lista",
                 type="secondary",
-                key=f"btn_limpar_lista_tutoria_{gerar_chave_segura(tutor_sel)}"
+                key=f"btn_limpar_lista_tutoria_{gerar_chave_segura(tutor_sel)}",
+                use_container_width=True
             ):
                 if not confirmar_limpar_lista:
                     st.warning("Marque a confirmação antes de excluir todos.")
