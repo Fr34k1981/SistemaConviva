@@ -1479,6 +1479,131 @@ div[data-testid="stForm"]:hover {
     overflow-wrap: anywhere;
 }
 
+.sed-dashboard-header {
+    background: #ffffff;
+    border: 1px solid #d7e3f0;
+    border-radius: 8px;
+    box-shadow: 0 8px 22px rgba(15,23,42,0.06);
+    margin: 0 0 1rem;
+    overflow: hidden;
+}
+
+.sed-dashboard-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.1rem 0.85rem;
+}
+
+.sed-dashboard-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    min-width: 0;
+}
+
+.sed-dashboard-mark {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #2f9ddd, #21c4a8);
+    color: #ffffff;
+    display: grid;
+    place-items: center;
+    font-size: 1.35rem;
+    font-weight: 900;
+    box-shadow: 0 6px 16px rgba(47,157,221,0.25);
+}
+
+.sed-dashboard-kicker {
+    margin: 0;
+    color: #7a8794;
+    font-size: 0.86rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.sed-dashboard-title {
+    margin: 0.12rem 0 0;
+    color: #2f9ddd;
+    font-size: 1.9rem;
+    line-height: 1;
+    font-weight: 900;
+}
+
+.sed-dashboard-user {
+    text-align: right;
+    color: #64748b;
+    font-size: 0.82rem;
+    line-height: 1.45;
+    font-weight: 650;
+}
+
+.sed-dashboard-user b {
+    color: #2f80d9;
+}
+
+.sed-dashboard-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: flex-end;
+    padding: 0 1.1rem 1rem;
+}
+
+.sed-dashboard-pill {
+    background: #3f98d4;
+    color: #ffffff;
+    border-radius: 4px;
+    padding: 0.42rem 0.7rem;
+    font-size: 0.78rem;
+    font-weight: 750;
+}
+
+.conviva-welcome-sed {
+    display: flex;
+    align-items: center;
+    gap: 0.95rem;
+    background: #ffffff;
+    border: 1px solid #d7e3f0;
+    border-left: 5px solid #21c4a8;
+    border-radius: 8px;
+    padding: 1rem 1.1rem;
+    box-shadow: 0 8px 20px rgba(15,23,42,0.06);
+    margin-bottom: 1rem;
+}
+
+.conviva-welcome-sed-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    background: #eaf6ff;
+    font-size: 1.5rem;
+}
+
+.conviva-welcome-sed-title {
+    margin: 0;
+    color: #1f1b3a;
+    font-size: 1.12rem;
+    font-weight: 850;
+}
+
+.conviva-welcome-sed-sub {
+    margin: 0.2rem 0 0;
+    color: #5b6778;
+    font-size: 0.88rem;
+}
+
+.conviva-welcome-sed-quote {
+    margin: 0.35rem 0 0;
+    color: #0f766e;
+    font-size: 0.86rem;
+    font-weight: 800;
+}
+
 /* ============================================ */
 /* ========== FORM PANELS ========== */
 /* ============================================ */
@@ -5804,10 +5929,16 @@ def formatar_data_extenso_pt(data_ref=None) -> str:
 
 
 FRASES_INSPIRACAO_LEGIAO = [
-    "Legião Urbana: \"Somos tão jovens\".",
-    "Legião Urbana: \"É preciso amar as pessoas\".",
-    "Legião Urbana: \"Quem acredita sempre alcança\".",
-    "Legião Urbana: \"Disciplina é liberdade\".",
+    "Legião Urbana: \"Disciplina é liberdade.\"",
+    "Legião Urbana: \"Somos tão jovens.\"",
+    "Legião Urbana: \"Temos todo o tempo do mundo.\"",
+    "Legião Urbana: \"O mundo anda tão complicado.\"",
+    "Legião Urbana: \"Tudo passa, tudo sempre passará.\"",
+    "Legião Urbana: \"É preciso amar as pessoas.\"",
+    "Legião Urbana: \"Quando tudo está perdido, sempre existe um caminho.\"",
+    "Legião Urbana: \"Mas é claro que o sol vai voltar.\"",
+    "Legião Urbana: \"A humanidade é desumana.\"",
+    "Legião Urbana: \"Sem amor eu nada seria.\"",
 ]
 
 
@@ -5937,7 +6068,7 @@ def _resumo_panorama_letivo(df_base: pd.DataFrame, data_ref) -> tuple[str, pd.Da
     dia = pd.to_datetime(data_ref).date()
     df_dia = df[df["data_dt"].dt.date == dia].copy()
     dados = _dados_panorama_letivo(df_dia, dia)
-    resumo = _resumo_panorama_ia(dados)
+    resumo = _resumo_panorama_local(dados)
     return resumo, df_dia
 
 # ======================================================
@@ -6647,18 +6778,28 @@ def render_caderno_tutoria_online(TUTORIA: dict, df_alunos: pd.DataFrame | None 
                 st.success(f"Sincronização concluída: {ok} caderno(s) enviados ao Supabase.")
 
 if menu == "🏠 Dashboard":
-    # ── Header Premium da Escola ──────────────────────────────
+    # ── Header no modelo SED, mantendo identidade do sistema ──
     st.markdown(f"""
-    <div class="main-header animate-fade-in">
-        <div class="pattern"></div>
-        <div class="school-header-inner">
-            <div class="school-name">🏫 {ESCOLA_NOME}</div>
-            <div class="school-subtitle">{ESCOLA_SUBTITULO}</div>
-            <div class="school-info-chips">
-                <span class="school-chip school-chip-address">📍 {ESCOLA_ENDERECO}</span>
-                <span class="school-chip">📞 {ESCOLA_TELEFONE}</span>
-                <span class="school-chip">✉️ {ESCOLA_EMAIL}</span>
+    <div class="sed-dashboard-header animate-fade-in">
+        <div class="sed-dashboard-top">
+            <div class="sed-dashboard-brand">
+                <div class="sed-dashboard-mark">S</div>
+                <div>
+                    <p class="sed-dashboard-kicker">Secretaria da Educação do Estado de São Paulo</p>
+                    <p class="sed-dashboard-title">Sistema Conviva 179</p>
+                </div>
             </div>
+            <div class="sed-dashboard-user">
+                Olá, <b>{html.escape(str(st.session_state.get("usuario_nome", "Escola")))}</b><br>
+                {html.escape(ESCOLA_NOME)}<br>
+                {html.escape(ESCOLA_EMAIL)}
+            </div>
+        </div>
+        <div class="sed-dashboard-strip">
+            <span class="sed-dashboard-pill">Dashboard</span>
+            <span class="sed-dashboard-pill">Ocorrências</span>
+            <span class="sed-dashboard-pill">Alunos</span>
+            <span class="sed-dashboard-pill">Tutoria</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -6668,27 +6809,17 @@ if menu == "🏠 Dashboard":
     saudacao = "🌅 Bom dia" if hora_atual < 12 else ("☀️ Boa tarde" if hora_atual < 18 else "🌙 Boa noite")
     frase_abertura = _frase_inspiracao_abertura()
     st.markdown(f"""
-    <div style="
-        display: flex; align-items: center; gap: 1rem;
-        background: linear-gradient(120deg, rgba(255,255,255,0.95), rgba(250,245,255,0.96));
-        border-radius: 18px; padding: 1.25rem 1.5rem;
-        border: 1.5px solid rgba(196,181,253,0.45); box-shadow: 0 6px 16px rgba(76,29,149,0.08);
-        margin-bottom: 1.75rem;
-    ">
-        <div style="font-size: 2.35rem; line-height:1;">👋</div>
+    <div class="conviva-welcome-sed">
+        <div class="conviva-welcome-sed-icon">👋</div>
         <div>
-            <div style="
-                font-family: 'Nunito', sans-serif;
-                font-size: 1.3rem; font-weight: 800;
-                color: #1f1b3a; margin-bottom: 0.15rem;
-            ">{saudacao}! Bem-vindo ao Sistema Conviva 179</div>
-            <div style="color: #5b5679; font-size: 0.9rem;">
+            <p class="conviva-welcome-sed-title">{saudacao}! Bem-vindo ao Sistema Conviva 179</p>
+            <p class="conviva-welcome-sed-sub">
                 Gerencie ocorrências, alunos e agendamentos de forma inteligente.
                 &nbsp;·&nbsp; <b style="color: #7c3aed;">{formatar_data_extenso_pt()}</b>
-            </div>
-            <div style="color:#0f766e; font-size:0.86rem; margin-top:0.35rem; font-weight:700;">
+            </p>
+            <p class="conviva-welcome-sed-quote">
                 {html.escape(frase_abertura)}
-            </div>
+            </p>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -6767,6 +6898,18 @@ if menu == "🏠 Dashboard":
     data_panorama = datetime.now().date() if opcao_panorama == "Hoje" else (datetime.now() - timedelta(days=1)).date()
     resumo_panorama, df_panorama_dia = _resumo_panorama_letivo(df_ocorrencias, data_panorama)
     qtd_panorama = len(df_panorama_dia) if df_panorama_dia is not None else 0
+    dados_panorama_card = _dados_panorama_letivo(df_panorama_dia, data_panorama)
+    chave_resumo_ia_panorama = f"dashboard_panorama_ia_{data_panorama.strftime('%Y%m%d')}_{qtd_panorama}"
+
+    col_periodo, col_ia_panorama = st.columns([3, 1])
+    with col_ia_panorama:
+        if ia_conviva_configurada():
+            if st.button("Reescrever com IA", key=f"btn_ia_panorama_{data_panorama.strftime('%Y%m%d')}", use_container_width=True):
+                with st.spinner("Escrevendo panorama com IA..."):
+                    st.session_state[chave_resumo_ia_panorama] = _resumo_panorama_ia(dados_panorama_card)
+        else:
+            st.caption("IA online não configurada.")
+    resumo_panorama = st.session_state.get(chave_resumo_ia_panorama, resumo_panorama)
 
     st.markdown("""
     <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
@@ -6775,7 +6918,6 @@ if menu == "🏠 Dashboard":
     </div>
     """, unsafe_allow_html=True)
 
-    dados_panorama_card = _dados_panorama_letivo(df_panorama_dia, data_panorama)
     st.markdown(f"""
     <div class="dashboard-panorama animate-fade-in">
         <div class="dashboard-panorama-bar">
