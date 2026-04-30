@@ -6777,6 +6777,828 @@ def render_caderno_tutoria_online(TUTORIA: dict, df_alunos: pd.DataFrame | None 
                         ok += 1
                 st.success(f"Sincronização concluída: {ok} caderno(s) enviados ao Supabase.")
 
+
+# ======================================================
+# MELHORIAS PROFISSIONAIS — CADERNO DE TUTORIA / IA / PDF / HISTÓRICO
+# Inserido automaticamente antes das rotas de páginas.
+# ======================================================
+
+# Prompt reforçado: melhora a qualidade das respostas da IA sem alterar a função existente.
+PROMPT_IA_CONVIVA_PEDAGOGICA = """
+Você é a IA Conviva Pedagógica, especialista em registros escolares da rede pública do Estado de São Paulo.
+
+Você apoia professores, tutores, coordenação e gestão escolar na produção de registros pedagógicos, relatórios, comunicados, pareceres e encaminhamentos.
+
+REFERÊNCIAS DE ATUAÇÃO:
+- Orientações e práticas da SEDUC-SP;
+- Plataforma Conviva Educação e Protocolo 179;
+- Estatuto da Criança e do Adolescente (ECA), com foco na dignidade e proteção integral;
+- Lei de Diretrizes e Bases da Educação Nacional (LDB), com foco na formação integral;
+- Mediação escolar, convivência, acolhimento e intervenção pedagógica;
+- Escrita profissional para prontuários, relatórios e comunicação com família.
+
+REGRAS OBRIGATÓRIAS:
+- Preserve todos os fatos informados pelo usuário.
+- Não invente fatos, datas, diagnósticos, nomes ou providências.
+- Não faça diagnóstico clínico ou psicológico.
+- Não use termos ofensivos, punitivos, discriminatórios ou humilhantes.
+- Não resuma quando a tarefa for reescrita.
+- Não responda com frases curtas ou genéricas.
+- Transforme linguagem informal em linguagem pedagógica clara, humana e objetiva.
+- Escreva sempre como registro pronto para uso escolar.
+- Quando o texto envolver dificuldade de aprendizagem, falta de foco, não entrega de atividades ou resistência, relacione a escrita com acompanhamento pedagógico, organização, participação, responsabilidade e estratégias de apoio.
+- Quando couber, use dois parágrafos: primeiro descrevendo a constatação observável; segundo indicando encaminhamento pedagógico possível.
+
+ESTILO:
+Formal, claro, humanizado, objetivo, sem julgamento, sem exposição desnecessária e com foco no desenvolvimento do estudante.
+""".strip()
+
+INSTRUCOES_TAREFAS_IA_RELATORIO.update({
+    "Melhorar escrita pedagógica": (
+        "Reescreva em linguagem pedagógica formal, clara e humanizada. Preserve a ideia central e os fatos observáveis. "
+        "Não use julgamento nem termos ofensivos. Quando o texto for curto, desenvolva dois parágrafos: constatação pedagógica e encaminhamento possível."
+    ),
+    "Transformar em parecer descritivo": (
+        "Transforme em parecer descritivo escolar completo, com tom profissional, acolhedor e pedagógico. "
+        "Não invente fatos e não faça diagnóstico. Estruture a resposta para uso direto em relatório."
+    ),
+    "Sugerir encaminhamentos pedagógicos": (
+        "Sugira encaminhamentos pedagógicos realistas para o contexto escolar: acompanhamento, combinados, rotina de estudos, organização, parceria com a família, tutoria e monitoramento. "
+        "Não cite serviços externos sem que o texto original indique necessidade."
+    ),
+})
+
+
+def _resposta_pedagogica_local(texto: str, tarefa: str, contexto: str = "") -> str:
+    """Fallback local mais forte para quando a IA falha ou retorna texto fraco."""
+    texto_original = str(texto or "").strip()
+    texto_bruto = texto_original.lower()
+    texto_norm = normalizar_texto(texto_original)
+    tarefa_norm = normalizar_texto(tarefa or "")
+    sujeito = "A estudante" if any(p in texto_bruto for p in ["aluna", "a estudante"]) else "O estudante"
+
+    dificuldade_aprendizagem = any(p in texto_norm for p in [
+        "DIFICULDADE", "APRENDIZAGEM", "NAO ENTREGA", "NAO FAZ", "OPOR", "OPOE", "RESISTENCIA", "FOCO", "ESTUDOS", "ATIVIDADE"
+    ])
+    if dificuldade_aprendizagem:
+        return (
+            f"{sujeito} demonstra dificuldades no processo de aprendizagem, as quais estão associadas aos aspectos observados no registro, "
+            "como resistência em realizar as atividades propostas, não entrega de tarefas e necessidade de maior foco nos estudos. "
+            "Esses elementos indicam a importância de acompanhamento pedagógico contínuo, com intervenções que favoreçam a organização, a participação e a construção de uma rotina escolar mais consistente.\n\n"
+            "Diante desse cenário, faz-se necessário o desenvolvimento de estratégias pedagógicas que incentivem o envolvimento nas atividades, o senso de responsabilidade e a participação ativa nas propostas realizadas em sala, fortalecendo gradualmente sua autonomia e seu compromisso com o processo de aprendizagem."
+        )
+
+    if any(p in texto_norm for p in ["BURRO", "INCAPAZ", "IDIOTA", "SUJO", "DESLEIXADO", "RELAXADO", "PREGUIC"]):
+        return (
+            f"{sujeito} apresenta necessidade de acompanhamento quanto à organização pessoal, ao cuidado com os materiais e à participação nas atividades escolares, "
+            "considerando os aspectos observáveis registrados pela equipe. A situação deve ser tratada de forma pedagógica e respeitosa, evitando rótulos e priorizando orientações que favoreçam sua autonomia, responsabilidade e inserção positiva na rotina escolar.\n\n"
+            "Como encaminhamento, recomenda-se manter acompanhamento sistemático, reforçar combinados de organização e participação, propor metas possíveis e estabelecer diálogo com a família quando necessário, de modo a fortalecer a parceria no desenvolvimento do estudante."
+        )
+
+    if any(p in texto_norm for p in ["BARULH", "FALA DEMAIS", "CONVERSA", "EXCESS", "ATRAPALHA"]):
+        return (
+            f"{sujeito} tem apresentado falas frequentes e atitudes que interferem na dinâmica das atividades, exigindo retomada dos combinados de convivência e da rotina escolar. "
+            "A equipe tem realizado orientações para que sua participação ocorra de maneira mais adequada, respeitosa e colaborativa.\n\n"
+            "Será mantido acompanhamento pedagógico, com reforço dos combinados, mediação quando necessário e parceria com a família para fortalecer atitudes de responsabilidade, escuta e respeito ao ambiente escolar."
+        )
+
+    if len(texto_original) >= 25:
+        texto_limpo = _limpar_texto_para_ia(texto_original).strip(" .,;:")
+        texto_limpo = texto_limpo[:1].upper() + texto_limpo[1:] if texto_limpo else "O fato foi registrado pela escola"
+        return (
+            f"{texto_limpo}. O registro será acompanhado pela equipe escolar, considerando os fatos observáveis e a necessidade de intervenção pedagógica adequada.\n\n"
+            "Serão retomados os combinados, realizados encaminhamentos pertinentes e mantido acompanhamento para favorecer o desenvolvimento do estudante, a convivência respeitosa e a parceria com a família quando necessário."
+        )
+
+    return (
+        "Com as informações disponíveis, registra-se a necessidade de acompanhamento pedagógico do estudante, considerando os aspectos observáveis apresentados. "
+        "A equipe escolar seguirá realizando orientações, registros e intervenções adequadas, buscando favorecer sua participação, organização e desenvolvimento integral."
+    )
+
+
+# ---------- Login profissional do caderno ----------
+def carregar_usuarios_tutoria_supabase() -> pd.DataFrame:
+    """Carrega usuários da tabela usuarios, caso exista. Se não existir, retorna DataFrame vazio."""
+    if not SUPABASE_VALID:
+        return pd.DataFrame()
+    try:
+        resp = _supabase_request("GET", "usuarios?select=id,nome,email,senha,tipo&order=nome.asc")
+        dados = resp.json() if resp is not None else []
+        return pd.DataFrame(dados)
+    except Exception:
+        return pd.DataFrame()
+
+
+def render_login_professor_tutoria(nomes_professores: list[str]) -> tuple[bool, str, bool]:
+    """Login por usuário quando houver tabela usuarios; fallback para seleção de professor e senha de gestão."""
+    st.markdown("### 🔐 Acesso ao Caderno de Tutoria")
+    usuario_logado = str(st.session_state.get("tutoria_usuario_logado", "")).strip()
+    perfil_gestao = bool(st.session_state.get("tutoria_usuario_gestao", False))
+    if usuario_logado:
+        col_a, col_b = st.columns([4, 1])
+        col_a.success(f"Acesso ativo: {usuario_logado}" + (" — Gestão" if perfil_gestao else " — Professor(a)"))
+        if col_b.button("🚪 Sair", key="logout_tutoria_caderno_profissional"):
+            for k in ["tutoria_usuario_logado", "tutoria_usuario_gestao", "tutoria_usuario_email"]:
+                st.session_state.pop(k, None)
+            st.rerun()
+        return True, usuario_logado, perfil_gestao
+
+    usuarios = carregar_usuarios_tutoria_supabase()
+    aba_login, aba_acesso_rapido, aba_gestao = st.tabs(["Login", "Acesso rápido", "Gestão/Coordenação"])
+
+    with aba_login:
+        if usuarios.empty:
+            st.info("A tabela usuarios ainda não possui registros. Use o acesso rápido ou a senha da gestão.")
+        email = st.text_input("E-mail", key="login_tutoria_email")
+        senha = st.text_input("Senha", type="password", key="login_tutoria_senha")
+        if st.button("Entrar", type="primary", key="login_tutoria_usuario_btn"):
+            if usuarios.empty:
+                st.error("Nenhum usuário cadastrado na tabela usuarios.")
+            else:
+                base = usuarios.copy()
+                base["email_norm"] = base.get("email", "").astype(str).str.strip().str.lower()
+                encontrado = base[(base["email_norm"] == str(email).strip().lower()) & (base.get("senha", "").astype(str) == str(senha))]
+                if encontrado.empty:
+                    st.error("Login inválido.")
+                else:
+                    user = encontrado.iloc[0].to_dict()
+                    tipo = normalizar_texto(user.get("tipo", "professor"))
+                    st.session_state["tutoria_usuario_logado"] = str(user.get("nome") or user.get("email") or "Usuário")
+                    st.session_state["tutoria_usuario_email"] = str(user.get("email") or "")
+                    st.session_state["tutoria_usuario_gestao"] = any(t in tipo for t in ["GESTAO", "GESTOR", "COORD", "DIRECAO"])
+                    st.rerun()
+
+    with aba_acesso_rapido:
+        st.caption("Disponível para manter compatibilidade com os cadastros atuais de professores.")
+        nome = st.selectbox("Professor(a)", nomes_professores, key="login_professor_tutoria_nome_profissional")
+        if st.button("Entrar como professor(a)", key="login_professor_tutoria_btn_profissional"):
+            st.session_state["tutoria_usuario_logado"] = nome
+            st.session_state["tutoria_usuario_gestao"] = False
+            st.rerun()
+
+    with aba_gestao:
+        senha_gestao = st.text_input("Senha da gestão", type="password", key="login_gestao_tutoria_senha_profissional")
+        if st.button("Entrar como gestão", key="login_gestao_tutoria_btn_profissional"):
+            if str(senha_gestao) == str(SENHA_EXCLUSAO):
+                st.session_state["tutoria_usuario_logado"] = "Gestão/Coordenação"
+                st.session_state["tutoria_usuario_gestao"] = True
+                st.rerun()
+            else:
+                st.error("Senha incorreta.")
+    return False, "", False
+
+
+# ---------- Sincronização com tabelas estruturadas ----------
+def _supabase_tabela_existe(nome_tabela: str) -> bool:
+    if not SUPABASE_VALID:
+        return False
+    try:
+        _supabase_request("GET", f"{nome_tabela}?select=id&limit=1")
+        return True
+    except Exception:
+        return False
+
+
+def sincronizar_caderno_tabelas_estruturadas(chave: str, caderno: dict) -> None:
+    """Espelha o JSON principal nas tabelas estruturadas, quando elas existem."""
+    if not SUPABASE_VALID or not chave or not isinstance(caderno, dict):
+        return
+    chave_q = requests.utils.quote(str(chave), safe="")
+    professor = str(caderno.get("professor", ""))
+    estudante = str(caderno.get("estudante", ""))
+    turma = str(caderno.get("turma", ""))
+
+    try:
+        if _supabase_tabela_existe("perfil_tutorado"):
+            _supabase_request("DELETE", f"perfil_tutorado?chave_caderno=eq.{chave_q}")
+            _supabase_request("POST", "perfil_tutorado", json={
+                "chave_caderno": chave, "professor": professor, "estudante": estudante, "turma": turma,
+                "dados": caderno.get("perfil_tutorado", {}),
+            })
+    except Exception as e:
+        logger.warning(f"Falha ao sincronizar perfil_tutorado: {e}")
+
+    try:
+        if _supabase_tabela_existe("rendimento_bimestral"):
+            _supabase_request("DELETE", f"rendimento_bimestral?chave_caderno=eq.{chave_q}")
+            payload = []
+            for componente, reg in (caderno.get("rendimento_bimestral", {}) or {}).items():
+                payload.append({
+                    "chave_caderno": chave, "professor": professor, "estudante": estudante, "turma": turma,
+                    "componente_curricular": str(componente),
+                    "primeiro_bimestre": str((reg or {}).get("1º BIM", "")),
+                    "segundo_bimestre": str((reg or {}).get("2º BIM", "")),
+                    "terceiro_bimestre": str((reg or {}).get("3º BIM", "")),
+                    "quarto_bimestre": str((reg or {}).get("4º BIM", "")),
+                    "resultado_final": str((reg or {}).get("RESULTADO FINAL", "")),
+                })
+            if payload:
+                _supabase_request("POST", "rendimento_bimestral", json=payload)
+    except Exception as e:
+        logger.warning(f"Falha ao sincronizar rendimento_bimestral: {e}")
+
+    try:
+        if _supabase_tabela_existe("tutoria_individual"):
+            _supabase_request("DELETE", f"tutoria_individual?chave_caderno=eq.{chave_q}")
+            payload = []
+            for reg in caderno.get("tutoria_individual", []) or []:
+                payload.append({
+                    "chave_caderno": chave, "professor": professor, "estudante": estudante, "turma": turma,
+                    "data_encontro": str(reg.get("data", "")),
+                    "objetivo": str(reg.get("objetivo", "")),
+                    "pontos_positivos": str(reg.get("pontos_positivos", "")),
+                    "pontos_atencao": str(reg.get("pontos_atencao", "")),
+                    "acoes_encaminhamentos": str(reg.get("acoes_encaminhamentos", "")),
+                })
+            if payload:
+                _supabase_request("POST", "tutoria_individual", json=payload)
+    except Exception as e:
+        logger.warning(f"Falha ao sincronizar tutoria_individual: {e}")
+
+    try:
+        if _supabase_tabela_existe("tutoria_coletiva"):
+            _supabase_request("DELETE", f"tutoria_coletiva?chave_caderno=eq.{chave_q}")
+            payload = []
+            for reg in caderno.get("tutoria_coletiva", []) or []:
+                payload.append({
+                    "chave_caderno": chave, "professor": professor, "estudante": estudante, "turma": turma,
+                    "data_encontro": str(reg.get("data", "")),
+                    "numero_encontro": str(reg.get("numero_encontro", "")),
+                    "objetivo_encontro": str(reg.get("objetivo_encontro", "")),
+                    "campos": reg.get("campos", {}) or {},
+                    "observacoes": str(reg.get("observacoes", "")),
+                })
+            if payload:
+                _supabase_request("POST", "tutoria_coletiva", json=payload)
+    except Exception as e:
+        logger.warning(f"Falha ao sincronizar tutoria_coletiva: {e}")
+
+
+def _atualizar_caderno(cadernos: dict, chave: str, caderno: dict):
+    """Salva local, salva no JSON principal do Supabase e sincroniza tabelas estruturadas."""
+    caderno["atualizado_em"] = datetime.now().strftime("%d/%m/%Y %H:%M")
+    cadernos[chave] = caderno
+    salvar_cadernos_tutoria_online(cadernos)
+    salvar_caderno_tutoria_supabase(chave, caderno)
+    sincronizar_caderno_tabelas_estruturadas(chave, caderno)
+
+
+# ---------- Indicadores e histórico ----------
+def _metricas_caderno_tutoria(cadernos: dict, professor: str, estudantes: list[dict]) -> dict:
+    chaves = []
+    for e in estudantes or []:
+        chaves.append(_chave_caderno_tutoria(professor, e.get("nome", ""), e.get("turma", "")))
+    existentes = [cadernos.get(k, {}) for k in chaves if isinstance(cadernos.get(k), dict)]
+    individuais = sum(len(c.get("tutoria_individual", []) or []) for c in existentes)
+    coletivas = sum(len(c.get("tutoria_coletiva", []) or []) for c in existentes)
+    preenchidos = sum(1 for c in existentes if c.get("atualizado_em"))
+    assinados = sum(1 for c in existentes if (c.get("assinaturas_digitais", {}) or {}).get("professor_nome"))
+    return {
+        "tutorados": len(estudantes or []),
+        "cadernos_salvos": preenchidos,
+        "pendentes": max(0, len(estudantes or []) - preenchidos),
+        "registros_individuais": individuais,
+        "encontros_coletivos": coletivas,
+        "assinados": assinados,
+    }
+
+
+def _render_metricas_caderno_tutoria(cadernos: dict, professor: str, estudantes: list[dict]):
+    m = _metricas_caderno_tutoria(cadernos, professor, estudantes)
+    cols = st.columns(6)
+    cols[0].metric("Tutorados", m["tutorados"])
+    cols[1].metric("Cadernos salvos", m["cadernos_salvos"])
+    cols[2].metric("Pendentes", m["pendentes"])
+    cols[3].metric("Individuais", m["registros_individuais"])
+    cols[4].metric("Coletivos", m["encontros_coletivos"])
+    cols[5].metric("Assinados", m["assinados"])
+
+
+def _filtrar_df_por_aluno(df: pd.DataFrame, aluno: str, turma: str = "") -> pd.DataFrame:
+    if df is None or df.empty:
+        return pd.DataFrame()
+    base = df.copy()
+    aluno_norm = normalizar_texto(aluno)
+    mask = pd.Series(False, index=base.index)
+    for col in ["aluno", "nome", "estudante"]:
+        if col in base.columns:
+            mask = mask | (base[col].astype(str).map(normalizar_texto) == aluno_norm)
+    if turma and "turma" in base.columns:
+        # Mantém por nome como principal. Turma apenas ajuda quando a coluna existir.
+        pass
+    return base[mask].copy()
+
+
+def _render_historico_integrado_aluno(aluno: str, turma: str, caderno: dict):
+    st.markdown("### 📁 Histórico integrado do estudante")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Registros individuais", len(caderno.get("tutoria_individual", []) or []))
+    col2.metric("Encontros coletivos", len(caderno.get("tutoria_coletiva", []) or []))
+    col3.metric("Atualização", caderno.get("atualizado_em") or "Não salvo")
+
+    st.markdown("#### Tutoria individual")
+    if caderno.get("tutoria_individual"):
+        st.dataframe(pd.DataFrame(caderno.get("tutoria_individual", [])), use_container_width=True, hide_index=True)
+    else:
+        st.info("Nenhum registro individual no caderno.")
+
+    st.markdown("#### Tutoria coletiva")
+    coletivas = caderno.get("tutoria_coletiva", []) or []
+    if coletivas:
+        resumo = []
+        for r in coletivas:
+            resumo.append({"Data": r.get("data", ""), "Nº": r.get("numero_encontro", ""), "Objetivo": r.get("objetivo_encontro", ""), "Observações": r.get("observacoes", "")})
+        st.dataframe(pd.DataFrame(resumo), use_container_width=True, hide_index=True)
+    else:
+        st.info("Nenhum encontro coletivo no caderno.")
+
+    with st.expander("Ocorrências do estudante", expanded=False):
+        try:
+            df_oc = carregar_ocorrencias()
+            df_aluno = _filtrar_df_por_aluno(df_oc, aluno, turma)
+            if df_aluno.empty:
+                st.info("Nenhuma ocorrência localizada para este estudante.")
+            else:
+                cols = [c for c in ["data", "aluno", "turma", "categoria", "gravidade", "relato", "encaminhamento", "professor"] if c in df_aluno.columns]
+                st.dataframe(df_aluno[cols], use_container_width=True, hide_index=True)
+        except Exception as e:
+            st.warning(f"Não foi possível carregar ocorrências: {e}")
+
+    with st.expander("Relatórios do estudante", expanded=False):
+        try:
+            df_rel = carregar_relatorios_estudantes()
+            df_aluno = _filtrar_df_por_aluno(df_rel, aluno, turma)
+            if df_aluno.empty:
+                st.info("Nenhum relatório localizado para este estudante.")
+            else:
+                st.dataframe(df_aluno, use_container_width=True, hide_index=True)
+        except Exception as e:
+            st.warning(f"Não foi possível carregar relatórios: {e}")
+
+
+# ---------- Assinaturas digitais ----------
+def _salvar_upload_assinatura(arquivo) -> str:
+    if not arquivo:
+        return ""
+    import base64
+    conteudo = arquivo.read()
+    return base64.b64encode(conteudo).decode("utf-8") if conteudo else ""
+
+
+def _imagem_assinatura_reportlab(b64: str, largura: float = 5.0*cm, altura: float = 1.6*cm):
+    if not b64:
+        return None
+    try:
+        import base64
+        bio = BytesIO(base64.b64decode(b64))
+        img = Image(bio, width=largura, height=altura)
+        return img
+    except Exception:
+        return None
+
+
+def _render_assinaturas_digitais(caderno: dict, chave: str):
+    st.markdown("### 🖊️ Assinaturas digitais")
+    st.caption("Use texto, imagem enviada ou ambos. A assinatura será incluída no PDF do caderno.")
+    assinaturas = caderno.setdefault("assinaturas_digitais", {})
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("#### Professor(a) / Tutor(a)")
+        assinaturas["professor_nome"] = st.text_input("Nome para assinatura do professor", value=assinaturas.get("professor_nome") or caderno.get("professor", ""), key=f"ass_prof_nome_{chave}")
+        assinaturas["professor_data"] = st.text_input("Data da assinatura do professor", value=assinaturas.get("professor_data", datetime.now().strftime("%d/%m/%Y")), key=f"ass_prof_data_{chave}")
+        upload_prof = st.file_uploader("Imagem da assinatura do professor (PNG/JPG)", type=["png", "jpg", "jpeg"], key=f"ass_prof_upload_{chave}")
+        if upload_prof:
+            assinaturas["professor_imagem_b64"] = _salvar_upload_assinatura(upload_prof)
+        if assinaturas.get("professor_imagem_b64"):
+            import base64
+            st.image(BytesIO(base64.b64decode(assinaturas["professor_imagem_b64"])), caption="Assinatura do professor", width=280)
+    with col2:
+        st.markdown("#### Gestão / Coordenação")
+        assinaturas["gestao_nome"] = st.text_input("Nome para assinatura da gestão", value=assinaturas.get("gestao_nome", ""), key=f"ass_gest_nome_{chave}")
+        assinaturas["gestao_data"] = st.text_input("Data da assinatura da gestão", value=assinaturas.get("gestao_data", datetime.now().strftime("%d/%m/%Y")), key=f"ass_gest_data_{chave}")
+        upload_gest = st.file_uploader("Imagem da assinatura da gestão (PNG/JPG)", type=["png", "jpg", "jpeg"], key=f"ass_gest_upload_{chave}")
+        if upload_gest:
+            assinaturas["gestao_imagem_b64"] = _salvar_upload_assinatura(upload_gest)
+        if assinaturas.get("gestao_imagem_b64"):
+            import base64
+            st.image(BytesIO(base64.b64decode(assinaturas["gestao_imagem_b64"])), caption="Assinatura da gestão", width=280)
+    caderno["assinaturas_digitais"] = assinaturas
+
+
+# ---------- PDF mais fiel ao caderno físico ----------
+def _pdf_cabecalho_escola(story: list, titulo: str, styles: dict):
+    titulo_style = styles["titulo"]
+    small = styles["small_center"]
+    story.append(Paragraph("GOVERNO DO ESTADO DE SÃO PAULO", small))
+    story.append(Paragraph("SECRETARIA DE ESTADO DA EDUCAÇÃO", small))
+    story.append(Paragraph("UNIDADE REGIONAL DE ENSINO DE SUZANO - SP", small))
+    story.append(Paragraph("E.E. PROFª ELIANE AP. DANTAS DA SILVA", small))
+    story.append(Paragraph("Programa Ensino Integral - PEI", small))
+    story.append(Paragraph("Rua: Walter S. Costa, 147 – Jd. Primavera – F. Vasconcelos – SP", small))
+    story.append(Spacer(1, 0.25*cm))
+    story.append(Paragraph(titulo, titulo_style))
+
+
+def gerar_pdf_caderno_tutoria(caderno: dict) -> BytesIO:
+    """PDF do caderno com páginas mais próximas do modelo físico enviado."""
+    from reportlab.platypus import PageBreak
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=0.8*cm, leftMargin=0.8*cm, topMargin=0.7*cm, bottomMargin=0.7*cm)
+    base = getSampleStyleSheet()
+    styles = {
+        "titulo": ParagraphStyle("TituloCadernoProfissional", parent=base["Heading1"], alignment=TA_CENTER, fontName="Helvetica-Bold", fontSize=18, leading=22, spaceAfter=10),
+        "subtitulo": ParagraphStyle("SubTituloCadernoProfissional", parent=base["Heading2"], alignment=TA_CENTER, fontName="Helvetica-Bold", fontSize=13, leading=16, spaceAfter=6),
+        "normal": ParagraphStyle("NormalCadernoProfissional", parent=base["Normal"], fontSize=8, leading=10, wordWrap="CJK"),
+        "small": ParagraphStyle("SmallCadernoProfissional", parent=base["Normal"], fontSize=6.5, leading=8, wordWrap="CJK"),
+        "small_center": ParagraphStyle("SmallCenterCadernoProfissional", parent=base["Normal"], alignment=TA_CENTER, fontName="Helvetica-Bold", fontSize=7.2, leading=8.4),
+        "cell": ParagraphStyle("CellCadernoProfissional", parent=base["Normal"], fontSize=6.6, leading=8.2, wordWrap="CJK"),
+        "cell_bold": ParagraphStyle("CellBoldCadernoProfissional", parent=base["Normal"], fontName="Helvetica-Bold", fontSize=6.8, leading=8.3, wordWrap="CJK"),
+    }
+    story = []
+
+    # Capa
+    story.append(Spacer(1, 1.2*cm))
+    story.append(Paragraph("Caderno de", ParagraphStyle("Capa1", parent=base["Heading1"], alignment=TA_CENTER, fontSize=28, leading=32)))
+    story.append(Paragraph("TUTORIA", ParagraphStyle("Capa2", parent=base["Heading1"], alignment=TA_CENTER, fontName="Helvetica-Bold", fontSize=54, leading=58)))
+    story.append(Paragraph("2026", ParagraphStyle("Capa3", parent=base["Heading1"], alignment=TA_CENTER, fontName="Helvetica-Bold", fontSize=28, leading=34)))
+    story.append(Spacer(1, 0.8*cm))
+    story.append(Paragraph(f"Tutor: {html.escape(str(caderno.get('professor','')))}", ParagraphStyle("CapaTutor", parent=base["Normal"], alignment=TA_CENTER, fontSize=14, leading=18)))
+    story.append(Paragraph(f"Estudante: {html.escape(str(caderno.get('estudante','')))} — {html.escape(str(caderno.get('turma','')))}", ParagraphStyle("CapaAluno", parent=base["Normal"], alignment=TA_CENTER, fontSize=11, leading=14)))
+    story.append(Spacer(1, 0.8*cm))
+    story.append(Paragraph("E.E. Profª Eliane Ap. Dantas da Silva", ParagraphStyle("CapaEscola", parent=base["Normal"], alignment=TA_CENTER, fontName="Helvetica-Bold", fontSize=13, leading=16)))
+    story.append(PageBreak())
+
+    # Identificação e rendimento
+    _pdf_cabecalho_escola(story, "FICHA DE IDENTIFICAÇÃO DO TUTORADO", styles)
+    ficha = caderno.get("ficha_identificacao", {}) or {}
+    dados_ficha = [
+        ["Nome do Aluno:", ficha.get("nome_aluno", caderno.get("estudante", "")), "Ano/Série:", ficha.get("ano_serie", caderno.get("turma", "")), "Data de Nasc:", ficha.get("data_nascimento", "")],
+        ["Telefone:", ficha.get("telefone", ""), "Nome do responsável:", ficha.get("nome_responsavel", ""), "Telefone:", ficha.get("telefone_responsavel", "")],
+    ]
+    dados_ficha = [[_pdf_texto_caderno(c, styles["cell_bold"] if i % 2 == 0 else styles["cell"]) for i, c in enumerate(row)] for row in dados_ficha]
+    t = Table(dados_ficha, colWidths=[3.0*cm, 6.0*cm, 3.0*cm, 4.0*cm, 3.0*cm, 5.2*cm])
+    t.setStyle(TableStyle([("GRID", (0,0), (-1,-1), 0.45, colors.black), ("VALIGN", (0,0), (-1,-1), "MIDDLE"), ("BACKGROUND", (0,0), (0,-1), colors.whitesmoke), ("BACKGROUND", (2,0), (2,-1), colors.whitesmoke), ("BACKGROUND", (4,0), (4,-1), colors.whitesmoke)]))
+    story.append(t)
+    story.append(Spacer(1, 0.25*cm))
+    story.append(Paragraph("RENDIMENTO BIMESTRAL", styles["subtitulo"]))
+    linhas = [["COMPONENTE CURRICULAR", "1º BIM", "2º BIM", "3º BIM", "4º BIM", "RESULTADO FINAL"]]
+    for disc in DISCIPLINAS_CADERNO_TUTORIA:
+        reg = (caderno.get("rendimento_bimestral", {}) or {}).get(disc, {}) or {}
+        linhas.append([disc, reg.get("1º BIM", ""), reg.get("2º BIM", ""), reg.get("3º BIM", ""), reg.get("4º BIM", ""), reg.get("RESULTADO FINAL", "")])
+    linhas = [[_pdf_texto_caderno(c, styles["cell_bold"] if r == 0 or c == row[0] else styles["cell"]) for c in row] for r, row in enumerate(linhas)]
+    t = Table(linhas, colWidths=[7.2*cm, 3.0*cm, 3.0*cm, 3.0*cm, 3.0*cm, 5.0*cm], repeatRows=1)
+    t.setStyle(TableStyle([("GRID", (0,0), (-1,-1), 0.35, colors.black), ("BACKGROUND", (0,0), (-1,0), colors.lightgrey), ("VALIGN", (0,0), (-1,-1), "MIDDLE")]))
+    story.append(t)
+    story.append(Spacer(1, 0.25*cm))
+    part = caderno.get("participacao_pais", {}) or {}
+    linhas = [["BIMESTRE", "DATA", "ASSINATURA DO RESPONSÁVEL"]]
+    for bim in ["1º BIMESTRE", "2º BIMESTRE", "3º BIMESTRE", "4º BIMESTRE"]:
+        reg = part.get(bim, {}) or {}
+        linhas.append([bim, reg.get("data", ""), reg.get("assinatura_responsavel", "")])
+    linhas = [[_pdf_texto_caderno(c, styles["cell_bold"] if r == 0 else styles["cell"]) for c in row] for r, row in enumerate(linhas)]
+    t = Table(linhas, colWidths=[5.0*cm, 5.0*cm, 14.2*cm], repeatRows=1)
+    t.setStyle(TableStyle([("GRID", (0,0), (-1,-1), 0.35, colors.black), ("BACKGROUND", (0,0), (-1,0), colors.lightgrey)]))
+    story.append(Paragraph("PARTICIPAÇÃO DOS PAIS NAS REUNIÕES", styles["subtitulo"]))
+    story.append(t)
+    story.append(PageBreak())
+
+    # Perfil do tutorado
+    _pdf_cabecalho_escola(story, "PERFIL DO TUTORADO", styles)
+    perfil = caderno.get("perfil_tutorado", {}) or {}
+    dados_p = perfil.get("dados_pessoais", {}) or {}
+    familia = perfil.get("dados_familia", {}) or {}
+    sonhos = perfil.get("sonhos", {}) or {}
+    pv = perfil.get("projeto_de_vida", {}) or {}
+    avanc = perfil.get("nivel_avancado", {}) or {}
+    perfil_rows = [
+        ["Nível Básico", "Informações"],
+        ["Dados pessoais", f"Data de Nascimento: {dados_p.get('data_nascimento','')} | Cidade onde nasceu: {dados_p.get('cidade_onde_nasceu','')} | Endereço: {dados_p.get('endereco','')} | Celular: {dados_p.get('celular','')}"],
+        ["Dados da família", f"Pai/celular: {familia.get('pai_celular','')} | Mãe/celular: {familia.get('mae_celular','')} | Irmãos: {familia.get('irmaos','')} | Outros: {familia.get('outros','')}"],
+        ["Breve histórico do estudante", perfil.get("breve_historico_estudante", "")],
+        ["Breve perfil / características da família", perfil.get("breve_perfil_caracteristicas_familia", "")],
+        ["Sonhos", " | ".join(str(sonhos.get(k,"")) for k in ["sonho_1_data","sonho_2_data","sonho_3_data","sonho_4_data"])],
+        ["Projeto de Vida", " | ".join(str(pv.get(k,"")) for k in ["pv_1_data","pv_2_data","pv_3_data","pv_4_data"])],
+        ["Nível Avançado", ""],
+    ]
+    for campo, rotulo in [
+        ("principais_gostos_preferencias", "Principais gostos e preferências do tutorado"),
+        ("principais_virtudes_caracteristicas_positivas", "Principais virtudes / características positivas do tutorado"),
+        ("principais_habilidades", "Principais habilidades do tutorado"),
+        ("tres_principais_pontos_positivos_atuais", "Os três principais pontos positivos atuais do tutorado"),
+        ("o_que_fazer_sobre_pontos_positivos", "O que fazer sobre os pontos positivos atuais do tutorado"),
+    ]:
+        vals = avanc.get(campo, ["", "", ""])
+        perfil_rows.append([rotulo, " | ".join(str(v or "") for v in vals)])
+    perfil_rows = [[_pdf_texto_caderno(row[0], styles["cell_bold"]), _pdf_texto_caderno(row[1], styles["cell"])] for row in perfil_rows]
+    t = Table(perfil_rows, colWidths=[8.0*cm, 16.2*cm])
+    t.setStyle(TableStyle([("GRID", (0,0), (-1,-1), 0.35, colors.black), ("BACKGROUND", (0,0), (-1,0), colors.lightgrey), ("BACKGROUND", (0,7), (-1,7), colors.lightgrey), ("VALIGN", (0,0), (-1,-1), "TOP")]))
+    story.append(t)
+    story.append(PageBreak())
+
+    # Tutoria coletiva
+    _pdf_cabecalho_escola(story, "TUTORIA COLETIVA", styles)
+    coletivas = caderno.get("tutoria_coletiva", []) or [{}]
+    for encontro in coletivas:
+        story.append(Paragraph(f"Número do encontro: {html.escape(str(encontro.get('numero_encontro','')))} &nbsp;&nbsp; Objetivo do encontro: {html.escape(str(encontro.get('objetivo_encontro','')))}", styles["normal"]))
+        linhas = [["Número do encontro", "Objetivo do encontro"]]
+        for campo in CAMPOS_TUTORIA_COLETIVA:
+            linhas.append([campo, (encontro.get("campos", {}) or {}).get(campo, "")])
+        linhas.append(["Observações", encontro.get("observacoes", "")])
+        linhas = [[_pdf_texto_caderno(c, styles["cell_bold"] if i == 0 else styles["cell"]) for i, c in enumerate(row)] for row in linhas]
+        t = Table(linhas, colWidths=[10.5*cm, 13.7*cm])
+        t.setStyle(TableStyle([("GRID", (0,0), (-1,-1), 0.35, colors.black), ("BACKGROUND", (0,0), (-1,0), colors.lightgrey), ("VALIGN", (0,0), (-1,-1), "TOP")]))
+        story.append(t)
+        story.append(Spacer(1, 0.25*cm))
+    story.append(PageBreak())
+
+    # Tutoria individual
+    _pdf_cabecalho_escola(story, "TUTORIA INDIVIDUAL", styles)
+    individuais = caderno.get("tutoria_individual", []) or [{}]
+    for item in individuais:
+        linhas = [
+            ["Data", item.get("data", ""), "Objetivo do encontro", item.get("objetivo", "")],
+            ["Geral: pontos positivos", item.get("pontos_positivos", ""), "Constatação e/ou Evidência", item.get("pontos_positivos", "")],
+            ["Geral: pontos de atenção", item.get("pontos_atencao", ""), "Constatação e/ou Evidência", item.get("pontos_atencao", "")],
+            ["Ações / encaminhamentos", item.get("acoes_encaminhamentos", ""), "Observações", item.get("observacoes", "")],
+        ]
+        linhas = [[_pdf_texto_caderno(c, styles["cell_bold"] if i in (0,2) else styles["cell"]) for i, c in enumerate(row)] for row in linhas]
+        t = Table(linhas, colWidths=[5.5*cm, 6.5*cm, 5.5*cm, 6.7*cm])
+        t.setStyle(TableStyle([("GRID", (0,0), (-1,-1), 0.35, colors.black), ("VALIGN", (0,0), (-1,-1), "TOP"), ("BACKGROUND", (0,0), (0,-1), colors.whitesmoke), ("BACKGROUND", (2,0), (2,-1), colors.whitesmoke)]))
+        story.append(t)
+        story.append(Spacer(1, 0.3*cm))
+
+    # Assinaturas
+    story.append(Spacer(1, 0.25*cm))
+    assin = caderno.get("assinaturas_digitais", {}) or {}
+    img_prof = _imagem_assinatura_reportlab(assin.get("professor_imagem_b64", ""))
+    img_gest = _imagem_assinatura_reportlab(assin.get("gestao_imagem_b64", ""))
+    assinatura_rows = [
+        [_pdf_texto_caderno("Assinatura do(a) Tutor(a)", styles["cell_bold"]), _pdf_texto_caderno("Assinatura da Gestão/Coordenação", styles["cell_bold"])],
+        [img_prof if img_prof else _pdf_texto_caderno("", styles["cell"]), img_gest if img_gest else _pdf_texto_caderno("", styles["cell"])],
+        [_pdf_texto_caderno(f"{assin.get('professor_nome','')} — {assin.get('professor_data','')}", styles["cell"]), _pdf_texto_caderno(f"{assin.get('gestao_nome','')} — {assin.get('gestao_data','')}", styles["cell"])],
+    ]
+    t = Table(assinatura_rows, colWidths=[12.1*cm, 12.1*cm], rowHeights=[0.6*cm, 1.9*cm, 0.7*cm])
+    t.setStyle(TableStyle([("GRID", (0,0), (-1,-1), 0.35, colors.black), ("ALIGN", (0,0), (-1,-1), "CENTER"), ("VALIGN", (0,0), (-1,-1), "MIDDLE")]))
+    story.append(t)
+
+    doc.build(story)
+    buffer.seek(0)
+    return buffer
+
+
+# ---------- Render principal do caderno com novas abas ----------
+def render_caderno_tutoria_online(TUTORIA: dict, df_alunos: pd.DataFrame | None = None):
+    st.markdown("---")
+    st.subheader("📘 Caderno de Tutoria Online 2026")
+    st.caption("Caderno digital vinculado à página de Tutoria. Cada tutor(a) acessa seus estudantes, edita registros, assina digitalmente e imprime o caderno.")
+
+    if not TUTORIA:
+        st.info("Cadastre primeiro os responsáveis e estudantes na Tutoria para liberar os cadernos online.")
+        return
+
+    nomes_professores = sorted([str(p).strip() for p in TUTORIA.keys() if str(p).strip()])
+    acesso_ok, usuario_logado, usuario_gestao = render_login_professor_tutoria(nomes_professores)
+    if not acesso_ok:
+        return
+
+    cadernos = carregar_cadernos_tutoria_online()
+
+    if usuario_gestao:
+        professor = st.selectbox("Tutor(a) / responsável pelo caderno", nomes_professores, key="caderno_tutoria_professor_profissional")
+    else:
+        professor = usuario_logado
+        st.info(f"Você está acessando o caderno como professor(a): {professor}")
+
+    registro_tutor = obter_registro_tutoria(TUTORIA, professor)
+    estudantes = _linhas_professor_tutoria(registro_tutor)
+
+    if not estudantes:
+        st.warning("Este tutor(a) ainda não possui estudantes vinculados na Tutoria.")
+        return
+
+    _render_metricas_caderno_tutoria(cadernos, professor, estudantes)
+
+    labels = [e["label"] for e in estudantes]
+    label_aluno = st.selectbox("Estudante tutorado", labels, key="caderno_tutoria_estudante_profissional")
+    aluno = next((e for e in estudantes if e["label"] == label_aluno), estudantes[0])
+    chave, caderno = obter_caderno_tutoria_online(cadernos, professor, aluno["nome"], aluno.get("turma", ""))
+
+    st.markdown(f"""
+    <div class="info-box">
+        <b>Caderno selecionado:</b> {html.escape(aluno['nome'])} — {html.escape(aluno.get('turma',''))}<br>
+        <b>Tutor(a):</b> {html.escape(professor)}<br>
+        <b>Última atualização:</b> {html.escape(str(caderno.get('atualizado_em') or 'Ainda não salvo'))}
+    </div>
+    """, unsafe_allow_html=True)
+
+    tab_capa, tab_ident, tab_rend, tab_perfil, tab_ind, tab_col, tab_hist, tab_ass, tab_pdf = st.tabs([
+        "📒 Capa", "🪪 Identificação", "📊 Rendimento", "👤 Perfil", "🧑‍🏫 Tutoria Individual", "👥 Tutoria Coletiva", "📁 Histórico", "🖊️ Assinaturas", "🖨️ Imprimir"
+    ])
+
+    with tab_capa:
+        st.markdown("### Caderno de Tutoria 2026")
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            st.metric("Tutor(a)", professor)
+            st.metric("Turma", aluno.get("turma", ""))
+            st.metric("Ano letivo", caderno.get("ano_letivo", ANO_LETIVO_CADERNO_TUTORIA))
+        with col2:
+            st.text_input("Tutor", value=professor, disabled=True, key=f"capa_tutor_prof_{chave}")
+            st.text_input("Escola", value="E.E. Profª Eliane Ap. Dantas da Silva", disabled=True, key=f"capa_escola_prof_{chave}")
+            caderno["observacoes_gerais"] = st.text_area("Observações gerais do caderno", value=caderno.get("observacoes_gerais", ""), height=120, key=f"obs_gerais_prof_{chave}")
+            if st.button("💾 Salvar capa/observações", type="primary", key=f"salvar_capa_prof_{chave}"):
+                _atualizar_caderno(cadernos, chave, caderno)
+                st.success("Caderno salvo.")
+
+    with tab_ident:
+        st.markdown("### Ficha de Identificação do Tutorado")
+        ficha = caderno.get("ficha_identificacao", {})
+        c1, c2, c3 = st.columns([2, 1, 1])
+        ficha["nome_aluno"] = c1.text_input("Nome do Aluno", value=ficha.get("nome_aluno") or aluno["nome"], key=f"ficha_nome_prof_{chave}")
+        ficha["ano_serie"] = c2.text_input("Ano/Série", value=ficha.get("ano_serie") or aluno.get("turma", ""), key=f"ficha_turma_prof_{chave}")
+        ficha["data_nascimento"] = c3.text_input("Data de Nasc.", value=ficha.get("data_nascimento", ""), key=f"ficha_nasc_prof_{chave}")
+        c1, c2 = st.columns(2)
+        ficha["telefone"] = c1.text_input("Telefone", value=ficha.get("telefone", ""), key=f"ficha_tel_prof_{chave}")
+        ficha["telefone_responsavel"] = c2.text_input("Telefone do responsável", value=ficha.get("telefone_responsavel", ""), key=f"ficha_tel_resp_prof_{chave}")
+        ficha["nome_responsavel"] = st.text_input("Nome do responsável", value=ficha.get("nome_responsavel", ""), key=f"ficha_resp_prof_{chave}")
+        caderno["ficha_identificacao"] = ficha
+        if st.button("💾 Salvar identificação", type="primary", key=f"salvar_ident_prof_{chave}"):
+            _atualizar_caderno(cadernos, chave, caderno)
+            st.success("Identificação salva.")
+
+    with tab_rend:
+        st.markdown("### Rendimento Bimestral")
+        rendimento = caderno.get("rendimento_bimestral", {})
+        df_rend = pd.DataFrame([{"COMPONENTE CURRICULAR": disc, **(rendimento.get(disc) or {})} for disc in DISCIPLINAS_CADERNO_TUTORIA])
+        df_edit = st.data_editor(df_rend, use_container_width=True, hide_index=True, num_rows="fixed", key=f"editor_rendimento_prof_{chave}")
+        novo_rendimento = {}
+        for _, row in df_edit.iterrows():
+            disc = str(row.get("COMPONENTE CURRICULAR", "")).strip()
+            if disc:
+                novo_rendimento[disc] = {
+                    "1º BIM": str(row.get("1º BIM", "")), "2º BIM": str(row.get("2º BIM", "")),
+                    "3º BIM": str(row.get("3º BIM", "")), "4º BIM": str(row.get("4º BIM", "")),
+                    "RESULTADO FINAL": str(row.get("RESULTADO FINAL", "")),
+                }
+        caderno["rendimento_bimestral"] = novo_rendimento
+        st.markdown("### Participação dos Pais nas Reuniões")
+        participacao = caderno.get("participacao_pais", {})
+        linhas_part = []
+        for bim in ["1º BIMESTRE", "2º BIMESTRE", "3º BIMESTRE", "4º BIMESTRE"]:
+            reg = participacao.get(bim, {})
+            linhas_part.append({"BIMESTRE": bim, "DATA": reg.get("data", ""), "ASSINATURA DO RESPONSÁVEL": reg.get("assinatura_responsavel", "")})
+        df_part = st.data_editor(pd.DataFrame(linhas_part), use_container_width=True, hide_index=True, num_rows="fixed", key=f"editor_part_prof_{chave}")
+        caderno["participacao_pais"] = {str(row.get("BIMESTRE", "")): {"data": str(row.get("DATA", "")), "assinatura_responsavel": str(row.get("ASSINATURA DO RESPONSÁVEL", ""))} for _, row in df_part.iterrows()}
+        if st.button("💾 Salvar rendimento e participação", type="primary", key=f"salvar_rend_prof_{chave}"):
+            _atualizar_caderno(cadernos, chave, caderno)
+            st.success("Rendimento salvo.")
+
+    with tab_perfil:
+        st.markdown("### Perfil do Tutorado — Nível Básico e Avançado")
+        perfil = caderno.get("perfil_tutorado", {})
+        dados_pessoais = perfil.setdefault("dados_pessoais", {})
+        familia = perfil.setdefault("dados_familia", {})
+        sonhos = perfil.setdefault("sonhos", {})
+        pv = perfil.setdefault("projeto_de_vida", {})
+        avancado = perfil.setdefault("nivel_avancado", {})
+        st.markdown("#### Nível Básico")
+        c1, c2, c3, c4 = st.columns(4)
+        dados_pessoais["data_nascimento"] = c1.text_input("Data de Nascimento", value=dados_pessoais.get("data_nascimento", ""), key=f"perfil_nasc_prof_{chave}")
+        dados_pessoais["cidade_onde_nasceu"] = c2.text_input("Cidade onde nasceu", value=dados_pessoais.get("cidade_onde_nasceu", ""), key=f"perfil_cidade_prof_{chave}")
+        dados_pessoais["endereco"] = c3.text_input("Endereço", value=dados_pessoais.get("endereco", ""), key=f"perfil_end_prof_{chave}")
+        dados_pessoais["celular"] = c4.text_input("Celular", value=dados_pessoais.get("celular", ""), key=f"perfil_cel_prof_{chave}")
+        c1, c2, c3, c4 = st.columns(4)
+        familia["pai_celular"] = c1.text_input("Pai / celular", value=familia.get("pai_celular", ""), key=f"perfil_pai_prof_{chave}")
+        familia["mae_celular"] = c2.text_input("Mãe / celular", value=familia.get("mae_celular", ""), key=f"perfil_mae_prof_{chave}")
+        familia["irmaos"] = c3.text_input("Irmãos", value=familia.get("irmaos", ""), key=f"perfil_irmaos_prof_{chave}")
+        familia["outros"] = c4.text_input("Outros", value=familia.get("outros", ""), key=f"perfil_outros_prof_{chave}")
+        perfil["breve_historico_estudante"] = st.text_area("Breve histórico do estudante", value=perfil.get("breve_historico_estudante", ""), height=90, key=f"perfil_hist_prof_{chave}")
+        perfil["breve_perfil_caracteristicas_familia"] = st.text_area("Breve perfil / características da família", value=perfil.get("breve_perfil_caracteristicas_familia", ""), height=90, key=f"perfil_fam_prof_{chave}")
+        c1, c2, c3, c4 = st.columns(4)
+        for i, key_sonho in enumerate(["sonho_1_data", "sonho_2_data", "sonho_3_data", "sonho_4_data"]):
+            sonhos[key_sonho] = [c1, c2, c3, c4][i].text_input(f"Sonho {i+1} / data", value=sonhos.get(key_sonho, ""), key=f"sonho_prof_{i}_{chave}")
+        c1, c2, c3, c4 = st.columns(4)
+        for i, key_pv in enumerate(["pv_1_data", "pv_2_data", "pv_3_data", "pv_4_data"]):
+            pv[key_pv] = [c1, c2, c3, c4][i].text_input(f"PV {i+1} / data", value=pv.get(key_pv, ""), key=f"pv_prof_{i}_{chave}")
+        st.markdown("#### Nível Avançado")
+        campos_avancados = [
+            ("principais_gostos_preferencias", "Principais gostos e preferências do tutorado"),
+            ("principais_virtudes_caracteristicas_positivas", "Principais virtudes / características positivas do tutorado"),
+            ("principais_habilidades", "Principais habilidades do tutorado"),
+            ("tres_principais_pontos_positivos_atuais", "Os três principais pontos positivos atuais do tutorado"),
+            ("o_que_fazer_sobre_pontos_positivos", "O que fazer sobre os pontos positivos atuais do tutorado"),
+        ]
+        for campo, rotulo in campos_avancados:
+            valores = list(avancado.get(campo, ["", "", ""]))
+            while len(valores) < 3:
+                valores.append("")
+            st.markdown(f"**{rotulo}**")
+            c1, c2, c3 = st.columns(3)
+            valores[0] = c1.text_input("1", value=valores[0], key=f"{campo}_prof_1_{chave}")
+            valores[1] = c2.text_input("2", value=valores[1], key=f"{campo}_prof_2_{chave}")
+            valores[2] = c3.text_input("3", value=valores[2], key=f"{campo}_prof_3_{chave}")
+            avancado[campo] = valores[:3]
+        caderno["perfil_tutorado"] = perfil
+        if st.button("💾 Salvar perfil", type="primary", key=f"salvar_perfil_prof_{chave}"):
+            _atualizar_caderno(cadernos, chave, caderno)
+            st.success("Perfil salvo.")
+
+    with tab_ind:
+        st.markdown("### Tutoria Individual")
+        individuais = caderno.get("tutoria_individual", []) or []
+        if individuais:
+            st.dataframe(pd.DataFrame(individuais), use_container_width=True, hide_index=True)
+        with st.form(f"form_individual_prof_{chave}"):
+            c1, c2 = st.columns([1, 2])
+            data = c1.text_input("Data", value=datetime.now().strftime("%d/%m/%Y"))
+            objetivo = c2.text_input("Objetivo do encontro")
+            pontos_positivos = st.text_area("Constatação e/ou evidência — pontos positivos", height=80)
+            pontos_atencao = st.text_area("Constatação e/ou evidência — pontos de atenção", height=80)
+            acoes = st.text_area("Ações / encaminhamentos", height=90)
+            observacoes = st.text_area("Observações", height=60)
+            salvar_ind = st.form_submit_button("➕ Adicionar registro individual")
+        if salvar_ind:
+            individuais.append({"data": data, "objetivo": objetivo, "pontos_positivos": pontos_positivos, "pontos_atencao": pontos_atencao, "acoes_encaminhamentos": acoes, "observacoes": observacoes})
+            caderno["tutoria_individual"] = individuais
+            _atualizar_caderno(cadernos, chave, caderno)
+            st.success("Registro individual adicionado.")
+            st.rerun()
+        if individuais:
+            opcoes = [f"{i+1} - {r.get('data','')} - {r.get('objetivo','')}" for i, r in enumerate(individuais)]
+            excluir = st.selectbox("Registro individual para remover", opcoes, key=f"excluir_ind_prof_{chave}")
+            if st.button("🗑️ Remover registro individual", key=f"btn_excluir_ind_prof_{chave}"):
+                idx = opcoes.index(excluir)
+                individuais.pop(idx)
+                caderno["tutoria_individual"] = individuais
+                _atualizar_caderno(cadernos, chave, caderno)
+                st.success("Registro removido.")
+                st.rerun()
+
+    with tab_col:
+        st.markdown("### Tutoria Coletiva")
+        coletivas = caderno.get("tutoria_coletiva", []) or []
+        if coletivas:
+            resumo = [{"Data": r.get("data", ""), "Nº encontro": r.get("numero_encontro", ""), "Objetivo": r.get("objetivo_encontro", "")} for r in coletivas]
+            st.dataframe(pd.DataFrame(resumo), use_container_width=True, hide_index=True)
+        with st.form(f"form_coletiva_prof_{chave}"):
+            c1, c2, c3 = st.columns([1, 1, 3])
+            data = c1.text_input("Data", value=datetime.now().strftime("%d/%m/%Y"))
+            numero = c2.text_input("Número do encontro")
+            objetivo = c3.text_input("Objetivo do encontro")
+            campos = {}
+            for campo in CAMPOS_TUTORIA_COLETIVA:
+                campos[campo] = st.text_area(f"{campo} — Constatação e/ou Evidência", height=70)
+            observacoes = st.text_area("Observações", height=80)
+            salvar_col = st.form_submit_button("➕ Adicionar encontro coletivo")
+        if salvar_col:
+            coletivas.append({"data": data, "numero_encontro": numero, "objetivo_encontro": objetivo, "campos": campos, "observacoes": observacoes})
+            caderno["tutoria_coletiva"] = coletivas
+            _atualizar_caderno(cadernos, chave, caderno)
+            st.success("Encontro coletivo adicionado.")
+            st.rerun()
+        if coletivas:
+            opcoes = [f"{i+1} - {r.get('data','')} - Encontro {r.get('numero_encontro','')}" for i, r in enumerate(coletivas)]
+            excluir = st.selectbox("Encontro coletivo para remover", opcoes, key=f"excluir_col_prof_{chave}")
+            if st.button("🗑️ Remover encontro coletivo", key=f"btn_excluir_col_prof_{chave}"):
+                idx = opcoes.index(excluir)
+                coletivas.pop(idx)
+                caderno["tutoria_coletiva"] = coletivas
+                _atualizar_caderno(cadernos, chave, caderno)
+                st.success("Encontro removido.")
+                st.rerun()
+
+    with tab_hist:
+        _render_historico_integrado_aluno(aluno["nome"], aluno.get("turma", ""), caderno)
+
+    with tab_ass:
+        _render_assinaturas_digitais(caderno, chave)
+        if st.button("💾 Salvar assinaturas", type="primary", key=f"salvar_assinaturas_prof_{chave}"):
+            _atualizar_caderno(cadernos, chave, caderno)
+            st.success("Assinaturas salvas.")
+
+    with tab_pdf:
+        st.markdown("### Imprimir / baixar caderno")
+        st.info("O PDF foi reorganizado para seguir a ordem do caderno físico: capa, identificação, rendimento, perfil, tutoria coletiva, tutoria individual e assinaturas.")
+        if st.button("💾 Salvar antes de gerar PDF", type="primary", key=f"salvar_antes_pdf_prof_{chave}"):
+            _atualizar_caderno(cadernos, chave, caderno)
+            st.success("Caderno salvo.")
+        pdf = gerar_pdf_caderno_tutoria(caderno)
+        st.download_button("📄 Baixar Caderno de Tutoria em PDF", data=pdf, file_name=f"Caderno_Tutoria_{_chave_caderno_tutoria(professor, aluno['nome'], aluno.get('turma',''))}.pdf", mime="application/pdf", key=f"download_caderno_prof_{chave}")
+        st.markdown("---")
+        st.markdown("### 📚 Caderno do professor")
+        pdf_prof = gerar_pdf_cadernos_professor(professor, cadernos)
+        st.download_button("📘 Baixar PDF com todos os tutorados deste professor", data=pdf_prof, file_name=f"Cadernos_Tutoria_{_chave_caderno_tutoria(professor, '', '')}.pdf", mime="application/pdf", key=f"download_cadernos_professor_prof_{_chave_caderno_tutoria(professor, '', '')}")
+        if usuario_gestao:
+            st.markdown("---")
+            st.markdown("### ☁️ Sincronização Supabase")
+            if st.button("Sincronizar cadernos com Supabase e tabelas estruturadas", key="migrar_cadernos_supabase_profissional"):
+                ok = 0
+                for k, c in cadernos.items():
+                    if salvar_caderno_tutoria_supabase(k, c):
+                        sincronizar_caderno_tabelas_estruturadas(k, c)
+                        ok += 1
+                st.success(f"Sincronização concluída: {ok} caderno(s) enviados/atualizados.")
+
 if menu == "🏠 Dashboard":
     # ── Header no modelo SED, mantendo identidade do sistema ──
     st.markdown(f"""
