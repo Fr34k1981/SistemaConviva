@@ -1394,63 +1394,89 @@ div[data-testid="stForm"]:hover {
 }
 
 /* ============================================ */
-/* ========== DASHBOARD CALLOUTS ========== */
+/* ========== DASHBOARD PANORAMA ========== */
 /* ============================================ */
-.dashboard-callout {
-    position: relative;
+.dashboard-panorama {
     overflow: hidden;
-    margin: 0.25rem 0 1rem 0;
-    padding: 1rem 1.1rem;
-    border-radius: 22px;
-    background: linear-gradient(120deg, rgba(255,241,250,0.92), rgba(240,249,255,0.95), rgba(245,243,255,0.95));
-    border: 1px solid rgba(196,181,253,0.45);
-    box-shadow: 0 14px 30px rgba(15,23,42,0.06);
+    border-radius: 8px;
+    background: #ffffff;
+    border: 1px solid #d7e3f0;
+    box-shadow: 0 10px 24px rgba(37,99,235,0.08);
+    margin: 1.1rem 0 1.25rem;
 }
 
-.dashboard-callout::after {
-    content: '';
-    position: absolute;
-    top: -26px;
-    right: -18px;
-    width: 110px;
-    height: 110px;
-    border-radius: 999px;
-    background: radial-gradient(circle, rgba(168,85,247,0.12), transparent 70%);
-}
-
-.dashboard-callout-content {
-    position: relative;
-    z-index: 1;
+.dashboard-panorama-bar {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
+    background: linear-gradient(90deg, #22c7a8, #0ea5e9);
+    color: #ffffff;
+    padding: 0.75rem 1rem;
 }
 
-.dashboard-callout-title {
+.dashboard-panorama-title {
+    margin: 0;
+    font-size: 0.98rem;
+    font-weight: 850;
+    color: #ffffff;
+}
+
+.dashboard-panorama-date {
+    flex: 0 0 auto;
+    padding: 0.32rem 0.7rem;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.18);
+    border: 1px solid rgba(255,255,255,0.35);
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 0.78rem;
+}
+
+.dashboard-panorama-body {
+    padding: 1rem;
+    background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+}
+
+.dashboard-panorama-text {
+    margin: 0;
+    color: #334155;
+    font-size: 0.94rem;
+    line-height: 1.55;
+    max-width: 100%;
+}
+
+.dashboard-panorama-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-top: 0.95rem;
+}
+
+.dashboard-panorama-mini {
+    min-width: 0;
+    border-radius: 8px;
+    border: 1px solid #dbeafe;
+    background: #f8fbff;
+    padding: 0.72rem 0.8rem;
+}
+
+.dashboard-panorama-mini-label {
+    margin: 0 0 0.2rem;
+    color: #64748b;
+    font-size: 0.74rem;
+    font-weight: 750;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.dashboard-panorama-mini-value {
     margin: 0;
     color: #0f172a;
-    font-size: 1rem;
-    font-weight: 800;
-}
-
-.dashboard-callout-text {
-    margin: 0.2rem 0 0 0;
-    color: #334155;
-    font-size: 0.88rem;
-}
-
-.dashboard-callout-badge {
-    flex-shrink: 0;
-    padding: 0.48rem 0.8rem;
-    border-radius: 999px;
-    background: rgba(255,255,255,0.78);
-    border: 1px solid rgba(148,163,184,0.22);
-    color: #6d28d9;
-    font-size: 0.76rem;
-    font-weight: 800;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    font-size: 1.02rem;
+    line-height: 1.2;
+    font-weight: 850;
+    overflow-wrap: anywhere;
 }
 
 /* ============================================ */
@@ -5778,11 +5804,10 @@ def formatar_data_extenso_pt(data_ref=None) -> str:
 
 
 FRASES_INSPIRACAO_LEGIAO = [
-    "Tempo Perdido: hoje tambem e dia de recomecar.",
-    "Sera: toda pergunta pode abrir um caminho.",
-    "Pais e Filhos: cuidado tambem educa.",
-    "Quase sem Querer: pequenas escolhas mudam o dia.",
-    "Eduardo e Monica: cada historia merece escuta.",
+    "Legião Urbana: \"Somos tão jovens\".",
+    "Legião Urbana: \"É preciso amar as pessoas\".",
+    "Legião Urbana: \"Quem acredita sempre alcança\".",
+    "Legião Urbana: \"Disciplina é liberdade\".",
 ]
 
 
@@ -5801,44 +5826,118 @@ def _preparar_ocorrencias_por_data(df_base: pd.DataFrame) -> pd.DataFrame:
     return df.dropna(subset=["data_dt"])
 
 
+def _categoria_curta_panorama(valor: str) -> str:
+    texto = str(valor or "").strip()
+    if not texto:
+        return "Sem categoria"
+    partes = [p.strip() for p in re.split(r"\s*/\s*|\s*;\s*|\s*,\s*", texto) if p.strip()]
+    if len(partes) > 4:
+        return "Categoria ampla"
+    return partes[0][:70] if partes else texto[:70]
+
+
+def _serie_texto_panorama(series: pd.Series, limite: int = 3) -> str:
+    if series is None or series.empty:
+        return "sem dados destacados"
+    itens = []
+    for nome, qtd in series.head(limite).items():
+        nome = str(nome or "").strip()
+        if nome:
+            itens.append(f"{nome} ({int(qtd)})")
+    return ", ".join(itens) if itens else "sem dados destacados"
+
+
+def _dados_panorama_letivo(df_dia: pd.DataFrame, dia) -> dict:
+    dia = pd.to_datetime(dia).date()
+    if df_dia is None or df_dia.empty:
+        return {
+            "data": dia.strftime("%d/%m/%Y"),
+            "total": 0,
+            "estudantes": 0,
+            "turmas": 0,
+            "graves": 0,
+            "categorias": "sem registros",
+            "turmas_destaque": "sem registros",
+            "gravidades": "sem registros",
+        }
+
+    base = df_dia.copy()
+    if "categoria" in base.columns:
+        base["categoria_resumo"] = base["categoria"].apply(_categoria_curta_panorama)
+        categorias = base["categoria_resumo"].value_counts()
+    else:
+        categorias = pd.Series(dtype=int)
+
+    turmas = base["turma"].dropna().astype(str).str.strip() if "turma" in base.columns else pd.Series(dtype=str)
+    turmas = turmas[turmas != ""]
+    alunos = base["aluno"].dropna().astype(str).str.strip() if "aluno" in base.columns else pd.Series(dtype=str)
+    alunos = alunos[alunos != ""]
+    gravidades = base["gravidade"].dropna().astype(str).str.strip() if "gravidade" in base.columns else pd.Series(dtype=str)
+    gravidades = gravidades[gravidades != ""]
+    graves = int(gravidades.isin(["Grave", "Gravíssima", "Gravissima"]).sum()) if not gravidades.empty else 0
+
+    return {
+        "data": dia.strftime("%d/%m/%Y"),
+        "total": int(len(base)),
+        "estudantes": int(alunos.nunique()) if not alunos.empty else 0,
+        "turmas": int(turmas.nunique()) if not turmas.empty else 0,
+        "graves": graves,
+        "categorias": _serie_texto_panorama(categorias, 3),
+        "turmas_destaque": _serie_texto_panorama(turmas.value_counts(), 3),
+        "gravidades": _serie_texto_panorama(gravidades.value_counts(), 3),
+    }
+
+
+def _resumo_panorama_local(dados: dict) -> str:
+    total = int(dados.get("total", 0) or 0)
+    data_txt = dados.get("data", "")
+    if total == 0:
+        return f"Em {data_txt}, não há ocorrências registradas no sistema. O painel segue disponível para acompanhar novos registros, movimentações de estudantes e encaminhamentos da equipe."
+
+    resumo = (
+        f"Em {data_txt}, o sistema registra {total} ocorrência(s), envolvendo "
+        f"{dados.get('estudantes', 0)} estudante(s) em {dados.get('turmas', 0)} turma(s). "
+        f"Os registros se concentram em {dados.get('categorias', 'categorias variadas')}, "
+        f"com maior presença em {dados.get('turmas_destaque', 'turmas não identificadas')}."
+    )
+    if int(dados.get("graves", 0) or 0):
+        resumo += f" Há {dados.get('graves')} registro(s) grave(s) ou gravíssimo(s), que pedem acompanhamento prioritário da equipe."
+    else:
+        resumo += " Não há registro grave ou gravíssimo nesse recorte."
+    return resumo
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def _resumo_panorama_ia(dados: dict) -> str:
+    if not ia_conviva_configurada():
+        return _resumo_panorama_local(dados)
+
+    texto_base = json.dumps(dados, ensure_ascii=False)
+    prompt_tarefa = (
+        "Escreva um panorama letivo curto, institucional e legível para dashboard escolar. "
+        "Use somente os números e fatos informados. Não liste dezenas de categorias. "
+        "Não invente acontecimentos, nomes, causas, falas ou medidas. "
+        "Use 2 ou 3 frases, tom de coordenação/gestão escolar, sem markdown."
+    )
+    contexto = "Resumo do dashboard do Sistema Conviva 179. Dados agregados do dia selecionado."
+    saida = chamar_ia_conviva_online(texto_base, prompt_tarefa, contexto)
+    saida = _limpar_markdown_ia(saida)
+    if not saida or len(saida) > 520 or "Digite um texto" in saida:
+        return _resumo_panorama_local(dados)
+    return saida
+
+
 def _resumo_panorama_letivo(df_base: pd.DataFrame, data_ref) -> tuple[str, pd.DataFrame]:
     df = _preparar_ocorrencias_por_data(df_base)
     if df.empty:
-        return "Nao ha ocorrencias com data valida para resumir neste periodo.", pd.DataFrame()
+        dia = pd.to_datetime(data_ref).date()
+        dados = _dados_panorama_letivo(pd.DataFrame(), dia)
+        return _resumo_panorama_local(dados), pd.DataFrame()
 
     dia = pd.to_datetime(data_ref).date()
     df_dia = df[df["data_dt"].dt.date == dia].copy()
-    if df_dia.empty:
-        return f"Nao ha ocorrencias registradas em {dia.strftime('%d/%m/%Y')}.", df_dia
-
-    total = len(df_dia)
-    graves = 0
-    if "gravidade" in df_dia.columns:
-        graves = int(df_dia["gravidade"].astype(str).isin(["Grave", "Gravíssima", "Gravissima"]).sum())
-
-    partes = [f"Em {dia.strftime('%d/%m/%Y')}, foram registradas {total} ocorrencia(s) no sistema"]
-    if "aluno" in df_dia.columns:
-        alunos = df_dia["aluno"].dropna().astype(str).str.strip()
-        alunos = alunos[alunos != ""]
-        if not alunos.empty:
-            partes.append(f"envolvendo {alunos.nunique()} estudante(s)")
-    if "turma" in df_dia.columns:
-        turmas = df_dia["turma"].dropna().astype(str).str.strip()
-        turmas = turmas[turmas != ""]
-        if not turmas.empty:
-            partes.append(f"em {turmas.nunique()} turma(s)")
-
-    resumo = ", ".join(partes) + "."
-    if "categoria" in df_dia.columns:
-        categorias = df_dia["categoria"].dropna().astype(str).str.strip()
-        categorias = categorias[categorias != ""]
-        if not categorias.empty:
-            principais = categorias.value_counts().head(3)
-            resumo += " Principais registros: " + "; ".join([f"{cat} ({qtd})" for cat, qtd in principais.items()]) + "."
-    if graves:
-        resumo += f" Atenção: {graves} registro(s) grave(s) ou gravissimo(s) merecem acompanhamento prioritario."
-    else:
-        resumo += " Nao houve registro grave ou gravissimo identificado nesse recorte."
+    dados = _dados_panorama_letivo(df_dia, dia)
+    resumo = _resumo_panorama_ia(dados)
     return resumo, df_dia
 
 # ======================================================
@@ -6676,28 +6775,32 @@ if menu == "🏠 Dashboard":
     </div>
     """, unsafe_allow_html=True)
 
+    dados_panorama_card = _dados_panorama_letivo(df_panorama_dia, data_panorama)
     st.markdown(f"""
-    <div class="dashboard-callout animate-fade-in">
-        <div class="dashboard-callout-content">
-            <div>
-                <p class="dashboard-callout-title">Panorama do dia letivo</p>
-                <p class="dashboard-callout-text">{html.escape(resumo_panorama)}</p>
+    <div class="dashboard-panorama animate-fade-in">
+        <div class="dashboard-panorama-bar">
+            <p class="dashboard-panorama-title">Panorama do dia letivo</p>
+            <span class="dashboard-panorama-date">{data_panorama.strftime('%d/%m/%Y')} · {qtd_panorama} registro(s)</span>
+        </div>
+        <div class="dashboard-panorama-body">
+            <p class="dashboard-panorama-text">{html.escape(resumo_panorama)}</p>
+            <div class="dashboard-panorama-grid">
+                <div class="dashboard-panorama-mini">
+                    <p class="dashboard-panorama-mini-label">Registros</p>
+                    <p class="dashboard-panorama-mini-value">{qtd_panorama}</p>
+                </div>
+                <div class="dashboard-panorama-mini">
+                    <p class="dashboard-panorama-mini-label">Maior recorrência</p>
+                    <p class="dashboard-panorama-mini-value">{html.escape(str(dados_panorama_card.get('categorias', 'sem registros')))}</p>
+                </div>
+                <div class="dashboard-panorama-mini">
+                    <p class="dashboard-panorama-mini-label">Turmas em destaque</p>
+                    <p class="dashboard-panorama-mini-value">{html.escape(str(dados_panorama_card.get('turmas_destaque', 'sem registros')))}</p>
+                </div>
             </div>
-            <div class="dashboard-callout-badge">{data_panorama.strftime('%d/%m/%Y')} · {qtd_panorama}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
-
-    if qtd_panorama:
-        col_p1, col_p2, col_p3 = st.columns(3)
-        gravidade_dia = df_panorama_dia["gravidade"].value_counts().head(1) if "gravidade" in df_panorama_dia.columns else pd.Series(dtype=int)
-        categoria_dia = df_panorama_dia["categoria"].value_counts().head(1) if "categoria" in df_panorama_dia.columns else pd.Series(dtype=int)
-        turma_dia = df_panorama_dia["turma"].value_counts().head(1) if "turma" in df_panorama_dia.columns else pd.Series(dtype=int)
-        col_p1.metric("Registros no dia", qtd_panorama)
-        col_p2.metric("Mais recorrente", str(categoria_dia.index[0]) if not categoria_dia.empty else "Sem categoria")
-        col_p3.metric("Turma com mais registros", str(turma_dia.index[0]) if not turma_dia.empty else "Sem turma")
-        if not gravidade_dia.empty:
-            st.caption(f"Gravidade mais frequente: {gravidade_dia.index[0]} ({int(gravidade_dia.iloc[0])})")
 
     with st.expander("🔎 Verificação de Situação dos Estudantes", expanded=False):
         st.info("As métricas usam RA único. Transferidos, remanejados/realocados e inativos ficam fora do total ativo.")
