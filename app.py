@@ -509,84 +509,6 @@ button {
     justify-content: center;
 }
 
-.school-details-box {
-    margin-top: 0.75rem;
-    padding: 0.85rem 1rem;
-    border-radius: 8px;
-    background: rgba(255,255,255,0.74);
-    border: 1px solid rgba(59,130,246,0.18);
-    color: #334155;
-    font-size: 0.86rem;
-    line-height: 1.45;
-}
-
-.school-details-name {
-    margin: 0 0 0.2rem 0;
-    font-family: 'Nunito', sans-serif;
-    font-size: 1.02rem;
-    font-weight: 900;
-    color: #1f4f7a;
-}
-
-.school-details-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.45rem 0.85rem;
-}
-
-.sed-panel {
-    margin: 1rem 0 1.15rem 0;
-    padding: 1rem;
-    border-radius: 8px;
-    background: linear-gradient(135deg, rgba(255,255,255,0.92), rgba(239,253,255,0.88));
-    border: 1px solid rgba(147,197,253,0.55);
-    box-shadow: 0 8px 22px rgba(47,157,221,0.10);
-}
-
-.sed-panel-title {
-    margin-bottom: 0.75rem;
-    font-family: 'Nunito', sans-serif;
-    color: #22385f;
-    font-size: 1rem;
-    font-weight: 900;
-}
-
-.sed-grid-modulos {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(235px, 1fr));
-    gap: 0.6rem;
-}
-
-.sed-module-card {
-    min-height: 58px;
-    padding: 0.7rem 0.8rem;
-    border-radius: 8px;
-    background: #eff6ff;
-    border-left: 5px solid #2563eb;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-}
-
-.sed-module-card.green { background: #ecfdf5; border-left-color: #059669; }
-.sed-module-card.light { background: #ecfeff; border-left-color: #0891b2; }
-.sed-module-card.red { background: #fff1f2; border-left-color: #e11d48; }
-.sed-module-card.gray { background: #f8fafc; border-left-color: #64748b; }
-.sed-module-card.rainbow { background: linear-gradient(135deg,#fff7ed,#ecfeff); border-left-color: #a855f7; }
-
-.sed-module-title {
-    color: #1e293b;
-    font-weight: 850;
-    line-height: 1.25;
-}
-
-.sed-module-sub {
-    margin-top: 0.2rem;
-    color: #64748b;
-    font-size: 0.83rem;
-    line-height: 1.3;
-}
-
 /* ============================================ */
 /* ========== CARDS DE MÉTRICAS ========== */
 /* ============================================ */
@@ -2301,6 +2223,7 @@ section[data-testid="stSidebar"] div[data-testid="stButton"] > button[kind="prim
 # ======================================================
 ESCOLA_NOME = "ELIANE APARECIDA DANTAS DA SILVA PROFESSORA - PEI"
 ESCOLA_SUBTITULO = "Escola dos Sonhos • Escola Estadual"
+ESCOLA_NOME_EXIBICAO = "E.E. Professora Eliane Aparecida Dantas da Silva - PEI"
 ESCOLA_ENDERECO = "VALTER DE SOUZA COSTA, 147 - RUA JARDIM PRIMAVERA - Ferraz de Vasconcelos - São Paulo"
 ESCOLA_CEP = "CEP: 08535-310"
 ESCOLA_TELEFONE = "(11) 4675-3400"
@@ -2327,7 +2250,7 @@ st.sidebar.markdown(f"""
     <div style="height:4px;background:linear-gradient(90deg,#ff5db1,#ffd166,#50e3c2,#4da3ff,#b47cff);"></div>
     <div style="padding:0.65rem 0.8rem 0.75rem;">
         <div style="font-size:0.75rem;color:#64748b;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;">Sistema Conviva 179</div>
-        <div style="font-size:0.86rem;color:#1f2937;font-weight:700;line-height:1.35;margin-top:0.2rem;">{ESCOLA_SUBTITULO}</div>
+        <div style="font-size:0.86rem;color:#1f2937;font-weight:700;line-height:1.35;margin-top:0.2rem;">{ESCOLA_NOME_EXIBICAO}</div>
         <div style="font-size:0.74rem;color:#64748b;line-height:1.35;margin-top:0.25rem;">{ESCOLA_EMAIL}</div>
     </div>
 </div>
@@ -2392,7 +2315,7 @@ def _render_sed_header_global(pagina_atual: str):
                 <div class="sed-logo-mark">🏫</div>
                 <div>
                     <p class="sed-secretaria">Sistema Conviva 179</p>
-                    <p class="sed-system-title">{html.escape(ESCOLA_SUBTITULO)}</p>
+                    <p class="sed-system-title">{html.escape(ESCOLA_NOME_EXIBICAO)}</p>
                 </div>
             </div>
             <div class="sed-user-box">
@@ -2449,8 +2372,6 @@ def resolver_primeiro_arquivo_existente(candidatos: list[str]) -> str:
 TUTORIA_ARQUIVO = resolver_primeiro_arquivo_existente(TUTORIA_ARQUIVOS_CANDIDATOS)
 TUTORIA_CACHE_ARQUIVO = os.path.join(os.getcwd(), "data", "tutoria_cadastro.json")
 DIAS_SEMANA_TUTORIA = ("segunda", "terca", "terça", "quarta", "quinta", "sexta", "sabado", "sábado")
-TUTORIA_HORARIO_PADRAO = "13:10 às 14:00"
-TUTORIA_DIA_PADRAO = "Quartas-feiras"
 PERFIS_TUTORIA = [
     "Professor(a)",
     "Professor(a) Tutor(a)",
@@ -2488,6 +2409,64 @@ def normalizar_perfil_tutoria(tipo: str = "") -> str:
         return "Professor(a)"
     return MAPA_PERFIS_TUTORIA.get(normalizar_texto(perfil), perfil)
 
+
+# ======================================================
+# TUTORIA — CONFIGURAÇÃO OFICIAL DE TURNOS E ESPAÇOS
+# ======================================================
+TUTORIAS_TURNO1_TURMAS = {"6", "7", "8", "9", "3A", "3B"}
+TUTORIA_HORARIO_PADRAO_TURNO1 = "13:10 às 14:00"
+TUTORIA_DIA_PADRAO_TURNO1 = "Quartas-feiras"
+
+TUTORIA_ESPACOS_OFICIAIS = [
+    ("lourdes", "Sala 6"),
+    ("anderson", "Sala de vídeo"),
+    ("shirley", "Sala 7"),
+    ("rosemeire", "Sala 8"),
+    ("rosangela", "Sala 9"),
+    ("rosângela", "Sala 9"),
+    ("solange", "Sala 10"),
+    ("silvana", "Sala 11"),
+    ("jaqueline", "Sala 11"),
+    ("itatiara", "Pátio"),
+    ("lucineide", "Pátio"),
+    ("guilherme", "Pátio"),
+    ("renan", "Direção"),
+    ("aleandro", "Coordenação"),
+    ("erika", "Informática"),
+    ("érika", "Informática"),
+]
+
+
+def _valor_vazio_ou_nao_informado(valor) -> bool:
+    texto = str(valor or "").strip()
+    return not texto or normalizar_texto(texto) in {"NAO INFORMADO", "NÃO INFORMADO", "NONE", "NAN", "NULL", "-", "—"}
+
+
+def espaco_oficial_por_tutor(nome_tutor: str) -> str:
+    nome_norm = normalizar_texto(nome_tutor)
+    for chave, espaco in TUTORIA_ESPACOS_OFICIAIS:
+        if normalizar_texto(chave) in nome_norm:
+            return espaco
+    return ""
+
+
+def aplicar_config_tutoria_oficial(tutoria_dict: dict) -> dict:
+    """Aplica a referência informada pelo usuário sem apagar dados já preenchidos.
+    - Turno 1: 6º, 7º, 8º, 9º, 3ºA e 3ºB.
+    - Espaços oficiais por professor/tutor.
+    - Horário e dia padrão quando estiverem vazios.
+    """
+    base = normalizar_base_tutoria(tutoria_dict or {})
+    for tutor, dados in base.items():
+        espaco = espaco_oficial_por_tutor(tutor)
+        if espaco and _valor_vazio_ou_nao_informado(dados.get("espaco", "")):
+            dados["espaco"] = espaco
+        if _valor_vazio_ou_nao_informado(dados.get("horario", "")):
+            dados["horario"] = TUTORIA_HORARIO_PADRAO_TURNO1
+        if _valor_vazio_ou_nao_informado(dados.get("dia", "")):
+            dados["dia"] = TUTORIA_DIA_PADRAO_TURNO1
+    return normalizar_base_tutoria(base)
+
 def mensagem_erro_tutoria_supabase(erro: Exception) -> str:
     texto = str(erro)
     resposta = getattr(erro, "response", None)
@@ -2500,8 +2479,8 @@ def estrutura_tutoria_vazia(nome: str = "", tipo: str = "Professor(a)") -> dict:
         "nome": str(nome or "").strip(),
         "tipo": normalizar_perfil_tutoria(tipo),
         "espaco": "",
-        "horario": TUTORIA_HORARIO_PADRAO,
-        "dia": TUTORIA_DIA_PADRAO,
+        "horario": "",
+        "dia": "",
         "alunos": []
     }
 
@@ -2536,8 +2515,8 @@ def normalizar_base_tutoria(tutoria_raw: dict | None) -> dict:
                 tipo=normalizar_perfil_tutoria(dados.get("tipo", "Professor(a)"))
             )
             registro["espaco"] = str(dados.get("espaco", "")).strip()
-            registro["horario"] = str(dados.get("horario", "")).strip() or TUTORIA_HORARIO_PADRAO
-            registro["dia"] = str(dados.get("dia", "")).strip() or TUTORIA_DIA_PADRAO
+            registro["horario"] = str(dados.get("horario", "")).strip()
+            registro["dia"] = str(dados.get("dia", "")).strip()
             registro["alunos"] = normalizar_alunos_tutoria(dados.get("alunos", []))
         else:
             registro = estrutura_tutoria_vazia(nome=nome_tutor)
@@ -6427,6 +6406,11 @@ else:
     else:
         st.session_state.FONTE_TUTORIA = "indisponivel"
 
+st.session_state.TUTORIA = aplicar_config_tutoria_oficial(st.session_state.TUTORIA)
+try:
+    salvar_tutoria_local(st.session_state.TUTORIA)
+except Exception:
+    pass
 TUTORIA = normalizar_base_tutoria(st.session_state.TUTORIA)
 st.session_state.TUTORIA = TUTORIA
 FONTE_TUTORIA = st.session_state.FONTE_TUTORIA
@@ -8621,18 +8605,12 @@ if menu == "🏠 Dashboard":
                 <div class="sed-dashboard-mark">S</div>
                 <div>
                     <p class="sed-dashboard-kicker">Sistema Conviva 179</p>
-                    <p class="sed-dashboard-title">E.E Professora Eliane Aparecida Dantas da Silva</p>
-                    <div class="school-details-box">
-                        <p class="school-details-name">Escola de ensino fundamental em São Paulo</p>
-                        <div class="school-details-meta">
-                            <span><b>Endereço:</b> R. Valter Souza Costa, 147 - Jardim Primavera, Ferraz de Vasconcelos - SP, 08535-310</span>
-                            <span><b>Telefone:</b> (11) 4675-1855</span>
-                        </div>
-                    </div>
+                    <p class="sed-dashboard-title">{html.escape(ESCOLA_NOME_EXIBICAO)}</p>
                 </div>
             </div>
             <div class="sed-dashboard-user">
                 Olá, <b>{html.escape(str(st.session_state.get("usuario_nome", "Escola")))}</b><br>
+                {html.escape(ESCOLA_NOME_EXIBICAO)}<br>
                 {html.escape(ESCOLA_EMAIL)}
             </div>
         </div>
@@ -8756,6 +8734,18 @@ if menu == "🏠 Dashboard":
     resumo_panorama, df_panorama_dia = _resumo_panorama_letivo(df_ocorrencias, data_panorama)
     qtd_panorama = len(df_panorama_dia) if df_panorama_dia is not None else 0
     dados_panorama_card = _dados_panorama_letivo(df_panorama_dia, data_panorama)
+    chave_resumo_ia_panorama = f"dashboard_panorama_ia_{data_panorama.strftime('%Y%m%d')}_{qtd_panorama}"
+
+    col_periodo, col_ia_panorama = st.columns([3, 1])
+    with col_ia_panorama:
+        if ia_conviva_configurada():
+            if st.button("Reescrever com IA", key=f"btn_ia_panorama_{data_panorama.strftime('%Y%m%d')}", use_container_width=True):
+                with st.spinner("Escrevendo panorama com IA..."):
+                    st.session_state[chave_resumo_ia_panorama] = _resumo_panorama_ia(dados_panorama_card)
+        else:
+            st.caption("IA online não configurada.")
+    resumo_panorama = st.session_state.get(chave_resumo_ia_panorama, resumo_panorama)
+
     st.markdown("""
     <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
         <div style="width:4px; height:22px; background:linear-gradient(180deg,#1d4ed8,#0891b2); border-radius:4px;"></div>
@@ -8816,10 +8806,9 @@ if menu == "🏠 Dashboard":
     for col, grad, icon, value, label, sub, delay in cards_data:
         with col:
             st.markdown(f"""
-            <div class="metric-card animate-fade-in" style="
+            <div class="metric-card dashboard-color-card animate-fade-in" style="
                 background: {grad} !important;
-                color: #ffffff !important;
-                box-shadow: 0 8px 20px rgba(0,0,0,0.18) !important;
+                box-shadow: 0 8px 20px rgba(0,0,0,0.18);
                 animation-delay: {delay};
             ">
                 <div class="metric-icon">{icon}</div>
@@ -9013,6 +9002,75 @@ if menu == "🏠 Dashboard":
                 </div>
             </div>
             """, unsafe_allow_html=True)
+
+
+        # ── Top 10 Prova Paulista ─────────────────────────────
+        def _dashboard_top10_prova_paulista():
+            fontes = []
+            try:
+                if not df_alunos.empty:
+                    fontes.append(df_alunos.copy())
+            except Exception:
+                pass
+            try:
+                df_conselho_dash = st.session_state.get("df_conselho", pd.DataFrame())
+                if isinstance(df_conselho_dash, pd.DataFrame) and not df_conselho_dash.empty:
+                    fontes.append(_mapear_colunas_conselho(df_conselho_dash).copy())
+            except Exception:
+                pass
+
+            candidatos = []
+            for base_pp in fontes:
+                if base_pp is None or base_pp.empty:
+                    continue
+                cols_norm = {normalizar_texto(c): c for c in base_pp.columns}
+                col_nome = None
+                for chave in ("ESTUDANTE", "ALUNO", "NOME", "NOME DO ALUNO"):
+                    if chave in cols_norm:
+                        col_nome = cols_norm[chave]
+                        break
+                col_turma = None
+                for chave in ("TURMA", "SERIE", "SÉRIE", "ANO SERIE", "ANO/SERIE"):
+                    if chave in cols_norm:
+                        col_turma = cols_norm[chave]
+                        break
+                col_pp = None
+                for chave_norm, col_original in cols_norm.items():
+                    if any(t in chave_norm for t in ["ACERTOS PP", "PROVA PAULISTA", "PROVA PAULISTA 2", "PROVA PAULISTA 1", "ACERTOS"]):
+                        if "PART" not in chave_norm and "PARTICIP" not in chave_norm:
+                            col_pp = col_original
+                            break
+                if not col_nome or not col_pp:
+                    continue
+                temp = base_pp[[c for c in [col_nome, col_turma, col_pp] if c]].copy()
+                temp.columns = ["Aluno", "Turma", "Prova Paulista"] if col_turma else ["Aluno", "Prova Paulista"]
+                if "Turma" not in temp.columns:
+                    temp["Turma"] = "—"
+                temp["Aluno"] = temp["Aluno"].astype(str).str.strip()
+                temp["Turma"] = temp["Turma"].astype(str).str.strip().replace("", "—")
+                temp["PP_num"] = pd.to_numeric(temp["Prova Paulista"].astype(str).str.replace("%", "", regex=False).str.replace(",", ".", regex=False), errors="coerce")
+                temp = temp[temp["Aluno"].astype(str).str.len() > 0]
+                temp = temp.dropna(subset=["PP_num"])
+                if not temp.empty:
+                    candidatos.append(temp)
+            if not candidatos:
+                return pd.DataFrame(columns=["Aluno", "Turma", "Prova Paulista"])
+            resultado = pd.concat(candidatos, ignore_index=True)
+            resultado = resultado.sort_values("PP_num", ascending=False).drop_duplicates("Aluno", keep="first").head(10)
+            resultado["Prova Paulista"] = resultado["PP_num"].map(lambda x: f"{x:.1f}".replace(".0", ""))
+            return resultado[["Aluno", "Turma", "Prova Paulista"]]
+
+        top10_pp = _dashboard_top10_prova_paulista()
+        st.markdown("""
+        <div style="display:flex; align-items:center; gap:0.5rem; margin:1.15rem 0 0.75rem 0;">
+            <div style="width:4px; height:22px; background:linear-gradient(180deg,#22c55e,#0ea5e9); border-radius:4px;"></div>
+            <h3 style="margin:0; font-family:'Nunito',sans-serif; font-size:1.1rem; color:#0f172a;">🏅 Top 10 — Prova Paulista</h3>
+        </div>
+        """, unsafe_allow_html=True)
+        if top10_pp.empty:
+            st.info("Assim que houver coluna de Prova Paulista/Acertos PP na tabela de alunos ou na aba Conselho, o Top 10 aparecerá aqui automaticamente.")
+        else:
+            st.dataframe(top10_pp, use_container_width=True, hide_index=True)
     else:
         st.markdown("""
         <div style="text-align:center; padding:2rem; color:#94a3b8; background:white; border-radius:16px; border:1.5px dashed #e2e8f0; margin-top:1rem;">
@@ -12949,8 +13007,8 @@ elif menu == "🫂 Tutoria":
         st.session_state["tutoria_edit_nome"] = nome_responsavel
         st.session_state["tutoria_edit_espaco"] = dados.get("espaco", "")
         st.session_state["tutoria_edit_tipo"] = normalizar_perfil_tutoria(dados.get("tipo", "Professor(a)"))
-        st.session_state["tutoria_edit_horario"] = dados.get("horario", "") or TUTORIA_HORARIO_PADRAO
-        st.session_state["tutoria_edit_dia"] = dados.get("dia", "") or TUTORIA_DIA_PADRAO
+        st.session_state["tutoria_edit_horario"] = dados.get("horario", "")
+        st.session_state["tutoria_edit_dia"] = dados.get("dia", "")
         st.session_state["tutoria_edit_loaded_for"] = nome_responsavel
 
     def _sincronizar_responsavel_tutoria(origem: str):
@@ -13168,9 +13226,9 @@ elif menu == "🫂 Tutoria":
         
         with col_n2:
             tipo_novo_tutor = st.selectbox("Perfil", PERFIS_TUTORIA, key="tutoria_novo_tipo")
-            horario_novo_tutor = st.text_input("Horário", value=TUTORIA_HORARIO_PADRAO, key="tutoria_novo_horario")
+            horario_novo_tutor = st.text_input("Horário", key="tutoria_novo_horario", placeholder="Ex: 13:10 às 14:00")
         
-        dia_novo_tutor = st.text_input("Dia", value=TUTORIA_DIA_PADRAO, key="tutoria_novo_dia")
+        dia_novo_tutor = st.text_input("Dia", key="tutoria_novo_dia", placeholder="Ex: Quarta-feira")
         
         if st.button("✅ Cadastrar Responsável", key="btn_cadastrar_tutor_tutoria", type="primary"):
             nome_novo_tutor = str(nome_novo_tutor).strip()
@@ -13183,8 +13241,8 @@ elif menu == "🫂 Tutoria":
                     "nome": nome_novo_tutor,
                     "tipo": normalizar_perfil_tutoria(tipo_novo_tutor),
                     "espaco": normalizar_espaco_tutoria(espaco_novo_tutor),
-                    "horario": str(horario_novo_tutor).strip() or TUTORIA_HORARIO_PADRAO,
-                    "dia": str(dia_novo_tutor).strip() or TUTORIA_DIA_PADRAO,
+                    "horario": str(horario_novo_tutor).strip(),
+                    "dia": str(dia_novo_tutor).strip(),
                     "alunos": []
                 }
                 _salvar_estado_tutoria("local")
@@ -13241,8 +13299,8 @@ elif menu == "🫂 Tutoria":
                 perfil_atual = normalizar_perfil_tutoria(dados_edicao.get("tipo", "Professor(a)"))
                 idx_perfil = PERFIS_TUTORIA.index(perfil_atual) if perfil_atual in PERFIS_TUTORIA else 0
                 tipo_edit_tutor = st.selectbox("Perfil", PERFIS_TUTORIA, index=idx_perfil, key="tutoria_edit_tipo")
-                horario_edit_tutor = st.text_input("Horário", value=str(dados_edicao.get("horario", "") or TUTORIA_HORARIO_PADRAO), key="tutoria_edit_horario")
-            dia_edit_tutor = st.text_input("Dia", value=str(dados_edicao.get("dia", "") or TUTORIA_DIA_PADRAO), key="tutoria_edit_dia")
+                horario_edit_tutor = st.text_input("Horário", value=str(dados_edicao.get("horario", "") or ""), key="tutoria_edit_horario")
+            dia_edit_tutor = st.text_input("Dia", value=str(dados_edicao.get("dia", "") or ""), key="tutoria_edit_dia")
 
             col_b1, col_b2 = st.columns(2)
             with col_b1:
@@ -13257,8 +13315,8 @@ elif menu == "🫂 Tutoria":
                         dados_salvos["nome"] = nome_edit_tutor
                         dados_salvos["tipo"] = normalizar_perfil_tutoria(tipo_edit_tutor)
                         dados_salvos["espaco"] = str(espaco_edit_tutor).strip()
-                        dados_salvos["horario"] = str(horario_edit_tutor).strip() or TUTORIA_HORARIO_PADRAO
-                        dados_salvos["dia"] = str(dia_edit_tutor).strip() or TUTORIA_DIA_PADRAO
+                        dados_salvos["horario"] = str(horario_edit_tutor).strip()
+                        dados_salvos["dia"] = str(dia_edit_tutor).strip()
                         if nome_edit_tutor != tutor_edicao:
                             TUTORIA.pop(tutor_edicao, None)
                         TUTORIA[nome_edit_tutor] = dados_salvos
@@ -13298,37 +13356,19 @@ elif menu == "🫂 Tutoria":
         for tutor, dados in sorted(TUTORIA.items()):
             alunos = dados.get("alunos", [])
             series = ", ".join(sorted({formatar_turma_eletiva(a.get("serie", "")) for a in alunos if a.get("serie")}))
-            turno = ""
-            if alunos:
-                turnos = sorted({classificar_turno_tutoria(a.get("serie", "")) for a in alunos if a.get("serie")})
-                turno = ", ".join([t for t in turnos if t])
             dados_tutores.append({
                 "Responsável": tutor,
                 "Perfil": dados.get("tipo", "Professor(a)"),
-                "Espaço": dados.get("espaco", "") or "Não informado",
-                "Horário": dados.get("horario", "") or TUTORIA_HORARIO_PADRAO,
-                "Dia": dados.get("dia", "") or TUTORIA_DIA_PADRAO,
+                "Espaço": dados.get("espaco", "") or espaco_oficial_por_tutor(tutor) or "Não informado",
+                "Horário": dados.get("horario", "") or TUTORIA_HORARIO_PADRAO_TURNO1,
+                "Dia": dados.get("dia", "") or TUTORIA_DIA_PADRAO_TURNO1,
                 "Total de Alunos": len(alunos),
-                "Turno": turno or "Sem alunos",
                 "Turmas": series
             })
         df_tutores_view = pd.DataFrame(dados_tutores)
-        df_cadastros_ativos = df_tutores_view[df_tutores_view["Total de Alunos"] > 0].copy()
-        df_cadastros_sem_alunos = df_tutores_view[df_tutores_view["Total de Alunos"] <= 0].copy()
-        filtro_turno = st.radio(
-            "Exibir turno",
-            ["Todos", "Turno 1", "Turno 2"],
-            index=0,
-            horizontal=True,
-            key="filtro_turno_cadastros_tutoria",
-        )
-        if filtro_turno != "Todos" and not df_cadastros_ativos.empty:
-            df_cadastros_ativos = df_cadastros_ativos[df_cadastros_ativos["Turno"].astype(str).str.contains(filtro_turno, na=False)]
-        st.dataframe(df_cadastros_ativos, use_container_width=True, hide_index=True)
-        if not df_cadastros_sem_alunos.empty:
-            with st.expander(f"Cadastros sem estudantes vinculados ({len(df_cadastros_sem_alunos)})", expanded=False):
-                st.dataframe(df_cadastros_sem_alunos, use_container_width=True, hide_index=True)
-        st.caption("Horário e dia padrão da tutoria: 13:10 às 14:00, Quartas-feiras. O sistema salva esses campos no arquivo local da tutoria e preserva quando vierem do Supabase.")
+        st.dataframe(df_tutores_view, use_container_width=True, hide_index=True)
+        if not df_tutores_view.empty and any(df_tutores_view[c].astype(str).str.strip().eq("").any() for c in ["Espaço", "Horário", "Dia"] if c in df_tutores_view.columns):
+            st.caption("⚠️ Alguns cadastros estão sem Espaço/Horário/Dia no banco atual. A edição agora preserva esses campos e também tenta recuperar metadados de fontes locais/planilhas/professores quando disponíveis.")
     else:
         st.info("📭 Nenhum cadastro realizado em tutoria.")
         st.stop()
@@ -13348,8 +13388,8 @@ elif menu == "🫂 Tutoria":
     meta_tutoria = [
         ("Perfil", tutor_info.get("tipo", "Professor(a)")),
         ("Espaço", tutor_info.get("espaco", "") or "Não informado"),
-        ("Horário", tutor_info.get("horario", "") or TUTORIA_HORARIO_PADRAO),
-        ("Dia", tutor_info.get("dia", "") or TUTORIA_DIA_PADRAO)
+        ("Horário", tutor_info.get("horario", "") or "Não informado"),
+        ("Dia", tutor_info.get("dia", "") or "Não informado")
     ]
     for coluna, (rotulo, valor) in zip((col_meta1, col_meta2, col_meta3, col_meta4), meta_tutoria):
         with coluna:
@@ -15674,7 +15714,34 @@ elif menu == "📅 Agendamento de Espaços":
                 @media (max-width:1200px){
                   .agenda-grid-head,.agenda-grid-row{grid-template-columns:150px repeat(5,minmax(150px,1fr))}
                 }
-                </style>
+                
+
+/* ====================================================== */
+/* CORREÇÃO FINAL — CARDS DO DASHBOARD COLORIDOS          */
+/* ====================================================== */
+.dashboard-color-card {
+    border-radius: 24px !important;
+    padding: 1.2rem 1.05rem 1rem !important;
+    color: #ffffff !important;
+    min-height: 150px !important;
+    border: 1px solid rgba(255,255,255,0.28) !important;
+    box-shadow: 0 16px 34px rgba(15,23,42,0.18) !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+.dashboard-color-card * {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.18) !important;
+}
+.dashboard-color-card .metric-icon {
+    background: rgba(255,255,255,0.18) !important;
+    border: 1px solid rgba(255,255,255,0.25) !important;
+}
+.dashboard-color-card .metric-value { font-size: 2.25rem !important; }
+.dashboard-color-card .metric-label { opacity: .96 !important; }
+.dashboard-color-card .metric-sub { opacity: .88 !important; }
+</style>
                 """, unsafe_allow_html=True)
 
                 horarios_lista = horarios_grade_dia
