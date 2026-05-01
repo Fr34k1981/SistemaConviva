@@ -6577,21 +6577,289 @@ def gerar_pdf_conselho_classe(df_conselho: pd.DataFrame, turma: str, bimestre: s
     return buffer
 
 
+
+
+# ======================================================
+# CONSELHO — DOCUMENTOS RESTAURADOS + MODELO ONLINE
+# ======================================================
+COMPONENTES_CONSELHO_PADRAO = [
+    "Arte", "Biologia", "Ciências", "Educação Financeira", "Educação Física", "Eletiva",
+    "Filosofia", "Física", "Geografia", "História", "Língua Inglesa", "Língua Portuguesa",
+    "Matemática", "Orientação de Estudos - Língua Portuguesa", "Orientação de Estudos - Matemática",
+    "Projeto de Vida", "Química", "Redação e Leitura", "Tecnologia e Inovação", "Sociologia",
+    "Educação Especial", "CGPG", "Vice-diretora ou Diretor"
+]
+
+DIFICULDADES_CONSELHO = {
+    "1": "Precisa ser estimulado ou auxiliado nas atividades",
+    "2": "Falta assiduidade",
+    "3": "Não faz trabalhos e atividades propostas",
+    "4": "Apresenta indisciplina",
+    "5": "Não realiza as atividades em sala de aula / desinteresse",
+    "6": "Apresenta dificuldade na aprendizagem",
+}
+
+RECOMENDACOES_CONSELHO = {
+    "7": "Diálogo com o estudante e os responsáveis, estimulando aos estudos",
+    "8": "Estimular a participação em sala de aula",
+    "9": "Orientar quanto ao comportamento inadequado",
+    "10": "Recuperação e reforço de objetos do conhecimento não assimilados",
+    "11": "Acompanhamento familiar",
+    "12": "Estudo intensivo em casa e estímulo à participação em sala de aula",
+}
+
+COLUNAS_CONSELHO_ONLINE = [
+    "Nº", "Estudante", "Frequência (%)", "Prova Paulista 1", "Prova Paulista 2", "Prova interna",
+    "Notas abaixo de cinco", "Dificuldade 1", "Dificuldade 2", "Dificuldade 3", "Dificuldade 4", "Dificuldade 5", "Dificuldade 6",
+    "Recomendação 7", "Recomendação 8", "Recomendação 9", "Recomendação 10", "Recomendação 11", "Recomendação 12",
+    "Observações / encaminhamentos"
+]
+
+PROTOCOLO_PEC_ITENS = [
+    "Há evidência de análise das aprendizagens com coerência entre as notas dos estudantes e as habilidades desenvolvidas e/ou em desenvolvimento?",
+    "Há evidência dos registros dos professores referentes à aprendizagem dos estudantes?",
+    "Há evidência da retomada do resultado dos conselhos anteriores?",
+    "Há evidências do trabalho com as competências socioemocionais?",
+    "Há evidências da reflexão do grupo sobre o trabalho realizado nas modalidades da educação inclusiva?",
+    "Há evidências da participação ativa e organizada dos estudantes representantes de turma?",
+    "Há evidências de estratégias/procedimentos que poderão potencializar os estudantes com o conhecimento e as habilidades necessárias a partir da utilização do material digital?",
+    "Há evidências da reflexão do impacto do trabalho com as plataformas educacionais na aprendizagem dos estudantes?",
+    "Há evidências da análise do resultado do trabalho de busca ativa/frequência e encaminhamentos?",
+    "Há evidências da reflexão sobre os instrumentos avaliativos para fechamento das notas?",
+    "Há evidências da reflexão sobre os critérios avaliativos para composição das notas?",
+    "Há evidência de análise, avaliação ou reflexão de metodologia e estratégias com recondução das práticas?",
+    "Há evidências de organização e encaminhamentos com estratégias de aprofundamento, recuperação ou reforço de aprendizagem?",
+    "Há evidências do uso de instrumento de planejamento como Guia de Aprendizagem e Planos de Ensino como parâmetro para a avaliação no conselho?",
+    "Para PEI: há evidências da análise, avaliação ou reflexão dos princípios e premissas do Programa de Ensino Integral?",
+]
+
+
+def _df_protocolo_pec_padrao() -> pd.DataFrame:
+    return pd.DataFrame({
+        "Nº": list(range(1, len(PROTOCOLO_PEC_ITENS) + 1)),
+        "Elementos do Conselho": PROTOCOLO_PEC_ITENS,
+        "Situação": ["" for _ in PROTOCOLO_PEC_ITENS],
+        "Observações": ["" for _ in PROTOCOLO_PEC_ITENS],
+    })
+
+
+def _df_focos_atencao_padrao() -> pd.DataFrame:
+    return pd.DataFrame(columns=["Série", "Estudante", "Frequência (%)", "Notas abaixo de cinco", "Presença/Ciência", "Encaminhamento"])
+
+
+def _df_assinaturas_conselho_padrao() -> pd.DataFrame:
+    return pd.DataFrame({"Componentes Curriculares / Função": COMPONENTES_CONSELHO_PADRAO, "Assinatura": ["" for _ in COMPONENTES_CONSELHO_PADRAO]})
+
+
+def _criar_modelo_conselho_online(qtd_linhas: int = 30) -> pd.DataFrame:
+    linhas = []
+    for i in range(qtd_linhas):
+        item = {c: "" for c in COLUNAS_CONSELHO_ONLINE}
+        item["Nº"] = str(i + 1)
+        linhas.append(item)
+    return pd.DataFrame(linhas)
+
+
+def _modelo_online_para_resumo_conselho(df_online: pd.DataFrame) -> pd.DataFrame:
+    if df_online is None or df_online.empty:
+        return pd.DataFrame(columns=COLUNAS_CONSELHO_PADRAO)
+    df = df_online.copy()
+    saida = pd.DataFrame()
+    saida["Nº"] = df.get("Nº", pd.Series([str(i+1) for i in range(len(df))])).astype(str)
+    saida["Estudante"] = df.get("Estudante", pd.Series([""] * len(df))).astype(str)
+    saida["Freq."] = df.get("Frequência (%)", pd.Series([""] * len(df))).astype(str)
+    saida["Part. PP"] = df.get("Prova Paulista 1", pd.Series([""] * len(df))).astype(str)
+    saida["Acertos PP"] = df.get("Prova Paulista 2", pd.Series([""] * len(df))).astype(str)
+    saida["Comp."] = df.get("Notas abaixo de cinco", pd.Series([""] * len(df))).astype(str)
+    saida["Prova interna"] = df.get("Prova interna", pd.Series([""] * len(df))).astype(str)
+
+    dif_cols = [c for c in df.columns if str(c).startswith("Dificuldade")]
+    rec_cols = [c for c in df.columns if str(c).startswith("Recomendação")]
+
+    def juntar_codigos(row, cols, mapa):
+        vals = []
+        for col in cols:
+            bruto = str(row.get(col, "")).strip()
+            if bruto and bruto.lower() not in ["false", "0", "nan", "não", "nao"]:
+                cod = re.sub(r"\D+", "", col)
+                if cod:
+                    vals.append(cod)
+        return ", ".join(vals)
+
+    saida["Dificuldades"] = df.apply(lambda r: juntar_codigos(r, dif_cols, DIFICULDADES_CONSELHO), axis=1)
+    saida["Recomendações"] = df.apply(lambda r: juntar_codigos(r, rec_cols, RECOMENDACOES_CONSELHO), axis=1)
+    obs = df.get("Observações / encaminhamentos", pd.Series([""] * len(df))).astype(str)
+    saida["Recomendações"] = [f"{rec}; {ob}".strip("; ") if str(ob).strip() else rec for rec, ob in zip(saida["Recomendações"], obs)]
+    saida = saida[saida["Estudante"].astype(str).str.strip().ne("")].copy()
+    if saida.empty:
+        return pd.DataFrame(columns=COLUNAS_CONSELHO_PADRAO)
+    return saida[COLUNAS_CONSELHO_PADRAO]
+
+
+def _excel_bytes_conselho_modelo(df: pd.DataFrame) -> BytesIO:
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, sheet_name="Conselho Online", index=False)
+        pd.DataFrame([
+            {"Código": k, "Principais dificuldades": v} for k, v in DIFICULDADES_CONSELHO.items()
+        ]).to_excel(writer, sheet_name="Dificuldades", index=False)
+        pd.DataFrame([
+            {"Código": k, "Recomendações/Providências": v} for k, v in RECOMENDACOES_CONSELHO.items()
+        ]).to_excel(writer, sheet_name="Recomendações", index=False)
+    output.seek(0)
+    return output
+
+
+def _paragrafo_pdf(texto_pdf: str, estilo) -> Paragraph:
+    return Paragraph(html.escape(str(texto_pdf or "")).replace("\n", "<br/>"), estilo)
+
+
+def gerar_pdf_documentos_conselho(
+    turma: str,
+    bimestre: str,
+    ano_letivo: str,
+    data_conselho,
+    titulo_documento: str,
+    texto_abertura: str,
+    perfil_turma: dict,
+    df_protocolo: pd.DataFrame,
+    df_focos: pd.DataFrame,
+    df_pos: pd.DataFrame,
+    df_assinaturas: pd.DataFrame,
+    encaminhamentos: str = "",
+) -> BytesIO:
+    """Gera PDF com os documentos complementares do Conselho restaurados."""
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+    from reportlab.platypus import PageBreak
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1.15*cm, leftMargin=1.15*cm, topMargin=0.8*cm, bottomMargin=0.8*cm)
+    styles = getSampleStyleSheet()
+    titulo = ParagraphStyle("DocConselhoTitulo", parent=styles["Title"], fontName="Helvetica-Bold", fontSize=14, leading=17, alignment=TA_CENTER, textColor=colors.HexColor("#111827"), spaceAfter=8)
+    sub = ParagraphStyle("DocConselhoSub", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=7.7, leading=9, alignment=TA_CENTER, textColor=colors.HexColor("#23304a"))
+    txt = ParagraphStyle("DocConselhoTexto", parent=styles["Normal"], fontName="Helvetica", fontSize=8.2, leading=10.5, alignment=TA_LEFT, textColor=colors.HexColor("#111827"))
+    txt_b = ParagraphStyle("DocConselhoTextoBold", parent=txt, fontName="Helvetica-Bold")
+    small = ParagraphStyle("DocConselhoSmall", parent=txt, fontSize=7, leading=8.3)
+    cell = ParagraphStyle("DocConselhoCell", parent=txt, fontSize=7.3, leading=8.7)
+    cell_center = ParagraphStyle("DocConselhoCellCenter", parent=cell, alignment=TA_CENTER)
+    head = ParagraphStyle("DocConselhoHead", parent=cell_center, fontName="Helvetica-Bold", textColor=colors.HexColor("#111827"))
+
+    def cabecalho(story):
+        story.append(Paragraph("SECRETARIA DE ESTADO DA EDUCAÇÃO", sub))
+        story.append(Paragraph("DIRETORIA DE ENSINO DA REGIÃO DE SUZANO", sub))
+        story.append(Paragraph("E.E. PROFª ELIANE AP. DANTAS DA SILVA • Programa Ensino Integral - PEI", sub))
+        story.append(Paragraph(f"{ESCOLA_ENDERECO} | Fone: {ESCOLA_TELEFONE} | e-mail: {ESCOLA_EMAIL}", small))
+        story.append(Spacer(1, 0.25*cm))
+
+    story = []
+    cabecalho(story)
+    story.append(Paragraph(str(titulo_documento or "ATA CONSELHO DE CLASSE"), titulo))
+    story.append(Paragraph(f"Turma: {turma} | {bimestre} | Ano letivo: {ano_letivo} | Data: {data_conselho}", sub))
+    story.append(Spacer(1, 0.25*cm))
+    story.append(_paragrafo_pdf(texto_abertura, txt))
+    story.append(Spacer(1, 0.35*cm))
+
+    story.append(Paragraph("1. Perfil da turma", txt_b))
+    dados_perfil = [
+        [Paragraph("Questão", head), Paragraph("Resposta", head)],
+        [Paragraph("Desempenho acadêmico da turma", cell), Paragraph(str(perfil_turma.get("desempenho", "")), cell)],
+        [Paragraph("Dificuldades na aprendizagem", cell), Paragraph(str(perfil_turma.get("dificuldades", "")), cell)],
+        [Paragraph("Comportamento geral", cell), Paragraph(str(perfil_turma.get("comportamento", "")), cell)],
+        [Paragraph("Participação na aula", cell), Paragraph(str(perfil_turma.get("participacao", "")), cell)],
+        [Paragraph("Relações interpessoais", cell), Paragraph(str(perfil_turma.get("relacoes", "")), cell)],
+    ]
+    t = Table(dados_perfil, colWidths=[6.0*cm, 12.3*cm], repeatRows=1)
+    t.setStyle(TableStyle([("GRID", (0,0), (-1,-1), 0.45, colors.black), ("VALIGN", (0,0), (-1,-1), "TOP"), ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#f3f4f6")), ("LEFTPADDING", (0,0), (-1,-1), 4), ("RIGHTPADDING", (0,0), (-1,-1), 4)]))
+    story.append(t)
+    story.append(Spacer(1, 0.25*cm))
+
+    campos = [
+        ("2. Líderes de turma", perfil_turma.get("lideres", "")),
+        ("3. Quantidade de notas abaixo de cinco", perfil_turma.get("notas_abaixo", "")),
+        ("4. Competências socioemocionais", perfil_turma.get("socioemocionais", "")),
+        ("5. Estratégias/instrumentos/atividades que funcionaram", perfil_turma.get("estrategias", "")),
+        ("6. Focos de atenção da turma", perfil_turma.get("focos", "")),
+        ("7. Estudantes destaque", perfil_turma.get("destaques", "")),
+        ("8. Recomendações", encaminhamentos),
+    ]
+    for rotulo, valor in campos:
+        story.append(Paragraph(f"<b>{html.escape(rotulo)}</b>", txt))
+        story.append(_paragrafo_pdf(valor or " ", txt))
+        story.append(Spacer(1, 0.17*cm))
+
+    story.append(PageBreak())
+    cabecalho(story)
+    story.append(Paragraph("PROTOCOLO DE ACOMPANHAMENTO DO CONSELHO DE CLASSE, ANO E SÉRIE - PEC", titulo))
+    dfp = df_protocolo.copy() if df_protocolo is not None and not df_protocolo.empty else _df_protocolo_pec_padrao()
+    linhas = [[Paragraph("Elementos do Conselho", head), Paragraph("Situação", head), Paragraph("Observações", head)]]
+    for _, row in dfp.iterrows():
+        linhas.append([Paragraph(str(row.get("Elementos do Conselho", "")), cell), Paragraph(str(row.get("Situação", "")), cell_center), Paragraph(str(row.get("Observações", "")), cell)])
+    tp = Table(linhas, colWidths=[11.1*cm, 3.0*cm, 4.2*cm], repeatRows=1)
+    tp.setStyle(TableStyle([("GRID", (0,0), (-1,-1), 0.45, colors.black), ("VALIGN", (0,0), (-1,-1), "TOP"), ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#f3f4f6")), ("LEFTPADDING", (0,0), (-1,-1), 3), ("RIGHTPADDING", (0,0), (-1,-1), 3)]))
+    story.append(tp)
+
+    story.append(PageBreak())
+    cabecalho(story)
+    story.append(Paragraph("FOCOS DE ATENÇÃO NO CONSELHO DE CLASSE E SÉRIE", titulo))
+    story.append(_paragrafo_pdf("Estudantes apontados no Conselho de Classe e Série Participativo, com campos para frequência, notas abaixo de cinco, presença/ciência e encaminhamentos.", txt))
+    dff = df_focos.copy() if df_focos is not None and not df_focos.empty else _df_focos_atencao_padrao()
+    cols_focos = ["Série", "Estudante", "Frequência (%)", "Notas abaixo de cinco", "Presença/Ciência", "Encaminhamento"]
+    dados_focos = [[Paragraph(c, head) for c in cols_focos]]
+    for _, row in dff.iterrows():
+        dados_focos.append([Paragraph(str(row.get(c, "")), cell_center if c in ["Série", "Frequência (%)", "Notas abaixo de cinco"] else cell) for c in cols_focos])
+    tf = Table(dados_focos or [[Paragraph("Sem registros", cell)]], colWidths=[1.5*cm, 5.9*cm, 2.5*cm, 2.8*cm, 2.8*cm, 2.8*cm], repeatRows=1)
+    tf.setStyle(TableStyle([("GRID", (0,0), (-1,-1), 0.45, colors.black), ("VALIGN", (0,0), (-1,-1), "TOP"), ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#f3f4f6")), ("LEFTPADDING", (0,0), (-1,-1), 3), ("RIGHTPADDING", (0,0), (-1,-1), 3)]))
+    story.append(tf)
+
+    story.append(PageBreak())
+    cabecalho(story)
+    story.append(Paragraph("PÓS-CONSELHO DE CLASSE E SÉRIE", titulo))
+    dfpo = df_pos.copy() if df_pos is not None and not df_pos.empty else _df_focos_atencao_padrao()
+    dados_pos = [[Paragraph(c, head) for c in cols_focos]]
+    for _, row in dfpo.iterrows():
+        dados_pos.append([Paragraph(str(row.get(c, "")), cell_center if c in ["Série", "Frequência (%)", "Notas abaixo de cinco"] else cell) for c in cols_focos])
+    tpo = Table(dados_pos, colWidths=[1.5*cm, 5.9*cm, 2.5*cm, 2.8*cm, 2.8*cm, 2.8*cm], repeatRows=1)
+    tpo.setStyle(TableStyle([("GRID", (0,0), (-1,-1), 0.45, colors.black), ("VALIGN", (0,0), (-1,-1), "TOP"), ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#f3f4f6")), ("LEFTPADDING", (0,0), (-1,-1), 3), ("RIGHTPADDING", (0,0), (-1,-1), 3)]))
+    story.append(tpo)
+
+    story.append(PageBreak())
+    cabecalho(story)
+    story.append(Paragraph("LEGENDAS, DIFICULDADES, RECOMENDAÇÕES E ASSINATURAS", titulo))
+    leg = [[Paragraph("Item 1 – Principais dificuldades dos estudantes", head), Paragraph("Item 2 – Recomendações e/ou Providências", head)]]
+    for i in range(1, 7):
+        leg.append([Paragraph(f"{i} – {DIFICULDADES_CONSELHO[str(i)]}", cell), Paragraph(f"{i+6} – {RECOMENDACOES_CONSELHO[str(i+6)]}", cell)])
+    tl = Table(leg, colWidths=[9.0*cm, 9.3*cm], repeatRows=1)
+    tl.setStyle(TableStyle([("GRID", (0,0), (-1,-1), 0.45, colors.black), ("VALIGN", (0,0), (-1,-1), "TOP"), ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#f3f4f6"))]))
+    story.append(tl)
+    story.append(Spacer(1, 0.35*cm))
+    dfa = df_assinaturas.copy() if df_assinaturas is not None and not df_assinaturas.empty else _df_assinaturas_conselho_padrao()
+    ass_cols = ["Componentes Curriculares / Função", "Assinatura"]
+    ass = [[Paragraph(c, head) for c in ass_cols]]
+    for _, row in dfa.iterrows():
+        ass.append([Paragraph(str(row.get(ass_cols[0], "")), cell_center), Paragraph(str(row.get(ass_cols[1], "")), cell)])
+    ta = Table(ass, colWidths=[6.5*cm, 11.8*cm], repeatRows=1)
+    ta.setStyle(TableStyle([("GRID", (0,0), (-1,-1), 0.45, colors.black), ("VALIGN", (0,0), (-1,-1), "TOP"), ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#f3f4f6")), ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, colors.HexColor("#fafafa")])]))
+    story.append(ta)
+
+    doc.build(story)
+    buffer.seek(0)
+    return buffer
+
 def render_pagina_conselho():
-    page_header("🏛️ Conselho", "Documentos, ata, rendimento dos estudantes e impressão organizada do Conselho de Classe", "#7c3aed")
+    page_header("🏛️ Conselho", "Documentos, ata, rendimento, protocolo, pós-conselho e impressão organizada", "#7c3aed")
 
     st.markdown("""
     <div class="info-box">
-        A página Conselho foi reorganizada para manter os documentos e funções do Conselho e acrescentar a tabela Excel como mais uma ferramenta, sem substituir o que já existia.
+        Esta página mantém os documentos do Conselho e acrescenta a tabela do Excel/modelo online como ferramenta complementar. A tabela não substitui a ata, protocolo, focos de atenção, pós-conselho, legendas e assinaturas.
     </div>
     """, unsafe_allow_html=True)
 
     st.markdown("""
     <div class="conselho-doc-grid">
-        <div class="conselho-doc-card"><b>📄 Ata do Conselho</b><p>Documento principal para registro do Conselho de Classe e Série Participativo.</p></div>
-        <div class="conselho-doc-card"><b>📊 Rendimento dos Estudantes</b><p>Tabela importada do Excel, revisada e organizada para impressão.</p></div>
-        <div class="conselho-doc-card"><b>🧭 Encaminhamentos</b><p>Espaço para recomendações, dificuldades e intervenções pedagógicas.</p></div>
-        <div class="conselho-doc-card"><b>✍️ Assinaturas</b><p>Área prevista no PDF para coordenação, gestão e professor/tutor.</p></div>
+        <div class="conselho-doc-card"><b>📄 Ata do Conselho</b><p>Registro textual do Conselho de Classe e Série Participativo.</p></div>
+        <div class="conselho-doc-card"><b>📋 Protocolo PEC</b><p>Checklist de evidências do acompanhamento do Conselho.</p></div>
+        <div class="conselho-doc-card"><b>🎯 Focos de atenção</b><p>Relação de estudantes, frequência, notas e presença/ciência.</p></div>
+        <div class="conselho-doc-card"><b>📊 Tabela Excel / Online</b><p>Modelo preenchível para rendimento, dificuldades e recomendações.</p></div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -6602,54 +6870,152 @@ def render_pagina_conselho():
     with col_b:
         bimestre = st.selectbox("Bimestre", ["1º Bimestre", "2º Bimestre", "3º Bimestre", "4º Bimestre"], key="conselho_bimestre")
     with col_c:
-        ano_letivo = st.text_input("Ano letivo", value=str(datetime.now().year), key="conselho_ano_letivo")
+        ano_letivo = st.text_input("Ano letivo", value=str(st.session_state.get("conselho_ano_letivo", datetime.now().year)), key="conselho_ano_letivo")
     with col_d:
         data_conselho = st.date_input("Data", value=datetime.now().date(), format="YYYY-MM-DD", key="conselho_data")
     st.markdown('</div>', unsafe_allow_html=True)
 
-    tab_docs, tab_excel, tab_tabela, tab_pdf = st.tabs([
+    tab_docs, tab_online, tab_excel, tab_revisar, tab_pdf = st.tabs([
         "📚 Documentos do Conselho",
-        "📥 Tabela Excel",
+        "📝 Modelo online",
+        "📥 Importar Excel",
         "📋 Revisar dados",
-        "🖨️ Imprimir ata"
+        "🖨️ Imprimir"
     ])
 
     with tab_docs:
-        st.markdown("### 📚 Documentos e registros do Conselho")
-        st.caption("Esta aba mantém a função documental do Conselho. A tabela Excel entra como apoio na aba ao lado.")
+        st.markdown("### 📚 Documentos do Conselho")
+        st.caption("Aqui ficam os documentos que compõem o Conselho. A planilha entra como apoio nas abas Modelo online/Importar Excel.")
 
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("#### 📝 Dados da ata")
-            st.text_input("Título do documento", value="CONSELHO DE CLASSE E SÉRIE PARTICIPATIVO", key="conselho_titulo_documento")
+        sub_ata, sub_protocolo, sub_focos, sub_pos, sub_legendas, sub_ass = st.tabs([
+            "📄 Ata", "📋 Protocolo PEC", "🎯 Focos de atenção", "📌 Pós-conselho", "🔢 Legendas", "✍️ Assinaturas"
+        ])
+
+        with sub_ata:
+            st.markdown("#### Ata Conselho de Classe")
+            st.text_input("Título do documento", value=st.session_state.get("conselho_titulo_documento", "ATA CONSELHO DE CLASSE"), key="conselho_titulo_documento")
             st.text_area(
                 "Texto de abertura da ata",
                 value=st.session_state.get(
                     "conselho_texto_abertura",
-                    "Reuniram-se a equipe gestora, professores e responsáveis pelo acompanhamento pedagógico para procederem ao Conselho de Classe, registrando evidências, pontos de atenção, encaminhamentos e intervenções pedagógicas."
+                    "Reuniram-se a equipe gestora, professores e responsáveis pelo acompanhamento pedagógico para procederem ao Conselho de Classe, registrando evidências, pontos de atenção, encaminhamentos e intervenções pedagógicas que tenham como meta o desenvolvimento do processo de ensino e aprendizagem dos estudantes."
                 ),
                 height=120,
                 key="conselho_texto_abertura"
             )
-        with col2:
-            st.markdown("#### 🧭 Encaminhamentos gerais")
-            st.text_area(
-                "Pontos de atenção / encaminhamentos gerais",
-                value=st.session_state.get("conselho_encaminhamentos_gerais", ""),
-                height=165,
-                key="conselho_encaminhamentos_gerais"
+
+            st.markdown("##### Perfil da turma")
+            c1, c2 = st.columns(2)
+            with c1:
+                st.selectbox("Desempenho acadêmico", ["", "Insatisfatório", "Regular", "Satisfatório", "Ótimo"], key="conselho_perfil_desempenho")
+                st.text_area("Dificuldades na aprendizagem", key="conselho_perfil_dificuldades", height=90)
+                st.text_area("Comportamento geral", key="conselho_perfil_comportamento", height=90)
+            with c2:
+                st.text_area("Participação na aula", key="conselho_perfil_participacao", height=90)
+                st.text_area("Relações interpessoais", key="conselho_perfil_relacoes", height=90)
+                st.text_area("Líderes de turma", key="conselho_perfil_lideres", height=70)
+
+            c3, c4 = st.columns(2)
+            with c3:
+                st.text_area("Quantidade de notas abaixo de cinco", key="conselho_perfil_notas_abaixo", height=70)
+                st.text_area("Competências socioemocionais", key="conselho_perfil_socioemocionais", height=70)
+            with c4:
+                st.text_area("Estratégias/instrumentos/atividades que funcionaram", key="conselho_perfil_estrategias", height=70)
+                st.text_area("Estudantes destaque", key="conselho_perfil_destaques", height=70)
+
+            st.text_area("Focos de atenção da turma", key="conselho_perfil_focos", height=80)
+            st.text_area("Recomendações / encaminhamentos gerais", key="conselho_encaminhamentos_gerais", height=100)
+
+        with sub_protocolo:
+            st.markdown("#### Protocolo de Acompanhamento do Conselho - PEC")
+            if "df_conselho_protocolo" not in st.session_state:
+                st.session_state.df_conselho_protocolo = _df_protocolo_pec_padrao()
+            st.session_state.df_conselho_protocolo = st.data_editor(
+                st.session_state.df_conselho_protocolo,
+                use_container_width=True,
+                hide_index=True,
+                num_rows="dynamic",
+                key="editor_conselho_protocolo",
+            )
+            st.caption("Use a coluna Situação para registrar: Evidenciado, Não Evidenciado ou Evidenciado em partes.")
+
+        with sub_focos:
+            st.markdown("#### Focos de atenção")
+            if "df_conselho_focos" not in st.session_state:
+                st.session_state.df_conselho_focos = _df_focos_atencao_padrao()
+            st.session_state.df_conselho_focos = st.data_editor(
+                st.session_state.df_conselho_focos,
+                use_container_width=True,
+                hide_index=True,
+                num_rows="dynamic",
+                key="editor_conselho_focos",
             )
 
-        st.markdown("#### ✅ Checklist do Conselho")
-        c1, c2, c3, c4 = st.columns(4)
+        with sub_pos:
+            st.markdown("#### Pós-Conselho")
+            if "df_conselho_pos" not in st.session_state:
+                st.session_state.df_conselho_pos = _df_focos_atencao_padrao()
+            st.session_state.df_conselho_pos = st.data_editor(
+                st.session_state.df_conselho_pos,
+                use_container_width=True,
+                hide_index=True,
+                num_rows="dynamic",
+                key="editor_conselho_pos",
+            )
+            st.text_area("Medidas pedagógicas pós-conselho", value=st.session_state.get("conselho_medidas_pos", "1. Dialogar com os estudantes sobre frequência, participação e rendimento.\n2. Convocar responsáveis quando necessário para ciência e acompanhamento."), key="conselho_medidas_pos", height=110)
+
+        with sub_legendas:
+            st.markdown("#### Legendas de dificuldades e recomendações")
+            col_dif, col_rec = st.columns(2)
+            with col_dif:
+                st.markdown("**Item 1 – Principais dificuldades dos estudantes**")
+                st.dataframe(pd.DataFrame([{"Código": k, "Dificuldade": v} for k, v in DIFICULDADES_CONSELHO.items()]), use_container_width=True, hide_index=True)
+            with col_rec:
+                st.markdown("**Item 2 – Recomendações e/ou Providências**")
+                st.dataframe(pd.DataFrame([{"Código": k, "Recomendação": v} for k, v in RECOMENDACOES_CONSELHO.items()]), use_container_width=True, hide_index=True)
+
+        with sub_ass:
+            st.markdown("#### Assinaturas por componente/função")
+            if "df_conselho_assinaturas" not in st.session_state:
+                st.session_state.df_conselho_assinaturas = _df_assinaturas_conselho_padrao()
+            st.session_state.df_conselho_assinaturas = st.data_editor(
+                st.session_state.df_conselho_assinaturas,
+                use_container_width=True,
+                hide_index=True,
+                num_rows="dynamic",
+                key="editor_conselho_assinaturas",
+            )
+
+    with tab_online:
+        st.markdown("### 📝 Modelo online para preenchimento")
+        st.caption("Use esta grade para preencher diretamente no sistema, sem depender do Excel. Depois clique em atualizar a tabela resumida para impressão.")
+        c1, c2, c3 = st.columns([1, 1, 1])
         with c1:
-            st.checkbox("Ata revisada", key="conselho_check_ata")
+            if st.button("🧪 Criar modelo online vazio", type="primary", key="btn_criar_modelo_online_conselho"):
+                st.session_state.df_conselho_online = _criar_modelo_conselho_online(30)
+                st.success("Modelo online criado.")
         with c2:
-            st.checkbox("Tabela conferida", key="conselho_check_tabela")
+            if "df_conselho_online" in st.session_state:
+                excel_modelo = _excel_bytes_conselho_modelo(st.session_state.df_conselho_online)
+            else:
+                excel_modelo = _excel_bytes_conselho_modelo(_criar_modelo_conselho_online(30))
+            st.download_button("⬇️ Baixar modelo Excel", data=excel_modelo, file_name="modelo_conselho_online.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="download_modelo_conselho_online")
         with c3:
-            st.checkbox("Encaminhamentos definidos", key="conselho_check_encaminhamentos")
-        with c4:
-            st.checkbox("Assinaturas previstas", key="conselho_check_assinaturas")
+            if st.button("📌 Atualizar tabela para impressão", key="btn_online_para_pdf_conselho"):
+                df_online = st.session_state.get("df_conselho_online", pd.DataFrame(columns=COLUNAS_CONSELHO_ONLINE))
+                st.session_state.df_conselho = _modelo_online_para_resumo_conselho(df_online)
+                st.success("Tabela resumida atualizada para revisão e impressão.")
+
+        if "df_conselho_online" not in st.session_state:
+            st.session_state.df_conselho_online = _criar_modelo_conselho_online(30)
+        st.session_state.df_conselho_online = st.data_editor(
+            st.session_state.df_conselho_online,
+            use_container_width=True,
+            hide_index=True,
+            num_rows="dynamic",
+            key="editor_conselho_online",
+        )
+        st.caption("Preencha com texto ou códigos. Nas colunas Dificuldade/Recomendação, qualquer valor preenchido marca o item correspondente.")
 
     with tab_excel:
         st.markdown("### 📥 Acrescentar tabela do Excel")
@@ -6672,17 +7038,15 @@ def render_pagina_conselho():
                     st.error(str(exc))
                     st.info("Se o link for do SharePoint com login, baixe o arquivo .xlsx e envie aqui pelo botão de upload.")
         with c2:
-            if st.button("🧪 Criar tabela vazia", key="btn_conselho_modelo"):
+            if st.button("🧪 Criar tabela resumida vazia", key="btn_conselho_modelo"):
                 st.session_state.df_conselho = pd.DataFrame([{c: "" for c in COLUNAS_CONSELHO_PADRAO} for _ in range(10)])
-                st.success("Modelo vazio criado para preenchimento manual.")
+                st.success("Modelo resumido criado para preenchimento manual.")
 
-        st.caption("Observação: links do SharePoint que exigem login podem não ser lidos automaticamente pelo Streamlit. O envio do .xlsx funciona de forma mais segura.")
-
-    with tab_tabela:
+    with tab_revisar:
         st.markdown("### 📋 Revisar tabela de rendimento dos estudantes")
         df_atual = st.session_state.get("df_conselho", pd.DataFrame(columns=COLUNAS_CONSELHO_PADRAO))
         if df_atual.empty:
-            st.info("Carregue uma planilha na aba 'Tabela Excel' ou crie um modelo vazio.")
+            st.info("Carregue uma planilha, use o modelo online ou crie uma tabela vazia.")
         else:
             df_atual = _mapear_colunas_conselho(df_atual)
             st.session_state.df_conselho = st.data_editor(
@@ -6692,35 +7056,75 @@ def render_pagina_conselho():
                 num_rows="dynamic",
                 key="editor_conselho",
             )
-            st.caption("As colunas Dificuldades e Recomendações têm mais espaço no PDF e usam quebra automática de texto.")
+            st.caption("Esta é a tabela resumida que entra no PDF da ata/rendimento.")
 
     with tab_pdf:
-        st.markdown("### 🖨️ Gerar PDF do Conselho")
+        st.markdown("### 🖨️ Gerar impressões do Conselho")
         observacoes = st.text_area(
-            "Observações gerais da ata",
+            "Observações gerais da ata/tabela de rendimento",
             value=st.session_state.get("conselho_observacoes", ""),
             height=90,
             key="conselho_observacoes"
         )
         df_pdf = _mapear_colunas_conselho(st.session_state.get("df_conselho", pd.DataFrame(columns=COLUNAS_CONSELHO_PADRAO)))
-        st.write(f"Registros na tabela: **{len(df_pdf)}**")
+        st.write(f"Registros na tabela de rendimento: **{len(df_pdf)}**")
         if not df_pdf.empty:
             st.dataframe(df_pdf.head(8), use_container_width=True, hide_index=True)
-        if st.button("📄 Gerar PDF organizado", type="primary", key="btn_pdf_conselho"):
-            try:
-                texto_final = str(st.session_state.get("conselho_texto_abertura", "")).strip()
-                extras = str(st.session_state.get("conselho_encaminhamentos_gerais", "")).strip()
-                observacoes_completas = observacoes
-                if texto_final:
-                    observacoes_completas = f"{observacoes_completas}\n\nTexto da ata: {texto_final}".strip()
-                if extras:
-                    observacoes_completas = f"{observacoes_completas}\n\nEncaminhamentos gerais: {extras}".strip()
-                pdf = gerar_pdf_conselho_classe(df_pdf, turma, bimestre, ano_letivo, data_conselho, observacoes_completas)
-                nome_pdf = f"conselho_{gerar_chave_segura(turma)}_{gerar_chave_segura(bimestre)}_{ano_letivo}.pdf"
-                st.download_button("⬇️ Baixar PDF do Conselho", data=pdf, file_name=nome_pdf, mime="application/pdf", key="download_pdf_conselho")
-                st.success("PDF gerado com células ajustadas para impressão.")
-            except Exception as exc:
-                st.error(f"Erro ao gerar PDF: {exc}")
+
+        col_pdf1, col_pdf2 = st.columns(2)
+        with col_pdf1:
+            if st.button("📄 Gerar PDF da tabela/ata de rendimento", type="primary", key="btn_pdf_conselho"):
+                try:
+                    texto_final = str(st.session_state.get("conselho_texto_abertura", "")).strip()
+                    extras = str(st.session_state.get("conselho_encaminhamentos_gerais", "")).strip()
+                    observacoes_completas = observacoes
+                    if texto_final:
+                        observacoes_completas = f"{observacoes_completas}\n\nTexto da ata: {texto_final}".strip()
+                    if extras:
+                        observacoes_completas = f"{observacoes_completas}\n\nEncaminhamentos gerais: {extras}".strip()
+                    pdf = gerar_pdf_conselho_classe(df_pdf, turma, bimestre, ano_letivo, data_conselho, observacoes_completas)
+                    nome_pdf = f"conselho_tabela_{gerar_chave_segura(turma)}_{gerar_chave_segura(bimestre)}_{ano_letivo}.pdf"
+                    st.download_button("⬇️ Baixar PDF da tabela", data=pdf, file_name=nome_pdf, mime="application/pdf", key="download_pdf_conselho")
+                    st.success("PDF da tabela gerado com células ajustadas.")
+                except Exception as exc:
+                    st.error(f"Erro ao gerar PDF: {exc}")
+
+        with col_pdf2:
+            if st.button("📚 Gerar PDF dos documentos do Conselho", type="primary", key="btn_pdf_docs_conselho"):
+                try:
+                    perfil = {
+                        "desempenho": st.session_state.get("conselho_perfil_desempenho", ""),
+                        "dificuldades": st.session_state.get("conselho_perfil_dificuldades", ""),
+                        "comportamento": st.session_state.get("conselho_perfil_comportamento", ""),
+                        "participacao": st.session_state.get("conselho_perfil_participacao", ""),
+                        "relacoes": st.session_state.get("conselho_perfil_relacoes", ""),
+                        "lideres": st.session_state.get("conselho_perfil_lideres", ""),
+                        "notas_abaixo": st.session_state.get("conselho_perfil_notas_abaixo", ""),
+                        "socioemocionais": st.session_state.get("conselho_perfil_socioemocionais", ""),
+                        "estrategias": st.session_state.get("conselho_perfil_estrategias", ""),
+                        "focos": st.session_state.get("conselho_perfil_focos", ""),
+                        "destaques": st.session_state.get("conselho_perfil_destaques", ""),
+                    }
+                    pdf_docs = gerar_pdf_documentos_conselho(
+                        turma=turma,
+                        bimestre=bimestre,
+                        ano_letivo=ano_letivo,
+                        data_conselho=data_conselho,
+                        titulo_documento=st.session_state.get("conselho_titulo_documento", "ATA CONSELHO DE CLASSE"),
+                        texto_abertura=st.session_state.get("conselho_texto_abertura", ""),
+                        perfil_turma=perfil,
+                        df_protocolo=st.session_state.get("df_conselho_protocolo", _df_protocolo_pec_padrao()),
+                        df_focos=st.session_state.get("df_conselho_focos", _df_focos_atencao_padrao()),
+                        df_pos=st.session_state.get("df_conselho_pos", _df_focos_atencao_padrao()),
+                        df_assinaturas=st.session_state.get("df_conselho_assinaturas", _df_assinaturas_conselho_padrao()),
+                        encaminhamentos=(str(st.session_state.get("conselho_encaminhamentos_gerais", "")) + "\n" + str(st.session_state.get("conselho_medidas_pos", ""))).strip(),
+                    )
+                    nome_pdf_docs = f"documentos_conselho_{gerar_chave_segura(turma)}_{gerar_chave_segura(bimestre)}_{ano_letivo}.pdf"
+                    st.download_button("⬇️ Baixar documentos do Conselho", data=pdf_docs, file_name=nome_pdf_docs, mime="application/pdf", key="download_docs_conselho")
+                    st.success("PDF dos documentos do Conselho gerado.")
+                except Exception as exc:
+                    st.error(f"Erro ao gerar documentos do Conselho: {exc}")
+
 
 # ======================================================
 # PÁGINA 🏠 DASHBOARD - COMPLETO E COLORIDO
