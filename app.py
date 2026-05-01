@@ -953,6 +953,171 @@ div[data-testid="stExpander"] {
     }
 }
 
+
+/* ====================================================== */
+/* AJUSTE FINAL - LEITURA, CARDS E BOTOES SEM CORTE        */
+/* ====================================================== */
+.stButton > button {
+    height: auto !important;
+    min-height: 48px !important;
+    line-height: 1.28 !important;
+    padding: 0.72rem 1rem !important;
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow: visible !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+}
+section[data-testid="stSidebar"] div[data-testid="stButton"] > button {
+    min-height: 44px !important;
+    justify-content: center !important;
+    padding: 0.68rem 0.75rem !important;
+    line-height: 1.22 !important;
+}
+.metric-card {
+    min-height: 112px !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 1rem 1.05rem !important;
+    justify-content: flex-start !important;
+    background: linear-gradient(135deg, rgba(255,255,255,.86), rgba(240,253,250,.72), rgba(250,245,255,.78)) !important;
+    border: 1.4px solid rgba(216,180,254,.82) !important;
+    color: #2b2140 !important;
+    box-shadow: 0 14px 30px rgba(168,85,247,.10), 0 0 0 1px rgba(255,255,255,.55) inset !important;
+}
+.metric-card::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 5px;
+    background: linear-gradient(90deg,#ff7fd1,#ffd67f,#97f7f0,#9cc7ff,#d8a0ff);
+}
+.metric-card::before {
+    background: radial-gradient(circle, rgba(255,255,255,.74), rgba(255,255,255,0)) !important;
+    opacity: .65 !important;
+}
+.metric-icon {
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    min-height: 34px !important;
+    font-size: 1.05rem !important;
+    margin-bottom: .38rem !important;
+    border-radius: 12px !important;
+    background: rgba(255,255,255,.72) !important;
+    color: #6d28d9 !important;
+    box-shadow: 0 8px 16px rgba(168,85,247,.10) !important;
+}
+.metric-value {
+    color: #31215f !important;
+    -webkit-text-fill-color: #31215f !important;
+    font-size: 1.25rem !important;
+    line-height: 1.08 !important;
+    text-shadow: none !important;
+}
+.metric-label {
+    color: #6d5f96 !important;
+    -webkit-text-fill-color: #6d5f96 !important;
+    font-size: .82rem !important;
+    line-height: 1.26 !important;
+    letter-spacing: 0 !important;
+    text-transform: none !important;
+    margin-top: .28rem !important;
+}
+.metric-sub {
+    color: #6d5f96 !important;
+    -webkit-text-fill-color: #6d5f96 !important;
+    font-size: .78rem !important;
+    line-height: 1.24 !important;
+    opacity: 1 !important;
+    margin-top: .22rem !important;
+}
+.dashboard-panorama-mini,
+.sed-module-card,
+.card,
+.form-panel,
+.info-box,
+.success-box,
+.warning-box { overflow: visible !important; }
+.dashboard-panorama-mini-value,
+.sed-module-title,
+.sed-module-sub {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+}
+.sed-module-card-link {
+    display: block;
+    text-decoration: none !important;
+    color: inherit !important;
+    height: 100%;
+}
+.sed-module-card-link .sed-module-card {
+    min-height: 100px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    gap: .25rem !important;
+    cursor: pointer !important;
+}
+.sed-module-card-link:hover .sed-module-card {
+    transform: translateY(-4px) !important;
+    box-shadow: 0 18px 34px rgba(168,85,247,.14) !important;
+    border-color: rgba(217,70,239,.38) !important;
+}
+.conselho-card {
+    min-height: 178px;
+    padding: 1rem;
+    border-radius: 22px;
+    background: linear-gradient(135deg, rgba(255,255,255,.88), rgba(240,253,250,.70), rgba(250,245,255,.82));
+    border: 1.3px solid rgba(216,180,254,.85);
+    box-shadow: 0 14px 28px rgba(168,85,247,.10);
+    position: relative;
+    overflow: hidden;
+}
+.conselho-card::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 5px;
+    background: linear-gradient(90deg,#ff7fd1,#ffd67f,#97f7f0,#9cc7ff,#d8a0ff);
+}
+.conselho-card-title {
+    margin: 0.32rem 0 .35rem 0;
+    color: #31215f;
+    font-weight: 900;
+    font-size: .98rem;
+    line-height: 1.24;
+}
+.conselho-card-sub {
+    margin: 0;
+    color: #6d5f96;
+    font-size: .82rem;
+    line-height: 1.36;
+}
+.conselho-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: .22rem .58rem;
+    font-size: .68rem;
+    font-weight: 900;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: #6d28d9;
+    background: rgba(255,255,255,.72);
+    border: 1px solid rgba(216,180,254,.80);
+}
+@media (max-width: 980px) {
+    .metric-card { min-height: 122px !important; }
+    .metric-value { font-size: 1.15rem !important; }
+    .metric-label, .metric-sub { font-size: .76rem !important; }
+}
+
 </style>
 """, unsafe_allow_html=True)
 # ======================================================
@@ -998,6 +1163,34 @@ st.sidebar.markdown(f"""
 if 'pagina_atual' not in st.session_state:
     st.session_state.pagina_atual = "🏠 Dashboard"
 
+# Permite que cards do Dashboard funcionem como links internos via query param.
+# Ex.: ?page=ocorrencia abre a página Registrar Ocorrência.
+PAGINAS_QUERY_MAP = {
+    "dashboard": "🏠 Dashboard",
+    "ocorrencia": "📝 Registrar Ocorrência",
+    "relatorio": "🧾 Relatório dos Estudantes",
+    "historico": "📋 Histórico de Ocorrências",
+    "comunicado": "📄 Comunicado aos Pais",
+    "alunos": "👥 Lista de Alunos",
+    "importar": "📥 Importar Alunos",
+    "turmas": "📋 Gerenciar Turmas",
+    "professores": "👨‍🏫 Cadastrar Professores",
+    "assinaturas": "👤 Cadastrar Assinaturas",
+    "eletiva": "🎨 Eletiva",
+    "tutoria": "🫂 Tutoria",
+    "conselho": "🏛️ Conselho",
+    "indicadores": "📊 Gráficos e Indicadores",
+    "imprimir": "🖨️ Imprimir PDF",
+    "agendamento": "📅 Agendamento de Espaços",
+}
+try:
+    pagina_url = str(st.query_params.get("page", "") or "").strip().lower()
+    if pagina_url in PAGINAS_QUERY_MAP and st.session_state.get("_ultima_query_page") != pagina_url:
+        st.session_state.pagina_atual = PAGINAS_QUERY_MAP[pagina_url]
+        st.session_state["_ultima_query_page"] = pagina_url
+except Exception:
+    pass
+
 # Lista de itens do menu com ícones
 menu_items = [
     {"nome": "Dashboard", "icone": "🏠"},
@@ -1012,6 +1205,7 @@ menu_items = [
     {"nome": "Cadastrar Assinaturas", "icone": "👤"},
     {"nome": "Eletiva", "icone": "🎨"},
     {"nome": "Tutoria", "icone": "🫂"},
+    {"nome": "Conselho", "icone": "🏛️"},
     {"nome": "Gráficos e Indicadores", "icone": "📊"},
     {"nome": "Imprimir PDF", "icone": "🖨️"},
     {"nome": "Mapa da Sala", "icone": "🏫"},
@@ -1033,6 +1227,11 @@ for item in menu_items:
         type=button_style
     ):
         st.session_state.pagina_atual = nome_completo
+        try:
+            st.query_params.clear()
+        except Exception:
+            pass
+        st.session_state["_ultima_query_page"] = ""
         st.rerun()
 
 # Atualizar a variável menu
@@ -5017,6 +5216,7 @@ ROTAS_MENU_SUPORTADAS = {
     normalizar_texto("👤 Cadastrar Assinaturas"),
     normalizar_texto("🎨 Eletiva"),
     normalizar_texto("🫂 Tutoria"),
+    normalizar_texto("🏛️ Conselho"),
     normalizar_texto("📊 Gráficos e Indicadores"),
     normalizar_texto("🖨️ Imprimir PDF"),
     normalizar_texto("🏫 Mapa da Sala"),
@@ -5036,6 +5236,307 @@ if ROTAS_MENU_AUSENTES:
 exibir_notificacoes_sidebar()
 exibir_gamificacao_sidebar()
 exibir_assistente_sidebar()
+# ======================================================
+# CONSELHO DE CLASSE - DOCUMENTOS E ORGANIZAÇÃO
+# ======================================================
+CONSELHO_DOCUMENTOS = [
+    {
+        "categoria": "Atas",
+        "titulo": "Ata do Conselho - 1º Bimestre - 1ª Série A",
+        "descricao": "Modelo de ata com rendimentos, frequência, avaliações, dificuldades e providências.",
+        "arquivo": "01_atas/ata_conselho_1bim_2025_1a.docx",
+        "tipo": "DOCX",
+    },
+    {
+        "categoria": "Atas",
+        "titulo": "Ata do Conselho - 1º Bimestre - 2ª Série A",
+        "descricao": "Modelo de ata do Ensino Médio com componentes curriculares e acompanhamento.",
+        "arquivo": "01_atas/ata_conselho_1bim_2025_2a.docx",
+        "tipo": "DOCX",
+    },
+    {
+        "categoria": "Atas",
+        "titulo": "Ata Conselho de Classe - 2º Bimestre - 8ºD",
+        "descricao": "Roteiro de conselho com perfil da turma, participação, relações e recomendações.",
+        "arquivo": "01_atas/ata_conselho_2bim_2025_8d.docx",
+        "tipo": "DOCX",
+    },
+    {
+        "categoria": "Protocolos",
+        "titulo": "Protocolo de Acompanhamento - PEC",
+        "descricao": "Checklist de evidências do Conselho de Classe: aprendizagens, registros, busca ativa e plataformas.",
+        "arquivo": "02_protocolos/protocolo_acompanhamento_conselho_pec.docx",
+        "tipo": "DOCX",
+    },
+    {
+        "categoria": "Focos e Pós-Conselho",
+        "titulo": "Focos de Atenção no Conselho de Classe",
+        "descricao": "Lista de estudantes apontados, frequência, notas abaixo de cinco e presença.",
+        "arquivo": "03_focos_e_pos_conselho/focos_atencao_conselho_2025.docx",
+        "tipo": "DOCX",
+    },
+    {
+        "categoria": "Focos e Pós-Conselho",
+        "titulo": "Pós-Conselho de Classe e Série",
+        "descricao": "Acompanhamento pós-conselho com medidas pedagógicas e ciência dos estudantes.",
+        "arquivo": "03_focos_e_pos_conselho/pos_conselho_classe_serie_2025.docx",
+        "tipo": "DOCX",
+    },
+    {
+        "categoria": "Referências",
+        "titulo": "Itens - Dificuldades e Providências",
+        "descricao": "Legenda de itens para dificuldades dos estudantes e recomendações da escola/professores.",
+        "arquivo": "04_referencias/itens_dificuldades_recomendacoes.docx",
+        "tipo": "DOCX",
+    },
+    {
+        "categoria": "Mídias",
+        "titulo": "Registro visual - Conselho Participativo",
+        "descricao": "Imagem de referência do Ensino Médio - Conselho de Classe e Série Participativo.",
+        "arquivo": "05_midias/ensino_medio_conselho_classe_serie_participativo.png",
+        "tipo": "PNG",
+    },
+]
+
+
+def _conselho_base_dirs() -> list[Path]:
+    """Locais onde a página Conselho procura os documentos."""
+    base = Path(__file__).resolve().parent
+    return [
+        base / "conselho",
+        base / "assets" / "conselho",
+        Path("conselho"),
+        Path("assets") / "conselho",
+    ]
+
+
+def _conselho_localizar_arquivo(relativo: str) -> Path | None:
+    for pasta in _conselho_base_dirs():
+        caminho = pasta / relativo
+        if caminho.exists() and caminho.is_file():
+            return caminho
+    return None
+
+
+def _conselho_ext_mime(tipo: str) -> str:
+    tipo = str(tipo or "").upper()
+    if tipo == "PNG":
+        return "image/png"
+    return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+
+def _conselho_nome_download(doc: dict) -> str:
+    return Path(str(doc.get("arquivo", "documento.docx"))).name
+
+
+def _conselho_pacote_zip() -> bytes:
+    buffer = BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for doc in CONSELHO_DOCUMENTOS:
+            rel = str(doc.get("arquivo", ""))
+            caminho = _conselho_localizar_arquivo(rel)
+            if caminho:
+                zf.write(caminho, arcname=f"conselho/{rel}")
+        readme = """# Conselho de Classe - Sistema Conviva 179\n\nPasta organizada para documentos do Conselho de Classe.\n\nColoque esta pasta `conselho` no mesmo nível do `app.py` para que a página Conselho consiga listar e disponibilizar os arquivos automaticamente.\n"""
+        zf.writestr("conselho/README_CONSELHO.md", readme)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+def _docx_xml_escape(valor: str) -> str:
+    return html.escape(str(valor or ""), quote=False)
+
+
+def _criar_docx_simples_conselho(titulo: str, paragrafos: list[str]) -> bytes:
+    """Cria um DOCX simples sem dependências externas, suficiente para atas rápidas."""
+    def p(texto: str, bold: bool = False, center: bool = False) -> str:
+        texto_xml = _docx_xml_escape(texto)
+        jc = '<w:pPr><w:jc w:val="center"/></w:pPr>' if center else ''
+        rb = '<w:rPr><w:b/></w:rPr>' if bold else ''
+        return f'<w:p>{jc}<w:r>{rb}<w:t xml:space="preserve">{texto_xml}</w:t></w:r></w:p>'
+
+    corpo = [
+        p("SECRETARIA DE ESTADO DA EDUCAÇÃO", center=True),
+        p("DIRETORIA DE ENSINO DA REGIÃO DE SUZANO", center=True),
+        p("E.E. Profª Eliane Ap. Dantas da Silva", bold=True, center=True),
+        p("PROGRAMA DE ENSINO INTEGRAL - PEI", center=True),
+        p(""),
+        p(titulo, bold=True, center=True),
+        p(""),
+    ]
+    for item in paragrafos:
+        corpo.append(p(item))
+    corpo.append(p(""))
+    corpo.append(p("Assinaturas / Encaminhamentos:"))
+    corpo.append(p("________________________________________________________________________________"))
+    corpo.append(p("________________________________________________________________________________"))
+
+    document_xml = f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    {''.join(corpo)}
+    <w:sectPr>
+      <w:pgSz w:w="11906" w:h="16838"/>
+      <w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="708" w:footer="708" w:gutter="0"/>
+    </w:sectPr>
+  </w:body>
+</w:document>'''
+
+    content_types = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+  <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
+</Types>'''
+    rels = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>'''
+    core = f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <dc:title>{_docx_xml_escape(titulo)}</dc:title>
+  <dc:creator>Sistema Conviva 179</dc:creator>
+  <cp:lastModifiedBy>Sistema Conviva 179</cp:lastModifiedBy>
+</cp:coreProperties>'''
+    app = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>Sistema Conviva 179</Application></Properties>'''
+
+    buffer = BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("[Content_Types].xml", content_types)
+        zf.writestr("_rels/.rels", rels)
+        zf.writestr("docProps/core.xml", core)
+        zf.writestr("docProps/app.xml", app)
+        zf.writestr("word/document.xml", document_xml)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+def render_conselho_page():
+    page_header("🏛️ Conselho de Classe", "Atas, protocolos, focos de atenção, pós-conselho e documentos organizados", "#8b5cf6")
+
+    encontrados = sum(1 for d in CONSELHO_DOCUMENTOS if _conselho_localizar_arquivo(str(d.get("arquivo", ""))))
+    total = len(CONSELHO_DOCUMENTOS)
+    pacote = _conselho_pacote_zip()
+
+    col_a, col_b, col_c = st.columns(3)
+    col_a.metric("Documentos catalogados", total)
+    col_b.metric("Arquivos encontrados", encontrados)
+    col_c.metric("Pastas", len(sorted({d['categoria'] for d in CONSELHO_DOCUMENTOS})))
+
+    st.markdown("""
+    <div class="info-box">
+        <b>Página Conselho:</b> os documentos ficam organizados na pasta <code>conselho</code>. 
+        Cada card abaixo faz download do arquivo correspondente quando ele estiver presente na pasta do projeto.
+    </div>
+    """, unsafe_allow_html=True)
+
+    tabs = st.tabs(["📁 Documentos", "📝 Criar ata rápida", "🖼️ Mídias", "📦 Pacote"])
+
+    with tabs[0]:
+        categorias = ["Atas", "Protocolos", "Focos e Pós-Conselho", "Referências"]
+        for categoria in categorias:
+            docs_categoria = [d for d in CONSELHO_DOCUMENTOS if d["categoria"] == categoria]
+            if not docs_categoria:
+                continue
+            st.markdown(f"### {categoria}")
+            cols = st.columns(3)
+            for i, doc in enumerate(docs_categoria):
+                with cols[i % 3]:
+                    caminho = _conselho_localizar_arquivo(str(doc.get("arquivo", "")))
+                    st.markdown(f"""
+                    <div class="conselho-card">
+                        <span class="conselho-badge">{html.escape(str(doc.get('tipo', 'DOCX')))}</span>
+                        <p class="conselho-card-title">{html.escape(doc['titulo'])}</p>
+                        <p class="conselho-card-sub">{html.escape(doc['descricao'])}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    if caminho:
+                        st.download_button(
+                            "⬇️ Baixar documento",
+                            data=caminho.read_bytes(),
+                            file_name=_conselho_nome_download(doc),
+                            mime=_conselho_ext_mime(doc.get("tipo", "DOCX")),
+                            use_container_width=True,
+                            key=f"download_conselho_{doc['arquivo']}"
+                        )
+                    else:
+                        st.warning("Arquivo não encontrado na pasta conselho.")
+
+    with tabs[1]:
+        st.markdown("### Criar ata rápida do Conselho")
+        st.caption("Gera um DOCX simples para registro inicial. Para modelos completos, use os documentos da aba Documentos.")
+        with st.form("form_criar_ata_conselho"):
+            c1, c2, c3 = st.columns(3)
+            turma = c1.text_input("Turma", value="Ex.: 8º Ano D")
+            bimestre = c2.selectbox("Bimestre", ["1º Bimestre", "2º Bimestre", "3º Bimestre", "4º Bimestre"])
+            data_conselho = c3.text_input("Data", value=datetime.now().strftime("%d/%m/%Y"))
+            horario = st.text_input("Horário / Local", value="Sala de informática")
+            perfil_turma = st.text_area("Perfil da turma", height=90)
+            focos = st.text_area("Focos de atenção", height=100)
+            encaminhamentos = st.text_area("Encaminhamentos / recomendações", height=100)
+            gerar = st.form_submit_button("📄 Gerar DOCX da ata", type="primary")
+        if gerar:
+            titulo = f"ATA DO CONSELHO DE CLASSE - {bimestre.upper()} - {turma}"
+            paragrafos = [
+                f"Data: {data_conselho}",
+                f"Turma: {turma}",
+                f"Horário/Local: {horario}",
+                "",
+                "Perfil da turma:",
+                perfil_turma or "Não informado.",
+                "",
+                "Focos de atenção:",
+                focos or "Não informado.",
+                "",
+                "Encaminhamentos e recomendações:",
+                encaminhamentos or "Não informado.",
+            ]
+            bytes_docx = _criar_docx_simples_conselho(titulo, paragrafos)
+            nome = f"ata_conselho_{normalizar_texto(turma).replace(' ', '_').lower()}_{bimestre.replace('º','').replace(' ', '_').lower()}.docx"
+            st.download_button(
+                "⬇️ Baixar ata gerada",
+                data=bytes_docx,
+                file_name=nome,
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                use_container_width=True,
+            )
+
+    with tabs[2]:
+        st.markdown("### Mídias do Conselho")
+        midias = [d for d in CONSELHO_DOCUMENTOS if d["categoria"] == "Mídias"]
+        for doc in midias:
+            caminho = _conselho_localizar_arquivo(str(doc.get("arquivo", "")))
+            st.markdown(f"**{doc['titulo']}**")
+            st.caption(doc["descricao"])
+            if caminho:
+                st.image(str(caminho), use_container_width=True)
+                st.download_button(
+                    "⬇️ Baixar imagem",
+                    data=caminho.read_bytes(),
+                    file_name=_conselho_nome_download(doc),
+                    mime="image/png",
+                    use_container_width=True,
+                    key=f"download_midias_{doc['arquivo']}"
+                )
+            else:
+                st.warning("Imagem não encontrada na pasta conselho.")
+
+    with tabs[3]:
+        st.markdown("### Pacote completo organizado")
+        if pacote:
+            st.download_button(
+                "📦 Baixar pasta Conselho organizada (.zip)",
+                data=pacote,
+                file_name="conselho_documentos_organizados.zip",
+                mime="application/zip",
+                use_container_width=True,
+            )
+        st.info("No projeto, mantenha a pasta `conselho` no mesmo nível do `app.py` para a página listar os documentos automaticamente.")
+
+
 # ======================================================
 # PÁGINA 🏠 DASHBOARD - COMPLETO E COLORIDO
 # ======================================================
@@ -6409,12 +6910,12 @@ if menu == "🏠 Dashboard":
         <div class="sed-panel-title">Plataformas do Sistema Conviva</div>
         <div class="sed-panel-body">
             <div class="sed-grid-modulos">
-                <div class="sed-module-card"><span class="sed-module-title">Registrar Ocorrência ↗</span><span class="sed-module-sub">Registro rápido e padronizado</span></div>
-                <div class="sed-module-card green"><span class="sed-module-title">Caderno de Tutoria ↗</span><span class="sed-module-sub">Acompanhamento individual e coletivo</span></div>
-                <div class="sed-module-card light"><span class="sed-module-title">Lista de Alunos ↗</span><span class="sed-module-sub">Consulta e gestão de estudantes</span></div>
-                <div class="sed-module-card red"><span class="sed-module-title">Comunicado aos Pais ↗</span><span class="sed-module-sub">Geração de comunicados</span></div>
-                <div class="sed-module-card gray"><span class="sed-module-title">Relatórios ↗</span><span class="sed-module-sub">Histórico pedagógico e evidências</span></div>
-                <div class="sed-module-card rainbow"><span class="sed-module-title">IA Conviva ↗</span><span class="sed-module-sub">Reescrita pedagógica humanizada</span></div>
+                <a class="sed-module-card-link" href="?page=ocorrencia" target="_self"><div class="sed-module-card"><span class="sed-module-title">📝 Registrar Ocorrência ↗</span><span class="sed-module-sub">Registro rápido e padronizado</span></div></a>
+                <a class="sed-module-card-link" href="?page=tutoria" target="_self"><div class="sed-module-card green"><span class="sed-module-title">📒 Caderno de Tutoria ↗</span><span class="sed-module-sub">Acompanhamento individual e coletivo</span></div></a>
+                <a class="sed-module-card-link" href="?page=alunos" target="_self"><div class="sed-module-card light"><span class="sed-module-title">👥 Lista de Alunos ↗</span><span class="sed-module-sub">Consulta e gestão de estudantes</span></div></a>
+                <a class="sed-module-card-link" href="?page=comunicado" target="_self"><div class="sed-module-card red"><span class="sed-module-title">📄 Comunicado aos Pais ↗</span><span class="sed-module-sub">Geração de comunicados</span></div></a>
+                <a class="sed-module-card-link" href="?page=relatorio" target="_self"><div class="sed-module-card gray"><span class="sed-module-title">🧾 Relatórios ↗</span><span class="sed-module-sub">Histórico pedagógico e evidências</span></div></a>
+                <a class="sed-module-card-link" href="?page=conselho" target="_self"><div class="sed-module-card rainbow"><span class="sed-module-title">🏛️ Conselho ↗</span><span class="sed-module-sub">Atas, protocolos e documentos</span></div></a>
             </div>
         </div>
     </div>
@@ -12108,6 +12609,12 @@ elif menu == "🫂 Tutoria":
                     st.rerun()
                 except Exception as e:
                     st.error(f"Erro ao excluir todos os estudantes: {e}")
+
+# ======================================================
+# PÁGINA 🏛️ CONSELHO
+# ======================================================
+elif menu == "🏛️ Conselho":
+    render_conselho_page()
 
 # ======================================================
 # PÁGINA 🏫 MAPA DA SALA (COMPLETA)
