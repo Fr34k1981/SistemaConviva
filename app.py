@@ -1,4 +1,4 @@
-﻿# VERSAO VISUAL DEFINITIVA - SED + UNICORNIO + ARCO-IRIS
+﻿# VERSAO FINAL LIMPA - SED FIEL + CORES ARCO-IRIS/UNICORNIO SEM IMAGEM EXTERNA
 # ======================================================
 # IMPORTS PADRÃO
 # ======================================================
@@ -152,2475 +152,365 @@ st.set_page_config(
 # ======================================================
 # CSS PREMIUM EDUCACIONAL — DESIGN MODERNO E PROFISSIONAL
 # ======================================================
+# ======================================================
+# CSS FINAL LIMPO - SED + ARCO-IRIS/UNICORNIO
+# ======================================================
 st.markdown("""
 <style>
-/* ============================================ */
-/* ========== GOOGLE FONTS IMPORT ========== */
-/* ============================================ */
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Nunito:wght@600;700;800;900&display=swap');
 
-/* ============================================ */
-/* ========== RESET GLOBAL ========== */
-/* ============================================ */
-*, *::before, *::after {
-    box-sizing: border-box;
-}
-
-html, body, [class*="css"] {
-    font-family: 'Inter', 'Segoe UI', sans-serif !important;
-}
-
-h1, h2, h3, h4, h5, h6 {
-    font-family: 'Nunito', sans-serif !important;
-}
-
-/* ============================================ */
-/* ========== VARIÁVEIS DE DESIGN ========== */
-/* ============================================ */
 :root {
-    /* Cores primárias — azul educacional */
-    --primary:        #d946ef;
-    --primary-light:  #f472b6;
-    --primary-xlight: #fdf2ff;
-    --primary-dark:   #a21caf;
-
-    /* Acento verde sucesso */
-    --success:        #10b981;
-    --success-light:  #d1fae5;
-
-    /* Acento âmbar aviso */
-    --warning:        #f59e0b;
-    --warning-light:  #fef9c3;
-
-    /* Vermelho perigo */
-    --danger:         #f43f5e;
-    --danger-light:   #ffe4e6;
-
-    /* Info ciano */
-    --info:           #06b6d4;
-    --info-light:     #cffafe;
-
-    /* Roxo destaque */
-    --purple:         #8b5cf6;
-    --purple-light:   #ede9fe;
-
-    /* Neutros */
-    --dark:           #2b2140;
-    --dark-mid:       #3f2d63;
-    --gray-dark:      #54467a;
-    --gray:           #7b6ea3;
-    --gray-light:     #a79aca;
-    --border:         #edd7ff;
-    --border-light:   #f8ecff;
-    --bg:             #fff8ff;
-    --white:          #ffffff;
-
-    /* Gradientes */
-    --grad-primary:   linear-gradient(120deg, #ff7fd1 0%, #ffd67f 23%, #97f7f0 46%, #9cc7ff 70%, #d8a0ff 100%);
-    --grad-teal:      linear-gradient(135deg, #38bdf8 0%, #22d3ee 100%);
-    --grad-emerald:   linear-gradient(135deg, #34d399 0%, #10b981 100%);
-    --grad-amber:     linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-    --grad-danger:    linear-gradient(135deg, #fb7185 0%, #f43f5e 100%);
-    --grad-purple:    linear-gradient(135deg, #a78bfa 0%, #d946ef 100%);
-    --grad-school:    linear-gradient(120deg, #ff95d6 0%, #ffd67f 28%, #9ce7ff 55%, #b39bff 82%, #ff9ee2 100%);
-    --grad-warm:      linear-gradient(120deg, #fdba74 0%, #fda4af 50%, #f9a8d4 100%);
-
-    /* Sombras */
-    --shadow-xs:  0 1px 2px rgba(15,23,42,0.06);
-    --shadow-sm:  0 2px 4px rgba(15,23,42,0.08);
-    --shadow-md:  0 4px 12px rgba(15,23,42,0.10);
-    --shadow-lg:  0 8px 24px rgba(15,23,42,0.12);
-    --shadow-xl:  0 16px 40px rgba(15,23,42,0.14);
-    --shadow-2xl: 0 24px 64px rgba(15,23,42,0.18);
-    --shadow-blue: 0 8px 24px rgba(168,85,247,0.30);
-    --shadow-green: 0 8px 24px rgba(45,212,191,0.28);
-
-    /* Raios */
-    --r-xs:  4px;
-    --r-sm:  8px;
-    --r-md:  12px;
-    --r-lg:  16px;
-    --r-xl:  20px;
-    --r-2xl: 24px;
-    --r-3xl: 32px;
-    --r-full: 9999px;
-}
-
-/* ============================================ */
-/* ========== ANIMAÇÕES ========== */
-/* ============================================ */
-@keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(16px); }
-    to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes fadeInLeft {
-    from { opacity: 0; transform: translateX(-16px); }
-    to   { opacity: 1; transform: translateX(0); }
-}
-@keyframes scaleIn {
-    from { opacity: 0; transform: scale(0.95); }
-    to   { opacity: 1; transform: scale(1); }
-}
-@keyframes pulseGlow {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(37,99,235,0.3); }
-    50%       { box-shadow: 0 0 0 8px rgba(37,99,235,0); }
-}
-@keyframes shimmer {
-    0%   { background-position: -200% center; }
-    100% { background-position: 200% center; }
-}
-@keyframes floatDot {
-    0%, 100% { transform: translateY(0); }
-    50%       { transform: translateY(-6px); }
-}
-
-.animate-fade-in   { animation: fadeInUp 0.5s cubic-bezier(.16,1,.3,1) both; }
-.animate-slide-in  { animation: fadeInLeft 0.4s cubic-bezier(.16,1,.3,1) both; }
-.animate-scale-in  { animation: scaleIn 0.35s cubic-bezier(.16,1,.3,1) both; }
-
-/* ============================================ */
-/* ========== SCROLLBAR PERSONALIZADA ========== */
-/* ============================================ */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: var(--border-light); border-radius: var(--r-full); }
-::-webkit-scrollbar-thumb { background: linear-gradient(180deg, var(--primary-light), var(--purple)); border-radius: var(--r-full); }
-::-webkit-scrollbar-thumb:hover { background: var(--primary); }
-
-/* ============================================ */
-/* ========== LAYOUT PRINCIPAL ========== */
-/* ============================================ */
-.stApp {
-    background:
-        radial-gradient(circle at 8% 6%, rgba(244,114,182,0.28), transparent 34%),
-        radial-gradient(circle at 86% 10%, rgba(147,197,253,0.24), transparent 30%),
-        radial-gradient(circle at 80% 85%, rgba(45,212,191,0.22), transparent 28%),
-        linear-gradient(135deg, #fff7fb 0%, #fffaf0 26%, #f3fcff 50%, #f6f2ff 76%, #fff8fd 100%) !important;
-    color: var(--dark) !important;
-}
-
-[data-testid="stAppViewContainer"] {
-    background: transparent !important;
-}
-
-.main .block-container {
-    max-width: 1480px !important;
-    padding-top: 1.4rem !important;
-    padding-left: 2rem !important;
-    padding-right: 2rem !important;
-    padding-bottom: 3rem !important;
-}
-
-footer { visibility: hidden; }
-#MainMenu { visibility: hidden; }
-
-/* ============================================ */
-/* ========== SIDEBAR SIMPLES ========== */
-/* ============================================ */
-section[data-testid="stSidebar"] {
-    background: #f8fbff !important;
-    border-right: 1px solid #e2e8f0 !important;
-    min-width: 300px !important;
-    max-width: 300px !important;
-}
-
-section[data-testid="stSidebar"] > div:first-child {
-    padding: 0.75rem !important;
-}
-
-section[data-testid="stSidebar"] p,
-section[data-testid="stSidebar"] span,
-section[data-testid="stSidebar"] h1,
-section[data-testid="stSidebar"] h2,
-section[data-testid="stSidebar"] h3 {
-    color: #334155 !important;
-}
-
-section[data-testid="stSidebar"] div[data-testid="stButton"] {
-    margin: 0.2rem 0 !important;
-}
-
-section[data-testid="stSidebar"] div[data-testid="stButton"] > button {
-    background: #ffffff !important;
-    border: 1px solid #d9e2f0 !important;
-    border-radius: 12px !important;
-    color: #1e293b !important;
-    min-height: 46px !important;
-    text-align: left !important;
-    box-shadow: none !important;
-}
-
-section[data-testid="stSidebar"] div[data-testid="stButton"] > button:hover {
-    border-color: #93c5fd !important;
-    background: #f8fbff !important;
-}
-
-section[data-testid="stSidebar"] div[data-testid="stButton"] > button[kind="primary"] {
-    background: #e0ecff !important;
-    border-color: #60a5fa !important;
-    color: #1e3a8a !important;
-    font-weight: 700 !important;
-}
-
-/* ============================================ */
-/* ========== TIPOGRAFIA ========== */
-/* ============================================ */
-h1, h2, h3, h4, h5, h6 {
-    font-family: 'Nunito', sans-serif !important;
-    font-weight: 700 !important;
-    color: var(--dark) !important;
-    letter-spacing: -0.02em !important;
-    margin-bottom: 0.75rem !important;
-    white-space: normal !important;
-    word-break: break-word !important;
-}
-
-h1 { font-size: 1.9rem !important; }
-h2 { font-size: 1.55rem !important; }
-h3 { font-size: 1.25rem !important; }
-h4 { font-size: 1.05rem !important; }
-
-p, span, div, label, li {
-    white-space: normal !important;
-    word-wrap: break-word !important;
-    word-break: break-word !important;
-    overflow-wrap: break-word !important;
-    line-height: 1.6 !important;
-}
-
-button {
-    white-space: normal !important;
-}
-
-[data-testid="stFileUploaderDropzone"] * {
-    white-space: nowrap !important;
-}
-[data-testid="stSidebar"] button {
-    white-space: normal !important;
-}
-
-/* ============================================ */
-/* ========== HEADER DA ESCOLA ========== */
-/* ============================================ */
-.main-header {
-    background:
-        radial-gradient(circle at top right, rgba(255,255,255,0.7), transparent 36%),
-        linear-gradient(120deg, #fff7fc 0%, #fffaf2 38%, #f6fbff 72%, #faf5ff 100%);
-    padding: 2.2rem 2.2rem;
-    border-radius: 24px;
-    color: #241b4d;
-    text-align: center;
-    margin-bottom: 2rem;
-    border: 1.5px solid rgba(196,181,253,0.35);
-    box-shadow: 0 14px 26px rgba(76,29,149,0.08), 0 0 0 1px rgba(255,255,255,0.55) inset;
-    position: relative;
-    overflow: hidden;
-    animation: fadeInUp 0.6s cubic-bezier(.16,1,.3,1) both;
-}
-
-.main-header::before {
-    content: '';
-    position: absolute;
-    top: -60%;
-    right: -10%;
-    width: 500px;
-    height: 500px;
-    background: rgba(129,140,248,0.12);
-    border-radius: 50%;
-    pointer-events: none;
-}
-
-.main-header::after {
-    content: '';
-    position: absolute;
-    bottom: -40%;
-    left: -8%;
-    width: 350px;
-    height: 350px;
-    background: rgba(244,114,182,0.10);
-    border-radius: 50%;
-    pointer-events: none;
-}
-
-/* Pattern decorativo */
-.main-header .pattern {
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background-image:
-        radial-gradient(circle at 20% 50%, rgba(124,58,237,0.10) 1px, transparent 1px),
-        radial-gradient(circle at 80% 20%, rgba(236,72,153,0.10) 1px, transparent 1px);
-    background-size: 46px 46px;
-    pointer-events: none;
-}
-
-.school-header-inner {
-    position: relative;
-    z-index: 1;
-    max-width: 940px;
-    margin: 0 auto;
-}
-
-
-.school-name {
-    font-family: 'Nunito', sans-serif !important;
-    font-size: clamp(1.8rem, 2.6vw, 2.45rem);
-    font-weight: 900;
-    letter-spacing: -0.03em;
-    margin-bottom: 0.45rem;
-    color: #31215f;
-    line-height: 1.2;
-    text-shadow: 0 1px 0 rgba(255,255,255,0.7);
-    white-space: normal !important;
-}
-
-.school-subtitle {
-    font-size: 0.98rem;
-    font-weight: 700;
-    opacity: 1;
-    margin-bottom: 1rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #6d28d9;
-}
-
-.school-info-chips {
-    display: flex;
-    justify-content: center;
-    gap: 0.7rem;
-    flex-wrap: wrap;
-}
-
-.school-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    background: rgba(255,255,255,0.62);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(124,58,237,0.22);
-    border-radius: 999px;
-    padding: 0.5rem 0.9rem;
-    font-size: 0.8rem;
-    font-weight: 700;
-    color: #3f2d77;
-    white-space: normal;
-}
-
-.school-chip-address {
-    width: min(100%, 820px);
-    justify-content: center;
-}
-
-/* ============================================ */
-/* ========== CARDS DE MÉTRICAS ========== */
-/* ============================================ */
-.metric-card {
-    border-radius: 26px;
-    padding: 1.2rem 1.05rem 1rem 1.05rem;
-    text-align: left;
-    transition: all 0.3s cubic-bezier(.16,1,.3,1);
-    position: relative;
-    overflow: hidden;
-    color: white;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: flex-start;
-    border: 1px solid rgba(255,255,255,0.14);
-    backdrop-filter: blur(10px);
-    box-shadow: 0 16px 30px rgba(15,23,42,0.10);
-}
-
-.metric-card::before {
-    content: '';
-    position: absolute;
-    top: -24px; right: -24px;
-    width: 108px; height: 108px;
-    background: rgba(255,255,255,0.12);
-    border-radius: 50%;
-}
-
-.metric-card:hover {
-    transform: translateY(-7px) scale(1.01);
-    filter: brightness(1.05);
-    box-shadow: 0 22px 40px rgba(15,23,42,0.20) !important;
-}
-
-.metric-icon {
-    font-size: 1.55rem;
-    margin-bottom: 0.75rem;
-    width: 50px;
-    height: 50px;
-    border-radius: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(255,255,255,0.16);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.18);
-    position: relative;
-    z-index: 1;
-}
-
-.metric-value {
-    font-family: 'Nunito', sans-serif !important;
-    font-size: 2.6rem;
-    font-weight: 900;
-    line-height: 1;
-    position: relative;
-    z-index: 1;
-    text-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-.metric-label {
-    font-size: 0.78rem;
-    font-weight: 700;
-    margin-top: 0.55rem;
-    text-transform: uppercase;
-    letter-spacing: 0.09em;
-    opacity: 0.92;
-    position: relative;
-    z-index: 1;
-    white-space: normal !important;
-}
-
-.metric-sub {
-    font-size: 0.75rem;
-    margin-top: 0.35rem;
-    opacity: 0.75;
-    position: relative;
-    z-index: 1;
-}
-
-/* ============================================ */
-/* ========== CARDS GENÉRICOS ========== */
-/* ============================================ */
-.card {
-    background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.98) 100%);
-    padding: 1.5rem;
-    border-radius: 26px;
-    border: 1px solid rgba(148,163,184,0.22);
-    margin: 0.75rem 0;
-    box-shadow: 0 14px 32px rgba(15,23,42,0.08);
-    transition: all 0.25s cubic-bezier(.16,1,.3,1);
-    position: relative;
-    overflow: hidden;
-    color: var(--dark);
-}
-
-.card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0;
-    width: 4px;
-    height: 100%;
-    background: var(--grad-primary);
-    border-radius: 0 0 0 var(--r-2xl);
-    opacity: 0;
-    transition: opacity 0.3s;
-}
-
-.card:hover {
-    box-shadow: 0 18px 38px rgba(37,99,235,0.12);
-    transform: translateY(-3px);
-    border-color: rgba(96,165,250,0.48);
-}
-
-.card:hover::before {
-    opacity: 1;
-}
-
-.card-title {
-    font-family: 'Nunito', sans-serif !important;
-    font-weight: 700;
-    color: var(--dark);
-    font-size: 1.05rem;
-    margin-bottom: 0.6rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    white-space: normal !important;
-}
-
-.card b,
-.card span,
-.card div,
-.card p {
-    color: var(--dark) !important;
-    -webkit-text-fill-color: var(--dark) !important;
-}
-
-.card-value {
-    font-family: 'Nunito', sans-serif !important;
-    font-size: 2rem;
-    font-weight: 900;
-    background: var(--grad-primary);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    line-height: 1.2;
-}
-
-/* ============================================ */
-/* ========== BADGES ========== */
-/* ============================================ */
-.badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    padding: 0.3rem 0.85rem;
-    border-radius: var(--r-full);
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    white-space: nowrap;
-}
-
-.badge-primary   { background: var(--primary-xlight); color: var(--primary-dark); border: 1.5px solid #bfdbfe; }
-.badge-success   { background: var(--success-light); color: #065f46; border: 1.5px solid #a7f3d0; }
-.badge-warning   { background: var(--warning-light); color: #92400e; border: 1.5px solid #fde68a; }
-.badge-danger    { background: var(--danger-light); color: #991b1b; border: 1.5px solid #fca5a5; }
-.badge-info      { background: var(--info-light); color: #0c4a6e; border: 1.5px solid #7dd3fc; }
-.badge-purple    { background: var(--purple-light); color: #4c1d95; border: 1.5px solid #c4b5fd; }
-.badge-dark      { background: var(--grad-primary); color: white; border: none; }
-
-/* Gravidade badges grandes */
-.badge-gravidade {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.45rem 1.25rem;
-    border-radius: var(--r-full);
-    font-size: 0.9rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-/* ============================================ */
-/* ========== CAIXAS DE MENSAGEM ========== */
-/* ============================================ */
-.success-box {
-    background: linear-gradient(135deg, #f0fdf4, #dcfce7);
-    border: 1.5px solid #86efac;
-    border-left: 4px solid var(--success);
-    border-radius: var(--r-xl);
-    padding: 1.1rem 1.25rem;
-    margin: 1rem 0;
-    color: #14532d;
-    font-weight: 500;
-    box-shadow: var(--shadow-sm);
-    animation: fadeInUp 0.35s ease both;
-}
-
-.warning-box {
-    background: linear-gradient(135deg, #fffbeb, #fef9c3);
-    border: 1.5px solid #fde047;
-    border-left: 4px solid var(--warning);
-    border-radius: var(--r-xl);
-    padding: 1.1rem 1.25rem;
-    margin: 1rem 0;
-    color: #78350f;
-    font-weight: 500;
-    box-shadow: var(--shadow-sm);
-    animation: fadeInUp 0.35s ease both;
-}
-
-.error-box {
-    background: linear-gradient(135deg, #fff1f2, #fee2e2);
-    border: 1.5px solid #fca5a5;
-    border-left: 4px solid var(--danger);
-    border-radius: var(--r-xl);
-    padding: 1.1rem 1.25rem;
-    margin: 1rem 0;
-    color: #7f1d1d;
-    font-weight: 500;
-    box-shadow: var(--shadow-sm);
-    animation: fadeInUp 0.35s ease both;
-}
-
-.info-box {
-    background: linear-gradient(135deg, #eff6ff, #dbeafe);
-    border: 1.5px solid #93c5fd;
-    border-left: 4px solid var(--primary);
-    border-radius: var(--r-xl);
-    padding: 1.1rem 1.25rem;
-    margin: 1rem 0;
-    color: #1e3a8a;
-    font-weight: 500;
-    box-shadow: var(--shadow-sm);
-    animation: fadeInUp 0.35s ease both;
-}
-
-.stAlert {
-    border-radius: var(--r-lg) !important;
-    border-left-width: 4px !important;
-    box-shadow: var(--shadow-sm) !important;
-    animation: fadeInUp 0.3s ease both !important;
-    white-space: normal !important;
-}
-
-/* ============================================ */
-/* ========== PROTOCOLO INFO BOX ========== */
-/* ============================================ */
-.protocolo-info {
-    background: linear-gradient(135deg, #f0f4ff, #e8f0fe);
-    border: 1.5px solid #c7d7fd;
-    border-left: 5px solid var(--primary);
-    border-radius: var(--r-xl);
-    padding: 1.25rem 1.5rem;
-    margin: 1rem 0;
-    color: var(--dark-mid);
-    box-shadow: var(--shadow-md);
-    font-size: 0.95rem;
-    line-height: 1.7;
-}
-
-.protocolo-info b {
-    color: var(--primary-dark);
-}
-
-/* ============================================ */
-/* ========== BOTÕES PREMIUM ========== */
-/* ============================================ */
-.stButton > button {
-    border-radius: var(--r-lg) !important;
-    font-family: 'Inter', sans-serif !important;
-    font-weight: 600 !important;
-    font-size: 0.875rem !important;
-    letter-spacing: 0.01em !important;
-    transition: all 0.25s cubic-bezier(.16,1,.3,1) !important;
-    border: none !important;
-    padding: 0.6rem 1.2rem !important;
-    min-height: 40px !important;
-    white-space: normal !important;
-    position: relative;
-    overflow: hidden;
-}
-
-.stButton > button::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: rgba(255,255,255,0);
-    transition: background 0.2s;
-}
-
-.stButton > button:hover::after {
-    background: rgba(255,255,255,0.12);
-}
-
-.stButton > button[kind="primary"] {
-    background: var(--grad-primary) !important;
-    color: white !important;
-    box-shadow: 0 4px 12px rgba(37,99,235,0.3) !important;
-}
-
-.stButton > button[kind="primary"]:hover {
-    box-shadow: 0 8px 20px rgba(37,99,235,0.4) !important;
-    transform: translateY(-2px) !important;
-}
-
-.stButton > button[kind="primary"]:active {
-    transform: translateY(0) !important;
-    box-shadow: 0 2px 8px rgba(37,99,235,0.3) !important;
-}
-
-.stButton > button[kind="secondary"] {
-    background: var(--white) !important;
-    color: var(--gray-dark) !important;
-    border: 1.5px solid var(--border) !important;
-    box-shadow: var(--shadow-xs) !important;
-}
-
-.stButton > button[kind="secondary"]:hover {
-    background: var(--primary-xlight) !important;
-    border-color: var(--primary-light) !important;
-    color: var(--primary) !important;
-    transform: translateY(-1px) !important;
-    box-shadow: var(--shadow-sm) !important;
-}
-
-/* ============================================ */
-/* ========== INPUTS MODERNOS ========== */
-/* ============================================ */
-.stTextInput > div > div > input,
-.stTextArea > div > div > textarea {
-    border-radius: 18px !important;
-    border: 1px solid rgba(148,163,184,0.30) !important;
-    font-family: 'Inter', sans-serif !important;
-    font-size: 0.96rem !important;
-    background: rgba(255,255,255,0.96) !important;
-    color: var(--dark) !important;
-    transition: all 0.2s !important;
-    padding: 0.72rem 0.95rem !important;
-    box-shadow: 0 10px 22px rgba(15,23,42,0.05) !important;
-}
-
-.stTextInput > div > div > input:focus,
-.stTextArea > div > div > textarea:focus {
-    border-color: var(--primary) !important;
-    box-shadow: 0 0 0 3px rgba(37,99,235,0.12) !important;
-    outline: none !important;
-}
-
-.stTextArea textarea {
-    min-height: 110px !important;
-    line-height: 1.6 !important;
-}
-
-/* Menu suspenso novo (do zero, simples e estável) */
-[data-baseweb="select"] > div:first-child {
-    border-radius: 12px !important;
-    border: 1px solid #d9e2f0 !important;
-    background: #ffffff !important;
-    min-height: 44px !important;
-    box-shadow: none !important;
-}
-
-[data-baseweb="select"] > div:first-child:focus-within {
-    border-color: #3b82f6 !important;
-    box-shadow: 0 0 0 2px rgba(59,130,246,0.14) !important;
-}
-
-[data-baseweb="select"] [role="combobox"],
-[data-baseweb="select"] input,
-[data-baseweb="select"] [aria-live],
-[data-baseweb="select"] [aria-live] * {
-    color: #0f172a !important;
-    -webkit-text-fill-color: #0f172a !important;
-    opacity: 1 !important;
-}
-
-[data-baseweb="menu"],
-[role="listbox"] {
-    background: #ffffff !important;
-    border: 1px solid #d9e2f0 !important;
-    border-radius: 10px !important;
-}
-
-[role="option"] {
-    color: #0f172a !important;
-    -webkit-text-fill-color: #0f172a !important;
-}
-
-/* Ocultar indicador "Running..." / modo de espera do Streamlit */
-[data-testid="stStatusWidget"],
-[data-testid="stStatusWidget"] *,
-.stStatusWidget,
-header [data-testid="stDecoration"],
-div[class*="StatusWidget"],
-div[class*="statusWidget"] {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
-}
-
-/* Também oculta o spinner global de topo da página */
-div[data-testid="stToolbar"] [data-testid="stStatusWidget"],
-.st-emotion-cache-ue6h4q,
-[class*="AppRunningIcon"],
-[class*="appRunningIcon"] {
-    display: none !important;
-}
-
-/* Labels */
-.stTextInput label,
-.stTextArea label,
-.stSelectbox label,
-.stMultiSelect label,
-.stDateInput label,
-.stTimeInput label,
-.stSlider label,
-.stCheckbox label,
-.stRadio label {
-    font-family: 'Inter', sans-serif !important;
-    font-size: 0.82rem !important;
-    font-weight: 600 !important;
-    color: var(--gray-dark) !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.05em !important;
-    margin-bottom: 0.25rem !important;
-}
-
-/* ============================================ */
-/* ========== TABS ========== */
-/* ============================================ */
-.stTabs [data-baseweb="tab-list"] {
-    gap: 0.35rem;
-    background: var(--border-light);
-    padding: 0.45rem;
-    border-radius: var(--r-xl);
-    border: 1.5px solid var(--border);
-    flex-wrap: wrap;
-}
-
-.stTabs [data-baseweb="tab"] {
-    border-radius: var(--r-lg) !important;
-    padding: 0.55rem 1.1rem !important;
-    font-family: 'Inter', sans-serif !important;
-    font-size: 0.875rem !important;
-    font-weight: 500 !important;
-    color: var(--gray) !important;
-    transition: all 0.2s !important;
-    border: none !important;
-    background: transparent !important;
-    white-space: nowrap !important;
-}
-
-.stTabs [data-baseweb="tab"]:hover {
-    background: var(--white) !important;
-    color: var(--primary) !important;
-}
-
-.stTabs [aria-selected="true"] {
-    background: var(--white) !important;
-    color: var(--primary-dark) !important;
-    font-weight: 700 !important;
-    box-shadow: var(--shadow-md) !important;
-    border-bottom: 2px solid var(--primary) !important;
-}
-
-/* ============================================ */
-/* ========== DATAFRAME PREMIUM ========== */
-/* ============================================ */
-[data-testid="stDataFrame"] {
-    border-radius: var(--r-xl) !important;
-    overflow: hidden !important;
-    border: 1.5px solid var(--border) !important;
-    box-shadow: var(--shadow-md) !important;
-}
-
-[data-testid="stDataFrame"] th {
-    background: linear-gradient(135deg, #1d4ed8, #2563eb) !important;
-    color: white !important;
-    font-family: 'Inter', sans-serif !important;
-    font-weight: 700 !important;
-    font-size: 0.8rem !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.05em !important;
-    padding: 0.7rem 1rem !important;
-    white-space: nowrap !important;
-}
-
-[data-testid="stDataFrame"] td {
-    padding: 0.55rem 1rem !important;
-    border-bottom: 1px solid var(--border-light) !important;
-    font-size: 0.875rem !important;
-    color: var(--gray-dark) !important;
-    white-space: normal !important;
-}
-
-[data-testid="stDataFrame"] tr:nth-child(even) td {
-    background: #fafbff !important;
-}
-
-[data-testid="stDataFrame"] tr:hover td {
-    background: var(--primary-xlight) !important;
-    color: var(--primary-dark) !important;
-}
-
-/* ============================================ */
-/* ========== EXPANDER ========== */
-/* ============================================ */
-div[data-testid="stExpander"] {
-    border-radius: var(--r-xl) !important;
-    border: 1.5px solid var(--border) !important;
-    background: var(--white) !important;
-    box-shadow: var(--shadow-xs) !important;
-    margin: 0.6rem 0 !important;
-    transition: all 0.25s ease !important;
-    overflow: hidden;
-}
-
-div[data-testid="stExpander"]:hover {
-    box-shadow: var(--shadow-md) !important;
-    border-color: #93c5fd !important;
-}
-
-.streamlit-expanderHeader {
-    border-radius: var(--r-xl) !important;
-    background: linear-gradient(135deg, #fafbff, var(--white)) !important;
-    font-family: 'Inter', sans-serif !important;
-    font-weight: 600 !important;
-    color: var(--dark-mid) !important;
-    padding: 0.8rem 1.25rem !important;
-}
-
-.streamlit-expanderHeader:hover {
-    background: var(--primary-xlight) !important;
-    color: var(--primary-dark) !important;
-}
-
-/* ============================================ */
-/* ========== FORMULÁRIOS ========== */
-/* ============================================ */
-div[data-testid="stForm"] {
-    background: linear-gradient(135deg, #fafbff, var(--white)) !important;
-    border-radius: var(--r-2xl) !important;
-    padding: 1.75rem !important;
-    border: 1.5px solid var(--border) !important;
-    box-shadow: var(--shadow-md) !important;
-    margin: 1.25rem 0 !important;
-    transition: all 0.25s !important;
-}
-
-div[data-testid="stForm"]:hover {
-    border-color: #93c5fd !important;
-    box-shadow: var(--shadow-blue) !important;
-}
-
-/* ============================================ */
-/* ========== MÉTRICAS STREAMLIT ========== */
-/* ============================================ */
-[data-testid="metric-container"] {
-    background: var(--white);
-    border: 1.5px solid var(--border);
-    border-radius: var(--r-xl);
-    padding: 1.1rem;
-    box-shadow: var(--shadow-sm);
-    transition: all 0.25s;
-}
-
-[data-testid="metric-container"]:hover {
-    box-shadow: var(--shadow-md);
-    border-color: #93c5fd;
-    transform: translateY(-2px);
-}
-
-[data-testid="metric-container"] [data-testid="stMetricLabel"] label {
-    font-size: 0.78rem !important;
-    font-weight: 700 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.06em !important;
-    color: var(--gray) !important;
-    white-space: normal !important;
-}
-
-[data-testid="metric-container"] [data-testid="stMetricValue"] {
-    font-family: 'Nunito', sans-serif !important;
-    font-size: 1.9rem !important;
-    font-weight: 800 !important;
-    color: var(--dark) !important;
-}
-
-/* ============================================ */
-/* ========== PROGRESS BAR ========== */
-/* ============================================ */
-.stProgress > div > div > div {
-    background: var(--grad-primary) !important;
-    border-radius: var(--r-full) !important;
-}
-.stProgress > div > div {
-    background: var(--border-light) !important;
-    border-radius: var(--r-full) !important;
-}
-
-/* ============================================ */
-/* ========== SECTION TITLES ========== */
-/* ============================================ */
-.section-title {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    margin: 1.5rem 0 1rem 0;
-    padding-bottom: 0.6rem;
-    border-bottom: 2px solid var(--border);
-    position: relative;
-}
-
-.section-title::after {
-    content: '';
-    position: absolute;
-    bottom: -2px;
-    left: 0;
-    width: 60px;
-    height: 2px;
-    background: var(--grad-primary);
-    border-radius: var(--r-full);
-}
-
-.section-title h3 {
-    margin: 0 !important;
-    font-size: 1.1rem !important;
-    color: var(--dark-mid) !important;
-}
-
-/* ============================================ */
-/* ========== MAPA DA SALA ========== */
-/* ============================================ */
-.sala-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin: 20px 0;
-    padding: 24px;
-    background: linear-gradient(135deg, #f0f4ff, #f8fafc);
-    border-radius: var(--r-2xl);
-    border: 1.5px solid var(--border);
-    box-shadow: var(--shadow-md);
-}
-
-.fileira-row {
-    display: flex;
-    gap: 10px;
-    justify-content: center;
-}
-
-.assento-card {
-    width: 74px;
-    height: 52px;
-    border: 2px solid var(--border);
-    border-radius: var(--r-md);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 9px;
-    font-family: 'Inter', sans-serif;
-    font-weight: 600;
-    text-align: center;
-    background: var(--white);
-    transition: all 0.2s;
-    padding: 3px;
-    word-break: break-word;
-    cursor: default;
-    box-shadow: var(--shadow-xs);
-}
-
-.assento-card.ocupado {
-    background: var(--grad-primary);
-    color: white;
-    border-color: var(--primary);
-    box-shadow: 0 4px 8px rgba(37,99,235,0.25);
-}
-
-.assento-card.vazio {
-    background: var(--white);
-    color: var(--gray-light);
-    border-style: dashed;
-}
-
-.lousa {
-    width: 100%;
-    max-width: 320px;
-    height: 38px;
-    background: linear-gradient(135deg, #0f172a, #1e293b);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: 'Nunito', sans-serif;
-    font-weight: 800;
-    font-size: 0.85rem;
-    letter-spacing: 0.1em;
-    border-radius: var(--r-md);
-    margin: 12px auto;
-    box-shadow: var(--shadow-md);
-}
-
-/* ============================================ */
-/* ========== GLASS EFFECT ========== */
-/* ============================================ */
-.glass-effect {
-    background: rgba(255,255,255,0.75);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1.5px solid rgba(255,255,255,0.4);
-}
-
-/* ============================================ */
-/* ========== GRADIENT TEXT ========== */
-/* ============================================ */
-.gradient-text {
-    background: var(--grad-primary);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    font-family: 'Nunito', sans-serif !important;
-    font-weight: 900;
-}
-
-.gradient-text-warm {
-    background: var(--grad-warm);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    font-family: 'Nunito', sans-serif !important;
-    font-weight: 900;
-}
-
-/* ============================================ */
-/* ========== QUICK ACTION CARDS ========== */
-/* ============================================ */
-.quick-action-card {
-    background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.98));
-    border: 1px solid rgba(148,163,184,0.20);
-    border-radius: 24px;
-    padding: 1.25rem;
-    text-align: center;
-    transition: all 0.3s cubic-bezier(.16,1,.3,1);
-    box-shadow: 0 12px 28px rgba(15,23,42,0.08);
-    cursor: pointer;
-}
-
-.quick-action-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 18px 36px rgba(37,99,235,0.14);
-    border-color: rgba(96,165,250,0.55);
-}
-
-.quick-action-icon {
-    font-size: 2rem;
-    margin-bottom: 0.5rem;
-    display: block;
-}
-
-/* ============================================ */
-/* ========== PAGE BANNER ========== */
-/* ============================================ */
-.page-banner {
-    position: relative;
-    overflow: hidden;
-    margin-bottom: 1.4rem;
-    padding: 1.35rem 1.45rem;
-    border-radius: 24px;
-    background: linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(248,250,252,0.98) 100%);
-    border: 1px solid rgba(148,163,184,0.20);
-    box-shadow: 0 16px 34px rgba(15,23,42,0.08);
-}
-
-.page-banner::before {
-    content: '';
-    position: absolute;
-    inset: 0 auto 0 0;
-    width: 6px;
-    background: var(--banner-accent, #2563eb);
-}
-
-.page-banner::after {
-    content: '';
-    position: absolute;
-    top: -45px;
-    right: -30px;
-    width: 150px;
-    height: 150px;
-    border-radius: 999px;
-    background: radial-gradient(circle, rgba(37,99,235,0.10), transparent 70%);
-}
-
-.page-banner-content {
-    position: relative;
-    z-index: 1;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.page-banner-icon {
-    width: 58px;
-    height: 58px;
-    border-radius: 18px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, var(--banner-accent, #2563eb), rgba(15,23,42,0.92));
-    color: white;
-    font-size: 1.5rem;
-    box-shadow: 0 12px 24px rgba(15,23,42,0.14);
-    flex-shrink: 0;
-}
-
-.page-banner-copy {
-    min-width: 0;
-}
-
-.page-banner-kicker {
-    color: var(--banner-accent, #2563eb);
-    font-size: 0.74rem;
-    font-weight: 800;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-}
-
-.page-banner-title {
-    font-family: 'Nunito', sans-serif !important;
-    color: var(--dark);
-    font-size: 1.55rem;
-    font-weight: 900;
-    line-height: 1.15;
-    margin: 0.18rem 0 0.2rem 0;
-}
-
-.page-banner-subtitle {
-    color: var(--gray);
-    font-size: 0.95rem;
-    margin: 0;
-}
-
-/* ============================================ */
-/* ========== SECTION HEADERS ========== */
-/* ============================================ */
-.section-header {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin: 0.4rem 0 0.95rem 0;
-}
-
-.section-header-bar {
-    width: 5px;
-    height: 24px;
-    border-radius: 999px;
-    background: var(--section-accent, linear-gradient(180deg,#2563eb,#0891b2));
-    flex-shrink: 0;
-}
-
-.section-header-copy {
-    min-width: 0;
-}
-
-.section-header-title {
-    margin: 0;
-    font-family: 'Nunito', sans-serif;
-    font-size: 1.12rem;
-    font-weight: 900;
-    color: #0f172a;
-    line-height: 1.15;
-}
-
-.section-header-subtitle {
-    margin: 0.15rem 0 0 0;
-    color: #64748b;
-    font-size: 0.84rem;
-}
-
-/* ============================================ */
-/* ========== DASHBOARD PANORAMA ========== */
-/* ============================================ */
-.dashboard-panorama {
-    overflow: hidden;
-    border-radius: 8px;
-    background: #ffffff;
-    border: 1px solid #d7e3f0;
-    box-shadow: 0 10px 24px rgba(37,99,235,0.08);
-    margin: 1.1rem 0 1.25rem;
-}
-
-.dashboard-panorama-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    background: linear-gradient(90deg, #22c7a8, #0ea5e9);
-    color: #ffffff;
-    padding: 0.75rem 1rem;
-}
-
-.dashboard-panorama-title {
-    margin: 0;
-    font-size: 0.98rem;
-    font-weight: 850;
-    color: #ffffff;
-}
-
-.dashboard-panorama-date {
-    flex: 0 0 auto;
-    padding: 0.32rem 0.7rem;
-    border-radius: 999px;
-    background: rgba(255,255,255,0.18);
-    border: 1px solid rgba(255,255,255,0.35);
-    color: #ffffff;
-    font-weight: 800;
-    font-size: 0.78rem;
-}
-
-.dashboard-panorama-body {
-    padding: 1rem;
-    background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
-}
-
-.dashboard-panorama-text {
-    margin: 0;
-    color: #334155;
-    font-size: 0.94rem;
-    line-height: 1.55;
-    max-width: 100%;
-}
-
-.dashboard-panorama-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.75rem;
-    margin-top: 0.95rem;
-}
-
-.dashboard-panorama-mini {
-    min-width: 0;
-    border-radius: 8px;
-    border: 1px solid #dbeafe;
-    background: #f8fbff;
-    padding: 0.72rem 0.8rem;
-}
-
-.dashboard-panorama-mini-label {
-    margin: 0 0 0.2rem;
-    color: #64748b;
-    font-size: 0.74rem;
-    font-weight: 750;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
-
-.dashboard-panorama-mini-value {
-    margin: 0;
-    color: #0f172a;
-    font-size: 1.02rem;
-    line-height: 1.2;
-    font-weight: 850;
-    overflow-wrap: anywhere;
-}
-
-.sed-dashboard-header {
-    background: #ffffff;
-    border: 1px solid #d7e3f0;
-    border-radius: 8px;
-    box-shadow: 0 8px 22px rgba(15,23,42,0.06);
-    margin: 0 0 1rem;
-    overflow: hidden;
-}
-
-.sed-dashboard-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 1rem 1.1rem 0.85rem;
-}
-
-.sed-dashboard-brand {
-    display: flex;
-    align-items: center;
-    gap: 0.85rem;
-    min-width: 0;
-}
-
-.sed-dashboard-mark {
-    width: 44px;
-    height: 44px;
-    border-radius: 8px;
-    background: linear-gradient(135deg, #2f9ddd, #21c4a8);
-    color: #ffffff;
-    display: grid;
-    place-items: center;
-    font-size: 1.35rem;
-    font-weight: 900;
-    box-shadow: 0 6px 16px rgba(47,157,221,0.25);
-}
-
-.sed-dashboard-kicker {
-    margin: 0;
-    color: #7a8794;
-    font-size: 0.86rem;
-    font-weight: 800;
-    text-transform: uppercase;
-}
-
-.sed-dashboard-title {
-    margin: 0.12rem 0 0;
-    color: #2f9ddd;
-    font-size: 1.9rem;
-    line-height: 1;
-    font-weight: 900;
-}
-
-.sed-dashboard-user {
-    text-align: right;
-    color: #64748b;
-    font-size: 0.82rem;
-    line-height: 1.45;
-    font-weight: 650;
-}
-
-.sed-dashboard-user b {
-    color: #2f80d9;
-}
-
-.sed-dashboard-strip {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    justify-content: flex-end;
-    padding: 0 1.1rem 1rem;
-}
-
-.sed-dashboard-pill {
-    background: #3f98d4;
-    color: #ffffff;
-    border-radius: 4px;
-    padding: 0.42rem 0.7rem;
-    font-size: 0.78rem;
-    font-weight: 750;
-}
-
-.conviva-welcome-sed {
-    display: flex;
-    align-items: center;
-    gap: 0.95rem;
-    background: #ffffff;
-    border: 1px solid #d7e3f0;
-    border-left: 5px solid #21c4a8;
-    border-radius: 8px;
-    padding: 1rem 1.1rem;
-    box-shadow: 0 8px 20px rgba(15,23,42,0.06);
-    margin-bottom: 1rem;
-}
-
-.conviva-welcome-sed-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: 8px;
-    display: grid;
-    place-items: center;
-    background: #eaf6ff;
-    font-size: 1.5rem;
-}
-
-.conviva-welcome-sed-title {
-    margin: 0;
-    color: #1f1b3a;
-    font-size: 1.12rem;
-    font-weight: 850;
-}
-
-.conviva-welcome-sed-sub {
-    margin: 0.2rem 0 0;
-    color: #5b6778;
-    font-size: 0.88rem;
-}
-
-.conviva-welcome-sed-quote {
-    margin: 0.35rem 0 0;
-    color: #0f766e;
-    font-size: 0.86rem;
-    font-weight: 800;
-}
-
-/* ============================================ */
-/* ========== FORM PANELS ========== */
-/* ============================================ */
-.form-panel {
-    margin: 0.2rem 0 1rem 0;
-    padding: 1rem 1.1rem;
-    border-radius: 24px;
-    background: linear-gradient(180deg, rgba(255,255,255,0.97), rgba(248,250,252,0.98));
-    border: 1px solid rgba(148,163,184,0.20);
-    box-shadow: 0 16px 30px rgba(15,23,42,0.07);
-}
-
-.form-panel-title {
-    margin: 0;
-    font-family: 'Nunito', sans-serif;
-    font-size: 1.02rem;
-    font-weight: 900;
-    color: #0f172a;
-}
-
-.form-panel-subtitle {
-    margin: 0.18rem 0 0 0;
-    color: #64748b;
-    font-size: 0.86rem;
-}
-
-/* ============================================ */
-/* ========== DATAFRAME PREMIUM ========== */
-/* ============================================ */
-[data-testid="stDataFrame"] {
-    border-radius: 22px !important;
-    overflow: hidden !important;
-    border: 1px solid rgba(148,163,184,0.20) !important;
-    box-shadow: 0 16px 32px rgba(15,23,42,0.08) !important;
-    background: rgba(255,255,255,0.96) !important;
-}
-
-[data-testid="stDataFrame"] [role="grid"] {
-    border-radius: 22px !important;
-}
-
-[data-testid="stDataFrame"] [role="columnheader"] {
-    background: linear-gradient(180deg, #eff6ff 0%, #e0f2fe 100%) !important;
-    color: #0f172a !important;
-    font-weight: 800 !important;
-    border-bottom: 1px solid rgba(148,163,184,0.20) !important;
-}
-
-[data-testid="stDataFrame"] [role="gridcell"] {
-    background: rgba(255,255,255,0.96) !important;
-    color: #0f172a !important;
-    border-color: rgba(226,232,240,0.75) !important;
-}
-
-[data-testid="stDataFrame"] [role="row"]:hover [role="gridcell"] {
-    background: #f8fbff !important;
-}
-
-/* ============================================ */
-/* ========== RESPONSIVO ========== */
-/* ============================================ */
-@media (max-width: 768px) {
-    .main-header { padding: 1.5rem 1rem; }
-    .school-name  { font-size: 1.7rem; }
-    .school-subtitle { letter-spacing: 0.05em; }
-    .metric-value { font-size: 2rem; }
-    .metric-card  { padding: 1.1rem 0.75rem; }
-    .metric-label { font-size: 0.7rem; }
-    .page-banner-content {
-        align-items: flex-start;
-    }
-    .page-banner-title {
-        font-size: 1.25rem;
-    }
-    .main .block-container {
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
-    }
-    section[data-testid="stSidebar"] {
-        min-width: 285px !important;
-        max-width: 285px !important;
-    }
-    .stTabs [data-baseweb="tab"] {
-        padding: 0.45rem 0.7rem !important;
-        font-size: 0.78rem !important;
-    }
-    .school-info-chips { display: none; }
-}
-
-
-/* ============================================ */
-/* ========== REFINO SED + ARCO-IRIS ========== */
-/* ============================================ */
-h1 { font-size: 1.85rem !important; line-height: 1.2 !important; }
-h2 { font-size: 1.45rem !important; line-height: 1.22 !important; }
-h3 { font-size: 1.15rem !important; line-height: 1.25 !important; }
-h4, h5, h6 { font-size: 1rem !important; line-height: 1.28 !important; }
-p, li, label, .stMarkdown, .stCaption, .stText {
-    line-height: 1.55 !important;
-}
-label, .stTextInput label, .stTextArea label, .stSelectbox label, .stMultiSelect label, .stDateInput label {
-    font-size: 0.82rem !important;
-    letter-spacing: 0.08em !important;
-    text-transform: uppercase !important;
-    font-weight: 800 !important;
-    color: #6d28d9 !important;
-}
-.small-muted { color: #6b7280 !important; font-size: 0.85rem !important; }
-
-[data-testid="stMetric"] {
-    background: rgba(255,255,255,0.84) !important;
-    border: 1px solid rgba(216,180,254,0.95) !important;
-    border-radius: 20px !important;
-    padding: 0.85rem 0.95rem !important;
-    box-shadow: 0 12px 28px rgba(168,85,247,0.10) !important;
-}
-[data-testid="stMetricLabel"] {
-    font-size: 0.78rem !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.08em !important;
-    color: #7c3aed !important;
-    font-weight: 800 !important;
-}
-[data-testid="stMetricValue"] {
-    font-size: 1.25rem !important;
-    line-height: 1.15 !important;
-    color: #2b2140 !important;
-}
-
-[data-baseweb="select"] > div,
-.stDateInput > div > div,
-.stNumberInput > div > div,
-.stTextInput > div > div,
-.stTextArea > div > div,
-.stMultiSelect > div > div {
-    border-radius: 18px !important;
-}
-
-[data-testid="stTabs"] div[role="tablist"] {
-    gap: 0.55rem !important;
-    background: rgba(255,255,255,0.58) !important;
-    padding: 0.55rem !important;
-    border-radius: 24px !important;
-    border: 1px solid rgba(233,213,255,0.95) !important;
-    box-shadow: 0 10px 24px rgba(168,85,247,0.08) !important;
-}
-[data-testid="stTabs"] button[role="tab"] {
-    height: 44px !important;
-    border-radius: 16px !important;
-    padding: 0 0.95rem !important;
-    border: 1px solid transparent !important;
-    background: transparent !important;
-    color: #6b5b95 !important;
-    font-size: 0.94rem !important;
-    font-weight: 700 !important;
-}
-[data-testid="stTabs"] button[aria-selected="true"] {
-    background: linear-gradient(135deg, rgba(255,255,255,0.96), rgba(255,255,255,0.82)) !important;
-    border-color: rgba(217,70,239,0.25) !important;
-    color: #a21caf !important;
-    box-shadow: 0 10px 22px rgba(217,70,239,0.12) !important;
-}
-
-[data-testid="stDataFrame"], [data-testid="stTable"] {
-    background: rgba(255,255,255,0.74) !important;
-    border-radius: 20px !important;
-    border: 1px solid rgba(233,213,255,0.95) !important;
-    overflow: hidden !important;
-    box-shadow: 0 10px 24px rgba(168,85,247,0.08) !important;
-}
-
-.form-panel, .sed-form-card-header, .sed-section-title, .sed-tool-card, .sed-feature-card {
-    animation: fadeInUp 0.3s ease both;
-}
-
-.sed-section-title {
-    display: flex;
-    align-items: center;
-    gap: 0.9rem;
-    padding: 1rem 1.05rem;
-    margin: 0.85rem 0 0.95rem 0;
-    border-radius: 24px;
-    background: linear-gradient(135deg, rgba(255,255,255,0.86), rgba(255,247,252,0.82));
-    border: 1px solid rgba(233,213,255,0.95);
-    box-shadow: 0 14px 28px rgba(168,85,247,0.08);
-    backdrop-filter: blur(10px);
-}
-.sed-section-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.35rem;
-    background: var(--grad-school);
-    box-shadow: 0 12px 22px rgba(236,72,153,0.18);
-}
-.sed-section-kicker {
-    font-size: 0.74rem;
-    font-weight: 900;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: #7c3aed;
-    margin-bottom: 0.12rem;
-}
-.sed-section-heading {
-    font-family: 'Nunito', sans-serif;
-    font-size: 1.12rem;
-    line-height: 1.25;
-    font-weight: 800;
-    color: #2b2140;
-}
-.sed-section-subtitle {
-    font-size: 0.92rem;
-    color: #6b7280;
-    margin-top: 0.2rem;
-}
-.sed-kpi-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 0.75rem;
-    margin: 0.2rem 0 1rem 0;
-}
-.sed-kpi-item {
-    background: rgba(255,255,255,0.80);
-    border: 1px solid rgba(233,213,255,0.96);
-    border-radius: 20px;
-    padding: 0.85rem 1rem;
-    box-shadow: 0 10px 22px rgba(168,85,247,0.08);
-}
-.sed-kpi-label {
-    display: block;
-    font-size: 0.72rem;
-    font-weight: 900;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: #7c3aed;
-    margin-bottom: 0.35rem;
-}
-.sed-kpi-value {
-    display: block;
-    font-size: 1rem;
-    line-height: 1.4;
-    font-weight: 800;
-    color: #312e81;
-    word-break: break-word;
-}
-.sed-feature-card {
-    border-radius: 24px;
-    padding: 1.2rem;
-    background: linear-gradient(135deg, rgba(255,247,251,0.96), rgba(240,249,255,0.96));
-    border: 1px solid rgba(233,213,255,0.96);
-    box-shadow: 0 16px 30px rgba(168,85,247,0.08);
-}
-.sed-feature-card-kicker {
-    font-size: 0.75rem;
-    font-weight: 900;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: #db2777;
-    margin-bottom: 0.35rem;
-}
-.sed-feature-card-title {
-    font-family: 'Nunito', sans-serif;
-    font-size: 1.35rem;
-    line-height: 1.25;
-    font-weight: 900;
-    color: #312e81;
-    margin-bottom: 0.7rem;
-}
-.sed-feature-card-meta {
-    font-size: 0.94rem;
-    color: #4b5563;
-    margin-bottom: 0.45rem;
-}
-.sed-form-card-header {
-    padding: 0.95rem 1rem;
-    margin-bottom: 0.8rem;
-    border-radius: 18px;
-    background: linear-gradient(135deg, rgba(255,255,255,0.88), rgba(248,250,252,0.90));
-    border: 1px solid rgba(233,213,255,0.96);
-    box-shadow: 0 10px 22px rgba(168,85,247,0.07);
-}
-.sed-form-card-title {
-    font-family: 'Nunito', sans-serif;
-    font-size: 1rem;
-    font-weight: 800;
-    color: #2b2140;
-    margin: 0;
-}
-.sed-form-card-subtitle {
-    font-size: 0.9rem;
-    color: #6b7280;
-    margin-top: 0.2rem;
-}
-.sed-tool-card {
-    padding: 1rem;
-    border-radius: 20px;
-    background: linear-gradient(135deg, rgba(255,255,255,0.92), rgba(255,249,252,0.92));
-    border: 1px solid rgba(233,213,255,0.96);
-    box-shadow: 0 12px 24px rgba(168,85,247,0.08);
-    margin-bottom: 0.8rem;
-}
-.sed-tool-card-title {
-    font-family: 'Nunito', sans-serif;
-    font-size: 1rem;
-    font-weight: 800;
-    color: #2b2140;
-    margin-bottom: 0.2rem;
-}
-.sed-tool-card-subtitle {
-    font-size: 0.88rem;
-    line-height: 1.45;
-    color: #6b7280;
-}
-.sed-inline-note {
-    font-size: 0.88rem;
-    color: #6b7280;
-    margin-top: -0.1rem;
-    margin-bottom: 0.35rem;
-}
-
-
-
-/* ====================================================== */
-/* ======= CAMADA FINAL: SED + UNICORNIO + ARCO-IRIS ===== */
-/* ====================================================== */
-:root {
-    --sed-blue: #2f9ddd;
-    --sed-teal: #22c7a8;
-    --sed-green: #23c78a;
+    --sed-blue: #3f98d4;
+    --sed-blue-dark: #2c7fbd;
+    --sed-blue-light: #eaf6ff;
+    --sed-green: #22c7a8;
+    --sed-yellow: #ffcc00;
+    --sed-border: #d5e3f3;
+    --sed-bg: #f4f7fb;
+    --sed-panel: #ffffff;
+    --sed-text: #1f2937;
+    --sed-muted: #64748b;
     --uni-pink: #ff7fd1;
     --uni-yellow: #ffd67f;
     --uni-mint: #97f7f0;
     --uni-blue: #9cc7ff;
     --uni-purple: #d8a0ff;
-    --uni-text: #2b2140;
-    --uni-muted: #6b5f8d;
-    --uni-border: rgba(216,180,254,0.75);
-    --uni-glass: rgba(255,255,255,0.78);
     --uni-rainbow: linear-gradient(120deg, #ff7fd1 0%, #ffd67f 22%, #97f7f0 45%, #9cc7ff 68%, #d8a0ff 100%);
+    --uni-border: rgba(216, 180, 254, 0.70);
+    --shadow-soft: 0 10px 26px rgba(15, 23, 42, 0.08);
+    --shadow-rainbow: 0 14px 34px rgba(168, 85, 247, 0.12);
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+    --radius-xl: 22px;
 }
 
-/* Fundo geral mais delicado, com sensacao de unicornio/arco-iris em todas as paginas */
-.stApp {
-    background:
-        radial-gradient(circle at 5% 9%, rgba(255,127,209,0.24), transparent 32%),
-        radial-gradient(circle at 94% 8%, rgba(156,199,255,0.23), transparent 30%),
-        radial-gradient(circle at 86% 82%, rgba(151,247,240,0.22), transparent 32%),
-        radial-gradient(circle at 18% 92%, rgba(216,160,255,0.22), transparent 34%),
-        linear-gradient(135deg, #fff7fb 0%, #fffaf0 23%, #f3fcff 48%, #f6f2ff 74%, #fff8fd 100%) !important;
-    color: var(--uni-text) !important;
-}
-
-/* Cabecalho do Streamlit mais discreto */
-header[data-testid="stHeader"] {
-    background: rgba(255,255,255,0.62) !important;
-    backdrop-filter: blur(12px) !important;
-    border-bottom: 1px solid rgba(216,180,254,0.25) !important;
-}
-
-/* Container principal com respiro e padrao uniforme */
-.main .block-container {
-    max-width: 1320px !important;
-    padding-top: 1.1rem !important;
-    padding-left: 1.65rem !important;
-    padding-right: 1.65rem !important;
-}
-
-/* Sidebar em estilo SED pastel */
-section[data-testid="stSidebar"] {
-    background:
-        radial-gradient(circle at 20% 4%, rgba(255,127,209,0.25), transparent 28%),
-        radial-gradient(circle at 86% 15%, rgba(151,247,240,0.22), transparent 30%),
-        linear-gradient(180deg, rgba(248,251,255,0.98), rgba(250,245,255,0.96)) !important;
-    border-right: 1px solid rgba(216,180,254,0.72) !important;
-    box-shadow: 8px 0 34px rgba(168,85,247,0.08) !important;
-}
-section[data-testid="stSidebar"]::after {
-    content: "🦄 ✨";
-    position: fixed;
-    left: 214px;
-    bottom: 14px;
-    z-index: 1;
-    width: 58px;
-    height: 38px;
-    display: grid;
-    place-items: center;
-    border-radius: 18px;
-    background: var(--uni-rainbow);
-    box-shadow: 0 12px 28px rgba(168,85,247,0.22);
-    font-size: 1rem;
-}
-section[data-testid="stSidebar"] div[data-testid="stButton"] > button {
-    min-height: 48px !important;
-    border-radius: 16px !important;
-    background: rgba(255,255,255,0.86) !important;
-    border: 1px solid rgba(216,180,254,0.72) !important;
-    color: #24324f !important;
-    box-shadow: 0 8px 18px rgba(15,23,42,0.05) !important;
-    font-weight: 750 !important;
-}
-section[data-testid="stSidebar"] div[data-testid="stButton"] > button:hover {
-    transform: translateY(-1px) !important;
-    border-color: rgba(217,70,239,0.42) !important;
-    background: linear-gradient(135deg, rgba(255,255,255,0.94), rgba(253,242,255,0.88)) !important;
-    color: #6d28d9 !important;
-}
-section[data-testid="stSidebar"] div[data-testid="stButton"] > button[kind="primary"] {
-    background: linear-gradient(135deg, rgba(224,236,255,0.98), rgba(253,242,255,0.98)) !important;
-    border-color: rgba(96,165,250,0.74) !important;
-    color: #1e3a8a !important;
-    box-shadow: 0 10px 22px rgba(96,165,250,0.16) !important;
-}
-
-/* Cartao da escola no menu lateral mais elegante */
-section[data-testid="stSidebar"] img {
-    border-radius: 20px !important;
-    border: 1px solid rgba(255,255,255,0.85) !important;
-    box-shadow: 0 12px 24px rgba(15,23,42,0.10) !important;
-}
-
-/* Tipografia: reduz exageros e padroniza leitura */
-h1, h2, h3, h4, h5, h6 {
-    color: var(--uni-text) !important;
-    letter-spacing: -0.015em !important;
-}
-h1 { font-size: clamp(1.55rem, 2.2vw, 2rem) !important; }
-h2 { font-size: clamp(1.32rem, 1.7vw, 1.55rem) !important; }
-h3 { font-size: 1.15rem !important; }
-h4 { font-size: 1rem !important; }
-p, span, label, li, div { line-height: 1.52 !important; }
-
-/* Labels padrao institucional */
-.stTextInput label, .stTextArea label, .stSelectbox label, .stMultiSelect label,
-.stDateInput label, .stTimeInput label, .stNumberInput label, .stRadio label, .stCheckbox label {
-    color: #6d28d9 !important;
-    font-size: 0.78rem !important;
-    font-weight: 850 !important;
-    letter-spacing: 0.09em !important;
-}
-
-/* Widgets uniformes */
-.stTextInput input, .stTextArea textarea, .stNumberInput input,
-[data-baseweb="select"] > div:first-child, [data-baseweb="input"] input {
-    border-radius: 17px !important;
-    border: 1px solid rgba(180,198,225,0.82) !important;
-    background: rgba(255,255,255,0.90) !important;
-    box-shadow: 0 8px 20px rgba(15,23,42,0.045) !important;
-    color: #24324f !important;
-}
-.stTextInput input:focus, .stTextArea textarea:focus, .stNumberInput input:focus,
-[data-baseweb="select"] > div:first-child:focus-within {
-    border-color: rgba(217,70,239,0.62) !important;
-    box-shadow: 0 0 0 3px rgba(217,70,239,0.10), 0 10px 22px rgba(168,85,247,0.08) !important;
-}
-
-/* Botoes arco-iris, mas com cara de sistema institucional */
-.stButton > button {
-    border-radius: 17px !important;
-    min-height: 42px !important;
-    box-shadow: 0 10px 22px rgba(168,85,247,0.10) !important;
-    font-weight: 800 !important;
-}
-.stButton > button[kind="primary"] {
-    background: var(--uni-rainbow) !important;
-    color: #ffffff !important;
-    border: 1px solid rgba(255,255,255,0.64) !important;
-    text-shadow: 0 1px 2px rgba(49,33,95,0.18) !important;
-}
-.stButton > button[kind="secondary"] {
-    background: rgba(255,255,255,0.88) !important;
-    border: 1px solid rgba(216,180,254,0.82) !important;
-    color: #574b90 !important;
-}
-
-/* Expander como card, para paginas menos cheias */
-div[data-testid="stExpander"] {
-    border-radius: 22px !important;
-    border: 1px solid rgba(216,180,254,0.82) !important;
-    background: rgba(255,255,255,0.78) !important;
-    box-shadow: 0 12px 28px rgba(168,85,247,0.08) !important;
-    overflow: hidden !important;
-}
-div[data-testid="stExpander"] summary {
-    background: linear-gradient(135deg, rgba(255,255,255,0.92), rgba(253,242,255,0.72)) !important;
-    color: #312e81 !important;
-    font-weight: 850 !important;
-}
-
-/* Abas em trilha pastel */
-[data-testid="stTabs"] div[role="tablist"] {
-    background: rgba(255,255,255,0.56) !important;
-    border: 1px solid rgba(216,180,254,0.85) !important;
-    padding: 0.55rem !important;
-    border-radius: 24px !important;
-    box-shadow: 0 10px 24px rgba(168,85,247,0.08) !important;
-}
-[data-testid="stTabs"] button[role="tab"] {
-    border-radius: 16px !important;
-    color: #6b5f8d !important;
-    font-weight: 820 !important;
-    font-size: 0.9rem !important;
-    min-height: 42px !important;
-}
-[data-testid="stTabs"] button[aria-selected="true"] {
-    background: linear-gradient(135deg, #ffffff, #fff7fb) !important;
-    color: #a21caf !important;
-    border: 1px solid rgba(217,70,239,0.28) !important;
-    box-shadow: 0 10px 24px rgba(217,70,239,0.12) !important;
-}
-
-/* Formulario vira card uniforme */
-div[data-testid="stForm"] {
-    background: linear-gradient(135deg, rgba(255,255,255,0.88), rgba(248,250,252,0.90)) !important;
-    border: 1px solid rgba(216,180,254,0.82) !important;
-    border-radius: 24px !important;
-    box-shadow: 0 16px 34px rgba(168,85,247,0.08) !important;
-}
-
-/* Tabelas e data editor mais limpos */
-[data-testid="stDataFrame"], [data-testid="stDataEditor"] {
-    border-radius: 22px !important;
-    border: 1px solid rgba(216,180,254,0.82) !important;
-    box-shadow: 0 14px 30px rgba(168,85,247,0.08) !important;
-    overflow: hidden !important;
-    background: rgba(255,255,255,0.82) !important;
-}
-[data-testid="stDataFrame"] [role="columnheader"], [data-testid="stDataEditor"] [role="columnheader"] {
-    background: linear-gradient(180deg, #eff6ff, #fdf2ff) !important;
-    color: #312e81 !important;
-    font-weight: 900 !important;
-}
-
-/* Alertas com vidro pastel */
-.stAlert {
-    border-radius: 20px !important;
-    border: 1px solid rgba(216,180,254,0.75) !important;
-    box-shadow: 0 12px 26px rgba(168,85,247,0.08) !important;
-}
-
-/* Cartoes SED/rainbow reutilizaveis */
-.sed-dashboard-header, .conviva-welcome-sed, .dashboard-panorama,
-.form-panel, .page-banner, .card, .protocolo-info,
-.sed-feature-card, .sed-tool-card, .sed-section-title, .sed-form-card-header {
-    border-radius: 24px !important;
-    border: 1px solid rgba(216,180,254,0.82) !important;
-    background: linear-gradient(135deg, rgba(255,255,255,0.88), rgba(248,250,252,0.88)) !important;
-    box-shadow: 0 16px 34px rgba(168,85,247,0.09) !important;
-}
-.sed-dashboard-header {
-    overflow: hidden !important;
-    position: relative !important;
-}
-.sed-dashboard-header::before {
-    content: "";
-    display: block;
-    height: 7px;
-    background: var(--uni-rainbow);
-}
-.sed-dashboard-mark, .page-banner-icon, .sed-section-icon {
-    background: var(--uni-rainbow) !important;
-    color: white !important;
-    box-shadow: 0 14px 28px rgba(217,70,239,0.18) !important;
-}
-.sed-dashboard-title {
-    background: var(--uni-rainbow);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-.sed-dashboard-pill {
-    border-radius: 999px !important;
-    background: linear-gradient(135deg, #3f98d4, #22c7a8) !important;
-    box-shadow: 0 8px 18px rgba(47,157,221,0.16) !important;
-}
-.dashboard-panorama-bar {
-    background: linear-gradient(90deg, #22c7a8, #2f9ddd, #a78bfa) !important;
-}
-.conviva-welcome-sed {
-    border-left: 7px solid transparent !important;
-    border-image: var(--uni-rainbow) 1 !important;
-}
-
-/* Cards compactos para areas operacionais */
-.sed-tool-card, .sed-feature-card {
-    min-height: 92px;
-}
-.sed-tool-card-title, .sed-feature-card-title, .form-panel-title, .sed-form-card-title {
-    color: #312e81 !important;
-    font-weight: 900 !important;
-}
-.sed-tool-card-subtitle, .sed-form-card-subtitle, .form-panel-subtitle,
-.sed-section-subtitle, .sed-feature-card-meta {
-    color: #6b7280 !important;
-    font-size: 0.88rem !important;
-}
-.sed-kpi-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
-    gap: 0.75rem;
-    margin: 0.2rem 0 1rem 0;
-}
-.sed-kpi-item {
-    background: linear-gradient(135deg, rgba(255,255,255,0.92), rgba(253,242,255,0.74));
-    border: 1px solid rgba(216,180,254,0.82);
-    border-radius: 20px;
-    padding: 0.9rem 1rem;
-    box-shadow: 0 10px 22px rgba(168,85,247,0.08);
-}
-.sed-kpi-label {
-    display: block;
-    color: #7c3aed;
-    font-size: 0.72rem;
-    font-weight: 900;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    margin-bottom: 0.35rem;
-}
-.sed-kpi-value {
-    display: block;
-    color: #312e81;
-    font-size: 1rem;
-    font-weight: 900;
-    line-height: 1.35;
-    overflow-wrap: anywhere;
-}
-
-/* Metricas Streamlit: evita textos enormes estourando */
-[data-testid="metric-container"] {
-    background: linear-gradient(135deg, rgba(255,255,255,0.88), rgba(253,242,255,0.64)) !important;
-    border: 1px solid rgba(216,180,254,0.82) !important;
-    border-radius: 20px !important;
-    padding: 0.9rem 1rem !important;
-    box-shadow: 0 12px 26px rgba(168,85,247,0.08) !important;
-}
-[data-testid="metric-container"] [data-testid="stMetricValue"] {
-    font-size: 1.15rem !important;
-    line-height: 1.25 !important;
-    overflow-wrap: anywhere !important;
-}
-[data-testid="metric-container"] [data-testid="stMetricLabel"] {
-    color: #7c3aed !important;
-    font-weight: 900 !important;
-}
-
-/* File uploader e downloads */
-[data-testid="stFileUploaderDropzone"] {
-    border-radius: 24px !important;
-    border: 1.5px dashed rgba(217,70,239,0.42) !important;
-    background: rgba(255,255,255,0.70) !important;
-    box-shadow: 0 12px 24px rgba(168,85,247,0.07) !important;
-}
-
-/* Ajuste responsivo */
-@media (max-width: 900px) {
-    .main .block-container { padding-left: 1rem !important; padding-right: 1rem !important; }
-    section[data-testid="stSidebar"]::after { display: none !important; }
-    .sed-dashboard-top { flex-direction: column !important; align-items: flex-start !important; }
-    .sed-dashboard-user { text-align: left !important; }
-}
-
-
-
-/* ============================================ */
-/* ========== LIMPEZA VISUAL - SEM DUPLICIDADE ========== */
-/* ============================================ */
-.sed-tool-card {
-    display: none !important;
-}
-.sed-section-title {
-    padding: 0.7rem 0.85rem !important;
-    border-radius: 16px !important;
-    box-shadow: none !important;
-    background: rgba(255,255,255,0.70) !important;
-}
-.sed-section-icon {
-    width: 38px !important;
-    height: 38px !important;
-    border-radius: 12px !important;
-    font-size: 1.05rem !important;
-}
-.sed-section-heading {
-    font-size: 1.02rem !important;
-}
-.sed-section-subtitle {
-    font-size: 0.84rem !important;
-}
-/* Evita textos muito grandes nos cards/metas do Streamlit */
-[data-testid="stMetricValue"] { font-size: 1.15rem !important; }
-
-
-
-/* ============================================ */
-/* ====== LAYOUT SED FIEL + ARCO-IRIS SUTIL ==== */
-/* ============================================ */
-:root {
-    --sed-blue: #3f9bd7;
-    --sed-blue-dark: #2d7eb9;
-    --sed-green: #22c7a8;
-    --sed-yellow: #ffcc00;
-    --sed-border: #d8e6f3;
-    --sed-text: #1f2937;
-    --sed-muted: #64748b;
-    --sed-panel: #ffffff;
-    --sed-bg: #f3f6fb;
-    --rainbow-line: linear-gradient(90deg, #ff5db1, #ffd166, #50e3c2, #4da3ff, #b47cff);
-}
-
+* { box-sizing: border-box; }
 html, body, [class*="css"], .stApp {
-    font-family: Arial, Helvetica, sans-serif !important;
+    font-family: 'Inter', Arial, Helvetica, sans-serif !important;
 }
 
 .stApp {
-    background: var(--sed-bg) !important;
     color: var(--sed-text) !important;
+    background:
+        linear-gradient(180deg, rgba(255,255,255,.62), rgba(255,255,255,.82)),
+        radial-gradient(circle at 8% 12%, rgba(255,127,209,.28), transparent 30%),
+        radial-gradient(circle at 92% 6%, rgba(151,247,240,.25), transparent 28%),
+        radial-gradient(circle at 88% 88%, rgba(216,160,255,.22), transparent 30%),
+        linear-gradient(115deg, rgba(255,127,209,.18) 0%, rgba(255,214,127,.18) 23%, rgba(151,247,240,.18) 45%, rgba(156,199,255,.18) 68%, rgba(216,160,255,.18) 100%),
+        linear-gradient(135deg, #fff7fb 0%, #fff9ee 24%, #f0fbff 50%, #f7f2ff 76%, #fff8fd 100%) !important;
 }
-
-[data-testid="stAppViewContainer"] {
-    background: var(--sed-bg) !important;
+[data-testid="stAppViewContainer"] { background: transparent !important; }
+header[data-testid="stHeader"] {
+    background: rgba(255,255,255,.72) !important;
+    border-bottom: 1px solid rgba(213,227,243,.8) !important;
+    backdrop-filter: blur(12px) !important;
 }
-
+#MainMenu, footer { visibility: hidden !important; }
 .main .block-container {
     max-width: 1360px !important;
-    padding-top: 1rem !important;
-    padding-left: 1.1rem !important;
-    padding-right: 1.1rem !important;
-    padding-bottom: 2rem !important;
+    padding: 1.05rem 1.2rem 2.4rem 1.2rem !important;
 }
 
+/* TIPOGRAFIA - menos exagero, leitura mais limpa */
 h1, h2, h3, h4, h5, h6 {
-    font-family: Arial, Helvetica, sans-serif !important;
+    font-family: 'Nunito', 'Inter', Arial, sans-serif !important;
     color: var(--sed-text) !important;
-    font-weight: 700 !important;
-    letter-spacing: 0 !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.01em !important;
+    line-height: 1.20 !important;
 }
-h1 {font-size: 1.65rem !important;}
-h2 {font-size: 1.35rem !important;}
-h3 {font-size: 1.08rem !important;}
-p, span, label, div {line-height: 1.45 !important;}
+h1 { font-size: clamp(1.55rem, 2.1vw, 2rem) !important; }
+h2 { font-size: clamp(1.28rem, 1.65vw, 1.55rem) !important; }
+h3 { font-size: 1.12rem !important; }
+h4 { font-size: 1rem !important; }
+p, span, label, li, div { line-height: 1.46 !important; }
+label, .stTextInput label, .stTextArea label, .stSelectbox label, .stMultiSelect label,
+.stDateInput label, .stTimeInput label, .stNumberInput label, .stRadio label, .stCheckbox label {
+    color: #5b21b6 !important;
+    font-size: .77rem !important;
+    font-weight: 850 !important;
+    letter-spacing: .09em !important;
+    text-transform: uppercase !important;
+}
 
-/* SIDEBAR no estilo SED */
+/* SIDEBAR - modelo SED com sua identidade arco-iris */
 section[data-testid="stSidebar"] {
-    background: #ffffff !important;
+    min-width: 286px !important;
+    max-width: 286px !important;
+    background:
+        linear-gradient(180deg, rgba(255,255,255,.96), rgba(247,251,255,.94)),
+        radial-gradient(circle at 18% 0%, rgba(255,127,209,.18), transparent 30%),
+        radial-gradient(circle at 100% 10%, rgba(151,247,240,.20), transparent 30%) !important;
     border-right: 1px solid var(--sed-border) !important;
-    min-width: 285px !important;
-    max-width: 285px !important;
-    box-shadow: 3px 0 12px rgba(15,23,42,0.04) !important;
+    box-shadow: 5px 0 18px rgba(15,23,42,.06) !important;
 }
-section[data-testid="stSidebar"] > div:first-child {
-    padding: 0.75rem 0.7rem !important;
+section[data-testid="stSidebar"] > div:first-child { padding: .65rem .7rem !important; }
+section[data-testid="stSidebar"] img {
+    border-radius: 14px !important;
+    border: 1px solid rgba(255,255,255,.9) !important;
+    box-shadow: var(--shadow-soft) !important;
 }
-section[data-testid="stSidebar"] hr {
-    margin: 0.65rem 0 !important;
-    border-color: #edf2f7 !important;
-}
-section[data-testid="stSidebar"] div[data-testid="stButton"] {margin: 0 !important;}
+section[data-testid="stSidebar"] div[data-testid="stButton"] { margin: 0 !important; }
 section[data-testid="stSidebar"] div[data-testid="stButton"] > button {
-    background: var(--sed-blue) !important;
-    color: #ffffff !important;
-    border: 1px solid rgba(255,255,255,0.24) !important;
+    width: 100% !important;
+    min-height: 42px !important;
+    margin: 0 !important;
     border-radius: 0 !important;
-    box-shadow: none !important;
-    min-height: 40px !important;
-    padding: 0.48rem 0.7rem !important;
     justify-content: flex-start !important;
     text-align: left !important;
-    font-size: 0.87rem !important;
-    font-weight: 600 !important;
-    width: 100% !important;
+    background: var(--sed-blue) !important;
+    color: #fff !important;
+    border: 0 !important;
+    border-bottom: 1px solid rgba(255,255,255,.22) !important;
+    box-shadow: none !important;
+    font-size: .88rem !important;
+    font-weight: 750 !important;
+    padding: .48rem .75rem !important;
 }
 section[data-testid="stSidebar"] div[data-testid="stButton"] > button:hover {
-    background: var(--sed-blue-dark) !important;
+    background: linear-gradient(90deg, var(--sed-blue-dark), var(--sed-blue), #22c7a8) !important;
     transform: none !important;
 }
 section[data-testid="stSidebar"] div[data-testid="stButton"] > button[kind="primary"] {
-    background: #1f6faa !important;
-    color: #ffffff !important;
-    border-left: 5px solid transparent !important;
-    border-image: var(--rainbow-line) 1 !important;
-    font-weight: 800 !important;
+    background: linear-gradient(90deg, #2d7eb9, #3f98d4, #22c7a8) !important;
+    color: #fff !important;
+    border-left: 5px solid var(--sed-yellow) !important;
+    font-weight: 900 !important;
 }
-
-/* Cabeçalho SED global */
-.sed-global-header {
-    background: #ffffff;
-    border-bottom: 1px solid var(--sed-border);
-    margin: -0.15rem 0 1rem 0;
-    padding: 0.9rem 1rem 0.85rem;
-    position: relative;
-    overflow: hidden;
-}
-.sed-global-header::before {
-    content: '';
-    position: absolute;
-    left: 0; right: 0; top: 0;
-    height: 4px;
-    background: var(--rainbow-line);
-}
-.sed-header-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 1rem;
-}
-.sed-header-brand {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    min-width: 0;
-}
-.sed-logo-mark {
-    width: 46px;
-    height: 46px;
-    border-radius: 12px;
+section[data-testid="stSidebar"]::after {
+    content: "✨";
+    position: fixed;
+    left: 242px;
+    bottom: 18px;
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
     display: grid;
     place-items: center;
-    background: linear-gradient(135deg, #2f9ddd, #22c7a8);
+    background: var(--uni-rainbow);
     color: #fff;
-    font-weight: 900;
-    font-size: 1.5rem;
-    box-shadow: 0 6px 14px rgba(47,157,221,0.25);
-}
-.sed-secretaria {
-    margin: 0;
-    color: #64748b;
-    font-size: 0.82rem;
-    font-weight: 800;
-    text-transform: uppercase;
-}
-.sed-system-title {
-    margin: 0.1rem 0 0;
-    color: var(--sed-blue);
-    font-size: 1.85rem;
-    line-height: 1;
-    font-weight: 900;
-}
-.sed-user-box {
-    text-align: right;
-    color: #64748b;
-    font-size: 0.82rem;
-    line-height: 1.45;
-    font-weight: 600;
-}
-.sed-user-box b {color: #2d7eb9;}
-.sed-top-actions {
-    display: flex;
-    justify-content: flex-end;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-top: 0.8rem;
-}
-.sed-action-chip {
-    background: var(--sed-blue);
-    color: #fff;
-    padding: 0.35rem 0.65rem;
-    border-radius: 4px;
-    font-size: 0.78rem;
-    font-weight: 700;
-    box-shadow: 0 2px 4px rgba(15,23,42,0.10);
-}
-.sed-current-page {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: #f8fbff;
-    border: 1px solid var(--sed-border);
-    border-left: 5px solid var(--sed-green);
-    border-radius: 4px;
-    padding: 0.65rem 0.85rem;
-    margin-bottom: 1rem;
-    color: var(--sed-text);
-    font-weight: 700;
+    box-shadow: 0 10px 24px rgba(168,85,247,.20);
+    z-index: 4;
 }
 
-/* Painel e cards tipo SED */
-.sed-panel {
-    background: #ffffff;
-    border: 1px solid var(--sed-border);
-    border-radius: 4px;
-    margin: 0.75rem 0 1rem 0;
-    box-shadow: 0 2px 8px rgba(15,23,42,0.06);
-    overflow: hidden;
-}
-.sed-panel-title {
-    background: var(--sed-green);
-    color: #fff;
-    padding: 0.65rem 0.95rem;
-    font-weight: 700;
-    font-size: 0.96rem;
-}
-.sed-panel-body {padding: 0.9rem;}
-.sed-grid-modulos {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-    gap: 0.85rem;
-}
-.sed-module-card {
-    min-height: 74px;
-    border-radius: 4px;
-    background: linear-gradient(135deg, #0f82bc 0%, #14517c 100%);
-    color: white;
-    padding: 0.85rem 0.9rem;
-    position: relative;
-    overflow: hidden;
-    border: 1px solid rgba(15,23,42,0.15);
-    box-shadow: 0 3px 7px rgba(15,23,42,0.18);
-}
-.sed-module-card::after {
-    content: '';
-    position: absolute;
-    left: -35px;
-    top: -35px;
-    width: 120px;
-    height: 120px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.12);
-}
-.sed-module-title {
-    position: relative;
-    z-index: 1;
-    display: block;
-    font-size: 0.92rem;
-    font-weight: 800;
-    margin-bottom: 0.25rem;
-}
-.sed-module-sub {
-    position: relative;
-    z-index: 1;
-    font-size: 0.78rem;
-    opacity: 0.92;
-}
-.sed-module-card.green {background: linear-gradient(135deg, #27c99d, #16a085);}
-.sed-module-card.red {background: linear-gradient(135deg, #ef7777, #d74f5e);}
-.sed-module-card.gray {background: linear-gradient(135deg, #6b7b88, #465461);}
-.sed-module-card.light {background: linear-gradient(135deg, #76d7c4, #2db9b3);}
-.sed-module-card.rainbow {background: linear-gradient(120deg,#ff69b4,#ffd166,#50e3c2,#4da3ff,#b47cff); color: #102a43;}
-
-/* formulários e inputs menos poluídos */
-div[data-testid="stForm"] {
-    border-radius: 4px !important;
+/* CABECALHO/PAINEL SED */
+.sed-dashboard-header, .main-header, .page-banner {
+    background: rgba(255,255,255,.94) !important;
     border: 1px solid var(--sed-border) !important;
-    box-shadow: 0 2px 8px rgba(15,23,42,0.04) !important;
-    background: #ffffff !important;
-    padding: 1rem !important;
+    border-radius: 8px !important;
+    box-shadow: var(--shadow-soft) !important;
+    overflow: hidden !important;
+    position: relative !important;
+    margin-bottom: 1rem !important;
 }
-.stTextInput > div > div > input,
-.stTextArea > div > div > textarea,
-[data-baseweb="select"] > div:first-child {
-    border-radius: 4px !important;
-    border: 1px solid #cbddec !important;
-    box-shadow: none !important;
-    background: #ffffff !important;
+.sed-dashboard-header::before, .main-header::before, .page-banner::before {
+    content: "" !important;
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    height: 6px !important;
+    background: var(--uni-rainbow) !important;
+    border-radius: 0 !important;
 }
-.stTextInput label, .stTextArea label, .stSelectbox label, .stMultiSelect label, .stDateInput label, .stNumberInput label {
-    color: #41556d !important;
-    font-size: 0.78rem !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.04em !important;
+.sed-dashboard-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.15rem .8rem !important;
 }
+.sed-dashboard-brand { display:flex; align-items:center; gap:.85rem; min-width:0; }
+.sed-dashboard-mark, .page-banner-icon, .sed-section-icon {
+    background: linear-gradient(135deg, var(--sed-blue), var(--sed-green)) !important;
+    color: #fff !important;
+    border-radius: 8px !important;
+    box-shadow: 0 8px 18px rgba(47,157,221,.20) !important;
+}
+.sed-dashboard-mark {
+    width: 48px; height: 48px; display:grid; place-items:center; font-size:1.45rem; font-weight:900;
+}
+.sed-dashboard-kicker {
+    margin:0 !important; color:#6b7280 !important; font-size:.82rem !important;
+    font-weight:850 !important; text-transform:uppercase !important;
+}
+.sed-dashboard-title {
+    margin:.08rem 0 0 !important;
+    color: var(--sed-blue) !important;
+    font-size: clamp(1.55rem,2.4vw,2.2rem) !important;
+    font-weight: 900 !important;
+    line-height:1 !important;
+}
+.sed-dashboard-user { text-align:right; color:#64748b; font-size:.82rem; font-weight:650; }
+.sed-dashboard-user b { color: var(--sed-blue-dark); }
+.sed-dashboard-strip {
+    display:flex; flex-wrap:wrap; gap:.45rem; justify-content:flex-end;
+    padding:0 1.15rem 1rem !important;
+}
+.sed-dashboard-pill {
+    display:inline-flex; align-items:center; gap:.3rem;
+    background: var(--sed-blue) !important;
+    color:#fff !important; border-radius:4px !important; padding:.38rem .7rem !important;
+    font-size:.78rem !important; font-weight:800 !important; box-shadow:none !important;
+}
+.sed-dashboard-pill:hover { background: var(--sed-blue-dark) !important; }
+
+/* BLOCO DE BOAS-VINDAS E PANORAMA */
+.conviva-welcome-sed, .dashboard-panorama, .form-panel, .card, .protocolo-info,
+.sed-feature-card, .sed-section-title, .sed-form-card-header, .sed-tool-card,
+.info-box, .success-box, .warning-box, .error-box {
+    background: rgba(255,255,255,.90) !important;
+    border: 1px solid var(--sed-border) !important;
+    border-radius: 10px !important;
+    box-shadow: var(--shadow-soft) !important;
+}
+.conviva-welcome-sed {
+    display:flex; align-items:center; gap:.95rem; padding:1rem 1.15rem;
+    border-left: 5px solid var(--sed-green) !important; margin-bottom:1rem;
+}
+.conviva-welcome-sed-icon {
+    width:44px;height:44px;border-radius:8px;display:grid;place-items:center;background:var(--sed-blue-light);font-size:1.4rem;
+}
+.conviva-welcome-sed-title { margin:0; color:#1f2937; font-weight:900; font-size:1.08rem; }
+.conviva-welcome-sed-sub, .conviva-welcome-sed-quote { margin:.2rem 0 0; color:#64748b; font-size:.88rem; }
+.conviva-welcome-sed-quote { color:#0f766e; font-weight:800; }
+.dashboard-panorama { overflow:hidden; margin:1rem 0; }
+.dashboard-panorama-bar {
+    display:flex; align-items:center; justify-content:space-between; gap:1rem;
+    padding:.75rem 1rem; background:linear-gradient(90deg,var(--sed-green),var(--sed-blue),#a78bfa); color:white;
+}
+.dashboard-panorama-title { margin:0; color:#fff; font-weight:900; }
+.dashboard-panorama-date {
+    background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.34); border-radius:999px; padding:.26rem .65rem; font-size:.76rem; font-weight:800;
+}
+.dashboard-panorama-body { padding:1rem; background:rgba(255,255,255,.86); }
+.dashboard-panorama-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:.75rem; margin-top:.9rem; }
+.dashboard-panorama-mini, .sed-kpi-item {
+    background:linear-gradient(135deg,#ffffff,#f8fbff) !important;
+    border:1px solid var(--sed-border) !important;
+    border-radius:8px !important;
+    padding:.75rem .85rem !important;
+}
+.dashboard-panorama-mini-label, .sed-kpi-label {
+    display:block; color:#64748b; font-size:.72rem; font-weight:850; letter-spacing:.06em; text-transform:uppercase; margin-bottom:.25rem;
+}
+.dashboard-panorama-mini-value, .sed-kpi-value {
+    display:block; color:#1e3a8a; font-size:1rem; font-weight:900; overflow-wrap:anywhere;
+}
+
+/* CARDS/MODULOS no modelo SED */
+.sed-module-grid, .quick-action-grid {
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:1rem; margin:1rem 0;
+}
+.sed-module-card, .quick-action-card {
+    min-height:78px; border-radius:6px !important; border:1px solid #cbddee !important;
+    background: linear-gradient(135deg, rgba(63,152,212,.95), rgba(34,199,168,.82)) !important;
+    color:#fff !important; padding:1rem !important; box-shadow:var(--shadow-soft) !important;
+    position:relative; overflow:hidden;
+}
+.sed-module-card::before, .quick-action-card::before {
+    content:""; position:absolute; inset:0; background:linear-gradient(120deg, transparent, rgba(255,255,255,.18), transparent); transform:translateX(-100%);
+}
+.sed-module-card:hover::before, .quick-action-card:hover::before { animation: shimmer 1.2s ease; }
+.quick-action-card:hover { transform:translateY(-2px); }
+@keyframes shimmer { 100% { transform: translateX(100%); } }
+
+/* SECOES compactas */
+.sed-section-title {
+    display:flex; align-items:center; gap:.75rem; padding:.85rem .95rem !important; margin:.8rem 0 .9rem !important;
+    border-left:5px solid var(--sed-green) !important;
+}
+.sed-section-icon { width:40px !important; height:40px !important; display:grid; place-items:center; font-size:1.1rem !important; flex:0 0 auto; }
+.sed-section-kicker { color:#6d28d9; font-size:.70rem; font-weight:900; letter-spacing:.13em; text-transform:uppercase; }
+.sed-section-heading { color:#1f2937; font-weight:900; font-size:1.05rem; }
+.sed-section-subtitle { color:#64748b; font-size:.85rem; }
+.sed-tool-card, .sed-feature-card { padding:.95rem !important; min-height:auto !important; }
+.sed-tool-card-title, .sed-feature-card-title, .sed-form-card-title, .form-panel-title { color:#1f2937 !important; font-weight:900 !important; }
+.sed-tool-card-subtitle, .sed-feature-card-meta, .sed-form-card-subtitle, .form-panel-subtitle { color:#64748b !important; font-size:.86rem !important; }
+
+/* WIDGETS */
+.stTextInput input, .stTextArea textarea, .stNumberInput input, [data-baseweb="select"] > div:first-child,
+[data-baseweb="input"] input {
+    border-radius: 8px !important;
+    border:1px solid #b9cce0 !important;
+    background:rgba(255,255,255,.96) !important;
+    color:#1f2937 !important;
+    box-shadow: inset 0 1px 2px rgba(15,23,42,.04) !important;
+}
+.stTextInput input:focus, .stTextArea textarea:focus, .stNumberInput input:focus, [data-baseweb="select"] > div:first-child:focus-within {
+    border-color: var(--sed-blue) !important;
+    box-shadow:0 0 0 3px rgba(63,152,212,.16) !important;
+}
+.stTextArea textarea { min-height:100px !important; }
 .stButton > button {
-    border-radius: 4px !important;
-    min-height: 38px !important;
-    box-shadow: none !important;
-    font-weight: 700 !important;
+    border-radius: 6px !important; min-height:40px !important;
+    font-weight:800 !important; box-shadow:none !important; border:1px solid #cbddee !important;
 }
 .stButton > button[kind="primary"] {
-    background: var(--sed-blue) !important;
-    color: #ffffff !important;
+    background: linear-gradient(90deg,var(--sed-blue),var(--sed-green)) !important; color:white !important; border-color:transparent !important;
 }
-.stButton > button[kind="secondary"] {
-    background: #ffffff !important;
-    color: #2d5f86 !important;
-    border: 1px solid #bad4ec !important;
-}
+.stButton > button[kind="secondary"] { background:#fff !important; color:#365076 !important; }
+.stButton > button:hover { filter:brightness(.98); transform:none !important; }
+
+/* TABS, EXPANDERS, FORMS */
 [data-testid="stTabs"] div[role="tablist"] {
-    background: #ffffff !important;
-    border: 1px solid var(--sed-border) !important;
-    border-radius: 4px !important;
-    padding: 0.35rem !important;
-    gap: 0.25rem !important;
-    box-shadow: none !important;
+    background:rgba(255,255,255,.90) !important; border:1px solid var(--sed-border) !important; border-radius:8px !important; padding:.35rem !important; box-shadow:none !important;
 }
 [data-testid="stTabs"] button[role="tab"] {
-    border-radius: 4px !important;
-    color: #2d5f86 !important;
-    font-weight: 700 !important;
-    height: 38px !important;
+    border-radius:6px !important; min-height:38px !important; padding:0 .75rem !important; color:#355171 !important; font-weight:750 !important;
 }
 [data-testid="stTabs"] button[aria-selected="true"] {
-    background: #e8f4ff !important;
-    color: #1f6faa !important;
-    border: 1px solid #b7d7f2 !important;
-    box-shadow: inset 0 -3px 0 var(--sed-green) !important;
+    background:linear-gradient(90deg,#fff,#f5fbff) !important; color:var(--sed-blue-dark) !important; border-bottom:3px solid var(--sed-green) !important; box-shadow:none !important;
 }
-[data-testid="stDataFrame"] {
-    border-radius: 4px !important;
-    border: 1px solid var(--sed-border) !important;
-    box-shadow: 0 2px 8px rgba(15,23,42,0.04) !important;
+div[data-testid="stExpander"] {
+    border-radius:8px !important; border:1px solid var(--sed-border) !important; background:rgba(255,255,255,.90) !important; box-shadow:var(--shadow-soft) !important; overflow:hidden;
+}
+div[data-testid="stForm"] {
+    border-radius:10px !important; border:1px solid var(--sed-border) !important; background:rgba(255,255,255,.90) !important; box-shadow:var(--shadow-soft) !important; padding:1.2rem !important;
 }
 
-/* Alerts no padrão institucional */
-.stAlert, .success-box, .warning-box, .error-box, .info-box {
-    border-radius: 4px !important;
-    box-shadow: none !important;
-    border-width: 1px !important;
+/* TABELAS */
+[data-testid="stDataFrame"], [data-testid="stDataEditor"] {
+    border-radius:8px !important; border:1px solid var(--sed-border) !important; box-shadow:var(--shadow-soft) !important; overflow:hidden !important; background:#fff !important;
 }
+[data-testid="stDataFrame"] [role="columnheader"], [data-testid="stDataEditor"] [role="columnheader"] {
+    background:#eaf6ff !important; color:#1e3a8a !important; font-weight:900 !important;
+}
+[data-testid="stDataFrame"] [role="gridcell"], [data-testid="stDataEditor"] [role="gridcell"] { color:#1f2937 !important; }
 
+/* ALERTAS */
+.stAlert, .info-box, .success-box, .warning-box, .error-box { border-radius:8px !important; box-shadow:var(--shadow-soft) !important; }
+.info-box { border-left:5px solid var(--sed-blue) !important; color:#1e3a8a !important; }
+.success-box { border-left:5px solid var(--sed-green) !important; color:#065f46 !important; }
+.warning-box { border-left:5px solid var(--sed-yellow) !important; color:#92400e !important; }
+.error-box { border-left:5px solid #ef4444 !important; color:#991b1b !important; }
+
+/* METRICAS */
+[data-testid="metric-container"] {
+    background:rgba(255,255,255,.92) !important; border:1px solid var(--sed-border) !important; border-radius:8px !important;
+    padding:.8rem .9rem !important; box-shadow:var(--shadow-soft) !important;
+}
+[data-testid="metric-container"] [data-testid="stMetricValue"] { font-size:1.18rem !important; line-height:1.2 !important; overflow-wrap:anywhere; }
+[data-testid="metric-container"] [data-testid="stMetricLabel"] { color:#64748b !important; font-weight:900 !important; }
+
+/* MAPA DE SALA E CARDS LEGADOS */
+.sala-grid, .form-panel, .card, .protocolo-info { border-radius:10px !important; }
+.badge { border-radius:999px; padding:.28rem .7rem; font-size:.72rem; font-weight:850; }
+.badge-primary { background:#eaf6ff; color:#1e3a8a; border:1px solid #bfdbfe; }
+.badge-success { background:#dcfce7; color:#065f46; border:1px solid #86efac; }
+.badge-warning { background:#fef3c7; color:#92400e; border:1px solid #fcd34d; }
+.badge-danger { background:#fee2e2; color:#991b1b; border:1px solid #fca5a5; }
+.badge-purple { background:#f3e8ff; color:#6d28d9; border:1px solid #d8b4fe; }
+
+/* RESPONSIVO */
 @media (max-width: 900px) {
-    .sed-header-top {flex-direction: column;}
-    .sed-user-box {text-align: left;}
-    .sed-system-title {font-size: 1.45rem;}
-    section[data-testid="stSidebar"] {min-width: 250px !important; max-width: 250px !important;}
+    .main .block-container { padding-left:.8rem !important; padding-right:.8rem !important; }
+    section[data-testid="stSidebar"] { min-width:260px !important; max-width:260px !important; }
+    section[data-testid="stSidebar"]::after { display:none !important; }
+    .sed-dashboard-top { flex-direction:column; align-items:flex-start; }
+    .sed-dashboard-user { text-align:left; }
+    .sed-dashboard-strip { justify-content:flex-start; }
 }
-
 </style>
 """, unsafe_allow_html=True)
 # ======================================================
@@ -3392,24 +1282,7 @@ def show_toast(message: str, type: str = "success", duration: int = 3000):
     st.toast(f"{icon} {message}")
 
 
-def page_header(titulo: str, subtitulo: str = "", cor: str = "#2563eb"):
-    """Renderiza um cabeçalho de página moderno e consistente"""
-    partes = titulo.split(maxsplit=1)
-    icone = partes[0] if partes else "📌"
-    titulo_texto = partes[1] if len(partes) > 1 else titulo
-    sub_html = f'<p class="page-banner-subtitle">{subtitulo}</p>' if subtitulo else ""
-    st.markdown(f"""
-    <div class="page-banner" style="--banner-accent:{cor};">
-        <div class="page-banner-content">
-            <div class="page-banner-icon">{icone}</div>
-            <div class="page-banner-copy">
-                <div class="page-banner-kicker">Painel</div>
-                <div class="page-banner-title">{titulo_texto}</div>
-                {sub_html}
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+# [limpeza] definição duplicada removida: page_header
 
 
 def page_header(titulo: str, subtitulo: str = "", cor: str = "#2563eb"):
@@ -4220,98 +2093,7 @@ def _formatar_lista_nomes(nomes: list[str]) -> str:
         return nomes[0]
     return ", ".join(nomes[:-1]) + " e " + nomes[-1]
 
-def _resposta_pedagogica_local(texto: str, tarefa: str, contexto: str = "") -> str:
-    """Fallback quando a API falha ou devolve algo fraco, preservando os fatos do relato."""
-    texto_original = str(texto or "").strip()
-    texto_norm = normalizar_texto(texto_original)
-    tarefa_norm = normalizar_texto(tarefa or "")
-    texto_bruto = texto_original.lower()
-    nomes_contexto = _extrair_nomes_estudantes_contexto(contexto)
-    nomes_texto = _formatar_lista_nomes(nomes_contexto)
-    sujeito = "A estudante" if ("a estudante" in texto_bruto or "aluna" in texto_bruto) else "O estudante"
-
-    if len(texto_original) >= 40:
-        texto_base = _limpar_texto_para_ia(texto_original)
-        texto_base = re.sub(r"\s+", " ", texto_base).strip(" .,;:")
-        texto_base = texto_base[:1].upper() + texto_base[1:] if texto_base else ""
-        if texto_base and texto_base[-1] not in ".!?":
-            texto_base += "."
-
-        if "OCORR" in tarefa_norm or "PLACON" in tarefa_norm or "REGISTRO" in tarefa_norm:
-            if "INTERVAL" in texto_norm and ("CORRENDO" in texto_norm or "ESCOND" in texto_norm):
-                coordenador = ""
-                m_coord = re.search(r"coordenador(?:a)?\s+([A-Za-zÀ-ÿ]+)", texto_original, flags=re.I)
-                if m_coord:
-                    coordenador = m_coord.group(1).strip()
-                trecho_coord = (
-                    f", sendo necessário acionar o coordenador {coordenador} para conduzi-los às respectivas salas"
-                    if coordenador else
-                    ", sendo necessário acionar a equipe escolar para conduzi-los às respectivas salas"
-                )
-                return (
-                    f"No horário de intervalo, {'os estudantes ' + nomes_texto if nomes_texto else 'os estudantes'} foram orientados pelas agentes de organização a retornar para as salas. "
-                    f"Mesmo após a orientação, permaneceram correndo e se escondendo{trecho_coord}. "
-                    "O caso foi registrado para acompanhamento, com retomada dos combinados de convivência, circulação e segurança nos espaços escolares."
-                )
-
-            texto_corrigido = texto_base[:1].lower() + texto_base[1:] if texto_base else "o fato relatado necessita de registro pela escola."
-            trecho_nomes = f" envolvendo {nomes_texto}" if nomes_texto else ""
-            return (
-                f"Conforme relatado{trecho_nomes}, {texto_corrigido} "
-                "A escola registrou o ocorrido para acompanhamento, retomou os combinados de convivência e orientou os estudantes envolvidos quanto à permanência nos espaços indicados e ao retorno organizado para a sala."
-            )
-
-        if "FAMIL" in tarefa_norm or "COMUNICADO" in tarefa_norm or "ENCAMINHAMENTO" in tarefa_norm:
-            texto_corrigido = texto_base[:1].lower() + texto_base[1:] if texto_base else "foi registrada uma situação que exige acompanhamento escolar."
-            trecho_nomes = f" com {nomes_texto}" if nomes_texto else ""
-            return (
-                f"Informamos que{trecho_nomes} {texto_corrigido} "
-                "A escola registrou o ocorrido, orientou os estudantes envolvidos e solicita a parceria da família no reforço dos combinados de convivência e segurança."
-            )
-
-        return (
-            f"{texto_base} "
-            "A escola acompanhou a situação no momento, realizou as orientações pertinentes aos estudantes envolvidos e manteve o registro para acompanhamento posterior."
-        )
-
-    if "barulh" in texto_bruto or "fala demais" in texto_bruto or "conversa demais" in texto_bruto or "excesso" in texto_bruto:
-        return (
-            f"{sujeito} tem mantido comportamento em desacordo com o regimento escolar, com falas frequentes, "
-            "em volume excessivo e em dissonância com os combinados de convivência. A escola tem realizado orientações "
-            "e solicita a parceria da família para reforçar atitudes de respeito e adequação à rotina escolar."
-        )
-    if "brigu" in texto_bruto or "AGRESSAO" in texto_norm or "CONFLITO" in texto_norm:
-        return (
-            f"{sujeito} esteve envolvido(a) em situação de conflito, conforme relatado. A escola realizou mediação pedagógica, "
-            "retomou os combinados de convivência e solicita a parceria da família para reforçar atitudes de diálogo e respeito."
-        )
-    if "INTERVAL" in texto_norm or "RECRE" in texto_norm or "CORRENDO" in texto_norm or "ESCOND" in texto_norm:
-        return (
-            f"Durante o período de intervalo, {sujeito.lower()} apresentou comportamento em desacordo com as orientações da escola. "
-            "A equipe escolar realizou a intervenção necessária, conduziu os estudantes às suas salas e reforçou os combinados de convivência e segurança no ambiente escolar."
-        )
-    if "preguicos" in texto_norm or "pregui" in texto_norm or "pregui" in texto_bruto:
-        return (
-            f"{sujeito} necessita de acompanhamento para iniciar, manter e concluir as atividades propostas. A escola tem "
-            "realizado orientações durante a rotina e solicita a parceria da família para fortalecer a organização dos estudos "
-            "e a realização das atividades."
-        )
-    if "idiota" in texto_norm or "burro" in texto_norm or "incapaz" in texto_norm:
-        return (
-            f"{sujeito} necessita de acompanhamento pedagógico para fortalecer sua participação nas atividades escolares. "
-            "A escola seguirá acompanhando seu desenvolvimento de forma respeitosa e manterá diálogo com a família sempre que necessário."
-        )
-    if tarefa_norm == normalizar_texto("Sugerir comunicados ou encaminhamentos para a Família"):
-        return (
-            "A escola seguirá acompanhando o estudante de forma sistemática, com registros das observações relevantes, combinados claros "
-            "e apoio pedagógico durante as atividades. Solicitamos a parceria da família no acompanhamento da rotina, na organização dos "
-            "estudos e no diálogo contínuo com a equipe escolar, para que as estratégias adotadas possam contribuir para seu desenvolvimento."
-        )
-    return (
-        "Com as informações disponíveis, registramos que o estudante necessita de acompanhamento pedagógico, considerando os fatos observáveis "
-        "e as estratégias já adotadas pela escola. A equipe seguirá acompanhando seu desenvolvimento e manterá diálogo com a família sempre que "
-        "necessário para fortalecer a parceria no processo educativo."
-    )
+# [limpeza] definição duplicada removida: _resposta_pedagogica_local
 
 
 def chamar_ia_conviva_online(texto: str, tarefa: str, contexto: str = "") -> str:
@@ -7071,39 +4853,7 @@ def excluir_caderno_tutoria_supabase(chave: str) -> bool:
         return False
 
 
-def render_login_professor_tutoria(nomes_professores: list[str]) -> tuple[bool, str, bool]:
-    """Login leve para a seção do caderno. Gestão usa SENHA_EXCLUSAO; professor seleciona seu nome."""
-    st.markdown("### 🔐 Acesso ao Caderno de Tutoria")
-    usuario_logado = str(st.session_state.get("tutoria_usuario_logado", "")).strip()
-    perfil_gestao = bool(st.session_state.get("tutoria_usuario_gestao", False))
-    if usuario_logado:
-        col_a, col_b = st.columns([3, 1])
-        col_a.success(f"Acesso ativo: {usuario_logado}" + (" — Gestão" if perfil_gestao else " — Professor(a)"))
-        if col_b.button("🚪 Sair", key="logout_tutoria_caderno"):
-            st.session_state.pop("tutoria_usuario_logado", None)
-            st.session_state.pop("tutoria_usuario_gestao", None)
-            st.rerun()
-        return True, usuario_logado, perfil_gestao
-
-    aba_prof, aba_gestao = st.tabs(["Professor(a)", "Gestão/Coordenação"])
-    with aba_prof:
-        st.caption("Selecione seu nome para abrir apenas os seus tutorados.")
-        nome = st.selectbox("Professor(a)", nomes_professores, key="login_professor_tutoria_nome")
-        if st.button("Entrar como professor(a)", type="primary", key="login_professor_tutoria_btn"):
-            st.session_state["tutoria_usuario_logado"] = nome
-            st.session_state["tutoria_usuario_gestao"] = False
-            st.rerun()
-    with aba_gestao:
-        st.caption("A gestão pode visualizar todos os professores e todos os cadernos.")
-        senha = st.text_input("Senha da gestão", type="password", key="login_gestao_tutoria_senha")
-        if st.button("Entrar como gestão", key="login_gestao_tutoria_btn"):
-            if str(senha) == str(SENHA_EXCLUSAO):
-                st.session_state["tutoria_usuario_logado"] = "Gestão/Coordenação"
-                st.session_state["tutoria_usuario_gestao"] = True
-                st.rerun()
-            else:
-                st.error("Senha incorreta.")
-    return False, "", False
+# [limpeza] definição duplicada removida: render_login_professor_tutoria
 
 
 def gerar_pdf_cadernos_professor(professor: str, cadernos: dict) -> BytesIO:
@@ -7269,11 +5019,7 @@ def obter_caderno_tutoria_online(cadernos: dict, professor: str, estudante: str,
     return chave, caderno
 
 
-def _atualizar_caderno(cadernos: dict, chave: str, caderno: dict):
-    caderno["atualizado_em"] = datetime.now().strftime("%d/%m/%Y %H:%M")
-    cadernos[chave] = caderno
-    salvar_cadernos_tutoria_online(cadernos)
-    salvar_caderno_tutoria_supabase(chave, caderno)
+# [limpeza] definição duplicada removida: _atualizar_caderno
 
 
 def _linhas_professor_tutoria(registro_tutor: dict) -> list[dict]:
@@ -7293,390 +5039,10 @@ def _pdf_texto_caderno(valor, estilo: ParagraphStyle) -> Paragraph:
     return Paragraph(texto or "&nbsp;", estilo)
 
 
-def gerar_pdf_caderno_tutoria(caderno: dict) -> BytesIO:
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1.0*cm, leftMargin=1.0*cm, topMargin=0.8*cm, bottomMargin=1.0*cm)
-    styles = getSampleStyleSheet()
-    titulo = ParagraphStyle("TituloCaderno", parent=styles["Heading1"], alignment=TA_CENTER, fontSize=14, leading=17, spaceAfter=6)
-    secao = ParagraphStyle("SecaoCaderno", parent=styles["Heading2"], alignment=TA_CENTER, fontSize=11, leading=14, spaceBefore=4, spaceAfter=6)
-    normal = ParagraphStyle("NormalCaderno", parent=styles["Normal"], fontSize=8, leading=10)
-    celula = ParagraphStyle("CelulaCaderno", parent=styles["Normal"], fontSize=7, leading=8.8, wordWrap="CJK")
-    celula_pequena = ParagraphStyle("CelulaPequenaCaderno", parent=styles["Normal"], fontSize=6.4, leading=8, wordWrap="CJK")
-    rotulo = ParagraphStyle("RotuloCaderno", parent=celula, fontName="Helvetica-Bold")
-    story = []
-
-    _adicionar_logo(story)
-    story.append(Paragraph("CADERNO DE TUTORIA 2026", titulo))
-    story.append(Paragraph(f"<b>Tutor(a):</b> {html.escape(str(caderno.get('professor','')))}", normal))
-    story.append(Paragraph(f"<b>Estudante:</b> {html.escape(str(caderno.get('estudante','')))} &nbsp;&nbsp; <b>Turma:</b> {html.escape(str(caderno.get('turma','')))}", normal))
-    story.append(Spacer(1, 0.25*cm))
-
-    ficha = caderno.get("ficha_identificacao", {})
-    story.append(Paragraph("FICHA DE IDENTIFICAÇÃO DO TUTORADO", secao))
-    dados_ficha = [
-        [_pdf_texto_caderno("Nome do Aluno", rotulo), _pdf_texto_caderno(ficha.get("nome_aluno", ""), celula), _pdf_texto_caderno("Ano/Série", rotulo), _pdf_texto_caderno(ficha.get("ano_serie", ""), celula), _pdf_texto_caderno("Data de Nasc.", rotulo), _pdf_texto_caderno(ficha.get("data_nascimento", ""), celula)],
-        [_pdf_texto_caderno("Telefone", rotulo), _pdf_texto_caderno(ficha.get("telefone", ""), celula), _pdf_texto_caderno("Nome do responsável", rotulo), _pdf_texto_caderno(ficha.get("nome_responsavel", ""), celula), _pdf_texto_caderno("Telefone", rotulo), _pdf_texto_caderno(ficha.get("telefone_responsavel", ""), celula)],
-    ]
-    tabela = Table(dados_ficha, colWidths=[2.4*cm, 5.0*cm, 2.2*cm, 2.3*cm, 2.1*cm, 3.0*cm])
-    tabela.setStyle(TableStyle([
-        ("GRID", (0,0), (-1,-1), 0.4, colors.grey),
-        ("BACKGROUND", (0,0), (0,-1), colors.whitesmoke),
-        ("BACKGROUND", (2,0), (2,-1), colors.whitesmoke),
-        ("BACKGROUND", (4,0), (4,-1), colors.whitesmoke),
-        ("VALIGN", (0,0), (-1,-1), "TOP"),
-        ("LEFTPADDING", (0,0), (-1,-1), 4),
-        ("RIGHTPADDING", (0,0), (-1,-1), 4),
-        ("TOPPADDING", (0,0), (-1,-1), 4),
-        ("BOTTOMPADDING", (0,0), (-1,-1), 4),
-    ]))
-    story.append(tabela)
-    story.append(Spacer(1, 0.35*cm))
-
-    story.append(Paragraph("RENDIMENTO BIMESTRAL", secao))
-    linhas = [["Componente Curricular", "1º BIM", "2º BIM", "3º BIM", "4º BIM", "Resultado Final"]]
-    for disc in DISCIPLINAS_CADERNO_TUTORIA:
-        reg = caderno.get("rendimento_bimestral", {}).get(disc, {})
-        linhas.append([
-            _pdf_texto_caderno(disc, celula_pequena),
-            _pdf_texto_caderno(reg.get("1º BIM", ""), celula_pequena),
-            _pdf_texto_caderno(reg.get("2º BIM", ""), celula_pequena),
-            _pdf_texto_caderno(reg.get("3º BIM", ""), celula_pequena),
-            _pdf_texto_caderno(reg.get("4º BIM", ""), celula_pequena),
-            _pdf_texto_caderno(reg.get("RESULTADO FINAL", ""), celula_pequena),
-        ])
-    t = Table(linhas, colWidths=[5.3*cm, 2.0*cm, 2.0*cm, 2.0*cm, 2.0*cm, 3.0*cm], repeatRows=1)
-    t.setStyle(TableStyle([("GRID", (0,0), (-1,-1), 0.35, colors.grey), ("BACKGROUND", (0,0), (-1,0), colors.lightgrey), ("FONT", (0,0), (-1,-1), "Helvetica", 6.5), ("VALIGN", (0,0), (-1,-1), "MIDDLE")]))
-    story.append(t)
-    story.append(Spacer(1, 0.35*cm))
-
-    story.append(Paragraph("PARTICIPAÇÃO DOS PAIS NAS REUNIÕES", secao))
-    part = caderno.get("participacao_pais", {})
-    linhas = [["Bimestre", "Data", "Assinatura do Responsável"]]
-    for bim in ["1º BIMESTRE", "2º BIMESTRE", "3º BIMESTRE", "4º BIMESTRE"]:
-        reg = part.get(bim, {})
-        linhas.append([_pdf_texto_caderno(bim, celula), _pdf_texto_caderno(reg.get("data", ""), celula), _pdf_texto_caderno(reg.get("assinatura_responsavel", ""), celula)])
-    t = Table(linhas, colWidths=[4*cm, 4*cm, 9*cm], repeatRows=1)
-    t.setStyle(TableStyle([("GRID", (0,0), (-1,-1), 0.35, colors.grey), ("BACKGROUND", (0,0), (-1,0), colors.lightgrey), ("FONT", (0,0), (-1,-1), "Helvetica", 7)]))
-    story.append(t)
-    story.append(Spacer(1, 0.35*cm))
-
-    story.append(Paragraph("TUTORIA INDIVIDUAL", secao))
-    individuais = caderno.get("tutoria_individual", []) or []
-    if individuais:
-        linhas = [["Data", "Objetivo", "Pontos positivos", "Pontos de atenção", "Ações / encaminhamentos"]]
-        for item in individuais:
-            linhas.append([
-                _pdf_texto_caderno(item.get("data", ""), celula_pequena),
-                _pdf_texto_caderno(item.get("objetivo", ""), celula_pequena),
-                _pdf_texto_caderno(item.get("pontos_positivos", ""), celula_pequena),
-                _pdf_texto_caderno(item.get("pontos_atencao", ""), celula_pequena),
-                _pdf_texto_caderno(item.get("acoes_encaminhamentos", ""), celula_pequena),
-            ])
-        t = Table(linhas, colWidths=[2*cm, 3.2*cm, 4*cm, 4*cm, 4*cm], repeatRows=1)
-        t.setStyle(TableStyle([("GRID", (0,0), (-1,-1), 0.35, colors.grey), ("BACKGROUND", (0,0), (-1,0), colors.lightgrey), ("FONT", (0,0), (-1,-1), "Helvetica", 6.2), ("VALIGN", (0,0), (-1,-1), "TOP")]))
-        story.append(t)
-    else:
-        story.append(Paragraph("Nenhum registro individual cadastrado.", normal))
-
-    story.append(Spacer(1, 0.35*cm))
-    story.append(Paragraph("TUTORIA COLETIVA", secao))
-    coletivas = caderno.get("tutoria_coletiva", []) or []
-    if coletivas:
-        linhas = [["Data", "Nº", "Objetivo", "Campo", "Constatação e/ou evidência"]]
-        for encontro in coletivas:
-            for campo in CAMPOS_TUTORIA_COLETIVA:
-                linhas.append([
-                    _pdf_texto_caderno(encontro.get("data", ""), celula_pequena),
-                    _pdf_texto_caderno(encontro.get("numero_encontro", ""), celula_pequena),
-                    _pdf_texto_caderno(encontro.get("objetivo_encontro", ""), celula_pequena),
-                    _pdf_texto_caderno(campo, celula_pequena),
-                    _pdf_texto_caderno(encontro.get("campos", {}).get(campo, ""), celula_pequena),
-                ])
-        t = Table(linhas, colWidths=[1.7*cm, 1.1*cm, 3.0*cm, 4.2*cm, 7.0*cm], repeatRows=1)
-        t.setStyle(TableStyle([("GRID", (0,0), (-1,-1), 0.35, colors.grey), ("BACKGROUND", (0,0), (-1,0), colors.lightgrey), ("FONT", (0,0), (-1,-1), "Helvetica", 5.8), ("VALIGN", (0,0), (-1,-1), "TOP")]))
-        story.append(t)
-    else:
-        story.append(Paragraph("Nenhum registro coletivo cadastrado.", normal))
-
-    doc.build(story)
-    buffer.seek(0)
-    return buffer
+# [limpeza] definição duplicada removida: gerar_pdf_caderno_tutoria
 
 
-def render_caderno_tutoria_online(TUTORIA: dict, df_alunos: pd.DataFrame | None = None):
-    st.markdown("---")
-    st.subheader("📘 Caderno de Tutoria Online 2026")
-    st.caption("Caderno digital vinculado à página de Tutoria. Cada tutor(a) acessa seus estudantes, edita registros e pode imprimir o caderno.")
-
-    if not TUTORIA:
-        st.info("Cadastre primeiro os responsáveis e estudantes na Tutoria para liberar os cadernos online.")
-        return
-
-    # CONTROLE DE ACESSO DO CADERNO
-    # Professor(a) ve somente seus tutorados; gestao pode escolher qualquer responsavel.
-    nomes_professores = sorted([str(p).strip() for p in TUTORIA.keys() if str(p).strip()])
-    acesso_ok, usuario_logado, usuario_gestao = render_login_professor_tutoria(nomes_professores)
-    if not acesso_ok:
-        return
-
-    cadernos = carregar_cadernos_tutoria_online()
-
-    if usuario_gestao:
-        professor = st.selectbox("Tutor(a) / responsável pelo caderno", nomes_professores, key="caderno_tutoria_professor")
-    else:
-        professor = usuario_logado
-        st.info(f"Voce esta acessando o caderno como professor(a): {professor}")
-
-    registro_tutor = obter_registro_tutoria(TUTORIA, professor)
-    estudantes = _linhas_professor_tutoria(registro_tutor)
-
-    if not estudantes:
-        st.warning("Este tutor(a) ainda não possui estudantes vinculados na Tutoria.")
-        return
-
-    labels = [e["label"] for e in estudantes]
-    label_aluno = st.selectbox("Estudante tutorado", labels, key="caderno_tutoria_estudante")
-    aluno = next((e for e in estudantes if e["label"] == label_aluno), estudantes[0])
-    chave, caderno = obter_caderno_tutoria_online(cadernos, professor, aluno["nome"], aluno.get("turma", ""))
-
-    st.markdown(f"""
-    <div class="info-box">
-        <b>Caderno selecionado:</b> {html.escape(aluno['nome'])} — {html.escape(aluno.get('turma',''))}<br>
-        <b>Tutor(a):</b> {html.escape(professor)}<br>
-        <b>Última atualização:</b> {html.escape(str(caderno.get('atualizado_em') or 'Ainda não salvo'))}
-    </div>
-    """, unsafe_allow_html=True)
-
-    tab_capa, tab_ident, tab_rend, tab_perfil, tab_ind, tab_col, tab_pdf = st.tabs([
-        "📒 Capa", "🪪 Identificação", "📊 Rendimento", "👤 Perfil", "🧑‍🏫 Tutoria Individual", "👥 Tutoria Coletiva", "🖨️ Imprimir"
-    ])
-
-    with tab_capa:
-        st.markdown("### Caderno de Tutoria 2026")
-        col1, col2 = st.columns([1, 2])
-        with col1:
-            st.metric("Tutor(a)", professor)
-            st.metric("Turma", aluno.get("turma", ""))
-        with col2:
-            st.text_input("Tutor", value=professor, disabled=True, key=f"capa_tutor_{chave}")
-            st.text_input("E.E. Profª Eliane Ap. Dantas da Silva", value="Caderno de Tutoria 2026", disabled=True, key=f"capa_escola_{chave}")
-            caderno["observacoes_gerais"] = st.text_area("Observações gerais do caderno", value=caderno.get("observacoes_gerais", ""), height=120, key=f"obs_gerais_{chave}")
-            if st.button("💾 Salvar capa/observações", type="primary", key=f"salvar_capa_{chave}"):
-                _atualizar_caderno(cadernos, chave, caderno)
-                st.success("Caderno salvo.")
-
-    with tab_ident:
-        st.markdown("### Ficha de Identificação do Tutorado")
-        ficha = caderno.get("ficha_identificacao", {})
-        c1, c2, c3 = st.columns([2, 1, 1])
-        ficha["nome_aluno"] = c1.text_input("Nome do Aluno", value=ficha.get("nome_aluno") or aluno["nome"], key=f"ficha_nome_{chave}")
-        ficha["ano_serie"] = c2.text_input("Ano/Série", value=ficha.get("ano_serie") or aluno.get("turma", ""), key=f"ficha_turma_{chave}")
-        ficha["data_nascimento"] = c3.text_input("Data de Nasc.", value=ficha.get("data_nascimento", ""), key=f"ficha_nasc_{chave}")
-        c1, c2 = st.columns(2)
-        ficha["telefone"] = c1.text_input("Telefone", value=ficha.get("telefone", ""), key=f"ficha_tel_{chave}")
-        ficha["telefone_responsavel"] = c2.text_input("Telefone do responsável", value=ficha.get("telefone_responsavel", ""), key=f"ficha_tel_resp_{chave}")
-        ficha["nome_responsavel"] = st.text_input("Nome do responsável", value=ficha.get("nome_responsavel", ""), key=f"ficha_resp_{chave}")
-        caderno["ficha_identificacao"] = ficha
-        if st.button("💾 Salvar identificação", type="primary", key=f"salvar_ident_{chave}"):
-            _atualizar_caderno(cadernos, chave, caderno)
-            st.success("Identificação salva.")
-
-    with tab_rend:
-        st.markdown("### Rendimento Bimestral")
-        rendimento = caderno.get("rendimento_bimestral", {})
-        df_rend = pd.DataFrame([
-            {"COMPONENTE CURRICULAR": disc, **(rendimento.get(disc) or {})}
-            for disc in DISCIPLINAS_CADERNO_TUTORIA
-        ])
-        df_edit = st.data_editor(df_rend, use_container_width=True, hide_index=True, num_rows="fixed", key=f"editor_rendimento_{chave}")
-        novo_rendimento = {}
-        for _, row in df_edit.iterrows():
-            disc = str(row.get("COMPONENTE CURRICULAR", "")).strip()
-            if disc:
-                novo_rendimento[disc] = {
-                    "1º BIM": str(row.get("1º BIM", "")),
-                    "2º BIM": str(row.get("2º BIM", "")),
-                    "3º BIM": str(row.get("3º BIM", "")),
-                    "4º BIM": str(row.get("4º BIM", "")),
-                    "RESULTADO FINAL": str(row.get("RESULTADO FINAL", "")),
-                }
-        caderno["rendimento_bimestral"] = novo_rendimento
-
-        st.markdown("### Participação dos Pais nas Reuniões")
-        participacao = caderno.get("participacao_pais", {})
-        linhas_part = []
-        for bim in ["1º BIMESTRE", "2º BIMESTRE", "3º BIMESTRE", "4º BIMESTRE"]:
-            reg = participacao.get(bim, {})
-            linhas_part.append({"BIMESTRE": bim, "DATA": reg.get("data", ""), "ASSINATURA DO RESPONSÁVEL": reg.get("assinatura_responsavel", "")})
-        df_part = st.data_editor(pd.DataFrame(linhas_part), use_container_width=True, hide_index=True, num_rows="fixed", key=f"editor_part_{chave}")
-        caderno["participacao_pais"] = {
-            str(row.get("BIMESTRE", "")): {"data": str(row.get("DATA", "")), "assinatura_responsavel": str(row.get("ASSINATURA DO RESPONSÁVEL", ""))}
-            for _, row in df_part.iterrows()
-        }
-        if st.button("💾 Salvar rendimento e participação", type="primary", key=f"salvar_rend_{chave}"):
-            _atualizar_caderno(cadernos, chave, caderno)
-            st.success("Rendimento salvo.")
-
-    with tab_perfil:
-        st.markdown("### Perfil do Tutorado — Nível Básico e Avançado")
-        perfil = caderno.get("perfil_tutorado", {})
-        dados_pessoais = perfil.setdefault("dados_pessoais", {})
-        familia = perfil.setdefault("dados_familia", {})
-        sonhos = perfil.setdefault("sonhos", {})
-        pv = perfil.setdefault("projeto_de_vida", {})
-        avancado = perfil.setdefault("nivel_avancado", {})
-
-        st.markdown("#### Nível Básico")
-        c1, c2, c3, c4 = st.columns(4)
-        dados_pessoais["data_nascimento"] = c1.text_input("Data de Nascimento", value=dados_pessoais.get("data_nascimento", ""), key=f"perfil_nasc_{chave}")
-        dados_pessoais["cidade_onde_nasceu"] = c2.text_input("Cidade onde nasceu", value=dados_pessoais.get("cidade_onde_nasceu", ""), key=f"perfil_cidade_{chave}")
-        dados_pessoais["endereco"] = c3.text_input("Endereço", value=dados_pessoais.get("endereco", ""), key=f"perfil_end_{chave}")
-        dados_pessoais["celular"] = c4.text_input("Celular", value=dados_pessoais.get("celular", ""), key=f"perfil_cel_{chave}")
-        c1, c2, c3, c4 = st.columns(4)
-        familia["pai_celular"] = c1.text_input("Pai / celular", value=familia.get("pai_celular", ""), key=f"perfil_pai_{chave}")
-        familia["mae_celular"] = c2.text_input("Mãe / celular", value=familia.get("mae_celular", ""), key=f"perfil_mae_{chave}")
-        familia["irmaos"] = c3.text_input("Irmãos", value=familia.get("irmaos", ""), key=f"perfil_irmaos_{chave}")
-        familia["outros"] = c4.text_input("Outros", value=familia.get("outros", ""), key=f"perfil_outros_{chave}")
-        perfil["breve_historico_estudante"] = st.text_area("Breve histórico do estudante", value=perfil.get("breve_historico_estudante", ""), height=90, key=f"perfil_hist_{chave}")
-        perfil["breve_perfil_caracteristicas_familia"] = st.text_area("Breve perfil / características da família", value=perfil.get("breve_perfil_caracteristicas_familia", ""), height=90, key=f"perfil_fam_{chave}")
-        c1, c2, c3, c4 = st.columns(4)
-        sonhos["sonho_1_data"] = c1.text_input("Sonho 1 / data", value=sonhos.get("sonho_1_data", ""), key=f"sonho1_{chave}")
-        sonhos["sonho_2_data"] = c2.text_input("Sonho 2 / data", value=sonhos.get("sonho_2_data", ""), key=f"sonho2_{chave}")
-        sonhos["sonho_3_data"] = c3.text_input("Sonho 3 / data", value=sonhos.get("sonho_3_data", ""), key=f"sonho3_{chave}")
-        sonhos["sonho_4_data"] = c4.text_input("Sonho 4 / data", value=sonhos.get("sonho_4_data", ""), key=f"sonho4_{chave}")
-        c1, c2, c3, c4 = st.columns(4)
-        pv["pv_1_data"] = c1.text_input("PV 1 / data", value=pv.get("pv_1_data", ""), key=f"pv1_{chave}")
-        pv["pv_2_data"] = c2.text_input("PV 2 / data", value=pv.get("pv_2_data", ""), key=f"pv2_{chave}")
-        pv["pv_3_data"] = c3.text_input("PV 3 / data", value=pv.get("pv_3_data", ""), key=f"pv3_{chave}")
-        pv["pv_4_data"] = c4.text_input("PV 4 / data", value=pv.get("pv_4_data", ""), key=f"pv4_{chave}")
-
-        st.markdown("#### Nível Avançado")
-        campos_avancados = [
-            ("principais_gostos_preferencias", "Principais gostos e preferências do tutorado"),
-            ("principais_virtudes_caracteristicas_positivas", "Principais virtudes / características positivas do tutorado"),
-            ("principais_habilidades", "Principais habilidades do tutorado"),
-            ("tres_principais_pontos_positivos_atuais", "Os três principais pontos positivos atuais do tutorado"),
-            ("o_que_fazer_sobre_pontos_positivos", "O que fazer sobre os pontos positivos atuais do tutorado"),
-        ]
-        for campo, rotulo in campos_avancados:
-            valores = avancado.get(campo, ["", "", ""])
-            while len(valores) < 3:
-                valores.append("")
-            st.markdown(f"**{rotulo}**")
-            c1, c2, c3 = st.columns(3)
-            valores[0] = c1.text_input("1", value=valores[0], key=f"{campo}_1_{chave}")
-            valores[1] = c2.text_input("2", value=valores[1], key=f"{campo}_2_{chave}")
-            valores[2] = c3.text_input("3", value=valores[2], key=f"{campo}_3_{chave}")
-            avancado[campo] = valores[:3]
-        caderno["perfil_tutorado"] = perfil
-        if st.button("💾 Salvar perfil", type="primary", key=f"salvar_perfil_{chave}"):
-            _atualizar_caderno(cadernos, chave, caderno)
-            st.success("Perfil salvo.")
-
-    with tab_ind:
-        st.markdown("### Tutoria Individual")
-        individuais = caderno.get("tutoria_individual", []) or []
-        if individuais:
-            st.dataframe(pd.DataFrame(individuais), use_container_width=True, hide_index=True)
-        with st.form(f"form_individual_{chave}"):
-            c1, c2 = st.columns([1, 2])
-            data = c1.text_input("Data", value=datetime.now().strftime("%d/%m/%Y"))
-            objetivo = c2.text_input("Objetivo do encontro")
-            pontos_positivos = st.text_area("Constatação e/ou evidência — pontos positivos", height=80)
-            pontos_atencao = st.text_area("Constatação e/ou evidência — pontos de atenção", height=80)
-            acoes = st.text_area("Ações / encaminhamentos", height=90)
-            salvar_ind = st.form_submit_button("➕ Adicionar registro individual")
-        if salvar_ind:
-            individuais.append({
-                "data": data,
-                "objetivo": objetivo,
-                "pontos_positivos": pontos_positivos,
-                "pontos_atencao": pontos_atencao,
-                "acoes_encaminhamentos": acoes,
-            })
-            caderno["tutoria_individual"] = individuais
-            _atualizar_caderno(cadernos, chave, caderno)
-            st.success("Registro individual adicionado.")
-            st.rerun()
-        if individuais:
-            opcoes = [f"{i+1} - {r.get('data','')} - {r.get('objetivo','')}" for i, r in enumerate(individuais)]
-            excluir = st.selectbox("Registro individual para remover", opcoes, key=f"excluir_ind_{chave}")
-            if st.button("🗑️ Remover registro individual", key=f"btn_excluir_ind_{chave}"):
-                idx = opcoes.index(excluir)
-                individuais.pop(idx)
-                caderno["tutoria_individual"] = individuais
-                _atualizar_caderno(cadernos, chave, caderno)
-                st.success("Registro removido.")
-                st.rerun()
-
-    with tab_col:
-        st.markdown("### Tutoria Coletiva")
-        coletivas = caderno.get("tutoria_coletiva", []) or []
-        if coletivas:
-            resumo = [{"Data": r.get("data", ""), "Nº encontro": r.get("numero_encontro", ""), "Objetivo": r.get("objetivo_encontro", "")} for r in coletivas]
-            st.dataframe(pd.DataFrame(resumo), use_container_width=True, hide_index=True)
-        with st.form(f"form_coletiva_{chave}"):
-            c1, c2, c3 = st.columns([1, 1, 3])
-            data = c1.text_input("Data", value=datetime.now().strftime("%d/%m/%Y"))
-            numero = c2.text_input("Número do encontro")
-            objetivo = c3.text_input("Objetivo do encontro")
-            campos = {}
-            for campo in CAMPOS_TUTORIA_COLETIVA:
-                campos[campo] = st.text_area(f"{campo} — Constatação e/ou Evidência", height=70)
-            observacoes = st.text_area("Observações", height=80)
-            salvar_col = st.form_submit_button("➕ Adicionar encontro coletivo")
-        if salvar_col:
-            coletivas.append({"data": data, "numero_encontro": numero, "objetivo_encontro": objetivo, "campos": campos, "observacoes": observacoes})
-            caderno["tutoria_coletiva"] = coletivas
-            _atualizar_caderno(cadernos, chave, caderno)
-            st.success("Encontro coletivo adicionado.")
-            st.rerun()
-        if coletivas:
-            opcoes = [f"{i+1} - {r.get('data','')} - Encontro {r.get('numero_encontro','')}" for i, r in enumerate(coletivas)]
-            excluir = st.selectbox("Encontro coletivo para remover", opcoes, key=f"excluir_col_{chave}")
-            if st.button("🗑️ Remover encontro coletivo", key=f"btn_excluir_col_{chave}"):
-                idx = opcoes.index(excluir)
-                coletivas.pop(idx)
-                caderno["tutoria_coletiva"] = coletivas
-                _atualizar_caderno(cadernos, chave, caderno)
-                st.success("Encontro removido.")
-                st.rerun()
-
-    with tab_pdf:
-        st.markdown("### Imprimir / baixar caderno")
-        st.info("O PDF reúne identificação, rendimento, participação dos pais, tutoria individual e tutoria coletiva do estudante selecionado.")
-        if st.button("💾 Salvar antes de gerar PDF", type="primary", key=f"salvar_antes_pdf_{chave}"):
-            _atualizar_caderno(cadernos, chave, caderno)
-            st.success("Caderno salvo.")
-        pdf = gerar_pdf_caderno_tutoria(caderno)
-        st.download_button(
-            "📄 Baixar Caderno de Tutoria em PDF",
-            data=pdf,
-            file_name=f"Caderno_Tutoria_{_chave_caderno_tutoria(professor, aluno['nome'], aluno.get('turma',''))}.pdf",
-            mime="application/pdf",
-            key=f"download_caderno_{chave}",
-        )
-
-        st.markdown("---")
-        st.markdown("### 📚 Caderno do professor")
-        pdf_prof = gerar_pdf_cadernos_professor(professor, cadernos)
-        st.download_button(
-            "📘 Baixar PDF com todos os tutorados deste professor",
-            data=pdf_prof,
-            file_name=f"Cadernos_Tutoria_{_chave_caderno_tutoria(professor, '', '')}.pdf",
-            mime="application/pdf",
-            key=f"download_cadernos_professor_{_chave_caderno_tutoria(professor, '', '')}",
-        )
-        if usuario_gestao:
-            st.markdown("---")
-            st.markdown("### ☁️ Sincronização Supabase")
-            st.caption("Use depois de criar a tabela cadernos_tutoria no Supabase para enviar os cadernos locais já existentes.")
-            if st.button("Enviar cadernos locais para o Supabase", key="migrar_cadernos_supabase"):
-                ok = 0
-                for k, c in cadernos.items():
-                    if salvar_caderno_tutoria_supabase(k, c):
-                        ok += 1
-                st.success(f"Sincronização concluída: {ok} caderno(s) enviados ao Supabase.")
+# [limpeza] definição duplicada removida: render_caderno_tutoria_online
 
 
 # ======================================================
@@ -8573,6 +5939,17 @@ if menu == "🏠 Dashboard":
             <span class="sed-dashboard-pill">Alunos</span>
             <span class="sed-dashboard-pill">Tutoria</span>
         </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class="sed-platform-grid">
+        <div class="sed-platform-card"><span>📝</span><span>Registrar<br>Ocorrência</span></div>
+        <div class="sed-platform-card"><span>👥</span><span>Lista de<br>Alunos</span></div>
+        <div class="sed-platform-card"><span>🫂</span><span>Tutoria<br>2026</span></div>
+        <div class="sed-platform-card"><span>📊</span><span>Indicadores<br>Gerais</span></div>
+        <div class="sed-platform-card"><span>📄</span><span>Comunicado<br>aos Pais</span></div>
+        <div class="sed-platform-card"><span>🖨️</span><span>Impressão<br>PDF</span></div>
     </div>
     """, unsafe_allow_html=True)
 
