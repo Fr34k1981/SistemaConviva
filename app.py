@@ -617,6 +617,342 @@ section[data-testid="stSidebar"] {
     }
 }
 
+
+
+/* ============================================ */
+/* AJUSTE FINAL SOLICITADO: SUAVIZAR CARDS E RESTAURAR CORES ARCO-IRIS */
+/* ============================================ */
+:root {
+    --soft-pink: rgba(255, 127, 209, .20);
+    --soft-yellow: rgba(255, 214, 127, .22);
+    --soft-mint: rgba(151, 247, 240, .22);
+    --soft-blue: rgba(156, 199, 255, .24);
+    --soft-purple: rgba(216, 160, 255, .22);
+    --glass-panel: rgba(255,255,255,.74);
+    --glass-panel-strong: rgba(255,255,255,.86);
+    --soft-border-rainbow: rgba(216, 180, 254, .62);
+    --soft-shadow-rainbow: 0 14px 34px rgba(168, 85, 247, .10), 0 5px 14px rgba(14,165,233,.06);
+    --soft-rainbow-bg: linear-gradient(125deg, rgba(255,127,209,.26) 0%, rgba(255,214,127,.22) 23%, rgba(151,247,240,.25) 48%, rgba(156,199,255,.24) 72%, rgba(216,160,255,.25) 100%);
+    --soft-rainbow-light: linear-gradient(135deg, rgba(255,255,255,.88), rgba(255,247,253,.78) 32%, rgba(240,253,250,.78) 63%, rgba(248,244,255,.80));
+    --soft-rainbow-button: linear-gradient(120deg, rgba(255,127,209,.95) 0%, rgba(255,214,127,.95) 24%, rgba(151,247,240,.95) 48%, rgba(156,199,255,.95) 72%, rgba(216,160,255,.95) 100%);
+}
+
+.stApp {
+    background:
+        radial-gradient(circle at 6% 10%, rgba(255,127,209,.34), transparent 30%),
+        radial-gradient(circle at 78% 6%, rgba(151,247,240,.30), transparent 26%),
+        radial-gradient(circle at 92% 82%, rgba(216,160,255,.30), transparent 28%),
+        radial-gradient(circle at 18% 92%, rgba(255,214,127,.22), transparent 25%),
+        linear-gradient(135deg, #fff7fb 0%, #fffaf1 23%, #f1fdff 49%, #f5f2ff 75%, #fff8fd 100%) !important;
+}
+
+/* Sidebar mais leve: remove bloco 100% azul e volta para botões suaves */
+section[data-testid="stSidebar"] {
+    background:
+        radial-gradient(circle at 12% 4%, rgba(255,127,209,.26), transparent 30%),
+        radial-gradient(circle at 96% 18%, rgba(151,247,240,.24), transparent 30%),
+        radial-gradient(circle at 70% 92%, rgba(216,160,255,.20), transparent 30%),
+        linear-gradient(180deg, rgba(255,255,255,.92), rgba(249,245,255,.88)) !important;
+    border-right: 1px solid rgba(216,180,254,.55) !important;
+    box-shadow: 8px 0 26px rgba(168,85,247,.08) !important;
+}
+section[data-testid="stSidebar"] div[data-testid="stButton"] > button,
+[data-testid="stSidebar"] .stButton > button {
+    background: rgba(255,255,255,.72) !important;
+    color: #312e81 !important;
+    border: 1px solid rgba(216,180,254,.72) !important;
+    border-radius: 14px !important;
+    min-height: 44px !important;
+    margin: .22rem 0 !important;
+    padding: .58rem .78rem !important;
+    box-shadow: 0 9px 20px rgba(168,85,247,.07) !important;
+    backdrop-filter: blur(10px) !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+}
+section[data-testid="stSidebar"] div[data-testid="stButton"] > button:hover,
+[data-testid="stSidebar"] .stButton > button:hover {
+    background: linear-gradient(120deg, rgba(255,255,255,.86), rgba(255,247,252,.86), rgba(240,253,250,.86)) !important;
+    border-color: rgba(217,70,239,.42) !important;
+    box-shadow: 0 12px 26px rgba(217,70,239,.10) !important;
+}
+section[data-testid="stSidebar"] div[data-testid="stButton"] > button[kind="primary"],
+[data-testid="stSidebar"] .stButton > button[kind="primary"] {
+    background: linear-gradient(120deg, rgba(255,127,209,.22), rgba(151,247,240,.24), rgba(216,160,255,.25)) !important;
+    color: #312e81 !important;
+    border: 1.5px solid rgba(217,70,239,.38) !important;
+    border-left: 5px solid #d946ef !important;
+    box-shadow: 0 14px 30px rgba(168,85,247,.12) !important;
+}
+section[data-testid="stSidebar"]::after {
+    background: var(--soft-rainbow-button) !important;
+    box-shadow: 0 12px 26px rgba(217,70,239,.18) !important;
+}
+
+/* Topo e barras do sistema com identidade da escola e cores suaves */
+.sed-dashboard-header,
+.main-header,
+.page-banner,
+.sed-global-header {
+    background:
+        radial-gradient(circle at 4% 0%, rgba(255,127,209,.18), transparent 32%),
+        radial-gradient(circle at 86% 0%, rgba(151,247,240,.18), transparent 30%),
+        rgba(255,255,255,.82) !important;
+    border: 1px solid rgba(216,180,254,.62) !important;
+    border-radius: 22px !important;
+    box-shadow: var(--soft-shadow-rainbow) !important;
+    backdrop-filter: blur(12px) !important;
+}
+.sed-dashboard-mark, .page-banner-icon, .sed-section-icon, .sed-logo-mark {
+    background: var(--soft-rainbow-button) !important;
+    color: #2b2140 !important;
+    border-radius: 16px !important;
+    box-shadow: 0 12px 24px rgba(168,85,247,.13) !important;
+}
+.sed-dashboard-title, .sed-system-title, .page-banner-title {
+    color: #31215f !important;
+    text-shadow: 0 1px 0 rgba(255,255,255,.65) !important;
+}
+.sed-dashboard-kicker, .sed-secretaria, .page-banner-kicker {
+    color: #a21caf !important;
+}
+.sed-dashboard-pill {
+    background: rgba(255,255,255,.72) !important;
+    color: #4c1d95 !important;
+    border: 1px solid rgba(216,180,254,.70) !important;
+    border-radius: 999px !important;
+    box-shadow: 0 8px 18px rgba(168,85,247,.07) !important;
+}
+.sed-dashboard-pill:hover {
+    background: var(--soft-rainbow-bg) !important;
+    color: #2b2140 !important;
+}
+
+/* Cards e módulos: troca sólidos por vidro colorido suave */
+.metric-card,
+.sed-module-card,
+.quick-action-card,
+.card,
+.form-panel,
+.protocolo-info,
+.sed-feature-card,
+.sed-section-title,
+.sed-form-card-header,
+.sed-tool-card,
+.info-box,
+.success-box,
+.warning-box,
+.error-box,
+.dashboard-panorama,
+.dashboard-panorama-mini,
+.sed-kpi-item,
+[data-testid="metric-container"],
+div[data-testid="stForm"],
+div[data-testid="stExpander"] {
+    background:
+        linear-gradient(135deg, rgba(255,255,255,.86), rgba(255,247,252,.76) 35%, rgba(240,253,250,.74) 68%, rgba(248,244,255,.78)) !important;
+    color: #2b2140 !important;
+    border: 1px solid rgba(216,180,254,.66) !important;
+    border-radius: 22px !important;
+    box-shadow: var(--soft-shadow-rainbow) !important;
+    backdrop-filter: blur(10px) !important;
+}
+.metric-card::after,
+.sed-module-card::after,
+.quick-action-card::after,
+.card::after,
+.form-panel::after,
+.sed-feature-card::after,
+.sed-tool-card::after,
+.dashboard-panorama-mini::after,
+.sed-kpi-item::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 5px;
+    background: var(--soft-rainbow-button);
+    opacity: .90;
+}
+.metric-card,
+.sed-module-card,
+.quick-action-card,
+.card,
+.form-panel,
+.sed-feature-card,
+.sed-tool-card,
+.dashboard-panorama-mini,
+.sed-kpi-item {
+    position: relative !important;
+    overflow: hidden !important;
+}
+.metric-card:hover,
+.sed-module-card:hover,
+.quick-action-card:hover,
+.card:hover,
+.sed-feature-card:hover,
+.sed-tool-card:hover,
+.dashboard-panorama-mini:hover,
+.sed-kpi-item:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 18px 38px rgba(168,85,247,.14), 0 8px 20px rgba(14,165,233,.08) !important;
+}
+
+/* Corrige textos que estavam brancos por causa dos cards sólidos */
+.metric-card *,
+.sed-module-card *,
+.quick-action-card *,
+.card *,
+.form-panel *,
+.sed-feature-card *,
+.sed-tool-card *,
+.dashboard-panorama-mini *,
+.sed-kpi-item * {
+    color: #2b2140 !important;
+    -webkit-text-fill-color: initial !important;
+}
+.metric-icon,
+.quick-action-icon,
+.sed-module-icon {
+    background: rgba(255,255,255,.62) !important;
+    border: 1px solid rgba(216,180,254,.52) !important;
+    color: #a21caf !important;
+    box-shadow: 0 8px 18px rgba(168,85,247,.09) !important;
+}
+.metric-value,
+.card-value,
+.sed-module-title,
+.dashboard-panorama-mini-value,
+.sed-kpi-value {
+    color: #31215f !important;
+    font-weight: 900 !important;
+    background: none !important;
+    -webkit-text-fill-color: #31215f !important;
+}
+.metric-label,
+.metric-sub,
+.sed-module-sub,
+.dashboard-panorama-mini-label,
+.sed-kpi-label,
+.form-panel-subtitle,
+.sed-tool-card-subtitle,
+.sed-feature-card-meta {
+    color: #6b5b95 !important;
+    -webkit-text-fill-color: #6b5b95 !important;
+}
+
+/* Panorama: tira barra azul pesada e deixa arco-iris suave */
+.dashboard-panorama-bar {
+    background: var(--soft-rainbow-button) !important;
+    color: #2b2140 !important;
+    border-radius: 20px 20px 0 0 !important;
+}
+.dashboard-panorama-title,
+.dashboard-panorama-date,
+.dashboard-panorama-bar * {
+    color: #2b2140 !important;
+    -webkit-text-fill-color: #2b2140 !important;
+}
+.dashboard-panorama-date {
+    background: rgba(255,255,255,.48) !important;
+    border: 1px solid rgba(255,255,255,.70) !important;
+}
+.dashboard-panorama-body {
+    background: rgba(255,255,255,.62) !important;
+}
+.dashboard-panorama-text {
+    color: #3f2d63 !important;
+}
+
+/* Botões e campos no mesmo estilo pastel */
+.stButton > button[kind="primary"] {
+    background: var(--soft-rainbow-button) !important;
+    color: #2b2140 !important;
+    border: 1px solid rgba(216,180,254,.58) !important;
+    box-shadow: 0 12px 26px rgba(217,70,239,.12) !important;
+}
+.stButton > button[kind="secondary"],
+.stButton > button {
+    background: rgba(255,255,255,.76) !important;
+    color: #4c1d95 !important;
+    border: 1px solid rgba(216,180,254,.68) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 8px 18px rgba(168,85,247,.06) !important;
+}
+.stButton > button:hover {
+    background: linear-gradient(120deg, rgba(255,255,255,.90), rgba(255,247,252,.86), rgba(240,253,250,.86)) !important;
+    filter: none !important;
+}
+.stTextInput input, .stTextArea textarea, .stNumberInput input, [data-baseweb="select"] > div:first-child,
+[data-baseweb="input"] input {
+    border-radius: 16px !important;
+    border: 1px solid rgba(216,180,254,.62) !important;
+    background: rgba(255,255,255,.82) !important;
+    box-shadow: 0 8px 18px rgba(168,85,247,.05) !important;
+}
+.stTextInput input:focus, .stTextArea textarea:focus, .stNumberInput input:focus, [data-baseweb="select"] > div:first-child:focus-within {
+    border-color: rgba(217,70,239,.55) !important;
+    box-shadow: 0 0 0 3px rgba(217,70,239,.10) !important;
+}
+
+/* Abas, tabelas e alertas suavizados */
+[data-testid="stTabs"] div[role="tablist"] {
+    background: rgba(255,255,255,.58) !important;
+    border: 1px solid rgba(216,180,254,.62) !important;
+    border-radius: 22px !important;
+    box-shadow: 0 10px 24px rgba(168,85,247,.07) !important;
+}
+[data-testid="stTabs"] button[role="tab"] {
+    border-radius: 16px !important;
+    color: #6b5b95 !important;
+}
+[data-testid="stTabs"] button[aria-selected="true"] {
+    background: rgba(255,255,255,.82) !important;
+    color: #a21caf !important;
+    border-bottom: 3px solid #f472b6 !important;
+    box-shadow: 0 8px 18px rgba(217,70,239,.08) !important;
+}
+[data-testid="stDataFrame"], [data-testid="stDataEditor"] {
+    border-radius: 18px !important;
+    border: 1px solid rgba(216,180,254,.60) !important;
+    box-shadow: var(--soft-shadow-rainbow) !important;
+}
+[data-testid="stDataFrame"] [role="columnheader"], [data-testid="stDataEditor"] [role="columnheader"] {
+    background: linear-gradient(120deg, rgba(255,247,252,.92), rgba(240,253,250,.92), rgba(248,244,255,.92)) !important;
+    color: #31215f !important;
+}
+.info-box { border-left: 5px solid #9cc7ff !important; }
+.success-box { border-left: 5px solid #97f7f0 !important; }
+.warning-box { border-left: 5px solid #ffd67f !important; }
+.error-box { border-left: 5px solid #ff7fd1 !important; }
+
+/* Cards de dashboard/listas: remove aparência chapada azul */
+.sed-grid-modulos .sed-module-card,
+.sed-module-grid .sed-module-card,
+.quick-action-grid .quick-action-card {
+    min-height: 88px !important;
+    justify-content: center !important;
+    padding: 1rem 1.05rem !important;
+}
+.sed-module-title,
+.quick-action-card .card-title {
+    font-size: .98rem !important;
+    line-height: 1.25 !important;
+}
+.sed-module-sub {
+    opacity: 1 !important;
+}
+
+/* Mantem visual bonito e menos duro em telas menores */
+@media (max-width: 900px) {
+    .sed-dashboard-header, .main-header, .page-banner,
+    .metric-card, .sed-module-card, .quick-action-card, .card, .form-panel {
+        border-radius: 18px !important;
+    }
+}
+
 </style>
 """, unsafe_allow_html=True)
 # ======================================================
