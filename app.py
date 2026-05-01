@@ -6609,11 +6609,18 @@ RECOMENDACOES_CONSELHO = {
 }
 
 COLUNAS_CONSELHO_ONLINE = [
-    "Nº", "Estudante", "Frequência (%)", "Prova Paulista 1", "Prova Paulista 2", "Prova interna",
+    "Nº", "RA", "Turma", "Estudante", "Frequência (%)", "Prova Paulista 1", "Prova Paulista 2", "Mapão", "Prova interna",
     "Notas abaixo de cinco", "Dificuldade 1", "Dificuldade 2", "Dificuldade 3", "Dificuldade 4", "Dificuldade 5", "Dificuldade 6",
     "Recomendação 7", "Recomendação 8", "Recomendação 9", "Recomendação 10", "Recomendação 11", "Recomendação 12",
     "Observações / encaminhamentos"
 ]
+
+COLUNAS_CONSELHO_IMPORTACAO = [
+    "RA", "Turma", "Estudante", "Frequência (%)", "Prova Paulista 1", "Prova Paulista 2",
+    "Mapão", "Prova interna", "Notas abaixo de cinco", "Observações / encaminhamentos"
+]
+
+CONSELHO_DADOS_LOCAL_PATH = os.path.join(os.getcwd(), "data", "conselho_turmas_local.json")
 
 PROTOCOLO_PEC_ITENS = [
     "Há evidência de análise das aprendizagens com coerência entre as notas dos estudantes e as habilidades desenvolvidas e/ou em desenvolvimento?",
@@ -6660,17 +6667,100 @@ def _criar_modelo_conselho_online(qtd_linhas: int = 30) -> pd.DataFrame:
     return pd.DataFrame(linhas)
 
 
+def _criar_modelo_conselho_por_turma(turma: str, alunos_df: pd.DataFrame) -> pd.DataFrame:
+    if alunos_df is None or alunos_df.empty or "turma" not in alunos_df.columns:
+        return _criar_modelo_conselho_online(30)
+
+    turma_cmp = turma_para_comparacao(turma)
+    base = alunos_df.copy()
+    if "situacao" in base.columns:
+        base = base[base["situacao"].astype(str).apply(lambda v: "ATIVO" in normalizar_texto(v) or not str(v).strip())]
+    base["turma_padrao"] = base["turma"].astype(str).apply(formatar_turma_eletiva)
+    base = base[base["turma_padrao"].apply(turma_para_comparacao) == turma_cmp]
+    base = base.sort_values("nome" if "nome" in base.columns else base.columns[0], kind="stable").reset_index(drop=True)
+
+    if base.empty:
+        return _criar_modelo_conselho_online(30)
+
+    linhas = []
+    for idx, aluno in base.iterrows():
+        item = {c: "" for c in COLUNAS_CONSELHO_ONLINE}
+        item["Nº"] = str(idx + 1)
+        item["RA"] = _limpar_valor_conselho(aluno.get("ra", ""))
+        item["Turma"] = formatar_turma_eletiva(aluno.get("turma", turma))
+        item["Estudante"] = _limpar_valor_conselho(aluno.get("nome", ""))
+        linhas.append(item)
+    return pd.DataFrame(linhas, columns=COLUNAS_CONSELHO_ONLINE)
+
+
+def _garantir_colunas_conselho_online(df: pd.DataFrame) -> pd.DataFrame:
+    base = df.copy() if df is not None and not df.empty else pd.DataFrame()
+    for col in COLUNAS_CONSELHO_ONLINE:
+        if col not in base.columns:
+            base[col] = ""
+    if base.empty:
+        base = _criar_modelo_conselho_online(30)
+    return base[COLUNAS_CONSELHO_ONLINE]
+
+
+def _chave_contexto_conselho(turma: str, bimestre: str, ano_letivo: str) -> str:
+    partes = [gerar_chave_segura(turma), gerar_chave_segura(bimestre), gerar_chave_segura(ano_letivo)]
+    return "__".join(p for p in partes if p)
+
+
+def _carregar_conselho_local() -> dict:
+    _garantir_arquivo_json_local(CONSELHO_DADOS_LOCAL_PATH, {})
+    try:
+        with open(CONSELHO_DADOS_LOCAL_PATH, "r", encoding="utf-8") as arquivo:
+            dados = json.load(arquivo)
+        return dados if isinstance(dados, dict) else {}
+    except Exception:
+        return {}
+
+
+def _salvar_conselho_local(dados: dict) -> bool:
+    _garantir_arquivo_json_local(CONSELHO_DADOS_LOCAL_PATH, {})
+    with open(CONSELHO_DADOS_LOCAL_PATH, "w", encoding="utf-8") as arquivo:
+        json.dump(dados if isinstance(dados, dict) else {}, arquivo, ensure_ascii=False, indent=2)
+    return True
+
+
+def _salvar_contexto_conselho(turma: str, bimestre: str, ano_letivo: str, df_online: pd.DataFrame, df_resumo: pd.DataFrame | None = None) -> None:
+    chave = _chave_contexto_conselho(turma, bimestre, ano_letivo)
+    if not chave:
+        return
+    dados = _carregar_conselho_local()
+    dados[chave] = {
+        "turma": turma,
+        "bimestre": bimestre,
+        "ano_letivo": ano_letivo,
+        "updated_at": datetime.now().isoformat(),
+        "online": _garantir_colunas_conselho_online(df_online).to_dict(orient="records"),
+        "resumo": (df_resumo if df_resumo is not None else _modelo_online_para_resumo_conselho(df_online)).to_dict(orient="records"),
+    }
+    _salvar_conselho_local(dados)
+
+
+def _carregar_contexto_conselho(turma: str, bimestre: str, ano_letivo: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+    registro = _carregar_conselho_local().get(_chave_contexto_conselho(turma, bimestre, ano_letivo), {})
+    online = _garantir_colunas_conselho_online(pd.DataFrame(registro.get("online", [])))
+    resumo = _mapear_colunas_conselho(pd.DataFrame(registro.get("resumo", [])))
+    return online, resumo
+
+
 def _modelo_online_para_resumo_conselho(df_online: pd.DataFrame) -> pd.DataFrame:
     if df_online is None or df_online.empty:
         return pd.DataFrame(columns=COLUNAS_CONSELHO_PADRAO)
-    df = df_online.copy()
-    saida = pd.DataFrame()
+    df = _garantir_colunas_conselho_online(df_online)
+    saida = pd.DataFrame(index=df.index)
     saida["Nº"] = df.get("Nº", pd.Series([str(i+1) for i in range(len(df))])).astype(str)
     saida["Estudante"] = df.get("Estudante", pd.Series([""] * len(df))).astype(str)
     saida["Freq."] = df.get("Frequência (%)", pd.Series([""] * len(df))).astype(str)
     saida["Part. PP"] = df.get("Prova Paulista 1", pd.Series([""] * len(df))).astype(str)
     saida["Acertos PP"] = df.get("Prova Paulista 2", pd.Series([""] * len(df))).astype(str)
-    saida["Comp."] = df.get("Notas abaixo de cinco", pd.Series([""] * len(df))).astype(str)
+    mapao = df.get("Mapão", pd.Series([""] * len(df))).astype(str)
+    notas_abaixo = df.get("Notas abaixo de cinco", pd.Series([""] * len(df))).astype(str)
+    saida["Comp."] = [f"Mapão: {m}; Notas <5: {n}".strip("; ") if str(m).strip() else n for m, n in zip(mapao, notas_abaixo)]
     saida["Prova interna"] = df.get("Prova interna", pd.Series([""] * len(df))).astype(str)
 
     dif_cols = [c for c in df.columns if str(c).startswith("Dificuldade")]
@@ -6708,6 +6798,183 @@ def _excel_bytes_conselho_modelo(df: pd.DataFrame) -> BytesIO:
         ]).to_excel(writer, sheet_name="Recomendações", index=False)
     output.seek(0)
     return output
+
+
+def _ler_planilha_conselho_upload(arquivo_upload) -> pd.DataFrame:
+    nome = str(getattr(arquivo_upload, "name", "") or "").lower()
+    if nome.endswith(".csv"):
+        arquivo_upload.seek(0)
+        return ler_csv_flexivel(arquivo_upload)
+
+    arquivo_upload.seek(0)
+    abas = pd.read_excel(arquivo_upload, sheet_name=None, dtype=str)
+    partes = []
+    for nome_aba, df_aba in abas.items():
+        if df_aba is None or df_aba.empty:
+            continue
+        tmp = df_aba.copy()
+        tmp["Origem da aba"] = str(nome_aba)
+        partes.append(tmp)
+    return pd.concat(partes, ignore_index=True, sort=False) if partes else pd.DataFrame()
+
+
+def _detectar_coluna_por_nomes(df: pd.DataFrame, candidatos: list[str]) -> str | None:
+    if df is None or df.empty:
+        return None
+    candidatos_norm = [normalizar_texto(c) for c in candidatos]
+    for col in df.columns:
+        col_norm = normalizar_texto(col)
+        if any(c in col_norm for c in candidatos_norm):
+            return col
+    return None
+
+
+def _detectar_coluna_numerica_por_conteudo(df: pd.DataFrame, palavras_ignorar: list[str] | None = None) -> str | None:
+    palavras_ignorar = [normalizar_texto(p) for p in (palavras_ignorar or [])]
+    melhor_col = None
+    melhor_pontos = -1
+    for col in df.columns:
+        col_norm = normalizar_texto(col)
+        if any(p in col_norm for p in palavras_ignorar):
+            continue
+        pontos = 0
+        for valor in df[col].dropna().astype(str).head(20):
+            texto = valor.strip().replace(",", ".")
+            if re.search(r"\d", texto):
+                pontos += 1
+        if pontos > melhor_pontos:
+            melhor_col = col
+            melhor_pontos = pontos
+    return melhor_col if melhor_pontos >= 3 else None
+
+
+def _normalizar_importacao_conselho(df_import: pd.DataFrame, origem: str, turma_padrao: str = "") -> pd.DataFrame:
+    if df_import is None or df_import.empty:
+        return pd.DataFrame(columns=COLUNAS_CONSELHO_IMPORTACAO)
+
+    df = normalizar_dataframe_importacao(df_import)
+    if df.empty:
+        return pd.DataFrame(columns=COLUNAS_CONSELHO_IMPORTACAO)
+
+    col_ra = _detectar_coluna_por_nomes(df, ["RA", "Registro do aluno"])
+    col_nome = _detectar_coluna_por_nomes(df, ["Nome do Aluno", "Estudante", "Aluno", "Nome"])
+    col_turma = _detectar_coluna_por_nomes(df, ["Turma", "Série", "Serie", "Sala"])
+    col_freq = _detectar_coluna_por_nomes(df, ["Frequência", "Frequencia", "Freq", "% Frequência", "Presença", "Presenca"])
+    col_pp1 = _detectar_coluna_por_nomes(df, ["Prova Paulista 1", "PP 1", "Acertos PP", "Prova Paulista", "Acertos"])
+    col_pp2 = _detectar_coluna_por_nomes(df, ["Prova Paulista 2", "PP 2"])
+    col_mapao = _detectar_coluna_por_nomes(df, ["Mapão", "Mapao", "Mapa", "Rendimento"])
+    col_prova = _detectar_coluna_por_nomes(df, ["Prova interna", "Avaliação interna", "Avaliacao interna", "Nota"])
+    col_notas = _detectar_coluna_por_nomes(df, ["Notas abaixo", "Abaixo de cinco", "Abaixo de 5", "Menor que cinco"])
+    col_obs = _detectar_coluna_por_nomes(df, ["Observação", "Observacao", "Encaminhamento", "Recomendação", "Recomendacao"])
+
+    origem_norm = normalizar_texto(origem)
+    if col_freq is None and "FREQU" in origem_norm:
+        col_freq = _detectar_coluna_numerica_por_conteudo(df, ["RA"])
+    if col_pp1 is None and "PROVA" in origem_norm:
+        col_pp1 = _detectar_coluna_numerica_por_conteudo(df, ["RA"])
+    if col_mapao is None and ("MAPAO" in origem_norm or "MAPA" in origem_norm):
+        col_mapao = _detectar_coluna_numerica_por_conteudo(df, ["RA"])
+
+    saida = pd.DataFrame(index=df.index)
+    saida["RA"] = df[col_ra].apply(lambda v: "".join(c for c in str(v) if c.isdigit())) if col_ra else ""
+    saida["Turma"] = df[col_turma].apply(formatar_turma_eletiva) if col_turma else formatar_turma_eletiva(turma_padrao)
+    saida["Estudante"] = df[col_nome].apply(_limpar_valor_conselho) if col_nome else ""
+    saida["Frequência (%)"] = df[col_freq].apply(_limpar_valor_conselho) if col_freq else ""
+    saida["Prova Paulista 1"] = df[col_pp1].apply(_limpar_valor_conselho) if col_pp1 else ""
+    saida["Prova Paulista 2"] = df[col_pp2].apply(_limpar_valor_conselho) if col_pp2 else ""
+    saida["Mapão"] = df[col_mapao].apply(_limpar_valor_conselho) if col_mapao else ""
+    saida["Prova interna"] = df[col_prova].apply(_limpar_valor_conselho) if col_prova else ""
+    saida["Notas abaixo de cinco"] = df[col_notas].apply(_limpar_valor_conselho) if col_notas else ""
+    saida["Observações / encaminhamentos"] = df[col_obs].apply(_limpar_valor_conselho) if col_obs else ""
+
+    if turma_padrao:
+        turma_cmp = turma_para_comparacao(turma_padrao)
+        com_turma = saida["Turma"].astype(str).str.strip().ne("")
+        saida.loc[~com_turma, "Turma"] = formatar_turma_eletiva(turma_padrao)
+        saida = saida[saida["Turma"].apply(turma_para_comparacao).isin(["", turma_cmp])].copy()
+
+    saida = saida[
+        saida["RA"].astype(str).str.strip().ne("")
+        | saida["Estudante"].astype(str).str.strip().ne("")
+    ].copy()
+    return saida[COLUNAS_CONSELHO_IMPORTACAO].reset_index(drop=True)
+
+
+def _chaves_linha_conselho(row) -> list[str]:
+    chaves = []
+    ra = "".join(c for c in str(row.get("RA", "")) if c.isdigit())
+    nome = normalizar_texto(row.get("Estudante", ""))
+    turma = turma_para_comparacao(row.get("Turma", ""))
+    if ra:
+        chaves.append(f"RA:{ra}")
+    if nome:
+        chaves.append(f"NOME:{nome}|TURMA:{turma}")
+        chaves.append(f"NOME:{nome}")
+    return chaves
+
+
+def _mesclar_importacao_no_modelo_conselho(df_online: pd.DataFrame, df_importado: pd.DataFrame) -> pd.DataFrame:
+    base = _garantir_colunas_conselho_online(df_online).copy()
+    if df_importado is None or df_importado.empty:
+        return base
+
+    indice = {}
+    for idx, row in base.iterrows():
+        for chave in _chaves_linha_conselho(row):
+            indice.setdefault(chave, idx)
+
+    for _, imp in df_importado.iterrows():
+        idx_destino = None
+        for chave in _chaves_linha_conselho(imp):
+            if chave in indice:
+                idx_destino = indice[chave]
+                break
+        if idx_destino is None:
+            novo = {c: "" for c in COLUNAS_CONSELHO_ONLINE}
+            novo["Nº"] = str(len(base) + 1)
+            base = pd.concat([base, pd.DataFrame([novo])], ignore_index=True)
+            idx_destino = len(base) - 1
+
+        for col in COLUNAS_CONSELHO_IMPORTACAO:
+            valor = _limpar_valor_conselho(imp.get(col, ""))
+            if valor and col in base.columns:
+                atual = _limpar_valor_conselho(base.at[idx_destino, col])
+                base.at[idx_destino, col] = valor if not atual else atual
+
+        for chave in _chaves_linha_conselho(base.loc[idx_destino]):
+            indice.setdefault(chave, idx_destino)
+
+    base["Nº"] = [str(i + 1) for i in range(len(base))]
+    return _garantir_colunas_conselho_online(base)
+
+
+def _focos_a_partir_modelo_online(df_online: pd.DataFrame) -> pd.DataFrame:
+    df = _garantir_colunas_conselho_online(df_online)
+    linhas = []
+    for _, row in df.iterrows():
+        estudante = _limpar_valor_conselho(row.get("Estudante", ""))
+        if not estudante:
+            continue
+        freq = _limpar_valor_conselho(row.get("Frequência (%)", ""))
+        notas = _limpar_valor_conselho(row.get("Notas abaixo de cinco", ""))
+        obs = _limpar_valor_conselho(row.get("Observações / encaminhamentos", ""))
+        diffs = [c for c in df.columns if c.startswith("Dificuldade") and _limpar_valor_conselho(row.get(c, ""))]
+        precisa_foco = bool(freq or notas or obs or diffs)
+        try:
+            freq_num = float(str(freq).replace("%", "").replace(",", "."))
+            precisa_foco = precisa_foco or freq_num < 75
+        except Exception:
+            pass
+        if precisa_foco:
+            linhas.append({
+                "Série": formatar_turma_eletiva(row.get("Turma", "")),
+                "Estudante": estudante,
+                "Frequência (%)": freq,
+                "Notas abaixo de cinco": notas,
+                "Presença/Ciência": "",
+                "Encaminhamento": obs,
+            })
+    return pd.DataFrame(linhas, columns=_df_focos_atencao_padrao().columns)
 
 
 def _paragrafo_pdf(texto_pdf: str, estilo) -> Paragraph:
@@ -6850,7 +7117,7 @@ def render_pagina_conselho():
 
     st.markdown("""
     <div class="info-box">
-        Esta página mantém os documentos do Conselho e acrescenta a tabela do Excel/modelo online como ferramenta complementar. A tabela não substitui a ata, protocolo, focos de atenção, pós-conselho, legendas e assinaturas.
+        Esta página agora usa a ata online como modelo principal do Conselho. As planilhas de Prova Paulista, Mapão e Frequência entram como dados auxiliares vinculados à turma e aos estudantes.
     </div>
     """, unsafe_allow_html=True)
 
@@ -6859,14 +7126,26 @@ def render_pagina_conselho():
         <div class="conselho-doc-card"><b>📄 Ata do Conselho</b><p>Registro textual do Conselho de Classe e Série Participativo.</p></div>
         <div class="conselho-doc-card"><b>📋 Protocolo PEC</b><p>Checklist de evidências do acompanhamento do Conselho.</p></div>
         <div class="conselho-doc-card"><b>🎯 Focos de atenção</b><p>Relação de estudantes, frequência, notas e presença/ciência.</p></div>
-        <div class="conselho-doc-card"><b>📊 Tabela Excel / Online</b><p>Modelo preenchível para rendimento, dificuldades e recomendações.</p></div>
+        <div class="conselho-doc-card"><b>📊 Dados da turma</b><p>Modelo online com estudantes, rendimento, frequência e encaminhamentos.</p></div>
     </div>
     """, unsafe_allow_html=True)
 
     st.markdown('<div class="conselho-parametros">', unsafe_allow_html=True)
     col_a, col_b, col_c, col_d = st.columns([1.2, 1, 1, 1])
     with col_a:
-        turma = st.text_input("Turma", value=st.session_state.get("conselho_turma", "7º Ano C"), key="conselho_turma")
+        turmas_cadastradas = []
+        if df_alunos is not None and not df_alunos.empty and "turma" in df_alunos.columns:
+            turmas_cadastradas = sorted(
+                [formatar_turma_eletiva(t) for t in df_alunos["turma"].dropna().astype(str).unique().tolist() if str(t).strip()],
+                key=ordenar_turma_tutoria
+            )
+        turma_atual = formatar_turma_eletiva(st.session_state.get("conselho_turma", turmas_cadastradas[0] if turmas_cadastradas else "7º Ano C"))
+        if turmas_cadastradas:
+            index_turma = turmas_cadastradas.index(turma_atual) if turma_atual in turmas_cadastradas else 0
+            turma = st.selectbox("Turma", turmas_cadastradas, index=index_turma, key="conselho_turma_select")
+        else:
+            turma = st.text_input("Turma", value=turma_atual, key="conselho_turma_texto")
+        st.session_state.conselho_turma = turma
     with col_b:
         bimestre = st.selectbox("Bimestre", ["1º Bimestre", "2º Bimestre", "3º Bimestre", "4º Bimestre"], key="conselho_bimestre")
     with col_c:
@@ -6878,14 +7157,23 @@ def render_pagina_conselho():
     tab_docs, tab_online, tab_excel, tab_revisar, tab_pdf = st.tabs([
         "📚 Documentos do Conselho",
         "📝 Modelo online",
-        "📥 Importar Excel",
+        "📥 Importar dados",
         "📋 Revisar dados",
         "🖨️ Imprimir"
     ])
 
+    contexto_key = _chave_contexto_conselho(turma, bimestre, ano_letivo)
+    if st.session_state.get("conselho_contexto_key") != contexto_key:
+        online_salvo, resumo_salvo = _carregar_contexto_conselho(turma, bimestre, ano_letivo)
+        if not online_salvo.empty and online_salvo["Estudante"].astype(str).str.strip().ne("").any():
+            st.session_state.df_conselho_online = online_salvo
+        if not resumo_salvo.empty:
+            st.session_state.df_conselho = resumo_salvo
+        st.session_state.conselho_contexto_key = contexto_key
+
     with tab_docs:
         st.markdown("### 📚 Documentos do Conselho")
-        st.caption("Aqui ficam os documentos que compõem o Conselho. A planilha entra como apoio nas abas Modelo online/Importar Excel.")
+        st.caption("Aqui ficam os documentos que compõem o Conselho. O preenchimento principal acontece no modelo online da turma.")
 
         sub_ata, sub_protocolo, sub_focos, sub_pos, sub_legendas, sub_ass = st.tabs([
             "📄 Ata", "📋 Protocolo PEC", "🎯 Focos de atenção", "📌 Pós-conselho", "🔢 Legendas", "✍️ Assinaturas"
@@ -6988,59 +7276,103 @@ def render_pagina_conselho():
 
     with tab_online:
         st.markdown("### 📝 Modelo online para preenchimento")
-        st.caption("Use esta grade para preencher diretamente no sistema, sem depender do Excel. Depois clique em atualizar a tabela resumida para impressão.")
-        c1, c2, c3 = st.columns([1, 1, 1])
+        st.caption("Use esta grade como a ata online da turma. Ela pode nascer com os estudantes cadastrados e receber dados importados de Prova Paulista, Mapão e Frequência.")
+        c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
         with c1:
-            if st.button("🧪 Criar modelo online vazio", type="primary", key="btn_criar_modelo_online_conselho"):
-                st.session_state.df_conselho_online = _criar_modelo_conselho_online(30)
-                st.success("Modelo online criado.")
+            if st.button("👥 Buscar estudantes da turma", type="primary", key="btn_criar_modelo_turma_conselho"):
+                st.session_state.df_conselho_online = _criar_modelo_conselho_por_turma(turma, df_alunos)
+                st.session_state.df_conselho = _modelo_online_para_resumo_conselho(st.session_state.df_conselho_online)
+                _salvar_contexto_conselho(turma, bimestre, ano_letivo, st.session_state.df_conselho_online, st.session_state.df_conselho)
+                st.success("Modelo online criado com os estudantes cadastrados na turma.")
         with c2:
-            if "df_conselho_online" in st.session_state:
-                excel_modelo = _excel_bytes_conselho_modelo(st.session_state.df_conselho_online)
-            else:
-                excel_modelo = _excel_bytes_conselho_modelo(_criar_modelo_conselho_online(30))
-            st.download_button("⬇️ Baixar modelo Excel", data=excel_modelo, file_name="modelo_conselho_online.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="download_modelo_conselho_online")
+            if st.button("🧾 Criar ata online vazia", key="btn_criar_modelo_online_conselho"):
+                st.session_state.df_conselho_online = _criar_modelo_conselho_online(30)
+                st.success("Ata online vazia criada.")
         with c3:
             if st.button("📌 Atualizar tabela para impressão", key="btn_online_para_pdf_conselho"):
                 df_online = st.session_state.get("df_conselho_online", pd.DataFrame(columns=COLUNAS_CONSELHO_ONLINE))
                 st.session_state.df_conselho = _modelo_online_para_resumo_conselho(df_online)
+                _salvar_contexto_conselho(turma, bimestre, ano_letivo, df_online, st.session_state.df_conselho)
                 st.success("Tabela resumida atualizada para revisão e impressão.")
+        with c4:
+            if st.button("💾 Salvar dados da turma", key="btn_salvar_contexto_conselho"):
+                df_online = st.session_state.get("df_conselho_online", pd.DataFrame(columns=COLUNAS_CONSELHO_ONLINE))
+                st.session_state.df_conselho = _modelo_online_para_resumo_conselho(df_online)
+                _salvar_contexto_conselho(turma, bimestre, ano_letivo, df_online, st.session_state.df_conselho)
+                st.success("Dados do Conselho salvos para esta turma.")
 
         if "df_conselho_online" not in st.session_state:
-            st.session_state.df_conselho_online = _criar_modelo_conselho_online(30)
+            st.session_state.df_conselho_online = _criar_modelo_conselho_por_turma(turma, df_alunos)
         st.session_state.df_conselho_online = st.data_editor(
-            st.session_state.df_conselho_online,
+            _garantir_colunas_conselho_online(st.session_state.df_conselho_online),
             use_container_width=True,
             hide_index=True,
             num_rows="dynamic",
             key="editor_conselho_online",
         )
-        st.caption("Preencha com texto ou códigos. Nas colunas Dificuldade/Recomendação, qualquer valor preenchido marca o item correspondente.")
+        st.caption("Nas colunas Dificuldade/Recomendação, qualquer valor preenchido marca o item correspondente. Use Salvar dados da turma para manter o preenchimento disponível depois.")
 
     with tab_excel:
-        st.markdown("### 📥 Acrescentar tabela do Excel")
-        st.caption("Use esta aba apenas para acrescentar ou atualizar a tabela de rendimento. Os documentos do Conselho permanecem na primeira aba.")
-        arquivo = st.file_uploader("Enviar arquivo Excel (.xlsx) da ata/tabela", type=["xlsx", "xls"], key="upload_conselho_xlsx")
-        url_excel = st.text_input("Ou cole um link direto do Excel/SharePoint", value="", key="url_conselho_excel")
-        c1, c2 = st.columns([1, 1])
-        with c1:
-            if st.button("📥 Carregar tabela do Excel", type="primary", key="btn_carregar_conselho"):
-                try:
-                    if arquivo is not None:
-                        st.session_state.df_conselho = _carregar_excel_conselho(arquivo)
-                        st.success("Tabela acrescentada ao Conselho a partir do arquivo enviado.")
-                    elif str(url_excel or "").strip():
-                        st.session_state.df_conselho = _carregar_excel_conselho(str(url_excel).strip())
-                        st.success("Tabela acrescentada ao Conselho pelo link informado.")
-                    else:
-                        st.warning("Envie um arquivo .xlsx ou informe um link direto.")
-                except Exception as exc:
-                    st.error(str(exc))
-                    st.info("Se o link for do SharePoint com login, baixe o arquivo .xlsx e envie aqui pelo botão de upload.")
-        with c2:
-            if st.button("🧪 Criar tabela resumida vazia", key="btn_conselho_modelo"):
-                st.session_state.df_conselho = pd.DataFrame([{c: "" for c in COLUNAS_CONSELHO_PADRAO} for _ in range(10)])
-                st.success("Modelo resumido criado para preenchimento manual.")
+        st.markdown("### 📥 Importar dados da turma")
+        st.caption("Envie as planilhas auxiliares. O sistema cruza por RA ou nome e grava tudo no modelo online da turma.")
+        arq_pp = st.file_uploader("Prova Paulista (.xlsx, .xls ou .csv)", type=["xlsx", "xls", "csv"], key="upload_conselho_pp")
+        arq_mapao = st.file_uploader("Mapão / rendimento (.xlsx, .xls ou .csv)", type=["xlsx", "xls", "csv"], key="upload_conselho_mapao")
+        arq_freq = st.file_uploader("Frequência (.xlsx, .xls ou .csv)", type=["xlsx", "xls", "csv"], key="upload_conselho_freq")
+
+        if st.button("📥 Importar e vincular à turma", type="primary", key="btn_importar_dados_turma_conselho"):
+            try:
+                df_online = st.session_state.get("df_conselho_online", _criar_modelo_conselho_por_turma(turma, df_alunos))
+                total_importado = 0
+                detalhes = []
+                for origem, arquivo in [
+                    ("Prova Paulista", arq_pp),
+                    ("Mapão", arq_mapao),
+                    ("Frequência", arq_freq),
+                ]:
+                    if arquivo is None:
+                        continue
+                    df_lido = _ler_planilha_conselho_upload(arquivo)
+                    df_norm = _normalizar_importacao_conselho(df_lido, origem, turma)
+                    total_importado += len(df_norm)
+                    detalhes.append(f"{origem}: {len(df_norm)} linha(s)")
+                    df_online = _mesclar_importacao_no_modelo_conselho(df_online, df_norm)
+
+                if total_importado == 0:
+                    st.warning("Envie pelo menos uma planilha com RA ou nome dos estudantes.")
+                else:
+                    st.session_state.df_conselho_online = df_online
+                    st.session_state.df_conselho = _modelo_online_para_resumo_conselho(df_online)
+                    focos_auto = _focos_a_partir_modelo_online(df_online)
+                    if not focos_auto.empty:
+                        st.session_state.df_conselho_focos = focos_auto
+                    _salvar_contexto_conselho(turma, bimestre, ano_letivo, df_online, st.session_state.df_conselho)
+                    st.success("Dados importados e vinculados ao modelo online da turma.")
+                    st.caption(" | ".join(detalhes))
+            except Exception as exc:
+                st.error(f"Erro ao importar dados da turma: {exc}")
+
+        with st.expander("Importação antiga de tabela resumida do Excel", expanded=False):
+            arquivo = st.file_uploader("Enviar arquivo Excel (.xlsx) da ata/tabela", type=["xlsx", "xls"], key="upload_conselho_xlsx")
+            url_excel = st.text_input("Ou cole um link direto do Excel/SharePoint", value="", key="url_conselho_excel")
+            c1, c2 = st.columns([1, 1])
+            with c1:
+                if st.button("📥 Carregar tabela resumida", key="btn_carregar_conselho"):
+                    try:
+                        if arquivo is not None:
+                            st.session_state.df_conselho = _carregar_excel_conselho(arquivo)
+                            st.success("Tabela resumida acrescentada ao Conselho a partir do arquivo enviado.")
+                        elif str(url_excel or "").strip():
+                            st.session_state.df_conselho = _carregar_excel_conselho(str(url_excel).strip())
+                            st.success("Tabela resumida acrescentada ao Conselho pelo link informado.")
+                        else:
+                            st.warning("Envie um arquivo .xlsx ou informe um link direto.")
+                    except Exception as exc:
+                        st.error(str(exc))
+                        st.info("Se o link for do SharePoint com login, baixe o arquivo .xlsx e envie aqui pelo botão de upload.")
+            with c2:
+                if st.button("🧪 Criar tabela resumida vazia", key="btn_conselho_modelo"):
+                    st.session_state.df_conselho = pd.DataFrame([{c: "" for c in COLUNAS_CONSELHO_PADRAO} for _ in range(10)])
+                    st.success("Modelo resumido criado para preenchimento manual.")
 
     with tab_revisar:
         st.markdown("### 📋 Revisar tabela de rendimento dos estudantes")
@@ -7057,6 +7389,10 @@ def render_pagina_conselho():
                 key="editor_conselho",
             )
             st.caption("Esta é a tabela resumida que entra no PDF da ata/rendimento.")
+            if st.button("💾 Salvar revisão da tabela", key="btn_salvar_revisao_conselho"):
+                df_online = st.session_state.get("df_conselho_online", pd.DataFrame(columns=COLUNAS_CONSELHO_ONLINE))
+                _salvar_contexto_conselho(turma, bimestre, ano_letivo, df_online, st.session_state.df_conselho)
+                st.success("Revisão salva para esta turma.")
 
     with tab_pdf:
         st.markdown("### 🖨️ Gerar impressões do Conselho")
