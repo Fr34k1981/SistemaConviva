@@ -511,6 +511,112 @@ div[data-testid="stForm"] {
     .sed-dashboard-user { text-align:left; }
     .sed-dashboard-strip { justify-content:flex-start; }
 }
+
+/* ============================================ */
+/* AJUSTE FINAL: IDENTIDADE ESCOLA CONVIVA 179 */
+/* ============================================ */
+.sed-system-title,
+.sed-dashboard-title {
+    color: #2f9ddd !important;
+    font-size: clamp(1.35rem, 2.1vw, 1.95rem) !important;
+    line-height: 1.08 !important;
+    max-width: 720px !important;
+}
+.sed-secretaria,
+.sed-dashboard-kicker {
+    color: #64748b !important;
+    font-size: 0.78rem !important;
+    letter-spacing: 0.06em !important;
+    text-transform: uppercase !important;
+}
+.sed-logo-mark,
+.sed-dashboard-mark {
+    min-width: 48px !important;
+    width: 48px !important;
+    height: 48px !important;
+    font-size: 0.95rem !important;
+    border-radius: 10px !important;
+}
+.sed-global-header,
+.sed-dashboard-header {
+    border-top: 5px solid transparent !important;
+    border-image: linear-gradient(90deg,#ff7fd1,#ffd67f,#97f7f0,#9cc7ff,#d8a0ff) 1 !important;
+}
+.sed-header-top,
+.sed-dashboard-top {
+    align-items: center !important;
+}
+.sed-header-brand,
+.sed-dashboard-brand {
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+}
+.sed-user-box,
+.sed-dashboard-user {
+    min-width: 240px !important;
+    max-width: 390px !important;
+    line-height: 1.35 !important;
+}
+.sed-current-page {
+    display: none !important;
+}
+.sed-panel {
+    clear: both !important;
+    margin-top: 0.95rem !important;
+}
+.sed-grid-modulos {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)) !important;
+    gap: 0.9rem !important;
+}
+.sed-module-card {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-end !important;
+    min-height: 94px !important;
+    padding: 1rem !important;
+    border-radius: 7px !important;
+}
+.sed-module-title,
+.sed-module-sub {
+    display: block !important;
+    color: #ffffff !important;
+    line-height: 1.25 !important;
+}
+.sed-module-title {
+    font-size: 0.95rem !important;
+    font-weight: 850 !important;
+}
+.sed-module-sub {
+    font-size: 0.78rem !important;
+    opacity: 0.92 !important;
+    margin-top: 0.25rem !important;
+}
+section[data-testid="stSidebar"] {
+    background:
+        radial-gradient(circle at 15% 8%, rgba(255,127,209,.16), transparent 28%),
+        radial-gradient(circle at 90% 88%, rgba(151,247,240,.18), transparent 28%),
+        #f8fbff !important;
+}
+[data-testid="stSidebar"] .stButton > button {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+@media (max-width: 980px) {
+    .sed-header-top,
+    .sed-dashboard-top {
+        align-items: flex-start !important;
+        flex-direction: column !important;
+    }
+    .sed-user-box,
+    .sed-dashboard-user {
+        text-align: left !important;
+        max-width: none !important;
+        width: 100% !important;
+    }
+}
+
 </style>
 """, unsafe_allow_html=True)
 # ======================================================
@@ -535,17 +641,17 @@ ESCOLA_IMAGEM_MENU_BASE64 = """/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBAUEBAYFBQUGB
 st.sidebar.markdown(f"""
 <div style="background:#ffffff;border:1px solid #d8e6f3;border-radius:4px;margin-bottom:0.7rem;overflow:hidden;box-shadow:0 2px 8px rgba(15,23,42,0.04);">
     <div style="padding:0.8rem 0.8rem 0.65rem;display:flex;align-items:center;gap:0.65rem;">
-        <div style="width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,#3f9bd7,#22c7a8);display:grid;place-items:center;color:white;font-weight:900;font-size:1.35rem;">S</div>
+        <div style="width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,#3f9bd7,#22c7a8);display:grid;place-items:center;color:white;font-weight:900;font-size:1.05rem;">179</div>
         <div style="min-width:0;">
-            <div style="font-size:0.72rem;color:#64748b;text-transform:uppercase;font-weight:800;line-height:1.1;">Secretaria Escolar</div>
-            <div style="font-size:1.25rem;color:#3f9bd7;font-weight:900;line-height:1.05;">Digital</div>
+            <div style="font-size:0.72rem;color:#64748b;text-transform:uppercase;font-weight:800;line-height:1.1;">Sistema Conviva</div>
+            <div style="font-size:1.25rem;color:#3f9bd7;font-weight:900;line-height:1.05;">Protocolo 179</div>
         </div>
     </div>
     <div style="height:4px;background:linear-gradient(90deg,#ff5db1,#ffd166,#50e3c2,#4da3ff,#b47cff);"></div>
     <div style="padding:0.65rem 0.8rem 0.75rem;">
-        <div style="font-size:0.75rem;color:#64748b;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;">Sistema Conviva 179</div>
-        <div style="font-size:0.86rem;color:#1f2937;font-weight:700;line-height:1.35;margin-top:0.2rem;">{ESCOLA_SUBTITULO}</div>
-        <div style="font-size:0.74rem;color:#64748b;line-height:1.35;margin-top:0.25rem;">{ESCOLA_EMAIL}</div>
+        <div style="font-size:0.75rem;color:#64748b;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;">{ESCOLA_SUBTITULO}</div>
+        <div style="font-size:0.86rem;color:#1f2937;font-weight:800;line-height:1.35;margin-top:0.2rem;">E.E. Profª Eliane Ap. Dantas da Silva</div>
+        <div style="font-size:0.74rem;color:#64748b;line-height:1.35;margin-top:0.25rem;">Conviva • Protocolo 179<br>{ESCOLA_EMAIL}</div>
     </div>
 </div>
 <div style="margin:0 0 0.55rem 0;">
@@ -605,15 +711,15 @@ def _render_sed_header_global(pagina_atual: str):
     <div class="sed-global-header">
         <div class="sed-header-top">
             <div class="sed-header-brand">
-                <div class="sed-logo-mark">S</div>
+                <div class="sed-logo-mark">179</div>
                 <div>
-                    <p class="sed-secretaria">Secretaria da Educação do Estado de São Paulo</p>
-                    <p class="sed-system-title">Secretaria Escolar Digital</p>
+                    <p class="sed-secretaria">Sistema Conviva • Protocolo 179</p>
+                    <p class="sed-system-title">E.E. Profª Eliane Ap. Dantas da Silva</p>
                 </div>
             </div>
             <div class="sed-user-box">
                 Olá, <b>{html.escape(str(usuario_nome).upper())}</b><br>
-                Você está logado no Sistema Conviva 179<br>
+                {html.escape(ESCOLA_SUBTITULO)}<br>
                 {html.escape(ESCOLA_EMAIL)}
             </div>
         </div>
@@ -5921,10 +6027,10 @@ if menu == "🏠 Dashboard":
     <div class="sed-dashboard-header animate-fade-in">
         <div class="sed-dashboard-top">
             <div class="sed-dashboard-brand">
-                <div class="sed-dashboard-mark">S</div>
+                <div class="sed-dashboard-mark">179</div>
                 <div>
-                    <p class="sed-dashboard-kicker">Secretaria da Educação do Estado de São Paulo</p>
-                    <p class="sed-dashboard-title">Secretaria Escolar Digital</p>
+                    <p class="sed-dashboard-kicker">Sistema Conviva • Protocolo 179</p>
+                    <p class="sed-dashboard-title">E.E. Profª Eliane Ap. Dantas da Silva</p>
                 </div>
             </div>
             <div class="sed-dashboard-user">
@@ -5939,17 +6045,6 @@ if menu == "🏠 Dashboard":
             <span class="sed-dashboard-pill">Alunos</span>
             <span class="sed-dashboard-pill">Tutoria</span>
         </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("""
-    <div class="sed-platform-grid">
-        <div class="sed-platform-card"><span>📝</span><span>Registrar<br>Ocorrência</span></div>
-        <div class="sed-platform-card"><span>👥</span><span>Lista de<br>Alunos</span></div>
-        <div class="sed-platform-card"><span>🫂</span><span>Tutoria<br>2026</span></div>
-        <div class="sed-platform-card"><span>📊</span><span>Indicadores<br>Gerais</span></div>
-        <div class="sed-platform-card"><span>📄</span><span>Comunicado<br>aos Pais</span></div>
-        <div class="sed-platform-card"><span>🖨️</span><span>Impressão<br>PDF</span></div>
     </div>
     """, unsafe_allow_html=True)
 
