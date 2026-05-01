@@ -2315,8 +2315,8 @@ def _render_sed_header_global(pagina_atual: str):
             <div class="sed-header-brand">
                 <div class="sed-logo-mark">S</div>
                 <div>
-                    <p class="sed-secretaria">Secretaria da Educação do Estado de São Paulo</p>
-                    <p class="sed-system-title">Secretaria Escolar Digital</p>
+                    <p class="sed-secretaria">Eliane Ap. Dantas da Silva - PEI</p>
+                    <p class="sed-system-title">Escola dos Sonhos</p>
                 </div>
             </div>
             <div class="sed-user-box">
