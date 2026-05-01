@@ -1869,6 +1869,7 @@ div[data-testid="stForm"] {
 
 /* Cards centrais no estilo modulos da SED, com pastel */
 .quick-action-card,
+.metric-card,
 .sed-feature-card,
 .sed-tool-card,
 .sed-kpi-item {
@@ -2242,8 +2243,8 @@ st.sidebar.markdown(f"""
     <div style="padding:0.8rem 0.8rem 0.65rem;display:flex;align-items:center;gap:0.65rem;">
         <div style="width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,#3f9bd7,#22c7a8);display:grid;place-items:center;color:white;font-weight:900;font-size:1.35rem;">S</div>
         <div style="min-width:0;">
-            <div style="font-size:0.72rem;color:#64748b;text-transform:uppercase;font-weight:800;line-height:1.1;">Secretaria Escolar</div>
-            <div style="font-size:1.25rem;color:#3f9bd7;font-weight:900;line-height:1.05;">Digital</div>
+            <div style="font-size:0.72rem;color:#64748b;text-transform:uppercase;font-weight:800;line-height:1.1;">Sistema Conviva</div>
+            <div style="font-size:1.25rem;color:#3f9bd7;font-weight:900;line-height:1.05;">179</div>
         </div>
     </div>
     <div style="height:4px;background:linear-gradient(90deg,#ff5db1,#ffd166,#50e3c2,#4da3ff,#b47cff);"></div>
@@ -2267,8 +2268,6 @@ menu_items = [
     {"nome": "Registrar Ocorrência", "icone": "📝"},
     {"nome": "Relatório dos Estudantes", "icone": "🧾"},
     {"nome": "Conselho", "icone": "🏛️"},
-    {"nome": "Prova Paulista", "icone": "📈"},
-    {"nome": "Mapão", "icone": "🗺️"},
     {"nome": "Histórico de Ocorrências", "icone": "📋"},
     {"nome": "Comunicado aos Pais", "icone": "📄"},
     {"nome": "Lista de Alunos", "icone": "👥"},
@@ -2313,27 +2312,19 @@ def _render_sed_header_global(pagina_atual: str):
     <div class="sed-global-header">
         <div class="sed-header-top">
             <div class="sed-header-brand">
-                <div class="sed-logo-mark">S</div>
+                <div class="sed-logo-mark">🏫</div>
                 <div>
-                    <p class="sed-secretaria">Eliane Ap. Dantas da Silva - PEI</p>
-                    <p class="sed-system-title">Escola dos Sonhos</p>
+                    <p class="sed-secretaria">Sistema Conviva 179</p>
+                    <p class="sed-system-title">{html.escape(ESCOLA_SUBTITULO)}</p>
                 </div>
             </div>
             <div class="sed-user-box">
-                Olá, <b>{html.escape(str(usuario_nome).upper())}</b><br>
-                Você está logado no Sistema Conviva 179<br>
+                <b>{html.escape(titulo_limpo)}</b><br>
+                Usuário: <b>{html.escape(str(usuario_nome).upper())}</b><br>
                 {html.escape(ESCOLA_EMAIL)}
             </div>
         </div>
-        <div class="sed-top-actions">
-            <span class="sed-action-chip">📘 Tutoria</span>
-            <span class="sed-action-chip">📋 Ocorrências</span>
-            <span class="sed-action-chip">👥 Alunos</span>
-            <span class="sed-action-chip">📊 Indicadores</span>
-            <span class="sed-action-chip">🖨️ Impressão</span>
-        </div>
     </div>
-    <div class="sed-current-page">📌 {html.escape(titulo_limpo)}</div>
     """, unsafe_allow_html=True)
 
 if menu != "🏠 Dashboard":
@@ -2495,6 +2486,77 @@ def mesclar_tutoria_com_metadados(base_tutoria: dict, referencia_tutoria: dict) 
             if str(dados.get(campo, "")).strip():
                 base[tutor][campo] = str(dados.get(campo, "")).strip()
     return base
+
+
+def _valor_primeiro_campo(row, aliases: list[str]) -> str:
+    """Lê o primeiro campo existente e preenchido em uma linha/DataFrame.
+    Evita perda de dados quando a tabela usa nomes antigos ou diferentes.
+    """
+    for alias in aliases:
+        try:
+            if alias in row.index:
+                valor = str(row.get(alias, "") or "").strip()
+                if valor and valor.lower() not in ("nan", "none", "null"):
+                    return valor
+        except Exception:
+            continue
+    return ""
+
+def converter_metadados_professores_para_tutoria(df_professores_base: pd.DataFrame) -> dict:
+    """Monta metadados de tutoria a partir da tabela professores, quando houver colunas compatíveis.
+    Serve como proteção para não sumirem Espaço, Horário e Dia caso a tabela tutoria venha incompleta.
+    """
+    base = {}
+    if df_professores_base is None or df_professores_base.empty:
+        return base
+    aliases_nome = ["nome", "professora", "professor", "responsavel", "responsável", "tutor", "tutora"]
+    aliases_tipo = ["tipo", "perfil", "cargo", "funcao", "função"]
+    aliases_espaco = ["espaco", "espaço", "espaco_usado", "espaço_usado", "sala", "ambiente", "local"]
+    aliases_horario = ["horario", "horário", "hora", "periodo", "período"]
+    aliases_dia = ["dia", "dia_semana", "dia_da_semana", "semana"]
+    for _, row in df_professores_base.iterrows():
+        nome = _valor_primeiro_campo(row, aliases_nome)
+        if not nome:
+            continue
+        registro = estrutura_tutoria_vazia(nome=nome)
+        tipo = _valor_primeiro_campo(row, aliases_tipo)
+        espaco = _valor_primeiro_campo(row, aliases_espaco)
+        horario = _valor_primeiro_campo(row, aliases_horario)
+        dia = _valor_primeiro_campo(row, aliases_dia)
+        if tipo:
+            registro["tipo"] = normalizar_perfil_tutoria(tipo)
+        if espaco:
+            registro["espaco"] = espaco
+        if horario:
+            registro["horario"] = horario
+        if dia:
+            registro["dia"] = dia
+        base[nome] = registro
+    return normalizar_base_tutoria(base)
+
+def mesclar_multiplas_fontes_tutoria(*fontes: dict) -> dict:
+    """Mescla fontes preservando metadados preenchidos e alunos já existentes."""
+    resultado = {}
+    for fonte in fontes:
+        fonte_norm = normalizar_base_tutoria(fonte or {})
+        for tutor, dados in fonte_norm.items():
+            if tutor not in resultado:
+                resultado[tutor] = estrutura_tutoria_vazia(nome=tutor)
+            for campo in ("tipo", "espaco", "horario", "dia"):
+                valor_atual = str(resultado[tutor].get(campo, "") or "").strip()
+                valor_novo = str(dados.get(campo, "") or "").strip()
+                if valor_novo and (not valor_atual or valor_atual == "Professor(a)"):
+                    resultado[tutor][campo] = valor_novo
+            alunos_existentes = {
+                (normalizar_texto(a.get("nome", "")), formatar_turma_eletiva(a.get("serie", "")))
+                for a in resultado[tutor].get("alunos", [])
+            }
+            for aluno in dados.get("alunos", []) or []:
+                chave = (normalizar_texto(aluno.get("nome", "")), formatar_turma_eletiva(aluno.get("serie", "")))
+                if chave[0] and chave not in alunos_existentes:
+                    resultado[tutor].setdefault("alunos", []).append(aluno)
+                    alunos_existentes.add(chave)
+    return normalizar_base_tutoria(resultado)
 
 def carregar_tutoria_local(fallback: dict | None = None) -> dict:
     try:
@@ -4215,8 +4277,9 @@ def _supabase_request(method: str, path: str, **kwargs):
         response.raise_for_status()
     return response
 
+@st.cache_data(ttl=600, show_spinner=False)
 def _supabase_get_dataframe(path: str, acao: str) -> pd.DataFrame:
-    """Retorna DataFrame a partir de endpoint Supabase"""
+    """Retorna DataFrame a partir de endpoint Supabase. Cache reduz lentidão nas transições de página."""
     try:
         response = _supabase_request("GET", path)
         return pd.DataFrame(response.json())
@@ -4232,7 +4295,13 @@ def _supabase_mutation(method: str, path: str, data, acao: str) -> bool:
         if data is not None:
             kwargs["json"] = data
         response = _supabase_request(method, path, **kwargs)
-        return response.status_code in (200, 201, 204)
+        sucesso = response.status_code in (200, 201, 204)
+        if sucesso:
+            try:
+                _supabase_get_dataframe.clear()
+            except Exception:
+                pass
+        return sucesso
     except ErroConexaoDB:
         raise
     except Exception as e:
@@ -5180,17 +5249,24 @@ def converter_tutoria_supabase_para_dict(df_tutoria: pd.DataFrame) -> dict:
     if df_tutoria.empty:
         return {}
     tutoria = {}
+    aliases_tutor = ["professora", "professor", "responsavel", "responsável", "tutor", "nome_tutor", "nome_professor"]
+    aliases_aluno = ["nome_aluno", "aluno", "estudante", "nome_estudante", "nome"]
+    aliases_serie = ["serie", "série", "turma", "ano_serie", "ano_série"]
+    aliases_tipo = ["tipo", "perfil", "cargo", "funcao", "função"]
+    aliases_espaco = ["espaco", "espaço", "espaco_usado", "espaço_usado", "sala", "ambiente", "local"]
+    aliases_horario = ["horario", "horário", "hora", "periodo", "período"]
+    aliases_dia = ["dia", "dia_semana", "dia_da_semana", "semana"]
     for _, row in df_tutoria.iterrows():
-        tutor = str(row.get("professora", "")).strip()
-        nome_aluno = str(row.get("nome_aluno", "")).strip()
-        serie = formatar_turma_eletiva(str(row.get("serie", "")).strip())
+        tutor = _valor_primeiro_campo(row, aliases_tutor)
+        nome_aluno = _valor_primeiro_campo(row, aliases_aluno)
+        serie = formatar_turma_eletiva(_valor_primeiro_campo(row, aliases_serie))
         if not tutor:
             continue
         tutoria.setdefault(tutor, estrutura_tutoria_vazia(nome=tutor))
-        tipo = normalizar_perfil_tutoria(row.get("tipo", "Professor(a)"))
-        espaco = str(row.get("espaco", "")).strip()
-        horario = str(row.get("horario", "")).strip()
-        dia = str(row.get("dia", "")).strip()
+        tipo = normalizar_perfil_tutoria(_valor_primeiro_campo(row, aliases_tipo) or "Professor(a)")
+        espaco = _valor_primeiro_campo(row, aliases_espaco)
+        horario = _valor_primeiro_campo(row, aliases_horario)
+        dia = _valor_primeiro_campo(row, aliases_dia)
         if tipo:
             tutoria[tutor]["tipo"] = tipo
         if espaco:
@@ -5200,7 +5276,11 @@ def converter_tutoria_supabase_para_dict(df_tutoria: pd.DataFrame) -> dict:
         if dia:
             tutoria[tutor]["dia"] = dia
         if nome_aluno:
-            tutoria[tutor]["alunos"].append({"nome": nome_aluno, "serie": serie})
+            item = {"nome": nome_aluno, "serie": serie}
+            ra = _valor_primeiro_campo(row, ["ra", "RA", "registro_aluno"])
+            if ra:
+                item["ra"] = "".join(ch for ch in str(ra) if ch.isdigit())
+            tutoria[tutor]["alunos"].append(item)
     return normalizar_base_tutoria(tutoria)
 
 def montar_dataframe_eletiva(nome_professora: str, df_alunos: pd.DataFrame, eletivas_dict: dict) -> pd.DataFrame:
@@ -5660,9 +5740,7 @@ def normalizar_dataframe_importacao(df_import: pd.DataFrame) -> pd.DataFrame:
     for i in range(limite):
         vals = [normalizar_texto(v) for v in df.iloc[i].fillna("").astype(str).tolist()]
         joined = " ".join(vals)
-        tem_nome = "NOME" in joined or "ESTUDANTE" in joined
-        tem_ra = re.search(r"\bRA\b", joined) is not None or "NR RA" in joined
-        if all(p in joined for p in palavras_chave) or (tem_nome and tem_ra):
+        if all(p in joined for p in palavras_chave):
             linha_header = i
             break
     if linha_header is not None:
@@ -6243,23 +6321,28 @@ ELETIVAS = st.session_state.ELETIVAS
 FONTE_ELETIVAS = st.session_state.FONTE_ELETIVAS
 
 TUTORIA_LOCAL = carregar_tutoria_local()
+TUTORIA_PROFESSORES_META = converter_metadados_professores_para_tutoria(df_professores)
+TUTORIA_REFERENCIA_META = mesclar_multiplas_fontes_tutoria(TUTORIA_LOCAL, TUTORIA_EXCEL, TUTORIA_PROFESSORES_META)
 
 if st.session_state.TUTORIA is None:
-    if TUTORIA_LOCAL:
-        st.session_state.TUTORIA = TUTORIA_LOCAL
-        st.session_state.FONTE_TUTORIA = "local"
-    elif SUPABASE_VALID and not df_tutoria_supabase.empty:
-        st.session_state.TUTORIA = converter_tutoria_supabase_para_dict(df_tutoria_supabase)
+    if SUPABASE_VALID and not df_tutoria_supabase.empty:
+        base_supabase = converter_tutoria_supabase_para_dict(df_tutoria_supabase)
+        st.session_state.TUTORIA = mesclar_tutoria_com_metadados(base_supabase, TUTORIA_REFERENCIA_META)
         st.session_state.FONTE_TUTORIA = "supabase"
+    elif TUTORIA_LOCAL:
+        st.session_state.TUTORIA = mesclar_tutoria_com_metadados(TUTORIA_LOCAL, TUTORIA_REFERENCIA_META)
+        st.session_state.FONTE_TUTORIA = "local"
     else:
         st.session_state.TUTORIA = normalizar_base_tutoria(TUTORIA_EXCEL.copy() if TUTORIA_EXCEL else {})
+        st.session_state.TUTORIA = mesclar_tutoria_com_metadados(st.session_state.TUTORIA, TUTORIA_PROFESSORES_META)
         st.session_state.FONTE_TUTORIA = "excel" if TUTORIA_EXCEL else "indisponivel"
 else:
     st.session_state.TUTORIA = normalizar_base_tutoria(st.session_state.TUTORIA)
-    if TUTORIA_LOCAL:
-        st.session_state.FONTE_TUTORIA = "local"
-    elif SUPABASE_VALID and not df_tutoria_supabase.empty:
+    st.session_state.TUTORIA = mesclar_tutoria_com_metadados(st.session_state.TUTORIA, TUTORIA_REFERENCIA_META)
+    if SUPABASE_VALID and not df_tutoria_supabase.empty:
         st.session_state.FONTE_TUTORIA = "supabase"
+    elif TUTORIA_LOCAL:
+        st.session_state.FONTE_TUTORIA = "local"
     elif TUTORIA_EXCEL:
         st.session_state.FONTE_TUTORIA = "excel"
     else:
@@ -6273,8 +6356,6 @@ ROTAS_MENU_SUPORTADAS = {
     normalizar_texto("📝 Registrar Ocorrência"),
     normalizar_texto("🧾 Relatório dos Estudantes"),
     normalizar_texto("🏛️ Conselho"),
-    normalizar_texto("📈 Prova Paulista"),
-    normalizar_texto("🗺️ Mapão"),
     normalizar_texto("📋 Histórico de Ocorrências"),
     normalizar_texto("📄 Comunicado aos Pais"),
     normalizar_texto("👥 Lista de Alunos"),
@@ -6614,21 +6695,11 @@ RECOMENDACOES_CONSELHO = {
 }
 
 COLUNAS_CONSELHO_ONLINE = [
-    "Nº", "RA", "Turma", "Estudante", "Frequência (%)", "Prova Paulista 1", "Prova Paulista 2", "Mapão", "Prova interna",
+    "Nº", "Estudante", "Frequência (%)", "Prova Paulista 1", "Prova Paulista 2", "Prova interna",
     "Notas abaixo de cinco", "Dificuldade 1", "Dificuldade 2", "Dificuldade 3", "Dificuldade 4", "Dificuldade 5", "Dificuldade 6",
     "Recomendação 7", "Recomendação 8", "Recomendação 9", "Recomendação 10", "Recomendação 11", "Recomendação 12",
     "Observações / encaminhamentos"
 ]
-
-COLUNAS_CONSELHO_IMPORTACAO = [
-    "RA", "Turma", "Estudante", "Frequência (%)", "Prova Paulista 1", "Prova Paulista 2",
-    "Mapão", "Prova interna", "Notas abaixo de cinco", "Observações / encaminhamentos"
-]
-
-CONSELHO_DADOS_LOCAL_PATH = os.path.join(os.getcwd(), "data", "conselho_turmas_local.json")
-PROVA_PAULISTA_LOCAL_PATH = os.path.join(os.getcwd(), "data", "prova_paulista_local.json")
-MAPAO_LOCAL_PATH = os.path.join(os.getcwd(), "data", "mapao_local.json")
-COMPONENTES_PROVA_PAULISTA = ["MAT", "PORT", "ING", "HIST", "GEO", "CIE", "FILO", "SOC", "BIO", "FÍS", "FIS", "QUI", "FIN", "TEC"]
 
 PROTOCOLO_PEC_ITENS = [
     "Há evidência de análise das aprendizagens com coerência entre as notas dos estudantes e as habilidades desenvolvidas e/ou em desenvolvimento?",
@@ -6675,113 +6746,17 @@ def _criar_modelo_conselho_online(qtd_linhas: int = 30) -> pd.DataFrame:
     return pd.DataFrame(linhas)
 
 
-def _criar_modelo_conselho_por_turma(turma: str, alunos_df: pd.DataFrame) -> pd.DataFrame:
-    if alunos_df is None or alunos_df.empty or "turma" not in alunos_df.columns:
-        return _criar_modelo_conselho_online(30)
-
-    turma_cmp = turma_para_comparacao(turma)
-    base = alunos_df.copy()
-    if "situacao" in base.columns:
-        base = base[base["situacao"].astype(str).apply(lambda v: "ATIVO" in normalizar_texto(v) or not str(v).strip())]
-    base["turma_padrao"] = base["turma"].astype(str).apply(formatar_turma_eletiva)
-    base = base[base["turma_padrao"].apply(turma_para_comparacao) == turma_cmp]
-    base = base.sort_values("nome" if "nome" in base.columns else base.columns[0], kind="stable").reset_index(drop=True)
-
-    if base.empty:
-        return _criar_modelo_conselho_online(30)
-
-    linhas = []
-    for idx, aluno in base.iterrows():
-        item = {c: "" for c in COLUNAS_CONSELHO_ONLINE}
-        item["Nº"] = str(idx + 1)
-        item["RA"] = _limpar_valor_conselho(aluno.get("ra", ""))
-        item["Turma"] = formatar_turma_eletiva(aluno.get("turma", turma))
-        item["Estudante"] = _limpar_valor_conselho(aluno.get("nome", ""))
-        linhas.append(item)
-    modelo = pd.DataFrame(linhas, columns=COLUNAS_CONSELHO_ONLINE)
-    try:
-        pp_turma = buscar_prova_paulista_turma(turma)
-        if not pp_turma.empty:
-            modelo = _mesclar_importacao_no_modelo_conselho(modelo, _prova_paulista_para_importacao_conselho(pp_turma))
-        mapao_turma = buscar_mapao_turma(turma)
-        if not mapao_turma.empty:
-            modelo = _mesclar_importacao_no_modelo_conselho(modelo, _mapao_para_importacao_conselho(mapao_turma))
-    except Exception:
-        pass
-    return modelo
-
-
-def _garantir_colunas_conselho_online(df: pd.DataFrame) -> pd.DataFrame:
-    base = df.copy() if df is not None and not df.empty else pd.DataFrame()
-    for col in COLUNAS_CONSELHO_ONLINE:
-        if col not in base.columns:
-            base[col] = ""
-    if base.empty:
-        base = _criar_modelo_conselho_online(30)
-    for col in ["Frequência (%)", "Prova Paulista 1", "Prova Paulista 2"]:
-        if col in base.columns:
-            base[col] = base[col].apply(_formatar_percentual_prova_paulista)
-    return base[COLUNAS_CONSELHO_ONLINE]
-
-
-def _chave_contexto_conselho(turma: str, bimestre: str, ano_letivo: str) -> str:
-    partes = [gerar_chave_segura(turma), gerar_chave_segura(bimestre), gerar_chave_segura(ano_letivo)]
-    return "__".join(p for p in partes if p)
-
-
-def _carregar_conselho_local() -> dict:
-    _garantir_arquivo_json_local(CONSELHO_DADOS_LOCAL_PATH, {})
-    try:
-        with open(CONSELHO_DADOS_LOCAL_PATH, "r", encoding="utf-8") as arquivo:
-            dados = json.load(arquivo)
-        return dados if isinstance(dados, dict) else {}
-    except Exception:
-        return {}
-
-
-def _salvar_conselho_local(dados: dict) -> bool:
-    _garantir_arquivo_json_local(CONSELHO_DADOS_LOCAL_PATH, {})
-    with open(CONSELHO_DADOS_LOCAL_PATH, "w", encoding="utf-8") as arquivo:
-        json.dump(dados if isinstance(dados, dict) else {}, arquivo, ensure_ascii=False, indent=2)
-    return True
-
-
-def _salvar_contexto_conselho(turma: str, bimestre: str, ano_letivo: str, df_online: pd.DataFrame, df_resumo: pd.DataFrame | None = None) -> None:
-    chave = _chave_contexto_conselho(turma, bimestre, ano_letivo)
-    if not chave:
-        return
-    dados = _carregar_conselho_local()
-    dados[chave] = {
-        "turma": turma,
-        "bimestre": bimestre,
-        "ano_letivo": ano_letivo,
-        "updated_at": datetime.now().isoformat(),
-        "online": _garantir_colunas_conselho_online(df_online).to_dict(orient="records"),
-        "resumo": (df_resumo if df_resumo is not None else _modelo_online_para_resumo_conselho(df_online)).to_dict(orient="records"),
-    }
-    _salvar_conselho_local(dados)
-
-
-def _carregar_contexto_conselho(turma: str, bimestre: str, ano_letivo: str) -> tuple[pd.DataFrame, pd.DataFrame]:
-    registro = _carregar_conselho_local().get(_chave_contexto_conselho(turma, bimestre, ano_letivo), {})
-    online = _garantir_colunas_conselho_online(pd.DataFrame(registro.get("online", [])))
-    resumo = _mapear_colunas_conselho(pd.DataFrame(registro.get("resumo", [])))
-    return online, resumo
-
-
 def _modelo_online_para_resumo_conselho(df_online: pd.DataFrame) -> pd.DataFrame:
     if df_online is None or df_online.empty:
         return pd.DataFrame(columns=COLUNAS_CONSELHO_PADRAO)
-    df = _garantir_colunas_conselho_online(df_online)
-    saida = pd.DataFrame(index=df.index)
+    df = df_online.copy()
+    saida = pd.DataFrame()
     saida["Nº"] = df.get("Nº", pd.Series([str(i+1) for i in range(len(df))])).astype(str)
     saida["Estudante"] = df.get("Estudante", pd.Series([""] * len(df))).astype(str)
     saida["Freq."] = df.get("Frequência (%)", pd.Series([""] * len(df))).astype(str)
-    saida["Part. PP"] = df.get("Prova Paulista 2", pd.Series([""] * len(df))).astype(str)
-    saida["Acertos PP"] = df.get("Prova Paulista 1", pd.Series([""] * len(df))).astype(str)
-    mapao = df.get("Mapão", pd.Series([""] * len(df))).astype(str)
-    notas_abaixo = df.get("Notas abaixo de cinco", pd.Series([""] * len(df))).astype(str)
-    saida["Comp."] = [f"Mapão: {m}; Notas <5: {n}".strip("; ") if str(m).strip() else n for m, n in zip(mapao, notas_abaixo)]
+    saida["Part. PP"] = df.get("Prova Paulista 1", pd.Series([""] * len(df))).astype(str)
+    saida["Acertos PP"] = df.get("Prova Paulista 2", pd.Series([""] * len(df))).astype(str)
+    saida["Comp."] = df.get("Notas abaixo de cinco", pd.Series([""] * len(df))).astype(str)
     saida["Prova interna"] = df.get("Prova interna", pd.Series([""] * len(df))).astype(str)
 
     dif_cols = [c for c in df.columns if str(c).startswith("Dificuldade")]
@@ -6819,619 +6794,6 @@ def _excel_bytes_conselho_modelo(df: pd.DataFrame) -> BytesIO:
         ]).to_excel(writer, sheet_name="Recomendações", index=False)
     output.seek(0)
     return output
-
-
-def _valor_celula_xlsx_simples(celula, shared_strings: list[str]) -> str:
-    ns_main = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
-    inline = celula.find(ns_main + "is")
-    if inline is not None:
-        return "".join(t.text or "" for t in inline.iter(ns_main + "t")).strip()
-    valor = celula.find(ns_main + "v")
-    texto = "" if valor is None else str(valor.text or "").strip()
-    if celula.attrib.get("t") == "s" and texto.isdigit():
-        idx = int(texto)
-        return shared_strings[idx] if 0 <= idx < len(shared_strings) else ""
-    return texto
-
-
-def _ler_xlsx_simples(arquivo_upload) -> pd.DataFrame:
-    bruto = arquivo_upload.getvalue()
-    ns_main = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
-    ns_rel = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
-    with zipfile.ZipFile(BytesIO(bruto)) as zf:
-        shared = []
-        if "xl/sharedStrings.xml" in zf.namelist():
-            root_shared = ET.fromstring(zf.read("xl/sharedStrings.xml"))
-            for si in root_shared.findall(ns_main + "si"):
-                shared.append("".join(t.text or "" for t in si.iter(ns_main + "t")))
-
-        workbook = ET.fromstring(zf.read("xl/workbook.xml"))
-        rels = ET.fromstring(zf.read("xl/_rels/workbook.xml.rels"))
-        rel_map = {rel.attrib["Id"]: rel.attrib["Target"] for rel in rels}
-        partes = []
-        for sheet in workbook.findall(ns_main + "sheets/" + ns_main + "sheet"):
-            nome_aba = sheet.attrib.get("name", "Planilha")
-            rel_id = sheet.attrib.get(ns_rel + "id")
-            target = str(rel_map.get(rel_id, "worksheets/sheet1.xml")).lstrip("/")
-            path = target if target.startswith("xl/") else f"xl/{target}"
-            root_sheet = ET.fromstring(zf.read(path))
-            matriz = []
-            for row in root_sheet.findall(".//" + ns_main + "sheetData/" + ns_main + "row"):
-                valores = [_valor_celula_xlsx_simples(c, shared) for c in row.findall(ns_main + "c")]
-                matriz.append(valores)
-            if not matriz:
-                continue
-            largura = max(len(r) for r in matriz)
-            matriz = [r + [""] * (largura - len(r)) for r in matriz]
-            df = pd.DataFrame(matriz)
-            df["Origem da aba"] = nome_aba
-            partes.append(df)
-        return pd.concat(partes, ignore_index=True, sort=False) if partes else pd.DataFrame()
-
-
-def _ler_planilha_conselho_upload(arquivo_upload) -> pd.DataFrame:
-    nome = str(getattr(arquivo_upload, "name", "") or "").lower()
-    if nome.endswith(".csv"):
-        arquivo_upload.seek(0)
-        return ler_csv_flexivel(arquivo_upload)
-
-    arquivo_upload.seek(0)
-    try:
-        abas = pd.read_excel(arquivo_upload, sheet_name=None, dtype=str)
-        partes = []
-        for nome_aba, df_aba in abas.items():
-            if df_aba is None or df_aba.empty:
-                continue
-            tmp = df_aba.copy()
-            tmp["Origem da aba"] = str(nome_aba)
-            partes.append(tmp)
-        return pd.concat(partes, ignore_index=True, sort=False) if partes else pd.DataFrame()
-    except ImportError:
-        arquivo_upload.seek(0)
-        return _ler_xlsx_simples(arquivo_upload)
-
-
-def _ler_planilha_prova_paulista_upload(arquivo_upload) -> pd.DataFrame:
-    nome = str(getattr(arquivo_upload, "name", "") or "").lower()
-    if nome.endswith(".csv"):
-        arquivo_upload.seek(0)
-        return ler_csv_flexivel(arquivo_upload)
-    arquivo_upload.seek(0)
-    return _ler_xlsx_simples(arquivo_upload)
-
-
-def _detectar_coluna_por_nomes(df: pd.DataFrame, candidatos: list[str]) -> str | None:
-    if df is None or df.empty:
-        return None
-    candidatos_norm = [normalizar_texto(c) for c in candidatos]
-    for col in df.columns:
-        col_norm = normalizar_texto(col)
-        if any(c in col_norm for c in candidatos_norm):
-            return col
-    return None
-
-
-def _detectar_coluna_numerica_por_conteudo(df: pd.DataFrame, palavras_ignorar: list[str] | None = None) -> str | None:
-    palavras_ignorar = [normalizar_texto(p) for p in (palavras_ignorar or [])]
-    melhor_col = None
-    melhor_pontos = -1
-    for col in df.columns:
-        col_norm = normalizar_texto(col)
-        if any(p in col_norm for p in palavras_ignorar):
-            continue
-        pontos = 0
-        for valor in df[col].dropna().astype(str).head(20):
-            texto = valor.strip().replace(",", ".")
-            if re.search(r"\d", texto):
-                pontos += 1
-        if pontos > melhor_pontos:
-            melhor_col = col
-            melhor_pontos = pontos
-    return melhor_col if melhor_pontos >= 3 else None
-
-
-def _normalizar_importacao_conselho(df_import: pd.DataFrame, origem: str, turma_padrao: str = "") -> pd.DataFrame:
-    if df_import is None or df_import.empty:
-        return pd.DataFrame(columns=COLUNAS_CONSELHO_IMPORTACAO)
-
-    df = normalizar_dataframe_importacao(df_import)
-    if df.empty:
-        return pd.DataFrame(columns=COLUNAS_CONSELHO_IMPORTACAO)
-
-    col_ra = _detectar_coluna_por_nomes(df, ["RA", "Registro do aluno"])
-    col_nome = _detectar_coluna_por_nomes(df, ["Nome do Aluno", "Estudante", "Aluno", "Nome"])
-    col_turma = _detectar_coluna_por_nomes(df, ["Turma", "Série", "Serie", "Sala"])
-    col_freq = _detectar_coluna_por_nomes(df, ["Frequência", "Frequencia", "Freq", "% Frequência", "Presença", "Presenca"])
-    col_pp1 = _detectar_coluna_por_nomes(df, ["Prova Paulista 1", "PP 1", "Acertos PP", "Acertos"])
-    col_pp2 = _detectar_coluna_por_nomes(df, ["Prova Paulista 2", "PP 2", "Participação", "Participacao"])
-    col_mapao = _detectar_coluna_por_nomes(df, ["Mapão", "Mapao", "Mapa", "Rendimento"])
-    col_prova = _detectar_coluna_por_nomes(df, ["Prova interna", "Avaliação interna", "Avaliacao interna", "Nota"])
-    col_notas = _detectar_coluna_por_nomes(df, ["Notas abaixo", "Abaixo de cinco", "Abaixo de 5", "Menor que cinco"])
-    col_obs = _detectar_coluna_por_nomes(df, ["Observação", "Observacao", "Encaminhamento", "Recomendação", "Recomendacao"])
-
-    origem_norm = normalizar_texto(origem)
-    if col_freq is None and "FREQU" in origem_norm:
-        col_freq = _detectar_coluna_numerica_por_conteudo(df, ["RA"])
-    if col_pp1 is None and "PROVA" in origem_norm:
-        col_pp1 = _detectar_coluna_numerica_por_conteudo(df, ["RA"])
-    if col_mapao is None and ("MAPAO" in origem_norm or "MAPA" in origem_norm):
-        col_mapao = _detectar_coluna_numerica_por_conteudo(df, ["RA"])
-
-    saida = pd.DataFrame(index=df.index)
-    saida["RA"] = df[col_ra].apply(lambda v: "".join(c for c in str(v) if c.isdigit())) if col_ra else ""
-    saida["Turma"] = df[col_turma].apply(formatar_turma_eletiva) if col_turma else formatar_turma_eletiva(turma_padrao)
-    saida["Estudante"] = df[col_nome].apply(_limpar_valor_conselho) if col_nome else ""
-    saida["Frequência (%)"] = df[col_freq].apply(_formatar_percentual_prova_paulista) if col_freq else ""
-    saida["Prova Paulista 1"] = df[col_pp1].apply(_formatar_percentual_prova_paulista) if col_pp1 else ""
-    saida["Prova Paulista 2"] = df[col_pp2].apply(_formatar_percentual_prova_paulista) if col_pp2 else ""
-    saida["Mapão"] = df[col_mapao].apply(_limpar_valor_conselho) if col_mapao else ""
-    saida["Prova interna"] = df[col_prova].apply(_limpar_valor_conselho) if col_prova else ""
-    saida["Notas abaixo de cinco"] = df[col_notas].apply(_limpar_valor_conselho) if col_notas else ""
-    saida["Observações / encaminhamentos"] = df[col_obs].apply(_limpar_valor_conselho) if col_obs else ""
-
-    if turma_padrao:
-        turma_cmp = turma_para_comparacao(turma_padrao)
-        com_turma = saida["Turma"].astype(str).str.strip().ne("")
-        saida.loc[~com_turma, "Turma"] = formatar_turma_eletiva(turma_padrao)
-        saida = saida[saida["Turma"].apply(turma_para_comparacao).isin(["", turma_cmp])].copy()
-
-    saida = saida[
-        saida["RA"].astype(str).str.strip().ne("")
-        | saida["Estudante"].astype(str).str.strip().ne("")
-    ].copy()
-    return saida[COLUNAS_CONSELHO_IMPORTACAO].reset_index(drop=True)
-
-
-def _formatar_percentual_prova_paulista(valor) -> str:
-    texto = _limpar_valor_conselho(valor)
-    if not texto:
-        return ""
-    try:
-        numero = float(str(texto).replace("%", "").replace(",", "."))
-        if numero <= 1:
-            numero *= 100
-        return f"{numero:.1f}%".replace(".", ",")
-    except Exception:
-        return texto
-
-
-def _normalizar_header_prova_paulista(valor: str) -> str:
-    texto = normalizar_texto(valor)
-    texto = texto.replace("%", " PERCENTUAL ")
-    texto = re.sub(r"[^A-Z0-9 ]+", " ", texto)
-    return re.sub(r"\s+", " ", texto).strip()
-
-
-def _extrair_turma_metadata_prova_paulista(matriz: list[list[str]]) -> str:
-    for linha in matriz:
-        texto = " ".join(str(v or "") for v in linha)
-        if "NM_TURMA" in texto and " é " in texto:
-            return formatar_turma_eletiva(texto.split(" é ", 1)[1].split(" - ", 1)[0].strip())
-    return ""
-
-
-def _preparar_matriz_prova_paulista(df_bruto: pd.DataFrame) -> tuple[list[str], list[list[str]], dict]:
-    matriz = []
-    for _, row in df_bruto.fillna("").iterrows():
-        vals = [str(v).strip() for v in row.tolist()]
-        vals = [v for i, v in enumerate(vals) if not (str(df_bruto.columns[i]) == "Origem da aba")]
-        if any(vals):
-            matriz.append(vals)
-    metadata = {"turma": _extrair_turma_metadata_prova_paulista(matriz)}
-    header_idx = None
-    for idx, linha in enumerate(matriz[:20]):
-        norm = [_normalizar_header_prova_paulista(v) for v in linha]
-        tem_ra = any("RA" == v or "NR RA" in v or "REGISTRO" in v for v in norm)
-        tem_nome = any(v == "NOME" or "NOME" in v or "ESTUDANTE" in v for v in norm)
-        tem_acertos = any("ACERTOS" in v for v in norm)
-        if tem_ra and tem_nome and tem_acertos:
-            header_idx = idx
-            break
-    if header_idx is None:
-        return [], [], metadata
-    header = matriz[header_idx]
-    dados = []
-    for linha in matriz[header_idx + 1:]:
-        primeiro = str(linha[0] if linha else "").strip()
-        if not primeiro or normalizar_texto(primeiro).startswith("FILTROS"):
-            break
-        if normalizar_texto(primeiro) == "TOTAL":
-            break
-        dados.append(linha + [""] * (len(header) - len(linha)))
-    return header, dados, metadata
-
-
-def normalizar_prova_paulista(df_bruto: pd.DataFrame, turma_padrao: str = "", ano_letivo: str = "", bimestre: str = "") -> tuple[pd.DataFrame, dict]:
-    header, dados, metadata = _preparar_matriz_prova_paulista(df_bruto)
-    if not header or not dados:
-        return pd.DataFrame(), metadata
-    turma_final = formatar_turma_eletiva(turma_padrao or metadata.get("turma", ""))
-    colunas_norm = [_normalizar_header_prova_paulista(c) for c in header]
-
-    def idx_por(cond):
-        for i, col in enumerate(colunas_norm):
-            if cond(col):
-                return i
-        return None
-
-    idx_ra = idx_por(lambda c: c == "RA" or "NR RA" in c or "REGISTRO" in c)
-    idx_nome = idx_por(lambda c: c == "NOME" or "ESTUDANTE" in c)
-    idx_part = idx_por(lambda c: "PARTICIPACAO" in c)
-    idx_acertos = idx_por(lambda c: "ACERTOS" in c)
-    componentes_idx = []
-    for i, col in enumerate(header):
-        comp = str(col).strip().upper()
-        comp_norm = _normalizar_header_prova_paulista(comp)
-        if comp_norm in COMPONENTES_PROVA_PAULISTA:
-            componentes_idx.append((comp_norm.replace("FIS", "FÍS"), i))
-
-    linhas = []
-    for linha in dados:
-        ra = "".join(ch for ch in str(linha[idx_ra] if idx_ra is not None and idx_ra < len(linha) else "") if ch.isdigit())
-        nome = _limpar_valor_conselho(linha[idx_nome] if idx_nome is not None and idx_nome < len(linha) else "")
-        if not ra and not nome:
-            continue
-        registro = {
-            "RA": ra,
-            "Estudante": nome,
-            "Turma": turma_final,
-            "Ano letivo": str(ano_letivo or datetime.now().year),
-            "Bimestre": str(bimestre or ""),
-            "Participação (%)": _formatar_percentual_prova_paulista(linha[idx_part] if idx_part is not None and idx_part < len(linha) else ""),
-            "Acertos (%)": _formatar_percentual_prova_paulista(linha[idx_acertos] if idx_acertos is not None and idx_acertos < len(linha) else ""),
-        }
-        for comp, idx_comp in componentes_idx:
-            valor = linha[idx_comp] if idx_comp < len(linha) else ""
-            if _limpar_valor_conselho(valor):
-                registro[comp] = _formatar_percentual_prova_paulista(valor)
-        linhas.append(registro)
-    return pd.DataFrame(linhas), metadata
-
-
-def _carregar_prova_paulista_local() -> list[dict]:
-    _garantir_arquivo_json_local(PROVA_PAULISTA_LOCAL_PATH, [])
-    try:
-        with open(PROVA_PAULISTA_LOCAL_PATH, "r", encoding="utf-8") as arquivo:
-            dados = json.load(arquivo)
-        return dados if isinstance(dados, list) else []
-    except Exception:
-        return []
-
-
-def _salvar_prova_paulista_local(registros: list[dict]) -> bool:
-    _garantir_arquivo_json_local(PROVA_PAULISTA_LOCAL_PATH, [])
-    with open(PROVA_PAULISTA_LOCAL_PATH, "w", encoding="utf-8") as arquivo:
-        json.dump(registros, arquivo, ensure_ascii=False, indent=2)
-    return True
-
-
-def carregar_prova_paulista_df() -> pd.DataFrame:
-    return pd.DataFrame(_carregar_prova_paulista_local())
-
-
-def salvar_registros_prova_paulista(df_novo: pd.DataFrame) -> int:
-    if df_novo is None or df_novo.empty:
-        return 0
-    existentes = _carregar_prova_paulista_local()
-    indice = {}
-    for i, item in enumerate(existentes):
-        chave = (
-            str(item.get("RA", "")).strip(),
-            turma_para_comparacao(item.get("Turma", "")),
-            str(item.get("Ano letivo", "")).strip(),
-            str(item.get("Bimestre", "")).strip(),
-        )
-        indice[chave] = i
-    gravados = 0
-    for item in df_novo.fillna("").to_dict(orient="records"):
-        chave = (
-            str(item.get("RA", "")).strip(),
-            turma_para_comparacao(item.get("Turma", "")),
-            str(item.get("Ano letivo", "")).strip(),
-            str(item.get("Bimestre", "")).strip(),
-        )
-        if chave in indice:
-            existentes[indice[chave]].update(item)
-        else:
-            existentes.append(item)
-        gravados += 1
-    _salvar_prova_paulista_local(existentes)
-    return gravados
-
-
-def buscar_prova_paulista_turma(turma: str, ano_letivo: str = "", bimestre: str = "") -> pd.DataFrame:
-    df = carregar_prova_paulista_df()
-    if df.empty:
-        return df
-    if "Turma" in df.columns and turma:
-        df = df[df["Turma"].apply(turma_para_comparacao) == turma_para_comparacao(turma)].copy()
-    if "Ano letivo" in df.columns and ano_letivo:
-        df = df[df["Ano letivo"].astype(str).str.strip() == str(ano_letivo).strip()].copy()
-    if "Bimestre" in df.columns and bimestre:
-        df_bim = df[df["Bimestre"].astype(str).str.strip() == str(bimestre).strip()].copy()
-        if not df_bim.empty:
-            df = df_bim
-    return df.reset_index(drop=True)
-
-
-def _prova_paulista_para_importacao_conselho(df_pp: pd.DataFrame) -> pd.DataFrame:
-    if df_pp is None or df_pp.empty:
-        return pd.DataFrame(columns=COLUNAS_CONSELHO_IMPORTACAO)
-    saida = pd.DataFrame(index=df_pp.index)
-    vazio = pd.Series([""] * len(df_pp), index=df_pp.index)
-    saida["RA"] = df_pp.get("RA", vazio).astype(str)
-    saida["Turma"] = df_pp.get("Turma", vazio).astype(str)
-    saida["Estudante"] = df_pp.get("Estudante", vazio).astype(str)
-    saida["Frequência (%)"] = ""
-    saida["Prova Paulista 1"] = df_pp.get("Acertos (%)", vazio).astype(str)
-    saida["Prova Paulista 2"] = ""
-    saida["Mapão"] = ""
-    saida["Prova interna"] = ""
-    saida["Notas abaixo de cinco"] = ""
-    saida["Observações / encaminhamentos"] = ""
-    return saida[COLUNAS_CONSELHO_IMPORTACAO]
-
-
-def _extrair_metadata_mapao(matriz: list[list[str]]) -> dict:
-    meta = {}
-    for linha in matriz[:12]:
-        if len(linha) >= 2:
-            chave = normalizar_texto(linha[0]).replace(":", "").strip()
-            valor = str(linha[1] or "").strip()
-            if chave == "ANO LETIVO":
-                meta["Ano letivo"] = valor
-            elif chave == "TURMA":
-                meta["Turma"] = formatar_turma_eletiva(valor)
-            elif chave == "TIPO FECHAMENTO":
-                meta["Fechamento"] = valor
-            elif chave == "TOTAL DE AULAS DADAS":
-                meta["Total de aulas dadas"] = valor
-    return meta
-
-
-def normalizar_mapao(df_bruto: pd.DataFrame, turma_padrao: str = "", ano_letivo: str = "", bimestre: str = "") -> tuple[pd.DataFrame, dict]:
-    if df_bruto is None or df_bruto.empty:
-        return pd.DataFrame(), {}
-    matriz = []
-    for _, row in df_bruto.fillna("").iterrows():
-        vals = [str(v).strip() for v in row.tolist()]
-        vals = [v for i, v in enumerate(vals) if not (str(df_bruto.columns[i]) == "Origem da aba")]
-        if any(vals):
-            matriz.append(vals)
-    meta = _extrair_metadata_mapao(matriz)
-    turma_final = formatar_turma_eletiva(turma_padrao or meta.get("Turma", ""))
-    ano_final = str(ano_letivo or meta.get("Ano letivo", datetime.now().year)).strip()
-    fechamento = str(bimestre or meta.get("Fechamento", "")).strip()
-
-    header_idx = None
-    for idx, linha in enumerate(matriz):
-        norm = [normalizar_texto(v) for v in linha[:5]]
-        if "ALUNO" in norm and "SITUACAO" in norm:
-            header_idx = idx
-            break
-    if header_idx is None or header_idx + 1 >= len(matriz):
-        return pd.DataFrame(), meta
-
-    linha_componentes = matriz[header_idx]
-    linha_sub = matriz[header_idx + 1]
-    componentes = []
-    for idx, valor in enumerate(linha_componentes):
-        nome = _limpar_valor_conselho(str(valor).splitlines()[0])
-        if idx >= 2 and nome and normalizar_texto(nome) not in ["TOTAL"]:
-            componentes.append((idx, nome))
-
-    linhas = []
-    for linha in matriz[header_idx + 2:]:
-        nome = _limpar_valor_conselho(linha[0] if len(linha) > 0 else "")
-        situacao = _limpar_valor_conselho(linha[1] if len(linha) > 1 else "")
-        if not nome or normalizar_texto(nome) in ["LEGENDA"] or nome.startswith(" "):
-            break
-        if normalizar_texto(nome).startswith("AULAS DADAS"):
-            break
-
-        total_idx = None
-        for idx, valor in enumerate(linha_componentes):
-            if normalizar_texto(valor) == "TOTAL":
-                total_idx = idx
-                break
-
-        registro = {
-            "Estudante": nome,
-            "Turma": turma_final,
-            "Ano letivo": ano_final,
-            "Bimestre": fechamento,
-            "Situação": situacao,
-            "TF": _limpar_valor_conselho(linha[total_idx] if total_idx is not None and total_idx < len(linha) else ""),
-            "Frequência (%)": _limpar_valor_conselho(linha[total_idx + 1] if total_idx is not None and total_idx + 1 < len(linha) else ""),
-            "FT An": _limpar_valor_conselho(linha[total_idx + 2] if total_idx is not None and total_idx + 2 < len(linha) else ""),
-            "Frequência anual (%)": _limpar_valor_conselho(linha[total_idx + 3] if total_idx is not None and total_idx + 3 < len(linha) else ""),
-        }
-
-        componentes_resumo = []
-        notas_abaixo = []
-        for idx_comp, comp in componentes:
-            mencao = _limpar_valor_conselho(linha[idx_comp + 1] if idx_comp + 1 < len(linha) else "")
-            faltas = _limpar_valor_conselho(linha[idx_comp + 2] if idx_comp + 2 < len(linha) else "")
-            aus_comp = _limpar_valor_conselho(linha[idx_comp + 3] if idx_comp + 3 < len(linha) else "")
-            if mencao and mencao != "-":
-                registro[f"{comp} - Menção"] = mencao
-                try:
-                    if float(str(mencao).replace(",", ".")) < 5:
-                        notas_abaixo.append(comp)
-                except Exception:
-                    pass
-            if faltas and faltas != "-":
-                registro[f"{comp} - Faltas"] = faltas
-            if aus_comp and aus_comp != "-":
-                registro[f"{comp} - Aus. Comp."] = aus_comp
-            if any(v and v != "-" for v in [mencao, faltas, aus_comp]):
-                componentes_resumo.append(f"{comp}: M {mencao or '-'} / F {faltas or '0'} / AC {aus_comp or '0'}")
-        registro["Componentes"] = " | ".join(componentes_resumo)
-        registro["Notas abaixo de cinco"] = ", ".join(notas_abaixo)
-        linhas.append(registro)
-
-    return pd.DataFrame(linhas), meta
-
-
-def _carregar_mapao_local() -> list[dict]:
-    _garantir_arquivo_json_local(MAPAO_LOCAL_PATH, [])
-    try:
-        with open(MAPAO_LOCAL_PATH, "r", encoding="utf-8") as arquivo:
-            dados = json.load(arquivo)
-        return dados if isinstance(dados, list) else []
-    except Exception:
-        return []
-
-
-def _salvar_mapao_local(registros: list[dict]) -> bool:
-    _garantir_arquivo_json_local(MAPAO_LOCAL_PATH, [])
-    with open(MAPAO_LOCAL_PATH, "w", encoding="utf-8") as arquivo:
-        json.dump(registros, arquivo, ensure_ascii=False, indent=2)
-    return True
-
-
-def carregar_mapao_df() -> pd.DataFrame:
-    return pd.DataFrame(_carregar_mapao_local())
-
-
-def salvar_registros_mapao(df_novo: pd.DataFrame) -> int:
-    if df_novo is None or df_novo.empty:
-        return 0
-    existentes = _carregar_mapao_local()
-    indice = {}
-    for i, item in enumerate(existentes):
-        chave = (
-            normalizar_texto(item.get("Estudante", "")),
-            turma_para_comparacao(item.get("Turma", "")),
-            str(item.get("Ano letivo", "")).strip(),
-            str(item.get("Bimestre", "")).strip(),
-        )
-        indice[chave] = i
-    gravados = 0
-    for item in df_novo.fillna("").to_dict(orient="records"):
-        chave = (
-            normalizar_texto(item.get("Estudante", "")),
-            turma_para_comparacao(item.get("Turma", "")),
-            str(item.get("Ano letivo", "")).strip(),
-            str(item.get("Bimestre", "")).strip(),
-        )
-        if chave in indice:
-            existentes[indice[chave]].update(item)
-        else:
-            existentes.append(item)
-        gravados += 1
-    _salvar_mapao_local(existentes)
-    return gravados
-
-
-def buscar_mapao_turma(turma: str, ano_letivo: str = "", bimestre: str = "") -> pd.DataFrame:
-    df = carregar_mapao_df()
-    if df.empty:
-        return df
-    if "Turma" in df.columns and turma:
-        df = df[df["Turma"].apply(turma_para_comparacao) == turma_para_comparacao(turma)].copy()
-    if "Ano letivo" in df.columns and ano_letivo:
-        df = df[df["Ano letivo"].astype(str).str.strip() == str(ano_letivo).strip()].copy()
-    if "Bimestre" in df.columns and bimestre:
-        df_bim = df[df["Bimestre"].astype(str).str.contains(str(bimestre).split("º")[0], case=False, na=False)].copy()
-        if not df_bim.empty:
-            df = df_bim
-    return df.reset_index(drop=True)
-
-
-def _mapao_para_importacao_conselho(df_mapao: pd.DataFrame) -> pd.DataFrame:
-    if df_mapao is None or df_mapao.empty:
-        return pd.DataFrame(columns=COLUNAS_CONSELHO_IMPORTACAO)
-    vazio = pd.Series([""] * len(df_mapao), index=df_mapao.index)
-    saida = pd.DataFrame(index=df_mapao.index)
-    saida["RA"] = ""
-    saida["Turma"] = df_mapao.get("Turma", vazio).astype(str)
-    saida["Estudante"] = df_mapao.get("Estudante", vazio).astype(str)
-    saida["Frequência (%)"] = df_mapao.get("Frequência (%)", vazio).astype(str)
-    saida["Prova Paulista 1"] = ""
-    saida["Prova Paulista 2"] = ""
-    saida["Mapão"] = df_mapao.get("Componentes", vazio).astype(str)
-    saida["Prova interna"] = ""
-    saida["Notas abaixo de cinco"] = df_mapao.get("Notas abaixo de cinco", vazio).astype(str)
-    saida["Observações / encaminhamentos"] = df_mapao.get("Situação", vazio).astype(str)
-    return saida[COLUNAS_CONSELHO_IMPORTACAO]
-
-
-def _chaves_linha_conselho(row) -> list[str]:
-    chaves = []
-    ra = "".join(c for c in str(row.get("RA", "")) if c.isdigit())
-    nome = normalizar_texto(row.get("Estudante", ""))
-    turma = turma_para_comparacao(row.get("Turma", ""))
-    if ra:
-        chaves.append(f"RA:{ra}")
-    if nome:
-        chaves.append(f"NOME:{nome}|TURMA:{turma}")
-        chaves.append(f"NOME:{nome}")
-    return chaves
-
-
-def _mesclar_importacao_no_modelo_conselho(df_online: pd.DataFrame, df_importado: pd.DataFrame) -> pd.DataFrame:
-    base = _garantir_colunas_conselho_online(df_online).copy()
-    if df_importado is None or df_importado.empty:
-        return base
-
-    indice = {}
-    for idx, row in base.iterrows():
-        for chave in _chaves_linha_conselho(row):
-            indice.setdefault(chave, idx)
-
-    for _, imp in df_importado.iterrows():
-        idx_destino = None
-        for chave in _chaves_linha_conselho(imp):
-            if chave in indice:
-                idx_destino = indice[chave]
-                break
-        if idx_destino is None:
-            novo = {c: "" for c in COLUNAS_CONSELHO_ONLINE}
-            novo["Nº"] = str(len(base) + 1)
-            base = pd.concat([base, pd.DataFrame([novo])], ignore_index=True)
-            idx_destino = len(base) - 1
-
-        for col in COLUNAS_CONSELHO_IMPORTACAO:
-            valor = _limpar_valor_conselho(imp.get(col, ""))
-            if valor and col in base.columns:
-                atual = _limpar_valor_conselho(base.at[idx_destino, col])
-                base.at[idx_destino, col] = valor if not atual else atual
-
-        for chave in _chaves_linha_conselho(base.loc[idx_destino]):
-            indice.setdefault(chave, idx_destino)
-
-    base["Nº"] = [str(i + 1) for i in range(len(base))]
-    return _garantir_colunas_conselho_online(base)
-
-
-def _focos_a_partir_modelo_online(df_online: pd.DataFrame) -> pd.DataFrame:
-    df = _garantir_colunas_conselho_online(df_online)
-    linhas = []
-    for _, row in df.iterrows():
-        estudante = _limpar_valor_conselho(row.get("Estudante", ""))
-        if not estudante:
-            continue
-        freq = _limpar_valor_conselho(row.get("Frequência (%)", ""))
-        notas = _limpar_valor_conselho(row.get("Notas abaixo de cinco", ""))
-        obs = _limpar_valor_conselho(row.get("Observações / encaminhamentos", ""))
-        diffs = [c for c in df.columns if c.startswith("Dificuldade") and _limpar_valor_conselho(row.get(c, ""))]
-        precisa_foco = bool(freq or notas or obs or diffs)
-        try:
-            freq_num = float(str(freq).replace("%", "").replace(",", "."))
-            precisa_foco = precisa_foco or freq_num < 75
-        except Exception:
-            pass
-        if precisa_foco:
-            linhas.append({
-                "Série": formatar_turma_eletiva(row.get("Turma", "")),
-                "Estudante": estudante,
-                "Frequência (%)": freq,
-                "Notas abaixo de cinco": notas,
-                "Presença/Ciência": "",
-                "Encaminhamento": obs,
-            })
-    return pd.DataFrame(linhas, columns=_df_focos_atencao_padrao().columns)
 
 
 def _paragrafo_pdf(texto_pdf: str, estilo) -> Paragraph:
@@ -7574,7 +6936,7 @@ def render_pagina_conselho():
 
     st.markdown("""
     <div class="info-box">
-        Esta página agora usa a ata online como modelo principal do Conselho. As planilhas de Prova Paulista, Mapão e Frequência entram como dados auxiliares vinculados à turma e aos estudantes.
+        Esta página mantém os documentos do Conselho e acrescenta a tabela do Excel/modelo online como ferramenta complementar. A tabela não substitui a ata, protocolo, focos de atenção, pós-conselho, legendas e assinaturas.
     </div>
     """, unsafe_allow_html=True)
 
@@ -7583,26 +6945,14 @@ def render_pagina_conselho():
         <div class="conselho-doc-card"><b>📄 Ata do Conselho</b><p>Registro textual do Conselho de Classe e Série Participativo.</p></div>
         <div class="conselho-doc-card"><b>📋 Protocolo PEC</b><p>Checklist de evidências do acompanhamento do Conselho.</p></div>
         <div class="conselho-doc-card"><b>🎯 Focos de atenção</b><p>Relação de estudantes, frequência, notas e presença/ciência.</p></div>
-        <div class="conselho-doc-card"><b>📊 Dados da turma</b><p>Modelo online com estudantes, rendimento, frequência e encaminhamentos.</p></div>
+        <div class="conselho-doc-card"><b>📊 Tabela Excel / Online</b><p>Modelo preenchível para rendimento, dificuldades e recomendações.</p></div>
     </div>
     """, unsafe_allow_html=True)
 
     st.markdown('<div class="conselho-parametros">', unsafe_allow_html=True)
     col_a, col_b, col_c, col_d = st.columns([1.2, 1, 1, 1])
     with col_a:
-        turmas_cadastradas = []
-        if df_alunos is not None and not df_alunos.empty and "turma" in df_alunos.columns:
-            turmas_cadastradas = sorted(
-                [formatar_turma_eletiva(t) for t in df_alunos["turma"].dropna().astype(str).unique().tolist() if str(t).strip()],
-                key=ordenar_turma_tutoria
-            )
-        turma_atual = formatar_turma_eletiva(st.session_state.get("conselho_turma", turmas_cadastradas[0] if turmas_cadastradas else "7º Ano C"))
-        if turmas_cadastradas:
-            index_turma = turmas_cadastradas.index(turma_atual) if turma_atual in turmas_cadastradas else 0
-            turma = st.selectbox("Turma", turmas_cadastradas, index=index_turma, key="conselho_turma_select")
-        else:
-            turma = st.text_input("Turma", value=turma_atual, key="conselho_turma_texto")
-        st.session_state.conselho_turma = turma
+        turma = st.text_input("Turma", value=st.session_state.get("conselho_turma", "7º Ano C"), key="conselho_turma")
     with col_b:
         bimestre = st.selectbox("Bimestre", ["1º Bimestre", "2º Bimestre", "3º Bimestre", "4º Bimestre"], key="conselho_bimestre")
     with col_c:
@@ -7614,23 +6964,14 @@ def render_pagina_conselho():
     tab_docs, tab_online, tab_excel, tab_revisar, tab_pdf = st.tabs([
         "📚 Documentos do Conselho",
         "📝 Modelo online",
-        "📥 Importar dados",
+        "📥 Importar Excel",
         "📋 Revisar dados",
         "🖨️ Imprimir"
     ])
 
-    contexto_key = _chave_contexto_conselho(turma, bimestre, ano_letivo)
-    if st.session_state.get("conselho_contexto_key") != contexto_key:
-        online_salvo, resumo_salvo = _carregar_contexto_conselho(turma, bimestre, ano_letivo)
-        if not online_salvo.empty and online_salvo["Estudante"].astype(str).str.strip().ne("").any():
-            st.session_state.df_conselho_online = online_salvo
-        if not resumo_salvo.empty:
-            st.session_state.df_conselho = resumo_salvo
-        st.session_state.conselho_contexto_key = contexto_key
-
     with tab_docs:
         st.markdown("### 📚 Documentos do Conselho")
-        st.caption("Aqui ficam os documentos que compõem o Conselho. O preenchimento principal acontece no modelo online da turma.")
+        st.caption("Aqui ficam os documentos que compõem o Conselho. A planilha entra como apoio nas abas Modelo online/Importar Excel.")
 
         sub_ata, sub_protocolo, sub_focos, sub_pos, sub_legendas, sub_ass = st.tabs([
             "📄 Ata", "📋 Protocolo PEC", "🎯 Focos de atenção", "📌 Pós-conselho", "🔢 Legendas", "✍️ Assinaturas"
@@ -7733,140 +7074,59 @@ def render_pagina_conselho():
 
     with tab_online:
         st.markdown("### 📝 Modelo online para preenchimento")
-        st.caption("Use esta grade como a ata online da turma. Ela pode nascer com os estudantes cadastrados e receber dados importados de Prova Paulista, Mapão e Frequência.")
-        c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
+        st.caption("Use esta grade para preencher diretamente no sistema, sem depender do Excel. Depois clique em atualizar a tabela resumida para impressão.")
+        c1, c2, c3 = st.columns([1, 1, 1])
         with c1:
-            if st.button("👥 Buscar estudantes da turma", type="primary", key="btn_criar_modelo_turma_conselho"):
-                st.session_state.df_conselho_online = _criar_modelo_conselho_por_turma(turma, df_alunos)
-                st.session_state.df_conselho = _modelo_online_para_resumo_conselho(st.session_state.df_conselho_online)
-                _salvar_contexto_conselho(turma, bimestre, ano_letivo, st.session_state.df_conselho_online, st.session_state.df_conselho)
-                st.success("Modelo online criado com os estudantes cadastrados na turma.")
-        with c2:
-            if st.button("🧾 Criar ata online vazia", key="btn_criar_modelo_online_conselho"):
+            if st.button("🧪 Criar modelo online vazio", type="primary", key="btn_criar_modelo_online_conselho"):
                 st.session_state.df_conselho_online = _criar_modelo_conselho_online(30)
-                st.success("Ata online vazia criada.")
+                st.success("Modelo online criado.")
+        with c2:
+            if "df_conselho_online" in st.session_state:
+                excel_modelo = _excel_bytes_conselho_modelo(st.session_state.df_conselho_online)
+            else:
+                excel_modelo = _excel_bytes_conselho_modelo(_criar_modelo_conselho_online(30))
+            st.download_button("⬇️ Baixar modelo Excel", data=excel_modelo, file_name="modelo_conselho_online.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="download_modelo_conselho_online")
         with c3:
             if st.button("📌 Atualizar tabela para impressão", key="btn_online_para_pdf_conselho"):
                 df_online = st.session_state.get("df_conselho_online", pd.DataFrame(columns=COLUNAS_CONSELHO_ONLINE))
                 st.session_state.df_conselho = _modelo_online_para_resumo_conselho(df_online)
-                _salvar_contexto_conselho(turma, bimestre, ano_letivo, df_online, st.session_state.df_conselho)
                 st.success("Tabela resumida atualizada para revisão e impressão.")
-        with c4:
-            if st.button("💾 Salvar dados da turma", key="btn_salvar_contexto_conselho"):
-                df_online = st.session_state.get("df_conselho_online", pd.DataFrame(columns=COLUNAS_CONSELHO_ONLINE))
-                st.session_state.df_conselho = _modelo_online_para_resumo_conselho(df_online)
-                _salvar_contexto_conselho(turma, bimestre, ano_letivo, df_online, st.session_state.df_conselho)
-                st.success("Dados do Conselho salvos para esta turma.")
 
         if "df_conselho_online" not in st.session_state:
-            st.session_state.df_conselho_online = _criar_modelo_conselho_por_turma(turma, df_alunos)
+            st.session_state.df_conselho_online = _criar_modelo_conselho_online(30)
         st.session_state.df_conselho_online = st.data_editor(
-            _garantir_colunas_conselho_online(st.session_state.df_conselho_online),
+            st.session_state.df_conselho_online,
             use_container_width=True,
             hide_index=True,
             num_rows="dynamic",
             key="editor_conselho_online",
         )
-        st.caption("Nas colunas Dificuldade/Recomendação, qualquer valor preenchido marca o item correspondente. Use Salvar dados da turma para manter o preenchimento disponível depois.")
+        st.caption("Preencha com texto ou códigos. Nas colunas Dificuldade/Recomendação, qualquer valor preenchido marca o item correspondente.")
 
     with tab_excel:
-        st.markdown("### 📥 Importar dados da turma")
-        st.caption("Envie as planilhas auxiliares. O sistema cruza por RA ou nome e grava tudo no modelo online da turma.")
-        arq_pp = st.file_uploader("Prova Paulista (.xlsx, .xls ou .csv)", type=["xlsx", "xls", "csv"], key="upload_conselho_pp")
-        arq_mapao = st.file_uploader("Mapão / rendimento (.xlsx, .xls ou .csv)", type=["xlsx", "xls", "csv"], key="upload_conselho_mapao")
-        arq_freq = st.file_uploader("Frequência (.xlsx, .xls ou .csv)", type=["xlsx", "xls", "csv"], key="upload_conselho_freq")
-
-        if st.button("📥 Importar e vincular à turma", type="primary", key="btn_importar_dados_turma_conselho"):
-            try:
-                df_online = st.session_state.get("df_conselho_online", _criar_modelo_conselho_por_turma(turma, df_alunos))
-                total_importado = 0
-                detalhes = []
-                for origem, arquivo in [
-                    ("Prova Paulista", arq_pp),
-                    ("Mapão", arq_mapao),
-                    ("Frequência", arq_freq),
-                ]:
-                    if arquivo is None:
-                        continue
-                    if origem == "Prova Paulista":
-                        df_lido = _ler_planilha_prova_paulista_upload(arquivo)
-                        df_pp, _ = normalizar_prova_paulista(df_lido, turma_padrao=turma, ano_letivo=ano_letivo, bimestre=bimestre)
-                        if not df_pp.empty:
-                            salvar_registros_prova_paulista(df_pp)
-                        df_norm = _prova_paulista_para_importacao_conselho(df_pp)
-                    elif origem == "Mapão":
-                        df_lido = _ler_planilha_prova_paulista_upload(arquivo)
-                        df_mapao, _ = normalizar_mapao(df_lido, turma_padrao=turma, ano_letivo=ano_letivo, bimestre=bimestre)
-                        if not df_mapao.empty:
-                            salvar_registros_mapao(df_mapao)
-                        df_norm = _mapao_para_importacao_conselho(df_mapao)
+        st.markdown("### 📥 Acrescentar tabela do Excel")
+        st.caption("Use esta aba apenas para acrescentar ou atualizar a tabela de rendimento. Os documentos do Conselho permanecem na primeira aba.")
+        arquivo = st.file_uploader("Enviar arquivo Excel (.xlsx) da ata/tabela", type=["xlsx", "xls"], key="upload_conselho_xlsx")
+        url_excel = st.text_input("Ou cole um link direto do Excel/SharePoint", value="", key="url_conselho_excel")
+        c1, c2 = st.columns([1, 1])
+        with c1:
+            if st.button("📥 Carregar tabela do Excel", type="primary", key="btn_carregar_conselho"):
+                try:
+                    if arquivo is not None:
+                        st.session_state.df_conselho = _carregar_excel_conselho(arquivo)
+                        st.success("Tabela acrescentada ao Conselho a partir do arquivo enviado.")
+                    elif str(url_excel or "").strip():
+                        st.session_state.df_conselho = _carregar_excel_conselho(str(url_excel).strip())
+                        st.success("Tabela acrescentada ao Conselho pelo link informado.")
                     else:
-                        df_lido = _ler_planilha_conselho_upload(arquivo)
-                        df_norm = _normalizar_importacao_conselho(df_lido, origem, turma)
-                    total_importado += len(df_norm)
-                    detalhes.append(f"{origem}: {len(df_norm)} linha(s)")
-                    df_online = _mesclar_importacao_no_modelo_conselho(df_online, df_norm)
-
-                if total_importado == 0:
-                    st.warning("Envie pelo menos uma planilha com RA ou nome dos estudantes.")
-                else:
-                    st.session_state.df_conselho_online = df_online
-                    st.session_state.df_conselho = _modelo_online_para_resumo_conselho(df_online)
-                    focos_auto = _focos_a_partir_modelo_online(df_online)
-                    if not focos_auto.empty:
-                        st.session_state.df_conselho_focos = focos_auto
-                    _salvar_contexto_conselho(turma, bimestre, ano_letivo, df_online, st.session_state.df_conselho)
-                    st.success("Dados importados e vinculados ao modelo online da turma.")
-                    st.caption(" | ".join(detalhes))
-            except Exception as exc:
-                st.error(f"Erro ao importar dados da turma: {exc}")
-
-        if st.button("📚 Buscar Prova Paulista arquivada para esta turma", key="btn_buscar_pp_arquivada_conselho"):
-            df_pp_salvo = buscar_prova_paulista_turma(turma, ano_letivo=ano_letivo, bimestre=bimestre)
-            if df_pp_salvo.empty:
-                st.warning("Nenhum resultado arquivado para esta turma/bimestre.")
-            else:
-                df_online = st.session_state.get("df_conselho_online", _criar_modelo_conselho_por_turma(turma, df_alunos))
-                df_online = _mesclar_importacao_no_modelo_conselho(df_online, _prova_paulista_para_importacao_conselho(df_pp_salvo))
-                st.session_state.df_conselho_online = df_online
-                st.session_state.df_conselho = _modelo_online_para_resumo_conselho(df_online)
-                _salvar_contexto_conselho(turma, bimestre, ano_letivo, df_online, st.session_state.df_conselho)
-                st.success(f"{len(df_pp_salvo)} resultado(s) da Prova Paulista vinculados ao Conselho.")
-
-        if st.button("🗺️ Buscar Mapão arquivado para esta turma", key="btn_buscar_mapao_arquivado_conselho"):
-            df_mapao_salvo = buscar_mapao_turma(turma, ano_letivo=ano_letivo, bimestre=bimestre)
-            if df_mapao_salvo.empty:
-                st.warning("Nenhum Mapão arquivado para esta turma/bimestre.")
-            else:
-                df_online = st.session_state.get("df_conselho_online", _criar_modelo_conselho_por_turma(turma, df_alunos))
-                df_online = _mesclar_importacao_no_modelo_conselho(df_online, _mapao_para_importacao_conselho(df_mapao_salvo))
-                st.session_state.df_conselho_online = df_online
-                st.session_state.df_conselho = _modelo_online_para_resumo_conselho(df_online)
-                _salvar_contexto_conselho(turma, bimestre, ano_letivo, df_online, st.session_state.df_conselho)
-                st.success(f"{len(df_mapao_salvo)} registro(s) do Mapão vinculados ao Conselho.")
-
-        with st.expander("Importação antiga de tabela resumida do Excel", expanded=False):
-            arquivo = st.file_uploader("Enviar arquivo Excel (.xlsx) da ata/tabela", type=["xlsx", "xls"], key="upload_conselho_xlsx")
-            url_excel = st.text_input("Ou cole um link direto do Excel/SharePoint", value="", key="url_conselho_excel")
-            c1, c2 = st.columns([1, 1])
-            with c1:
-                if st.button("📥 Carregar tabela resumida", key="btn_carregar_conselho"):
-                    try:
-                        if arquivo is not None:
-                            st.session_state.df_conselho = _carregar_excel_conselho(arquivo)
-                            st.success("Tabela resumida acrescentada ao Conselho a partir do arquivo enviado.")
-                        elif str(url_excel or "").strip():
-                            st.session_state.df_conselho = _carregar_excel_conselho(str(url_excel).strip())
-                            st.success("Tabela resumida acrescentada ao Conselho pelo link informado.")
-                        else:
-                            st.warning("Envie um arquivo .xlsx ou informe um link direto.")
-                    except Exception as exc:
-                        st.error(str(exc))
-                        st.info("Se o link for do SharePoint com login, baixe o arquivo .xlsx e envie aqui pelo botão de upload.")
-            with c2:
-                if st.button("🧪 Criar tabela resumida vazia", key="btn_conselho_modelo"):
-                    st.session_state.df_conselho = pd.DataFrame([{c: "" for c in COLUNAS_CONSELHO_PADRAO} for _ in range(10)])
-                    st.success("Modelo resumido criado para preenchimento manual.")
+                        st.warning("Envie um arquivo .xlsx ou informe um link direto.")
+                except Exception as exc:
+                    st.error(str(exc))
+                    st.info("Se o link for do SharePoint com login, baixe o arquivo .xlsx e envie aqui pelo botão de upload.")
+        with c2:
+            if st.button("🧪 Criar tabela resumida vazia", key="btn_conselho_modelo"):
+                st.session_state.df_conselho = pd.DataFrame([{c: "" for c in COLUNAS_CONSELHO_PADRAO} for _ in range(10)])
+                st.success("Modelo resumido criado para preenchimento manual.")
 
     with tab_revisar:
         st.markdown("### 📋 Revisar tabela de rendimento dos estudantes")
@@ -7883,10 +7143,6 @@ def render_pagina_conselho():
                 key="editor_conselho",
             )
             st.caption("Esta é a tabela resumida que entra no PDF da ata/rendimento.")
-            if st.button("💾 Salvar revisão da tabela", key="btn_salvar_revisao_conselho"):
-                df_online = st.session_state.get("df_conselho_online", pd.DataFrame(columns=COLUNAS_CONSELHO_ONLINE))
-                _salvar_contexto_conselho(turma, bimestre, ano_letivo, df_online, st.session_state.df_conselho)
-                st.success("Revisão salva para esta turma.")
 
     with tab_pdf:
         st.markdown("### 🖨️ Gerar impressões do Conselho")
@@ -7954,155 +7210,6 @@ def render_pagina_conselho():
                     st.success("PDF dos documentos do Conselho gerado.")
                 except Exception as exc:
                     st.error(f"Erro ao gerar documentos do Conselho: {exc}")
-
-
-def render_pagina_prova_paulista():
-    page_header("📈 Prova Paulista", "Importe e arquive os resultados por sala para uso no Conselho e relatórios", "#2563eb")
-
-    st.markdown("""
-    <div class="info-box">
-        Esta página guarda somente os dados úteis da planilha: RA, estudante, turma, participação, acertos gerais e acertos por componente. Linhas de total e filtros são ignoradas.
-    </div>
-    """, unsafe_allow_html=True)
-
-    turmas_cadastradas = []
-    if df_alunos is not None and not df_alunos.empty and "turma" in df_alunos.columns:
-        turmas_cadastradas = sorted(
-            [formatar_turma_eletiva(t) for t in df_alunos["turma"].dropna().astype(str).unique().tolist() if str(t).strip()],
-            key=ordenar_turma_tutoria
-        )
-
-    col_a, col_b, col_c = st.columns([1.2, 1, 1])
-    with col_a:
-        turma_manual = st.selectbox("Turma", ["Detectar pela planilha"] + turmas_cadastradas, key="pp_turma_upload") if turmas_cadastradas else st.text_input("Turma", key="pp_turma_upload_text")
-    with col_b:
-        ano_pp = st.text_input("Ano letivo", value=str(datetime.now().year), key="pp_ano_upload")
-    with col_c:
-        bimestre_pp = st.selectbox("Bimestre", ["", "1º Bimestre", "2º Bimestre", "3º Bimestre", "4º Bimestre"], key="pp_bimestre_upload")
-
-    arquivo_pp = st.file_uploader("Enviar RESULTADOS DA TURMA (.xlsx, .xls ou .csv)", type=["xlsx", "xls", "csv"], key="upload_pagina_prova_paulista")
-    if arquivo_pp is not None:
-        try:
-            df_lido = _ler_planilha_prova_paulista_upload(arquivo_pp)
-            turma_padrao = "" if turma_manual == "Detectar pela planilha" else turma_manual
-            df_pp, metadata = normalizar_prova_paulista(df_lido, turma_padrao=turma_padrao, ano_letivo=ano_pp, bimestre=bimestre_pp)
-            if df_pp.empty:
-                st.warning("Não consegui localizar as colunas NR RA, Nome, Participação e Acertos nesta planilha.")
-            else:
-                turma_detectada = metadata.get("turma", "")
-                if turma_detectada:
-                    st.caption(f"Turma detectada na planilha: {turma_detectada}")
-                st.dataframe(df_pp, use_container_width=True, hide_index=True)
-                if st.button("💾 Arquivar resultados da Prova Paulista", type="primary", key="btn_salvar_pp"):
-                    qtd = salvar_registros_prova_paulista(df_pp)
-                    st.success(f"{qtd} resultado(s) arquivado(s).")
-        except Exception as exc:
-            st.error(f"Erro ao processar Prova Paulista: {exc}")
-
-    st.markdown("### Resultados arquivados")
-    df_arquivo = carregar_prova_paulista_df()
-    if df_arquivo.empty:
-        st.info("Nenhum resultado arquivado ainda.")
-        return
-
-    col_f1, col_f2, col_f3 = st.columns([1, 1, 1])
-    turmas_arquivo = sorted([t for t in df_arquivo.get("Turma", pd.Series(dtype=str)).dropna().astype(str).unique().tolist() if t], key=ordenar_turma_tutoria)
-    anos_arquivo = sorted([a for a in df_arquivo.get("Ano letivo", pd.Series(dtype=str)).dropna().astype(str).unique().tolist() if a], reverse=True)
-    bims_arquivo = sorted([b for b in df_arquivo.get("Bimestre", pd.Series(dtype=str)).dropna().astype(str).unique().tolist() if b])
-    with col_f1:
-        filtro_turma = st.selectbox("Filtrar turma", ["Todas"] + turmas_arquivo, key="pp_filtro_turma")
-    with col_f2:
-        filtro_ano = st.selectbox("Filtrar ano", ["Todos"] + anos_arquivo, key="pp_filtro_ano")
-    with col_f3:
-        filtro_bim = st.selectbox("Filtrar bimestre", ["Todos"] + bims_arquivo, key="pp_filtro_bim")
-
-    df_view = df_arquivo.copy()
-    if filtro_turma != "Todas":
-        df_view = df_view[df_view["Turma"].astype(str) == filtro_turma]
-    if filtro_ano != "Todos":
-        df_view = df_view[df_view["Ano letivo"].astype(str) == filtro_ano]
-    if filtro_bim != "Todos":
-        df_view = df_view[df_view["Bimestre"].astype(str) == filtro_bim]
-
-    st.write(f"Registros exibidos: **{len(df_view)}**")
-    st.dataframe(df_view, use_container_width=True, hide_index=True)
-
-    if not df_view.empty and "Turma" in df_view.columns:
-        resumo = df_view.groupby("Turma").agg(Estudantes=("RA", "count")).reset_index()
-        st.dataframe(resumo, use_container_width=True, hide_index=True)
-
-
-def render_pagina_mapao():
-    page_header("🗺️ Mapão", "Importe e arquive rendimento, frequência e situação por sala", "#059669")
-
-    st.markdown("""
-    <div class="info-box">
-        O Mapão fica disponível para Conselho, Tutoria e relatórios. O sistema guarda estudante, situação, frequência, faltas, menções por componente e notas abaixo de cinco.
-    </div>
-    """, unsafe_allow_html=True)
-
-    turmas_cadastradas = []
-    if df_alunos is not None and not df_alunos.empty and "turma" in df_alunos.columns:
-        turmas_cadastradas = sorted(
-            [formatar_turma_eletiva(t) for t in df_alunos["turma"].dropna().astype(str).unique().tolist() if str(t).strip()],
-            key=ordenar_turma_tutoria
-        )
-
-    col_a, col_b, col_c = st.columns([1.2, 1, 1])
-    with col_a:
-        turma_mapao = st.selectbox("Turma", ["Detectar pela planilha"] + turmas_cadastradas, key="mapao_turma_upload") if turmas_cadastradas else st.text_input("Turma", key="mapao_turma_upload_text")
-    with col_b:
-        ano_mapao = st.text_input("Ano letivo", value=str(datetime.now().year), key="mapao_ano_upload")
-    with col_c:
-        bimestre_mapao = st.selectbox("Bimestre/fechamento", ["", "1º Bimestre", "2º Bimestre", "3º Bimestre", "4º Bimestre"], key="mapao_bimestre_upload")
-
-    arquivo_mapao = st.file_uploader("Enviar Mapão (.xlsx, .xls ou .csv)", type=["xlsx", "xls", "csv"], key="upload_pagina_mapao")
-    if arquivo_mapao is not None:
-        try:
-            df_lido = _ler_planilha_prova_paulista_upload(arquivo_mapao)
-            turma_padrao = "" if turma_mapao == "Detectar pela planilha" else turma_mapao
-            df_mapao, meta = normalizar_mapao(df_lido, turma_padrao=turma_padrao, ano_letivo=ano_mapao, bimestre=bimestre_mapao)
-            if df_mapao.empty:
-                st.warning("Não consegui localizar a estrutura ALUNO / SITUAÇÃO / componentes / TOTAL neste Mapão.")
-            else:
-                if meta.get("Turma"):
-                    st.caption(f"Turma detectada: {meta.get('Turma')}")
-                cols_prioritarias = [c for c in ["Estudante", "Turma", "Situação", "TF", "Frequência (%)", "FT An", "Frequência anual (%)", "Notas abaixo de cinco", "Componentes"] if c in df_mapao.columns]
-                st.dataframe(df_mapao[cols_prioritarias], use_container_width=True, hide_index=True)
-                if st.button("💾 Arquivar Mapão", type="primary", key="btn_salvar_mapao"):
-                    qtd = salvar_registros_mapao(df_mapao)
-                    st.success(f"{qtd} registro(s) do Mapão arquivado(s).")
-        except Exception as exc:
-            st.error(f"Erro ao processar Mapão: {exc}")
-
-    st.markdown("### Mapões arquivados")
-    df_arquivo = carregar_mapao_df()
-    if df_arquivo.empty:
-        st.info("Nenhum Mapão arquivado ainda.")
-        return
-
-    col_f1, col_f2, col_f3 = st.columns([1, 1, 1])
-    turmas_arquivo = sorted([t for t in df_arquivo.get("Turma", pd.Series(dtype=str)).dropna().astype(str).unique().tolist() if t], key=ordenar_turma_tutoria)
-    anos_arquivo = sorted([a for a in df_arquivo.get("Ano letivo", pd.Series(dtype=str)).dropna().astype(str).unique().tolist() if a], reverse=True)
-    bims_arquivo = sorted([b for b in df_arquivo.get("Bimestre", pd.Series(dtype=str)).dropna().astype(str).unique().tolist() if b])
-    with col_f1:
-        filtro_turma = st.selectbox("Filtrar turma", ["Todas"] + turmas_arquivo, key="mapao_filtro_turma")
-    with col_f2:
-        filtro_ano = st.selectbox("Filtrar ano", ["Todos"] + anos_arquivo, key="mapao_filtro_ano")
-    with col_f3:
-        filtro_bim = st.selectbox("Filtrar fechamento", ["Todos"] + bims_arquivo, key="mapao_filtro_bim")
-
-    df_view = df_arquivo.copy()
-    if filtro_turma != "Todas":
-        df_view = df_view[df_view["Turma"].astype(str) == filtro_turma]
-    if filtro_ano != "Todos":
-        df_view = df_view[df_view["Ano letivo"].astype(str) == filtro_ano]
-    if filtro_bim != "Todos":
-        df_view = df_view[df_view["Bimestre"].astype(str) == filtro_bim]
-
-    st.write(f"Registros exibidos: **{len(df_view)}**")
-    cols_prioritarias = [c for c in ["Estudante", "Turma", "Situação", "TF", "Frequência (%)", "FT An", "Frequência anual (%)", "Notas abaixo de cinco", "Componentes"] if c in df_view.columns]
-    st.dataframe(df_view[cols_prioritarias] if cols_prioritarias else df_view, use_container_width=True, hide_index=True)
 
 
 # ======================================================
@@ -9434,8 +8541,8 @@ if menu == "🏠 Dashboard":
             <div class="sed-dashboard-brand">
                 <div class="sed-dashboard-mark">S</div>
                 <div>
-                    <p class="sed-dashboard-kicker">Secretaria da Educação do Estado de São Paulo</p>
-                    <p class="sed-dashboard-title">Secretaria Escolar Digital</p>
+                    <p class="sed-dashboard-kicker">Sistema Conviva 179</p>
+                    <p class="sed-dashboard-title">{html.escape(ESCOLA_SUBTITULO)}</p>
                 </div>
             </div>
             <div class="sed-dashboard-user">
@@ -10189,12 +9296,6 @@ elif "REGISTRAR OCORR" in normalizar_texto(menu):
 
 elif "CONSELHO" in normalizar_texto(menu):
     render_pagina_conselho()
-
-elif "PROVA PAULISTA" in normalizar_texto(menu):
-    render_pagina_prova_paulista()
-
-elif "MAPAO" in normalizar_texto(menu):
-    render_pagina_mapao()
 
 elif "HISTORICO DE OCORRENCIA" in normalizar_texto(menu):
     page_header("📋 Histórico de Ocorrências", "Consulte, edite e exclua registros de ocorrências", "#d97706")
@@ -14063,9 +13164,11 @@ elif menu == "🫂 Tutoria":
                 else:
                     espaco_edit_tutor = espaco_edit_tutor_select
             with col_e2:
-                tipo_edit_tutor = st.selectbox("Perfil", PERFIS_TUTORIA, key="tutoria_edit_tipo")
-                horario_edit_tutor = st.text_input("Horário", key="tutoria_edit_horario")
-            dia_edit_tutor = st.text_input("Dia", key="tutoria_edit_dia")
+                perfil_atual = normalizar_perfil_tutoria(dados_edicao.get("tipo", "Professor(a)"))
+                idx_perfil = PERFIS_TUTORIA.index(perfil_atual) if perfil_atual in PERFIS_TUTORIA else 0
+                tipo_edit_tutor = st.selectbox("Perfil", PERFIS_TUTORIA, index=idx_perfil, key="tutoria_edit_tipo")
+                horario_edit_tutor = st.text_input("Horário", value=str(dados_edicao.get("horario", "") or ""), key="tutoria_edit_horario")
+            dia_edit_tutor = st.text_input("Dia", value=str(dados_edicao.get("dia", "") or ""), key="tutoria_edit_dia")
 
             col_b1, col_b2 = st.columns(2)
             with col_b1:
@@ -14130,7 +13233,10 @@ elif menu == "🫂 Tutoria":
                 "Total de Alunos": len(alunos),
                 "Turmas": series
             })
-        st.dataframe(pd.DataFrame(dados_tutores), use_container_width=True, hide_index=True)
+        df_tutores_view = pd.DataFrame(dados_tutores)
+        st.dataframe(df_tutores_view, use_container_width=True, hide_index=True)
+        if not df_tutores_view.empty and any(df_tutores_view[c].astype(str).str.strip().eq("").any() for c in ["Espaço", "Horário", "Dia"] if c in df_tutores_view.columns):
+            st.caption("⚠️ Alguns cadastros estão sem Espaço/Horário/Dia no banco atual. A edição agora preserva esses campos e também tenta recuperar metadados de fontes locais/planilhas/professores quando disponíveis.")
     else:
         st.info("📭 Nenhum cadastro realizado em tutoria.")
         st.stop()
