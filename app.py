@@ -2268,6 +2268,7 @@ menu_items = [
     {"nome": "Relatório dos Estudantes", "icone": "🧾"},
     {"nome": "Conselho", "icone": "🏛️"},
     {"nome": "Prova Paulista", "icone": "📈"},
+    {"nome": "Mapão", "icone": "🗺️"},
     {"nome": "Histórico de Ocorrências", "icone": "📋"},
     {"nome": "Comunicado aos Pais", "icone": "📄"},
     {"nome": "Lista de Alunos", "icone": "👥"},
@@ -6273,6 +6274,7 @@ ROTAS_MENU_SUPORTADAS = {
     normalizar_texto("🧾 Relatório dos Estudantes"),
     normalizar_texto("🏛️ Conselho"),
     normalizar_texto("📈 Prova Paulista"),
+    normalizar_texto("🗺️ Mapão"),
     normalizar_texto("📋 Histórico de Ocorrências"),
     normalizar_texto("📄 Comunicado aos Pais"),
     normalizar_texto("👥 Lista de Alunos"),
@@ -6625,6 +6627,7 @@ COLUNAS_CONSELHO_IMPORTACAO = [
 
 CONSELHO_DADOS_LOCAL_PATH = os.path.join(os.getcwd(), "data", "conselho_turmas_local.json")
 PROVA_PAULISTA_LOCAL_PATH = os.path.join(os.getcwd(), "data", "prova_paulista_local.json")
+MAPAO_LOCAL_PATH = os.path.join(os.getcwd(), "data", "mapao_local.json")
 COMPONENTES_PROVA_PAULISTA = ["MAT", "PORT", "ING", "HIST", "GEO", "CIE", "FILO", "SOC", "BIO", "FÍS", "FIS", "QUI", "FIN", "TEC"]
 
 PROTOCOLO_PEC_ITENS = [
@@ -6700,6 +6703,9 @@ def _criar_modelo_conselho_por_turma(turma: str, alunos_df: pd.DataFrame) -> pd.
         pp_turma = buscar_prova_paulista_turma(turma)
         if not pp_turma.empty:
             modelo = _mesclar_importacao_no_modelo_conselho(modelo, _prova_paulista_para_importacao_conselho(pp_turma))
+        mapao_turma = buscar_mapao_turma(turma)
+        if not mapao_turma.empty:
+            modelo = _mesclar_importacao_no_modelo_conselho(modelo, _mapao_para_importacao_conselho(mapao_turma))
     except Exception:
         pass
     return modelo
@@ -6712,6 +6718,9 @@ def _garantir_colunas_conselho_online(df: pd.DataFrame) -> pd.DataFrame:
             base[col] = ""
     if base.empty:
         base = _criar_modelo_conselho_online(30)
+    for col in ["Frequência (%)", "Prova Paulista 1", "Prova Paulista 2"]:
+        if col in base.columns:
+            base[col] = base[col].apply(_formatar_percentual_prova_paulista)
     return base[COLUNAS_CONSELHO_ONLINE]
 
 
@@ -6768,8 +6777,8 @@ def _modelo_online_para_resumo_conselho(df_online: pd.DataFrame) -> pd.DataFrame
     saida["Nº"] = df.get("Nº", pd.Series([str(i+1) for i in range(len(df))])).astype(str)
     saida["Estudante"] = df.get("Estudante", pd.Series([""] * len(df))).astype(str)
     saida["Freq."] = df.get("Frequência (%)", pd.Series([""] * len(df))).astype(str)
-    saida["Part. PP"] = df.get("Prova Paulista 1", pd.Series([""] * len(df))).astype(str)
-    saida["Acertos PP"] = df.get("Prova Paulista 2", pd.Series([""] * len(df))).astype(str)
+    saida["Part. PP"] = df.get("Prova Paulista 2", pd.Series([""] * len(df))).astype(str)
+    saida["Acertos PP"] = df.get("Prova Paulista 1", pd.Series([""] * len(df))).astype(str)
     mapao = df.get("Mapão", pd.Series([""] * len(df))).astype(str)
     notas_abaixo = df.get("Notas abaixo de cinco", pd.Series([""] * len(df))).astype(str)
     saida["Comp."] = [f"Mapão: {m}; Notas <5: {n}".strip("; ") if str(m).strip() else n for m, n in zip(mapao, notas_abaixo)]
@@ -7160,6 +7169,191 @@ def _prova_paulista_para_importacao_conselho(df_pp: pd.DataFrame) -> pd.DataFram
     saida["Prova interna"] = ""
     saida["Notas abaixo de cinco"] = ""
     saida["Observações / encaminhamentos"] = ""
+    return saida[COLUNAS_CONSELHO_IMPORTACAO]
+
+
+def _extrair_metadata_mapao(matriz: list[list[str]]) -> dict:
+    meta = {}
+    for linha in matriz[:12]:
+        if len(linha) >= 2:
+            chave = normalizar_texto(linha[0]).replace(":", "").strip()
+            valor = str(linha[1] or "").strip()
+            if chave == "ANO LETIVO":
+                meta["Ano letivo"] = valor
+            elif chave == "TURMA":
+                meta["Turma"] = formatar_turma_eletiva(valor)
+            elif chave == "TIPO FECHAMENTO":
+                meta["Fechamento"] = valor
+            elif chave == "TOTAL DE AULAS DADAS":
+                meta["Total de aulas dadas"] = valor
+    return meta
+
+
+def normalizar_mapao(df_bruto: pd.DataFrame, turma_padrao: str = "", ano_letivo: str = "", bimestre: str = "") -> tuple[pd.DataFrame, dict]:
+    if df_bruto is None or df_bruto.empty:
+        return pd.DataFrame(), {}
+    matriz = []
+    for _, row in df_bruto.fillna("").iterrows():
+        vals = [str(v).strip() for v in row.tolist()]
+        vals = [v for i, v in enumerate(vals) if not (str(df_bruto.columns[i]) == "Origem da aba")]
+        if any(vals):
+            matriz.append(vals)
+    meta = _extrair_metadata_mapao(matriz)
+    turma_final = formatar_turma_eletiva(turma_padrao or meta.get("Turma", ""))
+    ano_final = str(ano_letivo or meta.get("Ano letivo", datetime.now().year)).strip()
+    fechamento = str(bimestre or meta.get("Fechamento", "")).strip()
+
+    header_idx = None
+    for idx, linha in enumerate(matriz):
+        norm = [normalizar_texto(v) for v in linha[:5]]
+        if "ALUNO" in norm and "SITUACAO" in norm:
+            header_idx = idx
+            break
+    if header_idx is None or header_idx + 1 >= len(matriz):
+        return pd.DataFrame(), meta
+
+    linha_componentes = matriz[header_idx]
+    linha_sub = matriz[header_idx + 1]
+    componentes = []
+    for idx, valor in enumerate(linha_componentes):
+        nome = _limpar_valor_conselho(str(valor).splitlines()[0])
+        if idx >= 2 and nome and normalizar_texto(nome) not in ["TOTAL"]:
+            componentes.append((idx, nome))
+
+    linhas = []
+    for linha in matriz[header_idx + 2:]:
+        nome = _limpar_valor_conselho(linha[0] if len(linha) > 0 else "")
+        situacao = _limpar_valor_conselho(linha[1] if len(linha) > 1 else "")
+        if not nome or normalizar_texto(nome) in ["LEGENDA"] or nome.startswith(" "):
+            break
+        if normalizar_texto(nome).startswith("AULAS DADAS"):
+            break
+
+        total_idx = None
+        for idx, valor in enumerate(linha_componentes):
+            if normalizar_texto(valor) == "TOTAL":
+                total_idx = idx
+                break
+
+        registro = {
+            "Estudante": nome,
+            "Turma": turma_final,
+            "Ano letivo": ano_final,
+            "Bimestre": fechamento,
+            "Situação": situacao,
+            "TF": _limpar_valor_conselho(linha[total_idx] if total_idx is not None and total_idx < len(linha) else ""),
+            "Frequência (%)": _limpar_valor_conselho(linha[total_idx + 1] if total_idx is not None and total_idx + 1 < len(linha) else ""),
+            "FT An": _limpar_valor_conselho(linha[total_idx + 2] if total_idx is not None and total_idx + 2 < len(linha) else ""),
+            "Frequência anual (%)": _limpar_valor_conselho(linha[total_idx + 3] if total_idx is not None and total_idx + 3 < len(linha) else ""),
+        }
+
+        componentes_resumo = []
+        notas_abaixo = []
+        for idx_comp, comp in componentes:
+            mencao = _limpar_valor_conselho(linha[idx_comp + 1] if idx_comp + 1 < len(linha) else "")
+            faltas = _limpar_valor_conselho(linha[idx_comp + 2] if idx_comp + 2 < len(linha) else "")
+            aus_comp = _limpar_valor_conselho(linha[idx_comp + 3] if idx_comp + 3 < len(linha) else "")
+            if mencao and mencao != "-":
+                registro[f"{comp} - Menção"] = mencao
+                try:
+                    if float(str(mencao).replace(",", ".")) < 5:
+                        notas_abaixo.append(comp)
+                except Exception:
+                    pass
+            if faltas and faltas != "-":
+                registro[f"{comp} - Faltas"] = faltas
+            if aus_comp and aus_comp != "-":
+                registro[f"{comp} - Aus. Comp."] = aus_comp
+            if any(v and v != "-" for v in [mencao, faltas, aus_comp]):
+                componentes_resumo.append(f"{comp}: M {mencao or '-'} / F {faltas or '0'} / AC {aus_comp or '0'}")
+        registro["Componentes"] = " | ".join(componentes_resumo)
+        registro["Notas abaixo de cinco"] = ", ".join(notas_abaixo)
+        linhas.append(registro)
+
+    return pd.DataFrame(linhas), meta
+
+
+def _carregar_mapao_local() -> list[dict]:
+    _garantir_arquivo_json_local(MAPAO_LOCAL_PATH, [])
+    try:
+        with open(MAPAO_LOCAL_PATH, "r", encoding="utf-8") as arquivo:
+            dados = json.load(arquivo)
+        return dados if isinstance(dados, list) else []
+    except Exception:
+        return []
+
+
+def _salvar_mapao_local(registros: list[dict]) -> bool:
+    _garantir_arquivo_json_local(MAPAO_LOCAL_PATH, [])
+    with open(MAPAO_LOCAL_PATH, "w", encoding="utf-8") as arquivo:
+        json.dump(registros, arquivo, ensure_ascii=False, indent=2)
+    return True
+
+
+def carregar_mapao_df() -> pd.DataFrame:
+    return pd.DataFrame(_carregar_mapao_local())
+
+
+def salvar_registros_mapao(df_novo: pd.DataFrame) -> int:
+    if df_novo is None or df_novo.empty:
+        return 0
+    existentes = _carregar_mapao_local()
+    indice = {}
+    for i, item in enumerate(existentes):
+        chave = (
+            normalizar_texto(item.get("Estudante", "")),
+            turma_para_comparacao(item.get("Turma", "")),
+            str(item.get("Ano letivo", "")).strip(),
+            str(item.get("Bimestre", "")).strip(),
+        )
+        indice[chave] = i
+    gravados = 0
+    for item in df_novo.fillna("").to_dict(orient="records"):
+        chave = (
+            normalizar_texto(item.get("Estudante", "")),
+            turma_para_comparacao(item.get("Turma", "")),
+            str(item.get("Ano letivo", "")).strip(),
+            str(item.get("Bimestre", "")).strip(),
+        )
+        if chave in indice:
+            existentes[indice[chave]].update(item)
+        else:
+            existentes.append(item)
+        gravados += 1
+    _salvar_mapao_local(existentes)
+    return gravados
+
+
+def buscar_mapao_turma(turma: str, ano_letivo: str = "", bimestre: str = "") -> pd.DataFrame:
+    df = carregar_mapao_df()
+    if df.empty:
+        return df
+    if "Turma" in df.columns and turma:
+        df = df[df["Turma"].apply(turma_para_comparacao) == turma_para_comparacao(turma)].copy()
+    if "Ano letivo" in df.columns and ano_letivo:
+        df = df[df["Ano letivo"].astype(str).str.strip() == str(ano_letivo).strip()].copy()
+    if "Bimestre" in df.columns and bimestre:
+        df_bim = df[df["Bimestre"].astype(str).str.contains(str(bimestre).split("º")[0], case=False, na=False)].copy()
+        if not df_bim.empty:
+            df = df_bim
+    return df.reset_index(drop=True)
+
+
+def _mapao_para_importacao_conselho(df_mapao: pd.DataFrame) -> pd.DataFrame:
+    if df_mapao is None or df_mapao.empty:
+        return pd.DataFrame(columns=COLUNAS_CONSELHO_IMPORTACAO)
+    vazio = pd.Series([""] * len(df_mapao), index=df_mapao.index)
+    saida = pd.DataFrame(index=df_mapao.index)
+    saida["RA"] = ""
+    saida["Turma"] = df_mapao.get("Turma", vazio).astype(str)
+    saida["Estudante"] = df_mapao.get("Estudante", vazio).astype(str)
+    saida["Frequência (%)"] = df_mapao.get("Frequência (%)", vazio).astype(str)
+    saida["Prova Paulista 1"] = ""
+    saida["Prova Paulista 2"] = ""
+    saida["Mapão"] = df_mapao.get("Componentes", vazio).astype(str)
+    saida["Prova interna"] = ""
+    saida["Notas abaixo de cinco"] = df_mapao.get("Notas abaixo de cinco", vazio).astype(str)
+    saida["Observações / encaminhamentos"] = df_mapao.get("Situação", vazio).astype(str)
     return saida[COLUNAS_CONSELHO_IMPORTACAO]
 
 
@@ -7600,6 +7794,12 @@ def render_pagina_conselho():
                         if not df_pp.empty:
                             salvar_registros_prova_paulista(df_pp)
                         df_norm = _prova_paulista_para_importacao_conselho(df_pp)
+                    elif origem == "Mapão":
+                        df_lido = _ler_planilha_prova_paulista_upload(arquivo)
+                        df_mapao, _ = normalizar_mapao(df_lido, turma_padrao=turma, ano_letivo=ano_letivo, bimestre=bimestre)
+                        if not df_mapao.empty:
+                            salvar_registros_mapao(df_mapao)
+                        df_norm = _mapao_para_importacao_conselho(df_mapao)
                     else:
                         df_lido = _ler_planilha_conselho_upload(arquivo)
                         df_norm = _normalizar_importacao_conselho(df_lido, origem, turma)
@@ -7632,6 +7832,18 @@ def render_pagina_conselho():
                 st.session_state.df_conselho = _modelo_online_para_resumo_conselho(df_online)
                 _salvar_contexto_conselho(turma, bimestre, ano_letivo, df_online, st.session_state.df_conselho)
                 st.success(f"{len(df_pp_salvo)} resultado(s) da Prova Paulista vinculados ao Conselho.")
+
+        if st.button("🗺️ Buscar Mapão arquivado para esta turma", key="btn_buscar_mapao_arquivado_conselho"):
+            df_mapao_salvo = buscar_mapao_turma(turma, ano_letivo=ano_letivo, bimestre=bimestre)
+            if df_mapao_salvo.empty:
+                st.warning("Nenhum Mapão arquivado para esta turma/bimestre.")
+            else:
+                df_online = st.session_state.get("df_conselho_online", _criar_modelo_conselho_por_turma(turma, df_alunos))
+                df_online = _mesclar_importacao_no_modelo_conselho(df_online, _mapao_para_importacao_conselho(df_mapao_salvo))
+                st.session_state.df_conselho_online = df_online
+                st.session_state.df_conselho = _modelo_online_para_resumo_conselho(df_online)
+                _salvar_contexto_conselho(turma, bimestre, ano_letivo, df_online, st.session_state.df_conselho)
+                st.success(f"{len(df_mapao_salvo)} registro(s) do Mapão vinculados ao Conselho.")
 
         with st.expander("Importação antiga de tabela resumida do Excel", expanded=False):
             arquivo = st.file_uploader("Enviar arquivo Excel (.xlsx) da ata/tabela", type=["xlsx", "xls"], key="upload_conselho_xlsx")
@@ -7818,6 +8030,79 @@ def render_pagina_prova_paulista():
     if not df_view.empty and "Turma" in df_view.columns:
         resumo = df_view.groupby("Turma").agg(Estudantes=("RA", "count")).reset_index()
         st.dataframe(resumo, use_container_width=True, hide_index=True)
+
+
+def render_pagina_mapao():
+    page_header("🗺️ Mapão", "Importe e arquive rendimento, frequência e situação por sala", "#059669")
+
+    st.markdown("""
+    <div class="info-box">
+        O Mapão fica disponível para Conselho, Tutoria e relatórios. O sistema guarda estudante, situação, frequência, faltas, menções por componente e notas abaixo de cinco.
+    </div>
+    """, unsafe_allow_html=True)
+
+    turmas_cadastradas = []
+    if df_alunos is not None and not df_alunos.empty and "turma" in df_alunos.columns:
+        turmas_cadastradas = sorted(
+            [formatar_turma_eletiva(t) for t in df_alunos["turma"].dropna().astype(str).unique().tolist() if str(t).strip()],
+            key=ordenar_turma_tutoria
+        )
+
+    col_a, col_b, col_c = st.columns([1.2, 1, 1])
+    with col_a:
+        turma_mapao = st.selectbox("Turma", ["Detectar pela planilha"] + turmas_cadastradas, key="mapao_turma_upload") if turmas_cadastradas else st.text_input("Turma", key="mapao_turma_upload_text")
+    with col_b:
+        ano_mapao = st.text_input("Ano letivo", value=str(datetime.now().year), key="mapao_ano_upload")
+    with col_c:
+        bimestre_mapao = st.selectbox("Bimestre/fechamento", ["", "1º Bimestre", "2º Bimestre", "3º Bimestre", "4º Bimestre"], key="mapao_bimestre_upload")
+
+    arquivo_mapao = st.file_uploader("Enviar Mapão (.xlsx, .xls ou .csv)", type=["xlsx", "xls", "csv"], key="upload_pagina_mapao")
+    if arquivo_mapao is not None:
+        try:
+            df_lido = _ler_planilha_prova_paulista_upload(arquivo_mapao)
+            turma_padrao = "" if turma_mapao == "Detectar pela planilha" else turma_mapao
+            df_mapao, meta = normalizar_mapao(df_lido, turma_padrao=turma_padrao, ano_letivo=ano_mapao, bimestre=bimestre_mapao)
+            if df_mapao.empty:
+                st.warning("Não consegui localizar a estrutura ALUNO / SITUAÇÃO / componentes / TOTAL neste Mapão.")
+            else:
+                if meta.get("Turma"):
+                    st.caption(f"Turma detectada: {meta.get('Turma')}")
+                cols_prioritarias = [c for c in ["Estudante", "Turma", "Situação", "TF", "Frequência (%)", "FT An", "Frequência anual (%)", "Notas abaixo de cinco", "Componentes"] if c in df_mapao.columns]
+                st.dataframe(df_mapao[cols_prioritarias], use_container_width=True, hide_index=True)
+                if st.button("💾 Arquivar Mapão", type="primary", key="btn_salvar_mapao"):
+                    qtd = salvar_registros_mapao(df_mapao)
+                    st.success(f"{qtd} registro(s) do Mapão arquivado(s).")
+        except Exception as exc:
+            st.error(f"Erro ao processar Mapão: {exc}")
+
+    st.markdown("### Mapões arquivados")
+    df_arquivo = carregar_mapao_df()
+    if df_arquivo.empty:
+        st.info("Nenhum Mapão arquivado ainda.")
+        return
+
+    col_f1, col_f2, col_f3 = st.columns([1, 1, 1])
+    turmas_arquivo = sorted([t for t in df_arquivo.get("Turma", pd.Series(dtype=str)).dropna().astype(str).unique().tolist() if t], key=ordenar_turma_tutoria)
+    anos_arquivo = sorted([a for a in df_arquivo.get("Ano letivo", pd.Series(dtype=str)).dropna().astype(str).unique().tolist() if a], reverse=True)
+    bims_arquivo = sorted([b for b in df_arquivo.get("Bimestre", pd.Series(dtype=str)).dropna().astype(str).unique().tolist() if b])
+    with col_f1:
+        filtro_turma = st.selectbox("Filtrar turma", ["Todas"] + turmas_arquivo, key="mapao_filtro_turma")
+    with col_f2:
+        filtro_ano = st.selectbox("Filtrar ano", ["Todos"] + anos_arquivo, key="mapao_filtro_ano")
+    with col_f3:
+        filtro_bim = st.selectbox("Filtrar fechamento", ["Todos"] + bims_arquivo, key="mapao_filtro_bim")
+
+    df_view = df_arquivo.copy()
+    if filtro_turma != "Todas":
+        df_view = df_view[df_view["Turma"].astype(str) == filtro_turma]
+    if filtro_ano != "Todos":
+        df_view = df_view[df_view["Ano letivo"].astype(str) == filtro_ano]
+    if filtro_bim != "Todos":
+        df_view = df_view[df_view["Bimestre"].astype(str) == filtro_bim]
+
+    st.write(f"Registros exibidos: **{len(df_view)}**")
+    cols_prioritarias = [c for c in ["Estudante", "Turma", "Situação", "TF", "Frequência (%)", "FT An", "Frequência anual (%)", "Notas abaixo de cinco", "Componentes"] if c in df_view.columns]
+    st.dataframe(df_view[cols_prioritarias] if cols_prioritarias else df_view, use_container_width=True, hide_index=True)
 
 
 # ======================================================
@@ -9907,6 +10192,9 @@ elif "CONSELHO" in normalizar_texto(menu):
 
 elif "PROVA PAULISTA" in normalizar_texto(menu):
     render_pagina_prova_paulista()
+
+elif "MAPAO" in normalizar_texto(menu):
+    render_pagina_mapao()
 
 elif "HISTORICO DE OCORRENCIA" in normalizar_texto(menu):
     page_header("📋 Histórico de Ocorrências", "Consulte, edite e exclua registros de ocorrências", "#d97706")
