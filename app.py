@@ -2068,6 +2068,155 @@ div[data-testid="stExpander"] summary {
     .dashboard-panorama-grid { grid-template-columns: 1fr !important; }
 }
 
+
+
+/* ====================================================== */
+/* AJUSTE FINAL — HEADER SED + MENU ARCO-ÍRIS PASTEL      */
+/* ====================================================== */
+.sed-global-header {
+    background: #ffffff !important;
+    border: 1px solid #d7e3f0 !important;
+    border-radius: 6px !important;
+    box-shadow: 0 8px 20px rgba(15,23,42,0.06) !important;
+    margin: 0 0 0.85rem 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+}
+.sed-header-top {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 1rem !important;
+    padding: 0.85rem 1rem 0.65rem 1rem !important;
+}
+.sed-header-brand {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.75rem !important;
+    min-width: 0 !important;
+}
+.sed-logo-mark {
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 9px !important;
+    background: linear-gradient(135deg,#32a4df,#22c7a8) !important;
+    color: #ffffff !important;
+    display: grid !important;
+    place-items: center !important;
+    font-size: 1.35rem !important;
+    font-weight: 900 !important;
+    flex: 0 0 auto !important;
+}
+.sed-secretaria {
+    margin: 0 !important;
+    color: #64748b !important;
+    font-size: 0.82rem !important;
+    line-height: 1.15 !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.02em !important;
+}
+.sed-system-title {
+    margin: 0.12rem 0 0 0 !important;
+    color: #2f9ddd !important;
+    font-family: 'Nunito', sans-serif !important;
+    font-size: 1.55rem !important;
+    line-height: 1.05 !important;
+    font-weight: 900 !important;
+}
+.sed-user-box {
+    text-align: right !important;
+    color: #64748b !important;
+    font-size: 0.78rem !important;
+    line-height: 1.35 !important;
+    font-weight: 650 !important;
+    max-width: 46% !important;
+}
+.sed-user-box b { color: #2563eb !important; }
+.sed-top-actions {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: flex-end !important;
+    gap: 0.45rem !important;
+    padding: 0 1rem 0.85rem 1rem !important;
+}
+.sed-action-chip {
+    background: #3f98d4 !important;
+    color: #ffffff !important;
+    border-radius: 4px !important;
+    padding: 0.34rem 0.62rem !important;
+    font-size: 0.76rem !important;
+    line-height: 1 !important;
+    font-weight: 750 !important;
+    white-space: nowrap !important;
+}
+.sed-current-page {
+    display: none !important;
+}
+
+/* Menu lateral: todos os botões no padrão visual do botão Conselho */
+section[data-testid="stSidebar"] div[data-testid="stButton"] > button {
+    background: linear-gradient(120deg, #ff9ad5 0%, #ffd97a 23%, #a6f4e7 48%, #8bc7ff 72%, #c99bff 100%) !important;
+    color: #17405f !important;
+    border: 1px solid rgba(124, 58, 237, 0.18) !important;
+    border-radius: 8px !important;
+    min-height: 44px !important;
+    font-weight: 800 !important;
+    box-shadow: 0 4px 10px rgba(47, 157, 221, 0.15) !important;
+    text-align: left !important;
+}
+section[data-testid="stSidebar"] div[data-testid="stButton"] > button:hover {
+    filter: brightness(1.03) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 6px 14px rgba(124, 58, 237, 0.20) !important;
+}
+section[data-testid="stSidebar"] div[data-testid="stButton"] > button[kind="primary"] {
+    background: linear-gradient(120deg, #ff7fc8 0%, #ffd35f 22%, #7ef0dd 48%, #68b8ff 72%, #b680ff 100%) !important;
+    color: #17324d !important;
+    border: 1.5px solid rgba(96,165,250,0.55) !important;
+    box-shadow: 0 8px 18px rgba(124, 58, 237, 0.22) !important;
+}
+
+/* Cartões compactos para a página Conselho */
+.conselho-doc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 0.85rem;
+    margin: 0.8rem 0 1rem 0;
+}
+.conselho-doc-card {
+    background: rgba(255,255,255,0.94);
+    border: 1px solid rgba(147,197,253,0.55);
+    border-radius: 10px;
+    padding: 0.9rem 1rem;
+    box-shadow: 0 8px 18px rgba(15,23,42,0.06);
+    border-top: 4px solid #2f9ddd;
+}
+.conselho-doc-card b {
+    color: #1e3a8a !important;
+    font-size: 0.95rem !important;
+}
+.conselho-doc-card p {
+    margin: 0.35rem 0 0 0 !important;
+    color: #64748b !important;
+    font-size: 0.82rem !important;
+    line-height: 1.35 !important;
+}
+.conselho-parametros {
+    background: rgba(255,255,255,0.92);
+    border: 1px solid rgba(147,197,253,0.55);
+    border-radius: 10px;
+    padding: 0.95rem 1rem 0.35rem 1rem;
+    box-shadow: 0 8px 18px rgba(15,23,42,0.06);
+    margin: 0.75rem 0 0.85rem 0;
+}
+
+@media (max-width: 900px) {
+    .sed-header-top { align-items: flex-start !important; flex-direction: column !important; }
+    .sed-user-box { text-align: left !important; max-width: 100% !important; }
+    .sed-top-actions { justify-content: flex-start !important; }
+}
+
 </style>
 """, unsafe_allow_html=True)
 # ======================================================
@@ -6282,7 +6431,7 @@ def _altura_linha_conselho(linha: list, larguras_cm: list) -> float:
         chars_por_linha = max(8, int(largura * 4.7))
         linhas = max(1, (len(texto) // chars_por_linha) + 1)
         max_linhas = max(max_linhas, linhas)
-    return min(max(0.72 * cm, (0.28 * cm) * max_linhas + 0.24 * cm), 2.45 * cm)
+    return min(max(0.82 * cm, (0.31 * cm) * max_linhas + 0.28 * cm), 3.05 * cm)
 
 
 def gerar_pdf_conselho_classe(df_conselho: pd.DataFrame, turma: str, bimestre: str, ano_letivo: str, data_conselho, observacoes: str = "") -> BytesIO:
@@ -6373,11 +6522,11 @@ def gerar_pdf_conselho_classe(df_conselho: pd.DataFrame, turma: str, bimestre: s
     story.append(Paragraph("<b>ATA E RENDIMENTO DOS ESTUDANTES</b>", ParagraphStyle("SecaoConselho", parent=texto, fontName="Helvetica-Bold", fontSize=9, leading=11, textColor=colors.HexColor("#2b2140"))))
 
     colunas = COLUNAS_CONSELHO_PADRAO
-    larguras_cm = [0.8, 4.2, 1.15, 1.25, 1.35, 3.4, 1.8, 5.0, 6.1]
+    larguras_cm = [0.75, 4.15, 1.05, 1.15, 1.25, 3.25, 1.65, 5.35, 6.45]
     col_widths = [x * cm for x in larguras_cm]
 
     dados = [[Paragraph(c, header) for c in colunas]]
-    row_heights = [0.58 * cm]
+    row_heights = [0.64 * cm]
 
     if df_pdf.empty:
         df_pdf = pd.DataFrame([{c: "" for c in colunas}])
@@ -6429,14 +6578,24 @@ def gerar_pdf_conselho_classe(df_conselho: pd.DataFrame, turma: str, bimestre: s
 
 
 def render_pagina_conselho():
-    page_header("🏛️ Conselho", "Ata, rendimento dos estudantes e impressão organizada do Conselho de Classe", "#7c3aed")
+    page_header("🏛️ Conselho", "Documentos, ata, rendimento dos estudantes e impressão organizada do Conselho de Classe", "#7c3aed")
 
     st.markdown("""
     <div class="info-box">
-        Use esta página para carregar a tabela do Conselho em Excel, revisar os dados e gerar o PDF com células ajustadas para impressão.
+        A página Conselho foi reorganizada para manter os documentos e funções do Conselho e acrescentar a tabela Excel como mais uma ferramenta, sem substituir o que já existia.
     </div>
     """, unsafe_allow_html=True)
 
+    st.markdown("""
+    <div class="conselho-doc-grid">
+        <div class="conselho-doc-card"><b>📄 Ata do Conselho</b><p>Documento principal para registro do Conselho de Classe e Série Participativo.</p></div>
+        <div class="conselho-doc-card"><b>📊 Rendimento dos Estudantes</b><p>Tabela importada do Excel, revisada e organizada para impressão.</p></div>
+        <div class="conselho-doc-card"><b>🧭 Encaminhamentos</b><p>Espaço para recomendações, dificuldades e intervenções pedagógicas.</p></div>
+        <div class="conselho-doc-card"><b>✍️ Assinaturas</b><p>Área prevista no PDF para coordenação, gestão e professor/tutor.</p></div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown('<div class="conselho-parametros">', unsafe_allow_html=True)
     col_a, col_b, col_c, col_d = st.columns([1.2, 1, 1, 1])
     with col_a:
         turma = st.text_input("Turma", value=st.session_state.get("conselho_turma", "7º Ano C"), key="conselho_turma")
@@ -6446,23 +6605,67 @@ def render_pagina_conselho():
         ano_letivo = st.text_input("Ano letivo", value=str(datetime.now().year), key="conselho_ano_letivo")
     with col_d:
         data_conselho = st.date_input("Data", value=datetime.now().date(), format="YYYY-MM-DD", key="conselho_data")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    tab_upload, tab_tabela, tab_pdf = st.tabs(["📥 Carregar tabela", "📋 Revisar dados", "🖨️ Imprimir ata"])
+    tab_docs, tab_excel, tab_tabela, tab_pdf = st.tabs([
+        "📚 Documentos do Conselho",
+        "📥 Tabela Excel",
+        "📋 Revisar dados",
+        "🖨️ Imprimir ata"
+    ])
 
-    with tab_upload:
-        st.markdown("### 📥 Carregar planilha do Conselho")
+    with tab_docs:
+        st.markdown("### 📚 Documentos e registros do Conselho")
+        st.caption("Esta aba mantém a função documental do Conselho. A tabela Excel entra como apoio na aba ao lado.")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("#### 📝 Dados da ata")
+            st.text_input("Título do documento", value="CONSELHO DE CLASSE E SÉRIE PARTICIPATIVO", key="conselho_titulo_documento")
+            st.text_area(
+                "Texto de abertura da ata",
+                value=st.session_state.get(
+                    "conselho_texto_abertura",
+                    "Reuniram-se a equipe gestora, professores e responsáveis pelo acompanhamento pedagógico para procederem ao Conselho de Classe, registrando evidências, pontos de atenção, encaminhamentos e intervenções pedagógicas."
+                ),
+                height=120,
+                key="conselho_texto_abertura"
+            )
+        with col2:
+            st.markdown("#### 🧭 Encaminhamentos gerais")
+            st.text_area(
+                "Pontos de atenção / encaminhamentos gerais",
+                value=st.session_state.get("conselho_encaminhamentos_gerais", ""),
+                height=165,
+                key="conselho_encaminhamentos_gerais"
+            )
+
+        st.markdown("#### ✅ Checklist do Conselho")
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            st.checkbox("Ata revisada", key="conselho_check_ata")
+        with c2:
+            st.checkbox("Tabela conferida", key="conselho_check_tabela")
+        with c3:
+            st.checkbox("Encaminhamentos definidos", key="conselho_check_encaminhamentos")
+        with c4:
+            st.checkbox("Assinaturas previstas", key="conselho_check_assinaturas")
+
+    with tab_excel:
+        st.markdown("### 📥 Acrescentar tabela do Excel")
+        st.caption("Use esta aba apenas para acrescentar ou atualizar a tabela de rendimento. Os documentos do Conselho permanecem na primeira aba.")
         arquivo = st.file_uploader("Enviar arquivo Excel (.xlsx) da ata/tabela", type=["xlsx", "xls"], key="upload_conselho_xlsx")
         url_excel = st.text_input("Ou cole um link direto do Excel/SharePoint", value="", key="url_conselho_excel")
         c1, c2 = st.columns([1, 1])
         with c1:
-            if st.button("📥 Carregar tabela", type="primary", key="btn_carregar_conselho"):
+            if st.button("📥 Carregar tabela do Excel", type="primary", key="btn_carregar_conselho"):
                 try:
                     if arquivo is not None:
                         st.session_state.df_conselho = _carregar_excel_conselho(arquivo)
-                        st.success("Tabela carregada do arquivo enviado.")
+                        st.success("Tabela acrescentada ao Conselho a partir do arquivo enviado.")
                     elif str(url_excel or "").strip():
                         st.session_state.df_conselho = _carregar_excel_conselho(str(url_excel).strip())
-                        st.success("Tabela carregada pelo link.")
+                        st.success("Tabela acrescentada ao Conselho pelo link informado.")
                     else:
                         st.warning("Envie um arquivo .xlsx ou informe um link direto.")
                 except Exception as exc:
@@ -6476,10 +6679,10 @@ def render_pagina_conselho():
         st.caption("Observação: links do SharePoint que exigem login podem não ser lidos automaticamente pelo Streamlit. O envio do .xlsx funciona de forma mais segura.")
 
     with tab_tabela:
-        st.markdown("### 📋 Ata e rendimento dos estudantes")
+        st.markdown("### 📋 Revisar tabela de rendimento dos estudantes")
         df_atual = st.session_state.get("df_conselho", pd.DataFrame(columns=COLUNAS_CONSELHO_PADRAO))
         if df_atual.empty:
-            st.info("Carregue uma planilha ou crie um modelo vazio na aba anterior.")
+            st.info("Carregue uma planilha na aba 'Tabela Excel' ou crie um modelo vazio.")
         else:
             df_atual = _mapear_colunas_conselho(df_atual)
             st.session_state.df_conselho = st.data_editor(
@@ -6489,18 +6692,30 @@ def render_pagina_conselho():
                 num_rows="dynamic",
                 key="editor_conselho",
             )
-            st.caption("As colunas Dificuldades e Recomendações podem ter textos maiores; no PDF elas recebem mais largura e quebra automática.")
+            st.caption("As colunas Dificuldades e Recomendações têm mais espaço no PDF e usam quebra automática de texto.")
 
     with tab_pdf:
         st.markdown("### 🖨️ Gerar PDF do Conselho")
-        observacoes = st.text_area("Observações gerais da ata", value=st.session_state.get("conselho_observacoes", ""), height=90, key="conselho_observacoes")
+        observacoes = st.text_area(
+            "Observações gerais da ata",
+            value=st.session_state.get("conselho_observacoes", ""),
+            height=90,
+            key="conselho_observacoes"
+        )
         df_pdf = _mapear_colunas_conselho(st.session_state.get("df_conselho", pd.DataFrame(columns=COLUNAS_CONSELHO_PADRAO)))
         st.write(f"Registros na tabela: **{len(df_pdf)}**")
         if not df_pdf.empty:
             st.dataframe(df_pdf.head(8), use_container_width=True, hide_index=True)
         if st.button("📄 Gerar PDF organizado", type="primary", key="btn_pdf_conselho"):
             try:
-                pdf = gerar_pdf_conselho_classe(df_pdf, turma, bimestre, ano_letivo, data_conselho, observacoes)
+                texto_final = str(st.session_state.get("conselho_texto_abertura", "")).strip()
+                extras = str(st.session_state.get("conselho_encaminhamentos_gerais", "")).strip()
+                observacoes_completas = observacoes
+                if texto_final:
+                    observacoes_completas = f"{observacoes_completas}\n\nTexto da ata: {texto_final}".strip()
+                if extras:
+                    observacoes_completas = f"{observacoes_completas}\n\nEncaminhamentos gerais: {extras}".strip()
+                pdf = gerar_pdf_conselho_classe(df_pdf, turma, bimestre, ano_letivo, data_conselho, observacoes_completas)
                 nome_pdf = f"conselho_{gerar_chave_segura(turma)}_{gerar_chave_segura(bimestre)}_{ano_letivo}.pdf"
                 st.download_button("⬇️ Baixar PDF do Conselho", data=pdf, file_name=nome_pdf, mime="application/pdf", key="download_pdf_conselho")
                 st.success("PDF gerado com células ajustadas para impressão.")
