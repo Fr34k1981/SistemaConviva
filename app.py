@@ -1,4 +1,4 @@
-﻿# VERSAO FINAL LIMPA - SED FIEL + CORES ARCO-IRIS/UNICORNIO SEM IMAGEM EXTERNA
+﻿# VERSAO VISUAL DEFINITIVA - SED + UNICORNIO + ARCO-IRIS
 # ======================================================
 # IMPORTS PADRÃO
 # ======================================================
@@ -152,1163 +152,1920 @@ st.set_page_config(
 # ======================================================
 # CSS PREMIUM EDUCACIONAL — DESIGN MODERNO E PROFISSIONAL
 # ======================================================
-# ======================================================
-# CSS FINAL LIMPO - SED + ARCO-IRIS/UNICORNIO
-# ======================================================
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Nunito:wght@600;700;800;900&display=swap');
+/* ============================================ */
+/* ========== GOOGLE FONTS IMPORT ========== */
+/* ============================================ */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap');
 
-:root {
-    --sed-blue: #3f98d4;
-    --sed-blue-dark: #2c7fbd;
-    --sed-blue-light: #eaf6ff;
-    --sed-green: #22c7a8;
-    --sed-yellow: #ffcc00;
-    --sed-border: #d5e3f3;
-    --sed-bg: #f4f7fb;
-    --sed-panel: #ffffff;
-    --sed-text: #1f2937;
-    --sed-muted: #64748b;
-    --uni-pink: #ff7fd1;
-    --uni-yellow: #ffd67f;
-    --uni-mint: #97f7f0;
-    --uni-blue: #9cc7ff;
-    --uni-purple: #d8a0ff;
-    --uni-rainbow: linear-gradient(120deg, #ff7fd1 0%, #ffd67f 22%, #97f7f0 45%, #9cc7ff 68%, #d8a0ff 100%);
-    --uni-border: rgba(216, 180, 254, 0.70);
-    --shadow-soft: 0 10px 26px rgba(15, 23, 42, 0.08);
-    --shadow-rainbow: 0 14px 34px rgba(168, 85, 247, 0.12);
-    --radius-sm: 6px;
-    --radius-md: 10px;
-    --radius-lg: 16px;
-    --radius-xl: 22px;
+/* ============================================ */
+/* ========== RESET GLOBAL ========== */
+/* ============================================ */
+*, *::before, *::after {
+    box-sizing: border-box;
 }
 
-* { box-sizing: border-box; }
-html, body, [class*="css"], .stApp {
-    font-family: 'Inter', Arial, Helvetica, sans-serif !important;
+html, body, [class*="css"] {
+    font-family: 'Inter', 'Segoe UI', sans-serif !important;
 }
 
-.stApp {
-    color: var(--sed-text) !important;
-    background:
-        linear-gradient(180deg, rgba(255,255,255,.62), rgba(255,255,255,.82)),
-        radial-gradient(circle at 8% 12%, rgba(255,127,209,.28), transparent 30%),
-        radial-gradient(circle at 92% 6%, rgba(151,247,240,.25), transparent 28%),
-        radial-gradient(circle at 88% 88%, rgba(216,160,255,.22), transparent 30%),
-        linear-gradient(115deg, rgba(255,127,209,.18) 0%, rgba(255,214,127,.18) 23%, rgba(151,247,240,.18) 45%, rgba(156,199,255,.18) 68%, rgba(216,160,255,.18) 100%),
-        linear-gradient(135deg, #fff7fb 0%, #fff9ee 24%, #f0fbff 50%, #f7f2ff 76%, #fff8fd 100%) !important;
-}
-[data-testid="stAppViewContainer"] { background: transparent !important; }
-header[data-testid="stHeader"] {
-    background: rgba(255,255,255,.72) !important;
-    border-bottom: 1px solid rgba(213,227,243,.8) !important;
-    backdrop-filter: blur(12px) !important;
-}
-#MainMenu, footer { visibility: hidden !important; }
-.main .block-container {
-    max-width: 1360px !important;
-    padding: 1.05rem 1.2rem 2.4rem 1.2rem !important;
-}
-
-/* TIPOGRAFIA - menos exagero, leitura mais limpa */
 h1, h2, h3, h4, h5, h6 {
-    font-family: 'Nunito', 'Inter', Arial, sans-serif !important;
-    color: var(--sed-text) !important;
-    font-weight: 800 !important;
-    letter-spacing: -0.01em !important;
-    line-height: 1.20 !important;
-}
-h1 { font-size: clamp(1.55rem, 2.1vw, 2rem) !important; }
-h2 { font-size: clamp(1.28rem, 1.65vw, 1.55rem) !important; }
-h3 { font-size: 1.12rem !important; }
-h4 { font-size: 1rem !important; }
-p, span, label, li, div { line-height: 1.46 !important; }
-label, .stTextInput label, .stTextArea label, .stSelectbox label, .stMultiSelect label,
-.stDateInput label, .stTimeInput label, .stNumberInput label, .stRadio label, .stCheckbox label {
-    color: #5b21b6 !important;
-    font-size: .77rem !important;
-    font-weight: 850 !important;
-    letter-spacing: .09em !important;
-    text-transform: uppercase !important;
+    font-family: 'Nunito', sans-serif !important;
 }
 
-/* SIDEBAR - modelo SED com sua identidade arco-iris */
-section[data-testid="stSidebar"] {
-    min-width: 286px !important;
-    max-width: 286px !important;
+/* ============================================ */
+/* ========== VARIÁVEIS DE DESIGN ========== */
+/* ============================================ */
+:root {
+    /* Cores primárias — azul educacional */
+    --primary:        #d946ef;
+    --primary-light:  #f472b6;
+    --primary-xlight: #fdf2ff;
+    --primary-dark:   #a21caf;
+
+    /* Acento verde sucesso */
+    --success:        #10b981;
+    --success-light:  #d1fae5;
+
+    /* Acento âmbar aviso */
+    --warning:        #f59e0b;
+    --warning-light:  #fef9c3;
+
+    /* Vermelho perigo */
+    --danger:         #f43f5e;
+    --danger-light:   #ffe4e6;
+
+    /* Info ciano */
+    --info:           #06b6d4;
+    --info-light:     #cffafe;
+
+    /* Roxo destaque */
+    --purple:         #8b5cf6;
+    --purple-light:   #ede9fe;
+
+    /* Neutros */
+    --dark:           #2b2140;
+    --dark-mid:       #3f2d63;
+    --gray-dark:      #54467a;
+    --gray:           #7b6ea3;
+    --gray-light:     #a79aca;
+    --border:         #edd7ff;
+    --border-light:   #f8ecff;
+    --bg:             #fff8ff;
+    --white:          #ffffff;
+
+    /* Gradientes */
+    --grad-primary:   linear-gradient(120deg, #ff7fd1 0%, #ffd67f 23%, #97f7f0 46%, #9cc7ff 70%, #d8a0ff 100%);
+    --grad-teal:      linear-gradient(135deg, #38bdf8 0%, #22d3ee 100%);
+    --grad-emerald:   linear-gradient(135deg, #34d399 0%, #10b981 100%);
+    --grad-amber:     linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    --grad-danger:    linear-gradient(135deg, #fb7185 0%, #f43f5e 100%);
+    --grad-purple:    linear-gradient(135deg, #a78bfa 0%, #d946ef 100%);
+    --grad-school:    linear-gradient(120deg, #ff95d6 0%, #ffd67f 28%, #9ce7ff 55%, #b39bff 82%, #ff9ee2 100%);
+    --grad-warm:      linear-gradient(120deg, #fdba74 0%, #fda4af 50%, #f9a8d4 100%);
+
+    /* Sombras */
+    --shadow-xs:  0 1px 2px rgba(15,23,42,0.06);
+    --shadow-sm:  0 2px 4px rgba(15,23,42,0.08);
+    --shadow-md:  0 4px 12px rgba(15,23,42,0.10);
+    --shadow-lg:  0 8px 24px rgba(15,23,42,0.12);
+    --shadow-xl:  0 16px 40px rgba(15,23,42,0.14);
+    --shadow-2xl: 0 24px 64px rgba(15,23,42,0.18);
+    --shadow-blue: 0 8px 24px rgba(168,85,247,0.30);
+    --shadow-green: 0 8px 24px rgba(45,212,191,0.28);
+
+    /* Raios */
+    --r-xs:  4px;
+    --r-sm:  8px;
+    --r-md:  12px;
+    --r-lg:  16px;
+    --r-xl:  20px;
+    --r-2xl: 24px;
+    --r-3xl: 32px;
+    --r-full: 9999px;
+}
+
+/* ============================================ */
+/* ========== ANIMAÇÕES ========== */
+/* ============================================ */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeInLeft {
+    from { opacity: 0; transform: translateX(-16px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to   { opacity: 1; transform: scale(1); }
+}
+@keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(37,99,235,0.3); }
+    50%       { box-shadow: 0 0 0 8px rgba(37,99,235,0); }
+}
+@keyframes shimmer {
+    0%   { background-position: -200% center; }
+    100% { background-position: 200% center; }
+}
+@keyframes floatDot {
+    0%, 100% { transform: translateY(0); }
+    50%       { transform: translateY(-6px); }
+}
+
+.animate-fade-in   { animation: fadeInUp 0.5s cubic-bezier(.16,1,.3,1) both; }
+.animate-slide-in  { animation: fadeInLeft 0.4s cubic-bezier(.16,1,.3,1) both; }
+.animate-scale-in  { animation: scaleIn 0.35s cubic-bezier(.16,1,.3,1) both; }
+
+/* ============================================ */
+/* ========== SCROLLBAR PERSONALIZADA ========== */
+/* ============================================ */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--border-light); border-radius: var(--r-full); }
+::-webkit-scrollbar-thumb { background: linear-gradient(180deg, var(--primary-light), var(--purple)); border-radius: var(--r-full); }
+::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+/* ============================================ */
+/* ========== LAYOUT PRINCIPAL ========== */
+/* ============================================ */
+.stApp {
     background:
-        linear-gradient(180deg, rgba(255,255,255,.96), rgba(247,251,255,.94)),
-        radial-gradient(circle at 18% 0%, rgba(255,127,209,.18), transparent 30%),
-        radial-gradient(circle at 100% 10%, rgba(151,247,240,.20), transparent 30%) !important;
-    border-right: 1px solid var(--sed-border) !important;
-    box-shadow: 5px 0 18px rgba(15,23,42,.06) !important;
-}
-section[data-testid="stSidebar"] > div:first-child { padding: .65rem .7rem !important; }
-section[data-testid="stSidebar"] img {
-    border-radius: 14px !important;
-    border: 1px solid rgba(255,255,255,.9) !important;
-    box-shadow: var(--shadow-soft) !important;
-}
-section[data-testid="stSidebar"] div[data-testid="stButton"] { margin: 0 !important; }
-section[data-testid="stSidebar"] div[data-testid="stButton"] > button {
-    width: 100% !important;
-    min-height: 42px !important;
-    margin: 0 !important;
-    border-radius: 0 !important;
-    justify-content: flex-start !important;
-    text-align: left !important;
-    background: var(--sed-blue) !important;
-    color: #fff !important;
-    border: 0 !important;
-    border-bottom: 1px solid rgba(255,255,255,.22) !important;
-    box-shadow: none !important;
-    font-size: .88rem !important;
-    font-weight: 750 !important;
-    padding: .48rem .75rem !important;
-}
-section[data-testid="stSidebar"] div[data-testid="stButton"] > button:hover {
-    background: linear-gradient(90deg, var(--sed-blue-dark), var(--sed-blue), #22c7a8) !important;
-    transform: none !important;
-}
-section[data-testid="stSidebar"] div[data-testid="stButton"] > button[kind="primary"] {
-    background: linear-gradient(90deg, #2d7eb9, #3f98d4, #22c7a8) !important;
-    color: #fff !important;
-    border-left: 5px solid var(--sed-yellow) !important;
-    font-weight: 900 !important;
-}
-section[data-testid="stSidebar"]::after {
-    content: "✨";
-    position: fixed;
-    left: 242px;
-    bottom: 18px;
-    width: 34px;
-    height: 34px;
-    border-radius: 999px;
-    display: grid;
-    place-items: center;
-    background: var(--uni-rainbow);
-    color: #fff;
-    box-shadow: 0 10px 24px rgba(168,85,247,.20);
-    z-index: 4;
+        radial-gradient(circle at 8% 6%, rgba(244,114,182,0.28), transparent 34%),
+        radial-gradient(circle at 86% 10%, rgba(147,197,253,0.24), transparent 30%),
+        radial-gradient(circle at 80% 85%, rgba(45,212,191,0.22), transparent 28%),
+        linear-gradient(135deg, #fff7fb 0%, #fffaf0 26%, #f3fcff 50%, #f6f2ff 76%, #fff8fd 100%) !important;
+    color: var(--dark) !important;
 }
 
-/* CABECALHO/PAINEL SED */
-.sed-dashboard-header, .main-header, .page-banner {
-    background: rgba(255,255,255,.94) !important;
-    border: 1px solid var(--sed-border) !important;
-    border-radius: 8px !important;
-    box-shadow: var(--shadow-soft) !important;
+[data-testid="stAppViewContainer"] {
+    background: transparent !important;
+}
+
+.main .block-container {
+    max-width: 1480px !important;
+    padding-top: 1.4rem !important;
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
+    padding-bottom: 3rem !important;
+}
+
+footer { visibility: hidden; }
+#MainMenu { visibility: hidden; }
+
+/* ============================================ */
+/* ========== SIDEBAR SIMPLES ========== */
+/* ============================================ */
+section[data-testid="stSidebar"] {
+    background: #f8fbff !important;
+    border-right: 1px solid #e2e8f0 !important;
+    min-width: 300px !important;
+    max-width: 300px !important;
+}
+
+section[data-testid="stSidebar"] > div:first-child {
+    padding: 0.75rem !important;
+}
+
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] span,
+section[data-testid="stSidebar"] h1,
+section[data-testid="stSidebar"] h2,
+section[data-testid="stSidebar"] h3 {
+    color: #334155 !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stButton"] {
+    margin: 0.2rem 0 !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stButton"] > button {
+    background: #ffffff !important;
+    border: 1px solid #d9e2f0 !important;
+    border-radius: 12px !important;
+    color: #1e293b !important;
+    min-height: 46px !important;
+    text-align: left !important;
+    box-shadow: none !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stButton"] > button:hover {
+    border-color: #93c5fd !important;
+    background: #f8fbff !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stButton"] > button[kind="primary"] {
+    background: #e0ecff !important;
+    border-color: #60a5fa !important;
+    color: #1e3a8a !important;
+    font-weight: 700 !important;
+}
+
+/* ============================================ */
+/* ========== TIPOGRAFIA ========== */
+/* ============================================ */
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Nunito', sans-serif !important;
+    font-weight: 700 !important;
+    color: var(--dark) !important;
+    letter-spacing: -0.02em !important;
+    margin-bottom: 0.75rem !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+}
+
+h1 { font-size: 1.9rem !important; }
+h2 { font-size: 1.55rem !important; }
+h3 { font-size: 1.25rem !important; }
+h4 { font-size: 1.05rem !important; }
+
+p, span, div, label, li {
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+    line-height: 1.6 !important;
+}
+
+button {
+    white-space: normal !important;
+}
+
+[data-testid="stFileUploaderDropzone"] * {
+    white-space: nowrap !important;
+}
+[data-testid="stSidebar"] button {
+    white-space: normal !important;
+}
+
+/* ============================================ */
+/* ========== HEADER DA ESCOLA ========== */
+/* ============================================ */
+.main-header {
+    background:
+        radial-gradient(circle at top right, rgba(255,255,255,0.7), transparent 36%),
+        linear-gradient(120deg, #fff7fc 0%, #fffaf2 38%, #f6fbff 72%, #faf5ff 100%);
+    padding: 2.2rem 2.2rem;
+    border-radius: 24px;
+    color: #241b4d;
+    text-align: center;
+    margin-bottom: 2rem;
+    border: 1.5px solid rgba(196,181,253,0.35);
+    box-shadow: 0 14px 26px rgba(76,29,149,0.08), 0 0 0 1px rgba(255,255,255,0.55) inset;
+    position: relative;
+    overflow: hidden;
+    animation: fadeInUp 0.6s cubic-bezier(.16,1,.3,1) both;
+}
+
+.main-header::before {
+    content: '';
+    position: absolute;
+    top: -60%;
+    right: -10%;
+    width: 500px;
+    height: 500px;
+    background: rgba(129,140,248,0.12);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.main-header::after {
+    content: '';
+    position: absolute;
+    bottom: -40%;
+    left: -8%;
+    width: 350px;
+    height: 350px;
+    background: rgba(244,114,182,0.10);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+/* Pattern decorativo */
+.main-header .pattern {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-image:
+        radial-gradient(circle at 20% 50%, rgba(124,58,237,0.10) 1px, transparent 1px),
+        radial-gradient(circle at 80% 20%, rgba(236,72,153,0.10) 1px, transparent 1px);
+    background-size: 46px 46px;
+    pointer-events: none;
+}
+
+.school-header-inner {
+    position: relative;
+    z-index: 1;
+    max-width: 940px;
+    margin: 0 auto;
+}
+
+
+.school-name {
+    font-family: 'Nunito', sans-serif !important;
+    font-size: clamp(1.8rem, 2.6vw, 2.45rem);
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    margin-bottom: 0.45rem;
+    color: #31215f;
+    line-height: 1.2;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.7);
+    white-space: normal !important;
+}
+
+.school-subtitle {
+    font-size: 0.98rem;
+    font-weight: 700;
+    opacity: 1;
+    margin-bottom: 1rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #6d28d9;
+}
+
+.school-info-chips {
+    display: flex;
+    justify-content: center;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+}
+
+.school-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: rgba(255,255,255,0.62);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(124,58,237,0.22);
+    border-radius: 999px;
+    padding: 0.5rem 0.9rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #3f2d77;
+    white-space: normal;
+}
+
+.school-chip-address {
+    width: min(100%, 820px);
+    justify-content: center;
+}
+
+/* ============================================ */
+/* ========== CARDS DE MÉTRICAS ========== */
+/* ============================================ */
+.metric-card {
+    border-radius: 26px;
+    padding: 1.2rem 1.05rem 1rem 1.05rem;
+    text-align: left;
+    transition: all 0.3s cubic-bezier(.16,1,.3,1);
+    position: relative;
+    overflow: hidden;
+    color: white;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
+    border: 1px solid rgba(255,255,255,0.14);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 16px 30px rgba(15,23,42,0.10);
+}
+
+.metric-card::before {
+    content: '';
+    position: absolute;
+    top: -24px; right: -24px;
+    width: 108px; height: 108px;
+    background: rgba(255,255,255,0.12);
+    border-radius: 50%;
+}
+
+.metric-card:hover {
+    transform: translateY(-7px) scale(1.01);
+    filter: brightness(1.05);
+    box-shadow: 0 22px 40px rgba(15,23,42,0.20) !important;
+}
+
+.metric-icon {
+    font-size: 1.55rem;
+    margin-bottom: 0.75rem;
+    width: 50px;
+    height: 50px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.16);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.18);
+    position: relative;
+    z-index: 1;
+}
+
+.metric-value {
+    font-family: 'Nunito', sans-serif !important;
+    font-size: 2.6rem;
+    font-weight: 900;
+    line-height: 1;
+    position: relative;
+    z-index: 1;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.metric-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    margin-top: 0.55rem;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    opacity: 0.92;
+    position: relative;
+    z-index: 1;
+    white-space: normal !important;
+}
+
+.metric-sub {
+    font-size: 0.75rem;
+    margin-top: 0.35rem;
+    opacity: 0.75;
+    position: relative;
+    z-index: 1;
+}
+
+/* ============================================ */
+/* ========== CARDS GENÉRICOS ========== */
+/* ============================================ */
+.card {
+    background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.98) 100%);
+    padding: 1.5rem;
+    border-radius: 26px;
+    border: 1px solid rgba(148,163,184,0.22);
+    margin: 0.75rem 0;
+    box-shadow: 0 14px 32px rgba(15,23,42,0.08);
+    transition: all 0.25s cubic-bezier(.16,1,.3,1);
+    position: relative;
+    overflow: hidden;
+    color: var(--dark);
+}
+
+.card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px;
+    height: 100%;
+    background: var(--grad-primary);
+    border-radius: 0 0 0 var(--r-2xl);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.card:hover {
+    box-shadow: 0 18px 38px rgba(37,99,235,0.12);
+    transform: translateY(-3px);
+    border-color: rgba(96,165,250,0.48);
+}
+
+.card:hover::before {
+    opacity: 1;
+}
+
+.card-title {
+    font-family: 'Nunito', sans-serif !important;
+    font-weight: 700;
+    color: var(--dark);
+    font-size: 1.05rem;
+    margin-bottom: 0.6rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    white-space: normal !important;
+}
+
+.card b,
+.card span,
+.card div,
+.card p {
+    color: var(--dark) !important;
+    -webkit-text-fill-color: var(--dark) !important;
+}
+
+.card-value {
+    font-family: 'Nunito', sans-serif !important;
+    font-size: 2rem;
+    font-weight: 900;
+    background: var(--grad-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.2;
+}
+
+/* ============================================ */
+/* ========== BADGES ========== */
+/* ============================================ */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 0.85rem;
+    border-radius: var(--r-full);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+}
+
+.badge-primary   { background: var(--primary-xlight); color: var(--primary-dark); border: 1.5px solid #bfdbfe; }
+.badge-success   { background: var(--success-light); color: #065f46; border: 1.5px solid #a7f3d0; }
+.badge-warning   { background: var(--warning-light); color: #92400e; border: 1.5px solid #fde68a; }
+.badge-danger    { background: var(--danger-light); color: #991b1b; border: 1.5px solid #fca5a5; }
+.badge-info      { background: var(--info-light); color: #0c4a6e; border: 1.5px solid #7dd3fc; }
+.badge-purple    { background: var(--purple-light); color: #4c1d95; border: 1.5px solid #c4b5fd; }
+.badge-dark      { background: var(--grad-primary); color: white; border: none; }
+
+/* Gravidade badges grandes */
+.badge-gravidade {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 1.25rem;
+    border-radius: var(--r-full);
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* ============================================ */
+/* ========== CAIXAS DE MENSAGEM ========== */
+/* ============================================ */
+.success-box {
+    background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+    border: 1.5px solid #86efac;
+    border-left: 4px solid var(--success);
+    border-radius: var(--r-xl);
+    padding: 1.1rem 1.25rem;
+    margin: 1rem 0;
+    color: #14532d;
+    font-weight: 500;
+    box-shadow: var(--shadow-sm);
+    animation: fadeInUp 0.35s ease both;
+}
+
+.warning-box {
+    background: linear-gradient(135deg, #fffbeb, #fef9c3);
+    border: 1.5px solid #fde047;
+    border-left: 4px solid var(--warning);
+    border-radius: var(--r-xl);
+    padding: 1.1rem 1.25rem;
+    margin: 1rem 0;
+    color: #78350f;
+    font-weight: 500;
+    box-shadow: var(--shadow-sm);
+    animation: fadeInUp 0.35s ease both;
+}
+
+.error-box {
+    background: linear-gradient(135deg, #fff1f2, #fee2e2);
+    border: 1.5px solid #fca5a5;
+    border-left: 4px solid var(--danger);
+    border-radius: var(--r-xl);
+    padding: 1.1rem 1.25rem;
+    margin: 1rem 0;
+    color: #7f1d1d;
+    font-weight: 500;
+    box-shadow: var(--shadow-sm);
+    animation: fadeInUp 0.35s ease both;
+}
+
+.info-box {
+    background: linear-gradient(135deg, #eff6ff, #dbeafe);
+    border: 1.5px solid #93c5fd;
+    border-left: 4px solid var(--primary);
+    border-radius: var(--r-xl);
+    padding: 1.1rem 1.25rem;
+    margin: 1rem 0;
+    color: #1e3a8a;
+    font-weight: 500;
+    box-shadow: var(--shadow-sm);
+    animation: fadeInUp 0.35s ease both;
+}
+
+.stAlert {
+    border-radius: var(--r-lg) !important;
+    border-left-width: 4px !important;
+    box-shadow: var(--shadow-sm) !important;
+    animation: fadeInUp 0.3s ease both !important;
+    white-space: normal !important;
+}
+
+/* ============================================ */
+/* ========== PROTOCOLO INFO BOX ========== */
+/* ============================================ */
+.protocolo-info {
+    background: linear-gradient(135deg, #f0f4ff, #e8f0fe);
+    border: 1.5px solid #c7d7fd;
+    border-left: 5px solid var(--primary);
+    border-radius: var(--r-xl);
+    padding: 1.25rem 1.5rem;
+    margin: 1rem 0;
+    color: var(--dark-mid);
+    box-shadow: var(--shadow-md);
+    font-size: 0.95rem;
+    line-height: 1.7;
+}
+
+.protocolo-info b {
+    color: var(--primary-dark);
+}
+
+/* ============================================ */
+/* ========== BOTÕES PREMIUM ========== */
+/* ============================================ */
+.stButton > button {
+    border-radius: var(--r-lg) !important;
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 600 !important;
+    font-size: 0.875rem !important;
+    letter-spacing: 0.01em !important;
+    transition: all 0.25s cubic-bezier(.16,1,.3,1) !important;
+    border: none !important;
+    padding: 0.6rem 1.2rem !important;
+    min-height: 40px !important;
+    white-space: normal !important;
+    position: relative;
+    overflow: hidden;
+}
+
+.stButton > button::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0);
+    transition: background 0.2s;
+}
+
+.stButton > button:hover::after {
+    background: rgba(255,255,255,0.12);
+}
+
+.stButton > button[kind="primary"] {
+    background: var(--grad-primary) !important;
+    color: white !important;
+    box-shadow: 0 4px 12px rgba(37,99,235,0.3) !important;
+}
+
+.stButton > button[kind="primary"]:hover {
+    box-shadow: 0 8px 20px rgba(37,99,235,0.4) !important;
+    transform: translateY(-2px) !important;
+}
+
+.stButton > button[kind="primary"]:active {
+    transform: translateY(0) !important;
+    box-shadow: 0 2px 8px rgba(37,99,235,0.3) !important;
+}
+
+.stButton > button[kind="secondary"] {
+    background: var(--white) !important;
+    color: var(--gray-dark) !important;
+    border: 1.5px solid var(--border) !important;
+    box-shadow: var(--shadow-xs) !important;
+}
+
+.stButton > button[kind="secondary"]:hover {
+    background: var(--primary-xlight) !important;
+    border-color: var(--primary-light) !important;
+    color: var(--primary) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+
+/* ============================================ */
+/* ========== INPUTS MODERNOS ========== */
+/* ============================================ */
+.stTextInput > div > div > input,
+.stTextArea > div > div > textarea {
+    border-radius: 18px !important;
+    border: 1px solid rgba(148,163,184,0.30) !important;
+    font-family: 'Inter', sans-serif !important;
+    font-size: 0.96rem !important;
+    background: rgba(255,255,255,0.96) !important;
+    color: var(--dark) !important;
+    transition: all 0.2s !important;
+    padding: 0.72rem 0.95rem !important;
+    box-shadow: 0 10px 22px rgba(15,23,42,0.05) !important;
+}
+
+.stTextInput > div > div > input:focus,
+.stTextArea > div > div > textarea:focus {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.12) !important;
+    outline: none !important;
+}
+
+.stTextArea textarea {
+    min-height: 110px !important;
+    line-height: 1.6 !important;
+}
+
+/* Menu suspenso novo (do zero, simples e estável) */
+[data-baseweb="select"] > div:first-child {
+    border-radius: 12px !important;
+    border: 1px solid #d9e2f0 !important;
+    background: #ffffff !important;
+    min-height: 44px !important;
+    box-shadow: none !important;
+}
+
+[data-baseweb="select"] > div:first-child:focus-within {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 2px rgba(59,130,246,0.14) !important;
+}
+
+[data-baseweb="select"] [role="combobox"],
+[data-baseweb="select"] input,
+[data-baseweb="select"] [aria-live],
+[data-baseweb="select"] [aria-live] * {
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
+    opacity: 1 !important;
+}
+
+[data-baseweb="menu"],
+[role="listbox"] {
+    background: #ffffff !important;
+    border: 1px solid #d9e2f0 !important;
+    border-radius: 10px !important;
+}
+
+[role="option"] {
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
+}
+
+/* Ocultar indicador "Running..." / modo de espera do Streamlit */
+[data-testid="stStatusWidget"],
+[data-testid="stStatusWidget"] *,
+.stStatusWidget,
+header [data-testid="stDecoration"],
+div[class*="StatusWidget"],
+div[class*="statusWidget"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* Também oculta o spinner global de topo da página */
+div[data-testid="stToolbar"] [data-testid="stStatusWidget"],
+.st-emotion-cache-ue6h4q,
+[class*="AppRunningIcon"],
+[class*="appRunningIcon"] {
+    display: none !important;
+}
+
+/* Labels */
+.stTextInput label,
+.stTextArea label,
+.stSelectbox label,
+.stMultiSelect label,
+.stDateInput label,
+.stTimeInput label,
+.stSlider label,
+.stCheckbox label,
+.stRadio label {
+    font-family: 'Inter', sans-serif !important;
+    font-size: 0.82rem !important;
+    font-weight: 600 !important;
+    color: var(--gray-dark) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    margin-bottom: 0.25rem !important;
+}
+
+/* ============================================ */
+/* ========== TABS ========== */
+/* ============================================ */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 0.35rem;
+    background: var(--border-light);
+    padding: 0.45rem;
+    border-radius: var(--r-xl);
+    border: 1.5px solid var(--border);
+    flex-wrap: wrap;
+}
+
+.stTabs [data-baseweb="tab"] {
+    border-radius: var(--r-lg) !important;
+    padding: 0.55rem 1.1rem !important;
+    font-family: 'Inter', sans-serif !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    color: var(--gray) !important;
+    transition: all 0.2s !important;
+    border: none !important;
+    background: transparent !important;
+    white-space: nowrap !important;
+}
+
+.stTabs [data-baseweb="tab"]:hover {
+    background: var(--white) !important;
+    color: var(--primary) !important;
+}
+
+.stTabs [aria-selected="true"] {
+    background: var(--white) !important;
+    color: var(--primary-dark) !important;
+    font-weight: 700 !important;
+    box-shadow: var(--shadow-md) !important;
+    border-bottom: 2px solid var(--primary) !important;
+}
+
+/* ============================================ */
+/* ========== DATAFRAME PREMIUM ========== */
+/* ============================================ */
+[data-testid="stDataFrame"] {
+    border-radius: var(--r-xl) !important;
     overflow: hidden !important;
-    position: relative !important;
-    margin-bottom: 1rem !important;
+    border: 1.5px solid var(--border) !important;
+    box-shadow: var(--shadow-md) !important;
 }
-.sed-dashboard-header::before, .main-header::before, .page-banner::before {
-    content: "" !important;
-    display: block !important;
-    position: static !important;
-    width: 100% !important;
-    height: 6px !important;
-    background: var(--uni-rainbow) !important;
-    border-radius: 0 !important;
+
+[data-testid="stDataFrame"] th {
+    background: linear-gradient(135deg, #1d4ed8, #2563eb) !important;
+    color: white !important;
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 700 !important;
+    font-size: 0.8rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    padding: 0.7rem 1rem !important;
+    white-space: nowrap !important;
 }
+
+[data-testid="stDataFrame"] td {
+    padding: 0.55rem 1rem !important;
+    border-bottom: 1px solid var(--border-light) !important;
+    font-size: 0.875rem !important;
+    color: var(--gray-dark) !important;
+    white-space: normal !important;
+}
+
+[data-testid="stDataFrame"] tr:nth-child(even) td {
+    background: #fafbff !important;
+}
+
+[data-testid="stDataFrame"] tr:hover td {
+    background: var(--primary-xlight) !important;
+    color: var(--primary-dark) !important;
+}
+
+/* ============================================ */
+/* ========== EXPANDER ========== */
+/* ============================================ */
+div[data-testid="stExpander"] {
+    border-radius: var(--r-xl) !important;
+    border: 1.5px solid var(--border) !important;
+    background: var(--white) !important;
+    box-shadow: var(--shadow-xs) !important;
+    margin: 0.6rem 0 !important;
+    transition: all 0.25s ease !important;
+    overflow: hidden;
+}
+
+div[data-testid="stExpander"]:hover {
+    box-shadow: var(--shadow-md) !important;
+    border-color: #93c5fd !important;
+}
+
+.streamlit-expanderHeader {
+    border-radius: var(--r-xl) !important;
+    background: linear-gradient(135deg, #fafbff, var(--white)) !important;
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 600 !important;
+    color: var(--dark-mid) !important;
+    padding: 0.8rem 1.25rem !important;
+}
+
+.streamlit-expanderHeader:hover {
+    background: var(--primary-xlight) !important;
+    color: var(--primary-dark) !important;
+}
+
+/* ============================================ */
+/* ========== FORMULÁRIOS ========== */
+/* ============================================ */
+div[data-testid="stForm"] {
+    background: linear-gradient(135deg, #fafbff, var(--white)) !important;
+    border-radius: var(--r-2xl) !important;
+    padding: 1.75rem !important;
+    border: 1.5px solid var(--border) !important;
+    box-shadow: var(--shadow-md) !important;
+    margin: 1.25rem 0 !important;
+    transition: all 0.25s !important;
+}
+
+div[data-testid="stForm"]:hover {
+    border-color: #93c5fd !important;
+    box-shadow: var(--shadow-blue) !important;
+}
+
+/* ============================================ */
+/* ========== MÉTRICAS STREAMLIT ========== */
+/* ============================================ */
+[data-testid="metric-container"] {
+    background: var(--white);
+    border: 1.5px solid var(--border);
+    border-radius: var(--r-xl);
+    padding: 1.1rem;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.25s;
+}
+
+[data-testid="metric-container"]:hover {
+    box-shadow: var(--shadow-md);
+    border-color: #93c5fd;
+    transform: translateY(-2px);
+}
+
+[data-testid="metric-container"] [data-testid="stMetricLabel"] label {
+    font-size: 0.78rem !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.06em !important;
+    color: var(--gray) !important;
+    white-space: normal !important;
+}
+
+[data-testid="metric-container"] [data-testid="stMetricValue"] {
+    font-family: 'Nunito', sans-serif !important;
+    font-size: 1.9rem !important;
+    font-weight: 800 !important;
+    color: var(--dark) !important;
+}
+
+/* ============================================ */
+/* ========== PROGRESS BAR ========== */
+/* ============================================ */
+.stProgress > div > div > div {
+    background: var(--grad-primary) !important;
+    border-radius: var(--r-full) !important;
+}
+.stProgress > div > div {
+    background: var(--border-light) !important;
+    border-radius: var(--r-full) !important;
+}
+
+/* ============================================ */
+/* ========== SECTION TITLES ========== */
+/* ============================================ */
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 1.5rem 0 1rem 0;
+    padding-bottom: 0.6rem;
+    border-bottom: 2px solid var(--border);
+    position: relative;
+}
+
+.section-title::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 60px;
+    height: 2px;
+    background: var(--grad-primary);
+    border-radius: var(--r-full);
+}
+
+.section-title h3 {
+    margin: 0 !important;
+    font-size: 1.1rem !important;
+    color: var(--dark-mid) !important;
+}
+
+/* ============================================ */
+/* ========== MAPA DA SALA ========== */
+/* ============================================ */
+.sala-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 20px 0;
+    padding: 24px;
+    background: linear-gradient(135deg, #f0f4ff, #f8fafc);
+    border-radius: var(--r-2xl);
+    border: 1.5px solid var(--border);
+    box-shadow: var(--shadow-md);
+}
+
+.fileira-row {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.assento-card {
+    width: 74px;
+    height: 52px;
+    border: 2px solid var(--border);
+    border-radius: var(--r-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    text-align: center;
+    background: var(--white);
+    transition: all 0.2s;
+    padding: 3px;
+    word-break: break-word;
+    cursor: default;
+    box-shadow: var(--shadow-xs);
+}
+
+.assento-card.ocupado {
+    background: var(--grad-primary);
+    color: white;
+    border-color: var(--primary);
+    box-shadow: 0 4px 8px rgba(37,99,235,0.25);
+}
+
+.assento-card.vazio {
+    background: var(--white);
+    color: var(--gray-light);
+    border-style: dashed;
+}
+
+.lousa {
+    width: 100%;
+    max-width: 320px;
+    height: 38px;
+    background: linear-gradient(135deg, #0f172a, #1e293b);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800;
+    font-size: 0.85rem;
+    letter-spacing: 0.1em;
+    border-radius: var(--r-md);
+    margin: 12px auto;
+    box-shadow: var(--shadow-md);
+}
+
+/* ============================================ */
+/* ========== GLASS EFFECT ========== */
+/* ============================================ */
+.glass-effect {
+    background: rgba(255,255,255,0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1.5px solid rgba(255,255,255,0.4);
+}
+
+/* ============================================ */
+/* ========== GRADIENT TEXT ========== */
+/* ============================================ */
+.gradient-text {
+    background: var(--grad-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-family: 'Nunito', sans-serif !important;
+    font-weight: 900;
+}
+
+.gradient-text-warm {
+    background: var(--grad-warm);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-family: 'Nunito', sans-serif !important;
+    font-weight: 900;
+}
+
+/* ============================================ */
+/* ========== QUICK ACTION CARDS ========== */
+/* ============================================ */
+.quick-action-card {
+    background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.98));
+    border: 1px solid rgba(148,163,184,0.20);
+    border-radius: 24px;
+    padding: 1.25rem;
+    text-align: center;
+    transition: all 0.3s cubic-bezier(.16,1,.3,1);
+    box-shadow: 0 12px 28px rgba(15,23,42,0.08);
+    cursor: pointer;
+}
+
+.quick-action-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 18px 36px rgba(37,99,235,0.14);
+    border-color: rgba(96,165,250,0.55);
+}
+
+.quick-action-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+/* ============================================ */
+/* ========== PAGE BANNER ========== */
+/* ============================================ */
+.page-banner {
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 1.4rem;
+    padding: 1.35rem 1.45rem;
+    border-radius: 24px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(248,250,252,0.98) 100%);
+    border: 1px solid rgba(148,163,184,0.20);
+    box-shadow: 0 16px 34px rgba(15,23,42,0.08);
+}
+
+.page-banner::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 6px;
+    background: var(--banner-accent, #2563eb);
+}
+
+.page-banner::after {
+    content: '';
+    position: absolute;
+    top: -45px;
+    right: -30px;
+    width: 150px;
+    height: 150px;
+    border-radius: 999px;
+    background: radial-gradient(circle, rgba(37,99,235,0.10), transparent 70%);
+}
+
+.page-banner-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.page-banner-icon {
+    width: 58px;
+    height: 58px;
+    border-radius: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--banner-accent, #2563eb), rgba(15,23,42,0.92));
+    color: white;
+    font-size: 1.5rem;
+    box-shadow: 0 12px 24px rgba(15,23,42,0.14);
+    flex-shrink: 0;
+}
+
+.page-banner-copy {
+    min-width: 0;
+}
+
+.page-banner-kicker {
+    color: var(--banner-accent, #2563eb);
+    font-size: 0.74rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.page-banner-title {
+    font-family: 'Nunito', sans-serif !important;
+    color: var(--dark);
+    font-size: 1.55rem;
+    font-weight: 900;
+    line-height: 1.15;
+    margin: 0.18rem 0 0.2rem 0;
+}
+
+.page-banner-subtitle {
+    color: var(--gray);
+    font-size: 0.95rem;
+    margin: 0;
+}
+
+/* ============================================ */
+/* ========== SECTION HEADERS ========== */
+/* ============================================ */
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0.4rem 0 0.95rem 0;
+}
+
+.section-header-bar {
+    width: 5px;
+    height: 24px;
+    border-radius: 999px;
+    background: var(--section-accent, linear-gradient(180deg,#2563eb,#0891b2));
+    flex-shrink: 0;
+}
+
+.section-header-copy {
+    min-width: 0;
+}
+
+.section-header-title {
+    margin: 0;
+    font-family: 'Nunito', sans-serif;
+    font-size: 1.12rem;
+    font-weight: 900;
+    color: #0f172a;
+    line-height: 1.15;
+}
+
+.section-header-subtitle {
+    margin: 0.15rem 0 0 0;
+    color: #64748b;
+    font-size: 0.84rem;
+}
+
+/* ============================================ */
+/* ========== DASHBOARD PANORAMA ========== */
+/* ============================================ */
+.dashboard-panorama {
+    overflow: hidden;
+    border-radius: 8px;
+    background: #ffffff;
+    border: 1px solid #d7e3f0;
+    box-shadow: 0 10px 24px rgba(37,99,235,0.08);
+    margin: 1.1rem 0 1.25rem;
+}
+
+.dashboard-panorama-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    background: linear-gradient(90deg, #22c7a8, #0ea5e9);
+    color: #ffffff;
+    padding: 0.75rem 1rem;
+}
+
+.dashboard-panorama-title {
+    margin: 0;
+    font-size: 0.98rem;
+    font-weight: 850;
+    color: #ffffff;
+}
+
+.dashboard-panorama-date {
+    flex: 0 0 auto;
+    padding: 0.32rem 0.7rem;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.18);
+    border: 1px solid rgba(255,255,255,0.35);
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 0.78rem;
+}
+
+.dashboard-panorama-body {
+    padding: 1rem;
+    background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+}
+
+.dashboard-panorama-text {
+    margin: 0;
+    color: #334155;
+    font-size: 0.94rem;
+    line-height: 1.55;
+    max-width: 100%;
+}
+
+.dashboard-panorama-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-top: 0.95rem;
+}
+
+.dashboard-panorama-mini {
+    min-width: 0;
+    border-radius: 8px;
+    border: 1px solid #dbeafe;
+    background: #f8fbff;
+    padding: 0.72rem 0.8rem;
+}
+
+.dashboard-panorama-mini-label {
+    margin: 0 0 0.2rem;
+    color: #64748b;
+    font-size: 0.74rem;
+    font-weight: 750;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.dashboard-panorama-mini-value {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1.02rem;
+    line-height: 1.2;
+    font-weight: 850;
+    overflow-wrap: anywhere;
+}
+
+.sed-dashboard-header {
+    background: #ffffff;
+    border: 1px solid #d7e3f0;
+    border-radius: 8px;
+    box-shadow: 0 8px 22px rgba(15,23,42,0.06);
+    margin: 0 0 1rem;
+    overflow: hidden;
+}
+
 .sed-dashboard-top {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    padding: 1rem 1.15rem .8rem !important;
-}
-.sed-dashboard-brand { display:flex; align-items:center; gap:.85rem; min-width:0; }
-.sed-dashboard-mark, .page-banner-icon, .sed-section-icon {
-    background: linear-gradient(135deg, var(--sed-blue), var(--sed-green)) !important;
-    color: #fff !important;
-    border-radius: 8px !important;
-    box-shadow: 0 8px 18px rgba(47,157,221,.20) !important;
-}
-.sed-dashboard-mark {
-    width: 48px; height: 48px; display:grid; place-items:center; font-size:1.45rem; font-weight:900;
-}
-.sed-dashboard-kicker {
-    margin:0 !important; color:#6b7280 !important; font-size:.82rem !important;
-    font-weight:850 !important; text-transform:uppercase !important;
-}
-.sed-dashboard-title {
-    margin:.08rem 0 0 !important;
-    color: var(--sed-blue) !important;
-    font-size: clamp(1.55rem,2.4vw,2.2rem) !important;
-    font-weight: 900 !important;
-    line-height:1 !important;
-}
-.sed-dashboard-user { text-align:right; color:#64748b; font-size:.82rem; font-weight:650; }
-.sed-dashboard-user b { color: var(--sed-blue-dark); }
-.sed-dashboard-strip {
-    display:flex; flex-wrap:wrap; gap:.45rem; justify-content:flex-end;
-    padding:0 1.15rem 1rem !important;
-}
-.sed-dashboard-pill {
-    display:inline-flex; align-items:center; gap:.3rem;
-    background: var(--sed-blue) !important;
-    color:#fff !important; border-radius:4px !important; padding:.38rem .7rem !important;
-    font-size:.78rem !important; font-weight:800 !important; box-shadow:none !important;
-}
-.sed-dashboard-pill:hover { background: var(--sed-blue-dark) !important; }
-
-/* BLOCO DE BOAS-VINDAS E PANORAMA */
-.conviva-welcome-sed, .dashboard-panorama, .form-panel, .card, .protocolo-info,
-.sed-feature-card, .sed-section-title, .sed-form-card-header, .sed-tool-card,
-.info-box, .success-box, .warning-box, .error-box {
-    background: rgba(255,255,255,.90) !important;
-    border: 1px solid var(--sed-border) !important;
-    border-radius: 10px !important;
-    box-shadow: var(--shadow-soft) !important;
-}
-.conviva-welcome-sed {
-    display:flex; align-items:center; gap:.95rem; padding:1rem 1.15rem;
-    border-left: 5px solid var(--sed-green) !important; margin-bottom:1rem;
-}
-.conviva-welcome-sed-icon {
-    width:44px;height:44px;border-radius:8px;display:grid;place-items:center;background:var(--sed-blue-light);font-size:1.4rem;
-}
-.conviva-welcome-sed-title { margin:0; color:#1f2937; font-weight:900; font-size:1.08rem; }
-.conviva-welcome-sed-sub, .conviva-welcome-sed-quote { margin:.2rem 0 0; color:#64748b; font-size:.88rem; }
-.conviva-welcome-sed-quote { color:#0f766e; font-weight:800; }
-.dashboard-panorama { overflow:hidden; margin:1rem 0; }
-.dashboard-panorama-bar {
-    display:flex; align-items:center; justify-content:space-between; gap:1rem;
-    padding:.75rem 1rem; background:linear-gradient(90deg,var(--sed-green),var(--sed-blue),#a78bfa); color:white;
-}
-.dashboard-panorama-title { margin:0; color:#fff; font-weight:900; }
-.dashboard-panorama-date {
-    background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.34); border-radius:999px; padding:.26rem .65rem; font-size:.76rem; font-weight:800;
-}
-.dashboard-panorama-body { padding:1rem; background:rgba(255,255,255,.86); }
-.dashboard-panorama-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:.75rem; margin-top:.9rem; }
-.dashboard-panorama-mini, .sed-kpi-item {
-    background:linear-gradient(135deg,#ffffff,#f8fbff) !important;
-    border:1px solid var(--sed-border) !important;
-    border-radius:8px !important;
-    padding:.75rem .85rem !important;
-}
-.dashboard-panorama-mini-label, .sed-kpi-label {
-    display:block; color:#64748b; font-size:.72rem; font-weight:850; letter-spacing:.06em; text-transform:uppercase; margin-bottom:.25rem;
-}
-.dashboard-panorama-mini-value, .sed-kpi-value {
-    display:block; color:#1e3a8a; font-size:1rem; font-weight:900; overflow-wrap:anywhere;
+    padding: 1rem 1.1rem 0.85rem;
 }
 
-/* CARDS/MODULOS no modelo SED */
-.sed-module-grid, .quick-action-grid {
-    display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:1rem; margin:1rem 0;
-}
-.sed-module-card, .quick-action-card {
-    min-height:78px; border-radius:6px !important; border:1px solid #cbddee !important;
-    background: linear-gradient(135deg, rgba(63,152,212,.95), rgba(34,199,168,.82)) !important;
-    color:#fff !important; padding:1rem !important; box-shadow:var(--shadow-soft) !important;
-    position:relative; overflow:hidden;
-}
-.sed-module-card::before, .quick-action-card::before {
-    content:""; position:absolute; inset:0; background:linear-gradient(120deg, transparent, rgba(255,255,255,.18), transparent); transform:translateX(-100%);
-}
-.sed-module-card:hover::before, .quick-action-card:hover::before { animation: shimmer 1.2s ease; }
-.quick-action-card:hover { transform:translateY(-2px); }
-@keyframes shimmer { 100% { transform: translateX(100%); } }
-
-/* SECOES compactas */
-.sed-section-title {
-    display:flex; align-items:center; gap:.75rem; padding:.85rem .95rem !important; margin:.8rem 0 .9rem !important;
-    border-left:5px solid var(--sed-green) !important;
-}
-.sed-section-icon { width:40px !important; height:40px !important; display:grid; place-items:center; font-size:1.1rem !important; flex:0 0 auto; }
-.sed-section-kicker { color:#6d28d9; font-size:.70rem; font-weight:900; letter-spacing:.13em; text-transform:uppercase; }
-.sed-section-heading { color:#1f2937; font-weight:900; font-size:1.05rem; }
-.sed-section-subtitle { color:#64748b; font-size:.85rem; }
-.sed-tool-card, .sed-feature-card { padding:.95rem !important; min-height:auto !important; }
-.sed-tool-card-title, .sed-feature-card-title, .sed-form-card-title, .form-panel-title { color:#1f2937 !important; font-weight:900 !important; }
-.sed-tool-card-subtitle, .sed-feature-card-meta, .sed-form-card-subtitle, .form-panel-subtitle { color:#64748b !important; font-size:.86rem !important; }
-
-/* WIDGETS */
-.stTextInput input, .stTextArea textarea, .stNumberInput input, [data-baseweb="select"] > div:first-child,
-[data-baseweb="input"] input {
-    border-radius: 8px !important;
-    border:1px solid #b9cce0 !important;
-    background:rgba(255,255,255,.96) !important;
-    color:#1f2937 !important;
-    box-shadow: inset 0 1px 2px rgba(15,23,42,.04) !important;
-}
-.stTextInput input:focus, .stTextArea textarea:focus, .stNumberInput input:focus, [data-baseweb="select"] > div:first-child:focus-within {
-    border-color: var(--sed-blue) !important;
-    box-shadow:0 0 0 3px rgba(63,152,212,.16) !important;
-}
-.stTextArea textarea { min-height:100px !important; }
-.stButton > button {
-    border-radius: 6px !important; min-height:40px !important;
-    font-weight:800 !important; box-shadow:none !important; border:1px solid #cbddee !important;
-}
-.stButton > button[kind="primary"] {
-    background: linear-gradient(90deg,var(--sed-blue),var(--sed-green)) !important; color:white !important; border-color:transparent !important;
-}
-.stButton > button[kind="secondary"] { background:#fff !important; color:#365076 !important; }
-.stButton > button:hover { filter:brightness(.98); transform:none !important; }
-
-/* TABS, EXPANDERS, FORMS */
-[data-testid="stTabs"] div[role="tablist"] {
-    background:rgba(255,255,255,.90) !important; border:1px solid var(--sed-border) !important; border-radius:8px !important; padding:.35rem !important; box-shadow:none !important;
-}
-[data-testid="stTabs"] button[role="tab"] {
-    border-radius:6px !important; min-height:38px !important; padding:0 .75rem !important; color:#355171 !important; font-weight:750 !important;
-}
-[data-testid="stTabs"] button[aria-selected="true"] {
-    background:linear-gradient(90deg,#fff,#f5fbff) !important; color:var(--sed-blue-dark) !important; border-bottom:3px solid var(--sed-green) !important; box-shadow:none !important;
-}
-div[data-testid="stExpander"] {
-    border-radius:8px !important; border:1px solid var(--sed-border) !important; background:rgba(255,255,255,.90) !important; box-shadow:var(--shadow-soft) !important; overflow:hidden;
-}
-div[data-testid="stForm"] {
-    border-radius:10px !important; border:1px solid var(--sed-border) !important; background:rgba(255,255,255,.90) !important; box-shadow:var(--shadow-soft) !important; padding:1.2rem !important;
-}
-
-/* TABELAS */
-[data-testid="stDataFrame"], [data-testid="stDataEditor"] {
-    border-radius:8px !important; border:1px solid var(--sed-border) !important; box-shadow:var(--shadow-soft) !important; overflow:hidden !important; background:#fff !important;
-}
-[data-testid="stDataFrame"] [role="columnheader"], [data-testid="stDataEditor"] [role="columnheader"] {
-    background:#eaf6ff !important; color:#1e3a8a !important; font-weight:900 !important;
-}
-[data-testid="stDataFrame"] [role="gridcell"], [data-testid="stDataEditor"] [role="gridcell"] { color:#1f2937 !important; }
-
-/* ALERTAS */
-.stAlert, .info-box, .success-box, .warning-box, .error-box { border-radius:8px !important; box-shadow:var(--shadow-soft) !important; }
-.info-box { border-left:5px solid var(--sed-blue) !important; color:#1e3a8a !important; }
-.success-box { border-left:5px solid var(--sed-green) !important; color:#065f46 !important; }
-.warning-box { border-left:5px solid var(--sed-yellow) !important; color:#92400e !important; }
-.error-box { border-left:5px solid #ef4444 !important; color:#991b1b !important; }
-
-/* METRICAS */
-[data-testid="metric-container"] {
-    background:rgba(255,255,255,.92) !important; border:1px solid var(--sed-border) !important; border-radius:8px !important;
-    padding:.8rem .9rem !important; box-shadow:var(--shadow-soft) !important;
-}
-[data-testid="metric-container"] [data-testid="stMetricValue"] { font-size:1.18rem !important; line-height:1.2 !important; overflow-wrap:anywhere; }
-[data-testid="metric-container"] [data-testid="stMetricLabel"] { color:#64748b !important; font-weight:900 !important; }
-
-/* MAPA DE SALA E CARDS LEGADOS */
-.sala-grid, .form-panel, .card, .protocolo-info { border-radius:10px !important; }
-.badge { border-radius:999px; padding:.28rem .7rem; font-size:.72rem; font-weight:850; }
-.badge-primary { background:#eaf6ff; color:#1e3a8a; border:1px solid #bfdbfe; }
-.badge-success { background:#dcfce7; color:#065f46; border:1px solid #86efac; }
-.badge-warning { background:#fef3c7; color:#92400e; border:1px solid #fcd34d; }
-.badge-danger { background:#fee2e2; color:#991b1b; border:1px solid #fca5a5; }
-.badge-purple { background:#f3e8ff; color:#6d28d9; border:1px solid #d8b4fe; }
-
-/* RESPONSIVO */
-@media (max-width: 900px) {
-    .main .block-container { padding-left:.8rem !important; padding-right:.8rem !important; }
-    section[data-testid="stSidebar"] { min-width:260px !important; max-width:260px !important; }
-    section[data-testid="stSidebar"]::after { display:none !important; }
-    .sed-dashboard-top { flex-direction:column; align-items:flex-start; }
-    .sed-dashboard-user { text-align:left; }
-    .sed-dashboard-strip { justify-content:flex-start; }
-}
-
-/* ============================================ */
-/* AJUSTE FINAL: IDENTIDADE ESCOLA CONVIVA 179 */
-/* ============================================ */
-.sed-system-title,
-.sed-dashboard-title {
-    color: #2f9ddd !important;
-    font-size: clamp(1.35rem, 2.1vw, 1.95rem) !important;
-    line-height: 1.08 !important;
-    max-width: 720px !important;
-}
-.sed-secretaria,
-.sed-dashboard-kicker {
-    color: #64748b !important;
-    font-size: 0.78rem !important;
-    letter-spacing: 0.06em !important;
-    text-transform: uppercase !important;
-}
-.sed-logo-mark,
-.sed-dashboard-mark {
-    min-width: 48px !important;
-    width: 48px !important;
-    height: 48px !important;
-    font-size: 0.95rem !important;
-    border-radius: 10px !important;
-}
-.sed-global-header,
-.sed-dashboard-header {
-    border-top: 5px solid transparent !important;
-    border-image: linear-gradient(90deg,#ff7fd1,#ffd67f,#97f7f0,#9cc7ff,#d8a0ff) 1 !important;
-}
-.sed-header-top,
-.sed-dashboard-top {
-    align-items: center !important;
-}
-.sed-header-brand,
 .sed-dashboard-brand {
-    min-width: 0 !important;
-    flex: 1 1 auto !important;
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    min-width: 0;
 }
-.sed-user-box,
+
+.sed-dashboard-mark {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #2f9ddd, #21c4a8);
+    color: #ffffff;
+    display: grid;
+    place-items: center;
+    font-size: 1.35rem;
+    font-weight: 900;
+    box-shadow: 0 6px 16px rgba(47,157,221,0.25);
+}
+
+.sed-dashboard-kicker {
+    margin: 0;
+    color: #7a8794;
+    font-size: 0.86rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.sed-dashboard-title {
+    margin: 0.12rem 0 0;
+    color: #2f9ddd;
+    font-size: 1.9rem;
+    line-height: 1;
+    font-weight: 900;
+}
+
 .sed-dashboard-user {
-    min-width: 240px !important;
-    max-width: 390px !important;
-    line-height: 1.35 !important;
+    text-align: right;
+    color: #64748b;
+    font-size: 0.82rem;
+    line-height: 1.45;
+    font-weight: 650;
 }
-.sed-current-page {
-    display: none !important;
+
+.sed-dashboard-user b {
+    color: #2f80d9;
 }
-.sed-panel {
-    clear: both !important;
-    margin-top: 0.95rem !important;
+
+.sed-dashboard-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: flex-end;
+    padding: 0 1.1rem 1rem;
 }
-.sed-grid-modulos {
-    display: grid !important;
-    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)) !important;
-    gap: 0.9rem !important;
+
+.sed-dashboard-pill {
+    background: #3f98d4;
+    color: #ffffff;
+    border-radius: 4px;
+    padding: 0.42rem 0.7rem;
+    font-size: 0.78rem;
+    font-weight: 750;
 }
-.sed-module-card {
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: flex-end !important;
-    min-height: 94px !important;
-    padding: 1rem !important;
-    border-radius: 7px !important;
+
+.conviva-welcome-sed {
+    display: flex;
+    align-items: center;
+    gap: 0.95rem;
+    background: #ffffff;
+    border: 1px solid #d7e3f0;
+    border-left: 5px solid #21c4a8;
+    border-radius: 8px;
+    padding: 1rem 1.1rem;
+    box-shadow: 0 8px 20px rgba(15,23,42,0.06);
+    margin-bottom: 1rem;
 }
-.sed-module-title,
-.sed-module-sub {
-    display: block !important;
-    color: #ffffff !important;
-    line-height: 1.25 !important;
+
+.conviva-welcome-sed-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    background: #eaf6ff;
+    font-size: 1.5rem;
 }
-.sed-module-title {
-    font-size: 0.95rem !important;
-    font-weight: 850 !important;
+
+.conviva-welcome-sed-title {
+    margin: 0;
+    color: #1f1b3a;
+    font-size: 1.12rem;
+    font-weight: 850;
 }
-.sed-module-sub {
-    font-size: 0.78rem !important;
-    opacity: 0.92 !important;
-    margin-top: 0.25rem !important;
+
+.conviva-welcome-sed-sub {
+    margin: 0.2rem 0 0;
+    color: #5b6778;
+    font-size: 0.88rem;
 }
-section[data-testid="stSidebar"] {
-    background:
-        radial-gradient(circle at 15% 8%, rgba(255,127,209,.16), transparent 28%),
-        radial-gradient(circle at 90% 88%, rgba(151,247,240,.18), transparent 28%),
-        #f8fbff !important;
+
+.conviva-welcome-sed-quote {
+    margin: 0.35rem 0 0;
+    color: #0f766e;
+    font-size: 0.86rem;
+    font-weight: 800;
 }
-[data-testid="stSidebar"] .stButton > button {
-    white-space: nowrap !important;
+
+/* ============================================ */
+/* ========== FORM PANELS ========== */
+/* ============================================ */
+.form-panel {
+    margin: 0.2rem 0 1rem 0;
+    padding: 1rem 1.1rem;
+    border-radius: 24px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.97), rgba(248,250,252,0.98));
+    border: 1px solid rgba(148,163,184,0.20);
+    box-shadow: 0 16px 30px rgba(15,23,42,0.07);
+}
+
+.form-panel-title {
+    margin: 0;
+    font-family: 'Nunito', sans-serif;
+    font-size: 1.02rem;
+    font-weight: 900;
+    color: #0f172a;
+}
+
+.form-panel-subtitle {
+    margin: 0.18rem 0 0 0;
+    color: #64748b;
+    font-size: 0.86rem;
+}
+
+/* ============================================ */
+/* ========== DATAFRAME PREMIUM ========== */
+/* ============================================ */
+[data-testid="stDataFrame"] {
+    border-radius: 22px !important;
     overflow: hidden !important;
-    text-overflow: ellipsis !important;
-}
-@media (max-width: 980px) {
-    .sed-header-top,
-    .sed-dashboard-top {
-        align-items: flex-start !important;
-        flex-direction: column !important;
-    }
-    .sed-user-box,
-    .sed-dashboard-user {
-        text-align: left !important;
-        max-width: none !important;
-        width: 100% !important;
-    }
+    border: 1px solid rgba(148,163,184,0.20) !important;
+    box-shadow: 0 16px 32px rgba(15,23,42,0.08) !important;
+    background: rgba(255,255,255,0.96) !important;
 }
 
+[data-testid="stDataFrame"] [role="grid"] {
+    border-radius: 22px !important;
+}
 
+[data-testid="stDataFrame"] [role="columnheader"] {
+    background: linear-gradient(180deg, #eff6ff 0%, #e0f2fe 100%) !important;
+    color: #0f172a !important;
+    font-weight: 800 !important;
+    border-bottom: 1px solid rgba(148,163,184,0.20) !important;
+}
+
+[data-testid="stDataFrame"] [role="gridcell"] {
+    background: rgba(255,255,255,0.96) !important;
+    color: #0f172a !important;
+    border-color: rgba(226,232,240,0.75) !important;
+}
+
+[data-testid="stDataFrame"] [role="row"]:hover [role="gridcell"] {
+    background: #f8fbff !important;
+}
 
 /* ============================================ */
-/* AJUSTE FINAL SOLICITADO: SUAVIZAR CARDS E RESTAURAR CORES ARCO-IRIS */
+/* ========== RESPONSIVO ========== */
 /* ============================================ */
+@media (max-width: 768px) {
+    .main-header { padding: 1.5rem 1rem; }
+    .school-name  { font-size: 1.7rem; }
+    .school-subtitle { letter-spacing: 0.05em; }
+    .metric-value { font-size: 2rem; }
+    .metric-card  { padding: 1.1rem 0.75rem; }
+    .metric-label { font-size: 0.7rem; }
+    .page-banner-content {
+        align-items: flex-start;
+    }
+    .page-banner-title {
+        font-size: 1.25rem;
+    }
+    .main .block-container {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    section[data-testid="stSidebar"] {
+        min-width: 285px !important;
+        max-width: 285px !important;
+    }
+    .stTabs [data-baseweb="tab"] {
+        padding: 0.45rem 0.7rem !important;
+        font-size: 0.78rem !important;
+    }
+    .school-info-chips { display: none; }
+}
+
+
+/* ====================================================== */
+/* CAMADA FINAL - SED PASTEL / ARCO-IRIS / UNICORNIO       */
+/* Objetivo: uma unica camada de padronizacao visual.      */
+/* Mantem as funcoes existentes, reduz poluicao e conflitos.*/
+/* ====================================================== */
 :root {
-    --soft-pink: rgba(255, 127, 209, .20);
-    --soft-yellow: rgba(255, 214, 127, .22);
-    --soft-mint: rgba(151, 247, 240, .22);
-    --soft-blue: rgba(156, 199, 255, .24);
-    --soft-purple: rgba(216, 160, 255, .22);
-    --glass-panel: rgba(255,255,255,.74);
-    --glass-panel-strong: rgba(255,255,255,.86);
-    --soft-border-rainbow: rgba(216, 180, 254, .62);
-    --soft-shadow-rainbow: 0 14px 34px rgba(168, 85, 247, .10), 0 5px 14px rgba(14,165,233,.06);
-    --soft-rainbow-bg: linear-gradient(125deg, rgba(255,127,209,.26) 0%, rgba(255,214,127,.22) 23%, rgba(151,247,240,.25) 48%, rgba(156,199,255,.24) 72%, rgba(216,160,255,.25) 100%);
-    --soft-rainbow-light: linear-gradient(135deg, rgba(255,255,255,.88), rgba(255,247,253,.78) 32%, rgba(240,253,250,.78) 63%, rgba(248,244,255,.80));
-    --soft-rainbow-button: linear-gradient(120deg, rgba(255,127,209,.95) 0%, rgba(255,214,127,.95) 24%, rgba(151,247,240,.95) 48%, rgba(156,199,255,.95) 72%, rgba(216,160,255,.95) 100%);
+    --sed-blue: #2f9ddd;
+    --sed-blue-dark: #1d75b9;
+    --sed-green: #21c4a8;
+    --sed-yellow: #ffe985;
+    --uni-pink: #ffb7e9;
+    --uni-lilac: #d8c4ff;
+    --uni-sky: #bdeaff;
+    --uni-mint: #c9fff3;
+    --uni-cream: #fff7d6;
+    --uni-text: #27324f;
+    --uni-muted: #64748b;
+    --uni-border: rgba(186, 210, 235, 0.72);
+    --uni-border-strong: rgba(130, 174, 217, 0.75);
+    --uni-panel: rgba(255,255,255,0.88);
+    --uni-panel-soft: rgba(255,255,255,0.72);
+    --uni-rainbow: linear-gradient(120deg, #ffb7e9 0%, #ffe985 22%, #c9fff3 46%, #bdeaff 70%, #d8c4ff 100%);
+    --uni-rainbow-strong: linear-gradient(120deg, #ff8bd8 0%, #ffd66b 22%, #9cf7ee 46%, #91caff 70%, #c899ff 100%);
+    --sed-shadow: 0 10px 24px rgba(35, 91, 138, 0.08);
+    --uni-shadow: 0 14px 32px rgba(168, 85, 247, 0.08);
 }
 
+/* Fundo pastel inspirado na imagem enviada, sem usar imagem externa/watermark */
 .stApp {
     background:
-        radial-gradient(circle at 6% 10%, rgba(255,127,209,.34), transparent 30%),
-        radial-gradient(circle at 78% 6%, rgba(151,247,240,.30), transparent 26%),
-        radial-gradient(circle at 92% 82%, rgba(216,160,255,.30), transparent 28%),
-        radial-gradient(circle at 18% 92%, rgba(255,214,127,.22), transparent 25%),
-        linear-gradient(135deg, #fff7fb 0%, #fffaf1 23%, #f1fdff 49%, #f5f2ff 75%, #fff8fd 100%) !important;
+        radial-gradient(circle at 10% 7%, rgba(255,183,233,0.58), transparent 30%),
+        radial-gradient(circle at 35% 0%, rgba(255,233,133,0.40), transparent 28%),
+        radial-gradient(circle at 74% 7%, rgba(189,234,255,0.48), transparent 32%),
+        radial-gradient(circle at 88% 82%, rgba(201,255,243,0.42), transparent 28%),
+        linear-gradient(135deg, #fff7fb 0%, #fffdf0 28%, #f3fcff 58%, #fbf7ff 100%) !important;
+    color: var(--uni-text) !important;
+}
+[data-testid="stAppViewContainer"] { background: transparent !important; }
+.main .block-container {
+    max-width: 1240px !important;
+    padding-top: 1.05rem !important;
+    padding-left: 1.7rem !important;
+    padding-right: 1.7rem !important;
+    padding-bottom: 2.5rem !important;
 }
 
-/* Sidebar mais leve: remove bloco 100% azul e volta para botões suaves */
+/* Tipografia institucional, menor e mais uniforme */
+html, body, [class*="css"] { font-family: 'Inter', 'Segoe UI', sans-serif !important; }
+h1, h2, h3, h4, h5, h6 { font-family: 'Nunito', sans-serif !important; color: var(--uni-text) !important; letter-spacing: -0.015em !important; }
+h1 { font-size: clamp(1.45rem, 2vw, 1.9rem) !important; line-height: 1.16 !important; }
+h2 { font-size: clamp(1.22rem, 1.55vw, 1.45rem) !important; line-height: 1.2 !important; }
+h3 { font-size: 1.08rem !important; line-height: 1.24 !important; }
+h4, h5, h6 { font-size: 0.98rem !important; line-height: 1.28 !important; }
+p, span, div, label, li { line-height: 1.48 !important; }
+small, .small-muted, .stCaption { font-size: 0.82rem !important; color: var(--uni-muted) !important; }
+
+/* Sidebar: modelo SED em azul, com toque pastel */
 section[data-testid="stSidebar"] {
     background:
-        radial-gradient(circle at 12% 4%, rgba(255,127,209,.26), transparent 30%),
-        radial-gradient(circle at 96% 18%, rgba(151,247,240,.24), transparent 30%),
-        radial-gradient(circle at 70% 92%, rgba(216,160,255,.20), transparent 30%),
-        linear-gradient(180deg, rgba(255,255,255,.92), rgba(249,245,255,.88)) !important;
-    border-right: 1px solid rgba(216,180,254,.55) !important;
-    box-shadow: 8px 0 26px rgba(168,85,247,.08) !important;
+        linear-gradient(180deg, rgba(255,255,255,0.88) 0%, rgba(244,250,255,0.92) 54%, rgba(253,242,255,0.90) 100%) !important;
+    border-right: 1px solid var(--uni-border) !important;
+    min-width: 300px !important;
+    max-width: 300px !important;
+    box-shadow: 6px 0 22px rgba(47,157,221,0.08) !important;
 }
-section[data-testid="stSidebar"] div[data-testid="stButton"] > button,
-[data-testid="stSidebar"] .stButton > button {
-    background: rgba(255,255,255,.72) !important;
-    color: #312e81 !important;
-    border: 1px solid rgba(216,180,254,.72) !important;
+section[data-testid="stSidebar"] > div:first-child { padding: 0.78rem !important; }
+section[data-testid="stSidebar"] img {
     border-radius: 14px !important;
-    min-height: 44px !important;
-    margin: .22rem 0 !important;
-    padding: .58rem .78rem !important;
-    box-shadow: 0 9px 20px rgba(168,85,247,.07) !important;
-    backdrop-filter: blur(10px) !important;
-    white-space: normal !important;
-    overflow: visible !important;
-    text-overflow: clip !important;
+    border: 1px solid rgba(255,255,255,0.9) !important;
+    box-shadow: 0 10px 22px rgba(47,157,221,0.12) !important;
 }
-section[data-testid="stSidebar"] div[data-testid="stButton"] > button:hover,
-[data-testid="stSidebar"] .stButton > button:hover {
-    background: linear-gradient(120deg, rgba(255,255,255,.86), rgba(255,247,252,.86), rgba(240,253,250,.86)) !important;
-    border-color: rgba(217,70,239,.42) !important;
-    box-shadow: 0 12px 26px rgba(217,70,239,.10) !important;
+section[data-testid="stSidebar"] div[data-testid="stButton"] { margin: 0.18rem 0 !important; }
+section[data-testid="stSidebar"] div[data-testid="stButton"] > button {
+    width: 100% !important;
+    min-height: 43px !important;
+    border-radius: 5px !important;
+    background: linear-gradient(180deg, #49a8dc 0%, #3f98d4 100%) !important;
+    border: 1px solid rgba(255,255,255,0.44) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 10px rgba(47,157,221,0.16) !important;
+    font-weight: 750 !important;
+    text-align: left !important;
+    padding-left: 0.72rem !important;
+    transition: transform .16s ease, filter .16s ease !important;
 }
-section[data-testid="stSidebar"] div[data-testid="stButton"] > button[kind="primary"],
-[data-testid="stSidebar"] .stButton > button[kind="primary"] {
-    background: linear-gradient(120deg, rgba(255,127,209,.22), rgba(151,247,240,.24), rgba(216,160,255,.25)) !important;
-    color: #312e81 !important;
-    border: 1.5px solid rgba(217,70,239,.38) !important;
-    border-left: 5px solid #d946ef !important;
-    box-shadow: 0 14px 30px rgba(168,85,247,.12) !important;
+section[data-testid="stSidebar"] div[data-testid="stButton"] > button:hover {
+    transform: translateX(2px) !important;
+    filter: brightness(1.04) !important;
 }
-section[data-testid="stSidebar"]::after {
-    background: var(--soft-rainbow-button) !important;
-    box-shadow: 0 12px 26px rgba(217,70,239,.18) !important;
+section[data-testid="stSidebar"] div[data-testid="stButton"] > button[kind="primary"] {
+    background: var(--uni-rainbow-strong) !important;
+    color: #24324f !important;
+    border: 1px solid rgba(255,255,255,0.78) !important;
+    box-shadow: 0 8px 18px rgba(217,70,239,0.16) !important;
 }
 
-/* Topo e barras do sistema com identidade da escola e cores suaves */
+/* Topo/painel SED com cores de unicornio */
 .sed-dashboard-header,
-.main-header,
 .page-banner,
-.sed-global-header {
-    background:
-        radial-gradient(circle at 4% 0%, rgba(255,127,209,.18), transparent 32%),
-        radial-gradient(circle at 86% 0%, rgba(151,247,240,.18), transparent 30%),
-        rgba(255,255,255,.82) !important;
-    border: 1px solid rgba(216,180,254,.62) !important;
-    border-radius: 22px !important;
-    box-shadow: var(--soft-shadow-rainbow) !important;
-    backdrop-filter: blur(12px) !important;
-}
-.sed-dashboard-mark, .page-banner-icon, .sed-section-icon, .sed-logo-mark {
-    background: var(--soft-rainbow-button) !important;
-    color: #2b2140 !important;
-    border-radius: 16px !important;
-    box-shadow: 0 12px 24px rgba(168,85,247,.13) !important;
-}
-.sed-dashboard-title, .sed-system-title, .page-banner-title {
-    color: #31215f !important;
-    text-shadow: 0 1px 0 rgba(255,255,255,.65) !important;
-}
-.sed-dashboard-kicker, .sed-secretaria, .page-banner-kicker {
-    color: #a21caf !important;
-}
-.sed-dashboard-pill {
-    background: rgba(255,255,255,.72) !important;
-    color: #4c1d95 !important;
-    border: 1px solid rgba(216,180,254,.70) !important;
-    border-radius: 999px !important;
-    box-shadow: 0 8px 18px rgba(168,85,247,.07) !important;
-}
-.sed-dashboard-pill:hover {
-    background: var(--soft-rainbow-bg) !important;
-    color: #2b2140 !important;
-}
-
-/* Cards e módulos: troca sólidos por vidro colorido suave */
-.metric-card,
-.sed-module-card,
-.quick-action-card,
-.card,
+.conviva-welcome-sed,
+.dashboard-panorama,
 .form-panel,
+.card,
 .protocolo-info,
 .sed-feature-card,
+.sed-tool-card,
 .sed-section-title,
 .sed-form-card-header,
-.sed-tool-card,
-.info-box,
-.success-box,
-.warning-box,
-.error-box,
-.dashboard-panorama,
-.dashboard-panorama-mini,
-.sed-kpi-item,
-[data-testid="metric-container"],
-div[data-testid="stForm"],
-div[data-testid="stExpander"] {
-    background:
-        linear-gradient(135deg, rgba(255,255,255,.86), rgba(255,247,252,.76) 35%, rgba(240,253,250,.74) 68%, rgba(248,244,255,.78)) !important;
-    color: #2b2140 !important;
-    border: 1px solid rgba(216,180,254,.66) !important;
-    border-radius: 22px !important;
-    box-shadow: var(--soft-shadow-rainbow) !important;
-    backdrop-filter: blur(10px) !important;
+div[data-testid="stForm"] {
+    border-radius: 8px !important;
+    background: var(--uni-panel) !important;
+    border: 1px solid var(--uni-border) !important;
+    box-shadow: var(--sed-shadow) !important;
+    backdrop-filter: blur(8px) !important;
 }
-.metric-card::after,
-.sed-module-card::after,
-.quick-action-card::after,
-.card::after,
-.form-panel::after,
-.sed-feature-card::after,
-.sed-tool-card::after,
-.dashboard-panorama-mini::after,
-.sed-kpi-item::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 0;
-    height: 5px;
-    background: var(--soft-rainbow-button);
-    opacity: .90;
+.sed-dashboard-header { overflow: hidden !important; margin-bottom: 1rem !important; }
+.sed-dashboard-header::before,
+.page-banner::before {
+    content: "" !important;
+    display: block !important;
+    width: 100% !important;
+    height: 7px !important;
+    background: var(--uni-rainbow-strong) !important;
+    position: static !important;
 }
-.metric-card,
-.sed-module-card,
-.quick-action-card,
-.card,
-.form-panel,
-.sed-feature-card,
-.sed-tool-card,
-.dashboard-panorama-mini,
-.sed-kpi-item {
-    position: relative !important;
+.sed-dashboard-top { padding: 0.95rem 1.05rem 0.7rem !important; }
+.sed-dashboard-mark,
+.page-banner-icon,
+.sed-section-icon {
+    background: var(--uni-rainbow-strong) !important;
+    color: #25304f !important;
+    border-radius: 8px !important;
+    box-shadow: 0 10px 22px rgba(168,85,247,0.12) !important;
+}
+.sed-dashboard-title,
+.page-banner-title,
+.sed-section-heading {
+    color: #2f6690 !important;
+    font-weight: 900 !important;
+}
+.sed-dashboard-kicker,
+.page-banner-kicker,
+.sed-section-kicker {
+    color: #7a8794 !important;
+    font-size: 0.72rem !important;
+    letter-spacing: 0.13em !important;
+    font-weight: 900 !important;
+    text-transform: uppercase !important;
+}
+.sed-dashboard-strip { justify-content: flex-end !important; padding: 0 1.05rem 0.95rem !important; }
+.sed-dashboard-pill {
+    background: #3f98d4 !important;
+    color: white !important;
+    border-radius: 4px !important;
+    box-shadow: none !important;
+    font-size: 0.76rem !important;
+}
+.conviva-welcome-sed { border-left: 6px solid #21c4a8 !important; }
+.dashboard-panorama-bar { background: linear-gradient(90deg, #21c4a8, #2f9ddd, #b98cff) !important; }
+
+/* Page header vira cabecalho SED compacto em todas as paginas */
+.page-banner {
+    padding: 0 !important;
+    margin-bottom: 1rem !important;
     overflow: hidden !important;
 }
-.metric-card:hover,
-.sed-module-card:hover,
+.page-banner-content { padding: 0.9rem 1rem !important; gap: 0.85rem !important; }
+.page-banner-icon { width: 42px !important; height: 42px !important; font-size: 1.25rem !important; }
+.page-banner-title { font-size: 1.28rem !important; line-height: 1.18 !important; margin: 0.08rem 0 !important; }
+.page-banner-subtitle { font-size: 0.88rem !important; color: var(--uni-muted) !important; margin: 0.1rem 0 0 !important; }
+.page-banner::after { display: none !important; }
+
+/* Cards centrais no estilo modulos da SED, com pastel */
+.quick-action-card,
+.metric-card,
+.sed-feature-card,
+.sed-tool-card,
+.sed-kpi-item {
+    border-radius: 8px !important;
+    background: linear-gradient(135deg, rgba(255,255,255,0.92), rgba(247,252,255,0.92)) !important;
+    border: 1px solid var(--uni-border) !important;
+    box-shadow: var(--sed-shadow) !important;
+}
 .quick-action-card:hover,
-.card:hover,
-.sed-feature-card:hover,
 .sed-tool-card:hover,
-.dashboard-panorama-mini:hover,
-.sed-kpi-item:hover {
+.sed-feature-card:hover {
     transform: translateY(-2px) !important;
-    box-shadow: 0 18px 38px rgba(168,85,247,.14), 0 8px 20px rgba(14,165,233,.08) !important;
+    box-shadow: 0 12px 26px rgba(47,157,221,0.12) !important;
 }
-
-/* Corrige textos que estavam brancos por causa dos cards sólidos */
-.metric-card *,
-.sed-module-card *,
-.quick-action-card *,
-.card *,
-.form-panel *,
-.sed-feature-card *,
-.sed-tool-card *,
-.dashboard-panorama-mini *,
-.sed-kpi-item * {
-    color: #2b2140 !important;
-    -webkit-text-fill-color: initial !important;
-}
-.metric-icon,
-.quick-action-icon,
-.sed-module-icon {
-    background: rgba(255,255,255,.62) !important;
-    border: 1px solid rgba(216,180,254,.52) !important;
-    color: #a21caf !important;
-    box-shadow: 0 8px 18px rgba(168,85,247,.09) !important;
-}
-.metric-value,
-.card-value,
-.sed-module-title,
-.dashboard-panorama-mini-value,
-.sed-kpi-value {
-    color: #31215f !important;
-    font-weight: 900 !important;
-    background: none !important;
-    -webkit-text-fill-color: #31215f !important;
-}
-.metric-label,
-.metric-sub,
-.sed-module-sub,
-.dashboard-panorama-mini-label,
-.sed-kpi-label,
-.form-panel-subtitle,
+.sed-feature-card-title,
+.sed-tool-card-title,
+.form-panel-title,
+.sed-form-card-title { color: #263a63 !important; font-weight: 900 !important; }
+.sed-feature-card-subtitle,
 .sed-tool-card-subtitle,
-.sed-feature-card-meta {
-    color: #6b5b95 !important;
-    -webkit-text-fill-color: #6b5b95 !important;
+.form-panel-subtitle,
+.sed-form-card-subtitle,
+.sed-section-subtitle { color: var(--uni-muted) !important; font-size: 0.86rem !important; }
+
+/* Metricas compactas */
+[data-testid="stMetric"], [data-testid="metric-container"] {
+    background: rgba(255,255,255,0.86) !important;
+    border: 1px solid var(--uni-border) !important;
+    border-radius: 8px !important;
+    padding: 0.76rem 0.85rem !important;
+    box-shadow: var(--sed-shadow) !important;
+}
+[data-testid="stMetricLabel"], [data-testid="stMetricLabel"] label {
+    color: #2f6690 !important;
+    font-size: 0.74rem !important;
+    letter-spacing: 0.08em !important;
+    font-weight: 850 !important;
+    text-transform: uppercase !important;
+}
+[data-testid="stMetricValue"] { color: #24324f !important; font-size: 1.35rem !important; font-weight: 900 !important; }
+
+/* Inputs e labels padronizados */
+.stTextInput label,
+.stTextArea label,
+.stSelectbox label,
+.stMultiSelect label,
+.stDateInput label,
+.stTimeInput label,
+.stNumberInput label,
+.stRadio label,
+.stCheckbox label {
+    color: #6d5b9f !important;
+    font-size: 0.76rem !important;
+    font-weight: 850 !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+}
+.stTextInput input,
+.stTextArea textarea,
+.stNumberInput input,
+[data-baseweb="select"] > div:first-child,
+[data-baseweb="input"] input,
+.stMultiSelect [data-baseweb="select"] > div:first-child {
+    border-radius: 8px !important;
+    border: 1px solid var(--uni-border-strong) !important;
+    background: rgba(255,255,255,0.92) !important;
+    box-shadow: none !important;
+    color: #24324f !important;
+}
+.stTextInput input:focus,
+.stTextArea textarea:focus,
+.stNumberInput input:focus,
+[data-baseweb="select"] > div:first-child:focus-within {
+    border-color: #2f9ddd !important;
+    box-shadow: 0 0 0 3px rgba(47,157,221,0.12) !important;
 }
 
-/* Panorama: tira barra azul pesada e deixa arco-iris suave */
-.dashboard-panorama-bar {
-    background: var(--soft-rainbow-button) !important;
-    color: #2b2140 !important;
-    border-radius: 20px 20px 0 0 !important;
-}
-.dashboard-panorama-title,
-.dashboard-panorama-date,
-.dashboard-panorama-bar * {
-    color: #2b2140 !important;
-    -webkit-text-fill-color: #2b2140 !important;
-}
-.dashboard-panorama-date {
-    background: rgba(255,255,255,.48) !important;
-    border: 1px solid rgba(255,255,255,.70) !important;
-}
-.dashboard-panorama-body {
-    background: rgba(255,255,255,.62) !important;
-}
-.dashboard-panorama-text {
-    color: #3f2d63 !important;
-}
-
-/* Botões e campos no mesmo estilo pastel */
-.stButton > button[kind="primary"] {
-    background: var(--soft-rainbow-button) !important;
-    color: #2b2140 !important;
-    border: 1px solid rgba(216,180,254,.58) !important;
-    box-shadow: 0 12px 26px rgba(217,70,239,.12) !important;
-}
-.stButton > button[kind="secondary"],
+/* Botoes SED com variante arco-iris */
 .stButton > button {
-    background: rgba(255,255,255,.76) !important;
-    color: #4c1d95 !important;
-    border: 1px solid rgba(216,180,254,.68) !important;
-    border-radius: 14px !important;
-    box-shadow: 0 8px 18px rgba(168,85,247,.06) !important;
+    border-radius: 7px !important;
+    min-height: 39px !important;
+    font-weight: 800 !important;
+    font-size: 0.88rem !important;
+    box-shadow: none !important;
+    border: 1px solid rgba(47,157,221,0.28) !important;
+    transition: transform .14s ease, filter .14s ease !important;
 }
-.stButton > button:hover {
-    background: linear-gradient(120deg, rgba(255,255,255,.90), rgba(255,247,252,.86), rgba(240,253,250,.86)) !important;
-    filter: none !important;
+.stButton > button[kind="primary"] {
+    background: var(--uni-rainbow-strong) !important;
+    color: #25304f !important;
+    border-color: rgba(255,255,255,0.8) !important;
 }
-.stTextInput input, .stTextArea textarea, .stNumberInput input, [data-baseweb="select"] > div:first-child,
-[data-baseweb="input"] input {
-    border-radius: 16px !important;
-    border: 1px solid rgba(216,180,254,.62) !important;
-    background: rgba(255,255,255,.82) !important;
-    box-shadow: 0 8px 18px rgba(168,85,247,.05) !important;
+.stButton > button[kind="secondary"] {
+    background: #ffffff !important;
+    color: #3b5c83 !important;
+    border-color: var(--uni-border-strong) !important;
 }
-.stTextInput input:focus, .stTextArea textarea:focus, .stNumberInput input:focus, [data-baseweb="select"] > div:first-child:focus-within {
-    border-color: rgba(217,70,239,.55) !important;
-    box-shadow: 0 0 0 3px rgba(217,70,239,.10) !important;
-}
+.stButton > button:hover { transform: translateY(-1px) !important; filter: brightness(1.02) !important; }
 
-/* Abas, tabelas e alertas suavizados */
+/* Abas mais secas, como sistema institucional */
 [data-testid="stTabs"] div[role="tablist"] {
-    background: rgba(255,255,255,.58) !important;
-    border: 1px solid rgba(216,180,254,.62) !important;
-    border-radius: 22px !important;
-    box-shadow: 0 10px 24px rgba(168,85,247,.07) !important;
+    gap: 0.35rem !important;
+    background: rgba(255,255,255,0.72) !important;
+    padding: 0.38rem !important;
+    border: 1px solid var(--uni-border) !important;
+    border-radius: 8px !important;
+    box-shadow: var(--sed-shadow) !important;
 }
 [data-testid="stTabs"] button[role="tab"] {
-    border-radius: 16px !important;
-    color: #6b5b95 !important;
+    border-radius: 6px !important;
+    min-height: 38px !important;
+    font-size: 0.86rem !important;
+    font-weight: 800 !important;
+    color: #53647a !important;
 }
 [data-testid="stTabs"] button[aria-selected="true"] {
-    background: rgba(255,255,255,.82) !important;
-    color: #a21caf !important;
-    border-bottom: 3px solid #f472b6 !important;
-    box-shadow: 0 8px 18px rgba(217,70,239,.08) !important;
-}
-[data-testid="stDataFrame"], [data-testid="stDataEditor"] {
-    border-radius: 18px !important;
-    border: 1px solid rgba(216,180,254,.60) !important;
-    box-shadow: var(--soft-shadow-rainbow) !important;
-}
-[data-testid="stDataFrame"] [role="columnheader"], [data-testid="stDataEditor"] [role="columnheader"] {
-    background: linear-gradient(120deg, rgba(255,247,252,.92), rgba(240,253,250,.92), rgba(248,244,255,.92)) !important;
-    color: #31215f !important;
-}
-.info-box { border-left: 5px solid #9cc7ff !important; }
-.success-box { border-left: 5px solid #97f7f0 !important; }
-.warning-box { border-left: 5px solid #ffd67f !important; }
-.error-box { border-left: 5px solid #ff7fd1 !important; }
-
-/* Cards de dashboard/listas: remove aparência chapada azul */
-.sed-grid-modulos .sed-module-card,
-.sed-module-grid .sed-module-card,
-.quick-action-grid .quick-action-card {
-    min-height: 88px !important;
-    justify-content: center !important;
-    padding: 1rem 1.05rem !important;
-}
-.sed-module-title,
-.quick-action-card .card-title {
-    font-size: .98rem !important;
-    line-height: 1.25 !important;
-}
-.sed-module-sub {
-    opacity: 1 !important;
+    background: linear-gradient(135deg, #eaf6ff, #fff7fb) !important;
+    border: 1px solid rgba(47,157,221,0.24) !important;
+    color: #2f6690 !important;
+    box-shadow: none !important;
 }
 
-/* Mantem visual bonito e menos duro em telas menores */
-@media (max-width: 900px) {
-    .sed-dashboard-header, .main-header, .page-banner,
-    .metric-card, .sed-module-card, .quick-action-card, .card, .form-panel {
-        border-radius: 18px !important;
-    }
+/* Tabelas e editores */
+[data-testid="stDataFrame"],
+[data-testid="stDataEditor"],
+[data-testid="stTable"] {
+    border-radius: 8px !important;
+    border: 1px solid var(--uni-border) !important;
+    box-shadow: var(--sed-shadow) !important;
+    overflow: hidden !important;
+    background: rgba(255,255,255,0.88) !important;
+}
+[data-testid="stDataFrame"] [role="columnheader"],
+[data-testid="stDataEditor"] [role="columnheader"] {
+    background: linear-gradient(180deg, #eaf6ff, #f7fbff) !important;
+    color: #24324f !important;
+    font-weight: 900 !important;
 }
 
-
-
-/* ====================================================== */
-/* AJUSTE FINAL 02/05: TEXTOS SEM CORTE + CARDS SUAVES */
-/* ====================================================== */
-.metric-card,
-.sed-module-card,
-.quick-action-card,
-.card,
-.sed-feature-card,
-.sed-tool-card,
-.dashboard-panorama-mini,
-.sed-kpi-item {
-    overflow: visible !important;
-    min-height: 118px !important;
-    height: auto !important;
-}
-.metric-card {
-    padding: 1.05rem 1rem 1.15rem 1rem !important;
-    justify-content: flex-start !important;
-}
-.metric-icon {
-    width: 34px !important;
-    height: 34px !important;
-    min-width: 34px !important;
-    min-height: 34px !important;
-    font-size: 1.05rem !important;
-    margin-bottom: 0.45rem !important;
-}
-.metric-value {
-    font-size: 1.45rem !important;
-    line-height: 1.05 !important;
-    margin: 0 !important;
-}
-.metric-label {
-    font-size: 0.82rem !important;
-    line-height: 1.25 !important;
-    margin-top: 0.35rem !important;
-    letter-spacing: 0.02em !important;
-    text-transform: none !important;
-    white-space: normal !important;
-    overflow: visible !important;
-}
-.metric-sub {
-    font-size: 0.76rem !important;
-    line-height: 1.25 !important;
-    margin-top: 0.2rem !important;
-    white-space: normal !important;
-    overflow: visible !important;
-}
-.metric-card::before {
-    opacity: 0.28 !important;
-    pointer-events: none !important;
-}
-
-/* Botões como cards do dashboard: clicáveis, altos e sem texto cortado */
-.conviva-card-button .stButton > button {
-    min-height: 86px !important;
-    height: auto !important;
-    width: 100% !important;
-    justify-content: flex-start !important;
-    align-items: flex-start !important;
-    text-align: left !important;
-    padding: 1rem 1.05rem !important;
-    white-space: normal !important;
-    overflow: visible !important;
-    text-overflow: clip !important;
-    line-height: 1.32 !important;
-    border-radius: 22px !important;
-    color: #2b2140 !important;
-    border: 1px solid rgba(216,180,254,.70) !important;
-    background:
-        linear-gradient(135deg, rgba(255,255,255,.90), rgba(255,247,252,.74) 32%, rgba(240,253,250,.76) 68%, rgba(248,244,255,.80)) !important;
-    box-shadow: 0 14px 34px rgba(168,85,247,.10), 0 5px 14px rgba(14,165,233,.06) !important;
-    position: relative !important;
-}
-.conviva-card-button .stButton > button::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 5px;
-    background: linear-gradient(90deg,#ff7fd1,#ffd67f,#97f7f0,#9cc7ff,#d8a0ff);
-    border-radius: 22px 22px 0 0;
-}
-.conviva-card-button .stButton > button:hover {
-    transform: translateY(-2px) !important;
-    border-color: rgba(217,70,239,.46) !important;
-    box-shadow: 0 18px 38px rgba(168,85,247,.14), 0 8px 20px rgba(14,165,233,.08) !important;
-}
-.conviva-card-button .stButton > button p,
-.conviva-card-button .stButton > button span,
-.conviva-card-button .stButton > button div {
-    white-space: normal !important;
-    overflow: visible !important;
-    text-overflow: clip !important;
-}
-
-/* Sidebar: mantém botões mais largos/altos para não cortar o texto */
-section[data-testid="stSidebar"] div[data-testid="stButton"] > button,
-[data-testid="stSidebar"] .stButton > button {
-    min-height: 50px !important;
-    height: auto !important;
-    padding: 0.72rem 0.85rem !important;
-    white-space: normal !important;
-    overflow: visible !important;
-    text-overflow: clip !important;
-    line-height: 1.25 !important;
-}
-
-/* Blocos de conselho */
-.conselho-doc-card {
-    background: linear-gradient(135deg, rgba(255,255,255,.90), rgba(255,247,252,.78) 32%, rgba(240,253,250,.76) 68%, rgba(248,244,255,.82));
-    border: 1px solid rgba(216,180,254,.70);
-    border-radius: 22px;
-    padding: 1rem 1.05rem;
-    box-shadow: 0 14px 34px rgba(168,85,247,.10), 0 5px 14px rgba(14,165,233,.06);
-    margin-bottom: 0.85rem;
-    position: relative;
-    overflow: hidden;
-}
-.conselho-doc-card::before {
-    content: "";
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 5px;
-    background: linear-gradient(90deg,#ff7fd1,#ffd67f,#97f7f0,#9cc7ff,#d8a0ff);
-}
-.conselho-doc-title {
-    font-family: 'Nunito', sans-serif;
-    font-weight: 900;
-    color: #31215f;
-    font-size: 1rem;
-    line-height: 1.25;
-    margin: 0 0 0.3rem 0;
-}
-.conselho-doc-meta {
-    color: #6b5b95;
-    font-size: 0.85rem;
-    line-height: 1.45;
-    margin: 0;
-}
-.conselho-folder-box {
-    background: rgba(255,255,255,.76);
-    border: 1px solid rgba(151,247,240,.70);
-    border-left: 5px solid #22c7a8;
-    border-radius: 18px;
-    padding: 0.85rem 1rem;
-    color: #2b2140;
-    box-shadow: 0 12px 28px rgba(14,165,233,.08);
-    margin: 0.6rem 0 1rem 0;
-}
-
-
-
-/* ============================================ */
-/* ========== CONSELHO ONLINE - AJUSTES ========= */
-/* ============================================ */
-.conselho-online-hero {
-    background: linear-gradient(135deg, rgba(255,255,255,.90), rgba(255,247,252,.86), rgba(240,253,255,.86));
-    border: 1px solid rgba(216,180,254,.75);
-    border-radius: 24px;
-    padding: 1.2rem 1.25rem;
-    box-shadow: 0 14px 34px rgba(168,85,247,.10);
-    position: relative;
-    overflow: hidden;
-    margin: .5rem 0 1rem 0;
-}
-.conselho-online-hero::before {
-    content: '';
-    position: absolute;
-    inset: 0 0 auto 0;
-    height: 6px;
-    background: linear-gradient(90deg,#ff7fd1,#ffd67f,#97f7f0,#9cc7ff,#d8a0ff);
-}
-.conselho-online-title {
-    font-family: 'Nunito', sans-serif;
-    font-size: 1.35rem;
-    line-height: 1.22;
-    font-weight: 900;
-    color: #31215f;
-    margin: .15rem 0 .25rem 0;
-}
-.conselho-online-sub {
-    color: #6b5b95;
-    font-size: .92rem;
-    line-height: 1.55;
-    margin: 0;
-}
-.conselho-online-card {
-    background: linear-gradient(135deg, rgba(255,255,255,.88), rgba(248,250,255,.78));
-    border: 1px solid rgba(216,180,254,.72);
-    border-radius: 22px;
-    padding: 1rem;
-    box-shadow: 0 12px 28px rgba(168,85,247,.08);
-    margin: .55rem 0;
-}
-.conselho-online-card h4 {
-    margin: 0 0 .35rem 0 !important;
-    color: #31215f !important;
-    font-size: 1rem !important;
-    line-height: 1.3 !important;
-}
-.conselho-online-card p {
-    margin: 0 !important;
-    color: #6b5b95 !important;
-    font-size: .86rem !important;
-    line-height: 1.5 !important;
-}
-.conselho-turma-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: .35rem;
-    border-radius: 999px;
-    padding: .35rem .75rem;
-    border: 1px solid rgba(151,247,240,.8);
-    background: rgba(255,255,255,.72);
-    color: #3f2d63;
-    font-weight: 800;
-    font-size: .8rem;
-    margin: .15rem .25rem .15rem 0;
-}
-.conselho-form-note {
-    border-radius: 18px;
-    border: 1px solid rgba(151,247,240,.70);
-    background: linear-gradient(135deg, rgba(240,253,250,.85), rgba(255,255,255,.70));
-    padding: .85rem 1rem;
-    color: #365a63;
-    font-size: .88rem;
-    line-height: 1.5;
-    margin: .6rem 0 1rem 0;
-}
-/* evita cards e botões com texto cortado */
-.stButton > button, section[data-testid="stSidebar"] div[data-testid="stButton"] > button {
-    min-height: 48px !important;
-    height: auto !important;
-    padding-top: .68rem !important;
-    padding-bottom: .68rem !important;
-    line-height: 1.28 !important;
-    overflow: visible !important;
-    white-space: normal !important;
-}
-.metric-card, .card, .conselho-doc-card, .dashboard-panorama-mini {
-    height: auto !important;
-    min-height: 92px !important;
-    overflow: visible !important;
-}
-.metric-label, .metric-sub, .dashboard-panorama-mini-value, .dashboard-panorama-mini-label {
-    overflow: visible !important;
-    white-space: normal !important;
-    word-break: normal !important;
-}
-
-
-
-/* ====================================================== */
-/* AJUSTE 03/05: CABEÇALHO DA ESCOLA ALINHADO + PDF */
-/* ====================================================== */
-.page-banner {
-    max-width: 100% !important;
-    padding: 0 !important;
-    margin: 0.8rem 0 1.1rem 0 !important;
-    border-radius: 24px !important;
-    background:
-        radial-gradient(circle at 8% 10%, rgba(255,127,209,.22), transparent 26%),
-        radial-gradient(circle at 82% 14%, rgba(151,247,240,.28), transparent 30%),
-        linear-gradient(135deg, rgba(255,255,255,.92), rgba(255,247,252,.82) 38%, rgba(240,253,250,.78) 72%, rgba(248,244,255,.84)) !important;
-    border: 1px solid rgba(216,180,254,.78) !important;
+/* Expanders como modulos recolhiveis */
+div[data-testid="stExpander"] {
+    border-radius: 8px !important;
+    border: 1px solid var(--uni-border) !important;
+    background: rgba(255,255,255,0.82) !important;
+    box-shadow: var(--sed-shadow) !important;
     overflow: hidden !important;
 }
-.page-banner::before {
-    height: 6px !important;
-    background: linear-gradient(90deg,#ff7fd1,#ffd67f,#97f7f0,#9cc7ff,#d8a0ff) !important;
+div[data-testid="stExpander"] summary {
+    background: linear-gradient(135deg, #ffffff, #f7fbff) !important;
+    color: #24324f !important;
+    font-weight: 850 !important;
 }
-.page-banner-content {
-    display: flex !important;
-    align-items: center !important;
-    gap: 1rem !important;
-    padding: 1.15rem 1.35rem !important;
-    min-height: 96px !important;
+
+/* Alertas limpos */
+.stAlert, .success-box, .warning-box, .error-box, .info-box {
+    border-radius: 8px !important;
+    border: 1px solid var(--uni-border) !important;
+    box-shadow: var(--sed-shadow) !important;
 }
-.page-banner-icon {
-    flex: 0 0 56px !important;
-    width: 56px !important;
-    height: 56px !important;
-    min-width: 56px !important;
-    min-height: 56px !important;
-    display: grid !important;
-    place-items: center !important;
-    border-radius: 18px !important;
-    background: linear-gradient(135deg,#ff9ad5,#ffe28a,#99f6e4,#93c5fd,#d8b4fe) !important;
-    color: #31215f !important;
-    box-shadow: 0 14px 30px rgba(168,85,247,.15) !important;
-    font-size: 1.35rem !important;
-    font-weight: 900 !important;
+.success-box { background: linear-gradient(135deg, #eefdf7, #f7fffb) !important; }
+.warning-box { background: linear-gradient(135deg, #fff8db, #fffdf0) !important; }
+.error-box { background: linear-gradient(135deg, #fff1f4, #fff7fb) !important; }
+.info-box { background: linear-gradient(135deg, #eaf6ff, #f8fbff) !important; }
+
+/* Classes utilitarias para padronizar paginas especificas */
+.sed-clean-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 0.85rem;
+    margin: 0.9rem 0;
 }
-.page-banner-copy {
-    min-width: 0 !important;
-    flex: 1 1 auto !important;
+.sed-clean-card {
+    border-radius: 8px;
+    background: var(--uni-panel);
+    border: 1px solid var(--uni-border);
+    box-shadow: var(--sed-shadow);
+    padding: 1rem;
 }
-.page-banner-kicker {
-    display: block !important;
-    margin: 0 0 .24rem 0 !important;
-    color: #b21cb7 !important;
-    font-size: .73rem !important;
-    line-height: 1.2 !important;
-    letter-spacing: .12em !important;
-    text-transform: uppercase !important;
-    font-weight: 900 !important;
+.sed-clean-card-title {
+    font-family: 'Nunito', sans-serif;
+    font-size: 0.98rem;
+    font-weight: 900;
+    color: #263a63;
+    margin-bottom: 0.28rem;
 }
-.page-banner-title {
-    display: block !important;
-    color: #31215f !important;
-    font-size: clamp(1.35rem, 2vw, 1.85rem) !important;
-    line-height: 1.15 !important;
-    font-weight: 900 !important;
-    margin: 0 !important;
-    overflow-wrap: anywhere !important;
+.sed-clean-card-text {
+    font-size: 0.86rem;
+    color: var(--uni-muted);
 }
-.page-banner-subtitle {
-    display: block !important;
-    color: #5f5b7a !important;
-    font-size: .95rem !important;
-    line-height: 1.45 !important;
-    margin: .32rem 0 0 0 !important;
-    max-width: 900px !important;
-}
-.conselho-online-hero {
-    padding: 1.15rem 1.25rem 1.15rem 1.25rem !important;
-    border-radius: 24px !important;
-}
-.conselho-online-title {
-    font-size: 1.25rem !important;
-    line-height: 1.25 !important;
-}
-.conselho-online-sub {
-    font-size: .92rem !important;
-    line-height: 1.55 !important;
-}
-.conselho-form-note {
-    overflow-wrap: anywhere !important;
-}
-[data-testid="stTabs"] div[role="tablist"] {
-    align-items: center !important;
-}
-[data-testid="stTabs"] button[role="tab"] {
-    min-height: 42px !important;
-    height: auto !important;
-    white-space: normal !important;
-    line-height: 1.15 !important;
-}
-@media (max-width: 900px) {
-    .page-banner-content { align-items: flex-start !important; padding: 1rem !important; }
-    .page-banner-icon { width: 48px !important; height: 48px !important; min-width: 48px !important; min-height: 48px !important; }
-    .page-banner-title { font-size: 1.25rem !important; }
+
+@media (max-width: 768px) {
+    section[data-testid="stSidebar"] { min-width: 285px !important; max-width: 285px !important; }
+    .main .block-container { padding-left: 0.9rem !important; padding-right: 0.9rem !important; }
+    .sed-dashboard-top { flex-direction: column !important; align-items: flex-start !important; }
+    .sed-dashboard-user { text-align: left !important; }
+    .dashboard-panorama-grid { grid-template-columns: 1fr !important; }
 }
 
 </style>
@@ -1324,924 +2081,8 @@ ESCOLA_TELEFONE = "(11) 4675-3400"
 ESCOLA_EMAIL = "e918623@educacao.sp.gov.br"
 ESCOLA_LOGO = os.path.join("assets", "images", "eliane_dantas.png")
 
-
-# ======================================================
-# DOCUMENTOS DO CONSELHO DE CLASSE
-# ======================================================
-CONSELHO_DOCS_DIR = Path(__file__).resolve().parent / "conselho_documentos"
-CONSELHO_UPLOAD_DIR = Path(__file__).resolve().parent / "data" / "conselho_uploads"
-
-DOCUMENTOS_CONSELHO_PADRAO = [
-    {
-        "arquivo": "ata_conselho_1_bimestre_1a_2025.docx",
-        "titulo": "Ata do Conselho de Classe — 1º Bimestre — 1ª série A",
-        "grupo": "Atas e rendimentos",
-        "descricao": "Modelo de ata com rendimentos, frequência, dificuldades, recomendações e assinaturas.",
-    },
-    {
-        "arquivo": "ata_conselho_1_bimestre_2a_2025.docx",
-        "titulo": "Ata do Conselho de Classe — 1º Bimestre — 2ª série A",
-        "grupo": "Atas e rendimentos",
-        "descricao": "Modelo de ata do Ensino Médio com tabela de rendimentos e conselho participativo.",
-    },
-    {
-        "arquivo": "ata_conselho_2_bimestre_8d_2025.docx",
-        "titulo": "Ata Conselho de Classe — 2º Bimestre — 8º D",
-        "grupo": "Atas e perfil da turma",
-        "descricao": "Modelo com perfil da turma, comportamento, participação, líderes, focos e recomendações.",
-    },
-    {
-        "arquivo": "protocolo_acompanhamento_conselho_pec.docx",
-        "titulo": "Protocolo de Acompanhamento do Conselho — PEC",
-        "grupo": "Protocolos",
-        "descricao": "Checklist de evidências do conselho: aprendizagem, registros, busca ativa, plataformas e PEI.",
-    },
-    {
-        "arquivo": "focos_atencao_conselho_2025.docx",
-        "titulo": "Focos de Atenção no Conselho de Classe e Série — 2025",
-        "grupo": "Focos de atenção",
-        "descricao": "Tabela para estudantes apontados, frequência, notas abaixo de cinco e presença.",
-    },
-    {
-        "arquivo": "pos_conselho_classe_serie_2025.docx",
-        "titulo": "Pós-Conselho de Classe e Série — 2025",
-        "grupo": "Pós-conselho",
-        "descricao": "Documento para ciência, medidas pedagógicas, frequência e baixo rendimento.",
-    },
-    {
-        "arquivo": "legendas_dificuldades_recomendacoes.docx",
-        "titulo": "Legenda — Dificuldades e Recomendações",
-        "grupo": "Apoio e legendas",
-        "descricao": "Itens de dificuldades dos estudantes e providências da escola/professores.",
-    },
-]
-
-
-def _documento_conselho_path(nome_arquivo: str) -> Path:
-    """Retorna o caminho seguro de um documento padrão do Conselho."""
-    nome_limpo = Path(str(nome_arquivo or "")).name
-    return CONSELHO_DOCS_DIR / nome_limpo
-
-
-def _listar_documentos_conselho_uploads() -> list[Path]:
-    try:
-        CONSELHO_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-        return sorted([p for p in CONSELHO_UPLOAD_DIR.glob("*") if p.is_file() and p.suffix.lower() in {".docx", ".pdf", ".xlsx", ".xls"}])
-    except Exception:
-        return []
-
 # Imagem da escola exibida no topo do menu lateral.
 # A imagem está incorporada em base64 para funcionar no Streamlit Cloud sem depender de arquivo externo.
-
-
-# ======================================================
-# CONSELHO ONLINE POR TURMA — DADOS, SALVAMENTO E EXPORTAÇÃO
-# ======================================================
-CONSELHO_ONLINE_DIR = Path(__file__).resolve().parent / "data"
-CONSELHO_ONLINE_JSON = CONSELHO_ONLINE_DIR / "conselho_online_turmas.json"
-
-COMPONENTES_CONSELHO_PADRAO = [
-    "Arte", "Ciências", "Educação Financeira", "Educação Física", "Eletivas",
-    "Geografia", "História", "Língua Inglesa", "Língua Portuguesa", "Matemática",
-    "Orientação de Estudos LP", "Orientação de Estudos Matemática", "Projeto de Vida",
-    "Tecnologia e Inovação", "Redação e Leitura"
-]
-
-DIFICULDADES_CONSELHO = {
-    "1": "Precisa ser estimulado ou auxiliado nas atividades",
-    "2": "Falta assiduidade",
-    "3": "Não faz trabalhos e atividades propostas",
-    "4": "Apresenta indisciplina",
-    "5": "Não realiza as atividades em sala de aula / há desinteresse",
-    "6": "Apresenta dificuldade na aprendizagem",
-}
-
-RECOMENDACOES_CONSELHO = {
-    "7": "Diálogo com o estudante e os responsáveis, estimulando os estudos",
-    "8": "Estimular a participação em sala de aula",
-    "9": "Orientar o estudante quanto ao comportamento inadequado",
-    "10": "Recuperação e reforço de objetos do conhecimento não assimilados",
-    "11": "Acompanhamento familiar",
-    "12": "Estudo intensivo em casa e estímulo à participação em sala de aula",
-}
-
-PROTOCOLO_PEC_ITENS = [
-    "Há evidência de análise das aprendizagens com coerência entre as notas dos estudantes e as habilidades desenvolvidas e/ou em desenvolvimento?",
-    "Há evidência dos registros dos professores referente à aprendizagem dos estudantes?",
-    "Há evidência da retomada do resultado dos conselhos anteriores?",
-    "Há evidências do trabalho com as competências socioemocionais?",
-    "Há evidências da reflexão do grupo sobre o trabalho realizado nas modalidades da educação inclusiva?",
-    "Há evidências da participação ativa e organizada dos estudantes representantes de turma?",
-    "Há evidências de estratégias/procedimentos que poderão potencializar os estudantes com o conhecimento e as habilidades necessárias a partir do material digital?",
-    "Há evidências da reflexão do impacto do trabalho com as plataformas educacionais na aprendizagem dos estudantes?",
-    "Há evidências da análise do resultado do trabalho de busca ativa, frequência e encaminhamentos?",
-    "Há evidências da reflexão sobre os instrumentos avaliativos para fechamento das notas?",
-    "Há evidências da reflexão sobre os critérios avaliativos para composição das notas?",
-    "Há evidência de análise, avaliação ou reflexão de metodologia e estratégias com recondução das práticas?",
-    "Há evidências de organização e encaminhamentos com estratégias de aprofundamento, recuperação ou reforço de aprendizagem?",
-    "Há evidências do uso de instrumento de planejamento como Guia de Aprendizagem e Planos de Ensino como parâmetro para avaliação no conselho?",
-    "Para PEI: há evidências da análise, avaliação ou reflexão dos princípios e premissas do Programa de Ensino Integral?",
-]
-
-
-def _normalizar_chave_conselho(valor: str) -> str:
-    valor = str(valor or "").strip().lower()
-    valor = unicodedata.normalize("NFKD", valor).encode("ascii", "ignore").decode("ascii")
-    valor = re.sub(r"[^a-z0-9]+", "_", valor).strip("_")
-    return valor or "sem_identificacao"
-
-
-def _conselho_chave(turma: str, ano_letivo: int | str, bimestre: str) -> str:
-    return f"{_normalizar_chave_conselho(turma)}__{_normalizar_chave_conselho(ano_letivo)}__{_normalizar_chave_conselho(bimestre)}"
-
-
-def _carregar_conselho_online_local() -> dict:
-    try:
-        if CONSELHO_ONLINE_JSON.exists():
-            return json.loads(CONSELHO_ONLINE_JSON.read_text(encoding="utf-8"))
-    except Exception:
-        pass
-    return {}
-
-
-def _salvar_conselho_online_local(dados: dict) -> bool:
-    try:
-        CONSELHO_ONLINE_DIR.mkdir(parents=True, exist_ok=True)
-        CONSELHO_ONLINE_JSON.write_text(json.dumps(dados, ensure_ascii=False, indent=2), encoding="utf-8")
-        return True
-    except Exception as e:
-        st.warning(f"Não foi possível salvar o arquivo local do Conselho: {e}")
-        return False
-
-
-def _carregar_registro_conselho_supabase(chave: str) -> dict | None:
-    if not SUPABASE_VALID:
-        return None
-    try:
-        chave_q = requests.utils.quote(str(chave), safe="")
-        resp = _supabase_request("GET", f"conselho_turmas?chave=eq.{chave_q}&select=*")
-        dados = resp.json()
-        if dados:
-            return dados[0].get("dados_json") or dados[0].get("dados") or {}
-    except Exception:
-        return None
-    return None
-
-
-def _salvar_registro_conselho_supabase(chave: str, registro: dict) -> bool:
-    if not SUPABASE_VALID:
-        return False
-    try:
-        chave_q = requests.utils.quote(str(chave), safe="")
-        payload = {
-            "chave": chave,
-            "turma": registro.get("turma", ""),
-            "ano_letivo": str(registro.get("ano_letivo", "")),
-            "bimestre": str(registro.get("bimestre", "")),
-            "dados_json": registro,
-            "atualizado_em": datetime.now().isoformat(),
-        }
-        existente = _supabase_request("GET", f"conselho_turmas?chave=eq.{chave_q}&select=id").json()
-        if existente:
-            _supabase_request("PATCH", f"conselho_turmas?chave=eq.{chave_q}", json=payload)
-        else:
-            _supabase_request("POST", "conselho_turmas", json=payload)
-        return True
-    except Exception:
-        return False
-
-
-def _modelo_conselho_vazio(turma: str, ano_letivo: int | str, bimestre: str, df_alunos_ref: pd.DataFrame | None = None) -> dict:
-    df_turma = pd.DataFrame()
-    if df_alunos_ref is not None and not df_alunos_ref.empty and "turma" in df_alunos_ref.columns:
-        df_turma = df_alunos_ref[df_alunos_ref["turma"].astype(str).str.strip() == str(turma).strip()].copy()
-    estudantes = []
-    if not df_turma.empty:
-        for _, row in df_turma.sort_values("nome").iterrows():
-            estudantes.append({
-                "ra": str(row.get("ra", "")).strip(),
-                "nome": str(row.get("nome", "")).strip(),
-                "turma": str(row.get("turma", turma)).strip(),
-                "frequencia": "",
-                "prova_paulista_1": "",
-                "prova_paulista_2": "",
-                "prova_interna": "",
-                "dificuldades": "",
-                "recomendacoes": "",
-                "observacoes": "",
-            })
-    return {
-        "turma": turma,
-        "ano_letivo": str(ano_letivo),
-        "bimestre": bimestre,
-        "data": datetime.now().strftime("%Y-%m-%d"),
-        "horario": "",
-        "local": "Sala de Informática",
-        "participantes": "Direção, CGPG, CGPACs e professores da turma",
-        "texto_abertura": "",
-        "componentes": COMPONENTES_CONSELHO_PADRAO,
-        "estudantes": estudantes,
-        "perfil": {
-            "desempenho": "",
-            "dificuldades_aprendizagem": [],
-            "comportamento": [],
-            "participacao": [],
-            "relacoes": [],
-            "lideres": "",
-            "competencias_socioemocionais": "",
-            "estrategias_funcionaram": "",
-            "focos_orientacao": "",
-            "estudantes_destaque": "",
-            "recomendacoes": [],
-            "observacoes": "",
-        },
-        "protocolo_pec": [
-            {"item": i + 1, "elemento": texto, "status": "", "observacao": ""}
-            for i, texto in enumerate(PROTOCOLO_PEC_ITENS)
-        ],
-        "focos": [],
-        "pos_conselho": [],
-        "medidas_pedagogicas": "1. Dialogar com os estudantes sobre a importância da frequência, do rendimento e da participação nas aulas.\n2. Convocar os responsáveis quando necessário para ciência e acompanhamento.",
-        "assinaturas": "",
-        "atualizado_em": datetime.now().isoformat(timespec="seconds"),
-    }
-
-
-def _obter_registro_conselho(turma: str, ano_letivo: int | str, bimestre: str, df_alunos_ref: pd.DataFrame | None = None) -> tuple[str, dict, dict]:
-    chave = _conselho_chave(turma, ano_letivo, bimestre)
-    base_local = _carregar_conselho_online_local()
-    registro = _carregar_registro_conselho_supabase(chave) or base_local.get(chave)
-    if not isinstance(registro, dict):
-        registro = _modelo_conselho_vazio(turma, ano_letivo, bimestre, df_alunos_ref)
-    # garante campos novos sem apagar dados antigos
-    modelo = _modelo_conselho_vazio(turma, ano_letivo, bimestre, df_alunos_ref)
-    for k, v in modelo.items():
-        registro.setdefault(k, v)
-    registro["turma"] = turma
-    registro["ano_letivo"] = str(ano_letivo)
-    registro["bimestre"] = bimestre
-    return chave, registro, base_local
-
-
-def _salvar_registro_conselho(chave: str, registro: dict, base_local: dict | None = None) -> bool:
-    registro["atualizado_em"] = datetime.now().isoformat(timespec="seconds")
-    if base_local is None:
-        base_local = _carregar_conselho_online_local()
-    base_local[chave] = registro
-    local_ok = _salvar_conselho_online_local(base_local)
-    supabase_ok = _salvar_registro_conselho_supabase(chave, registro)
-    return bool(local_ok or supabase_ok)
-
-
-def _gerar_docx_conselho_turma(registro: dict) -> bytes | None:
-    try:
-        from docx import Document
-        from docx.shared import Pt, Inches
-        from docx.enum.text import WD_ALIGN_PARAGRAPH
-    except Exception as e:
-        st.error(f"Para gerar DOCX, instale python-docx no ambiente: {e}")
-        return None
-
-    doc = Document()
-    section = doc.sections[0]
-    section.top_margin = Inches(0.45)
-    section.bottom_margin = Inches(0.45)
-    section.left_margin = Inches(0.45)
-    section.right_margin = Inches(0.45)
-
-    def p(txt="", bold=False, align=None, size=10):
-        par = doc.add_paragraph()
-        run = par.add_run(str(txt or ""))
-        run.bold = bold
-        run.font.size = Pt(size)
-        if align is not None:
-            par.alignment = align
-        return par
-
-    p("SECRETARIA DE ESTADO DA EDUCAÇÃO", True, WD_ALIGN_PARAGRAPH.CENTER, 9)
-    p("UNIDADE REGIONAL DE ENSINO DE SUZANO - SP", True, WD_ALIGN_PARAGRAPH.CENTER, 9)
-    p("E.E. PROFª ELIANE AP. DANTAS DA SILVA", True, WD_ALIGN_PARAGRAPH.CENTER, 10)
-    p("Programa Ensino Integral - PEI", True, WD_ALIGN_PARAGRAPH.CENTER, 9)
-    p(f"{ESCOLA_ENDERECO} | Fone: {ESCOLA_TELEFONE} | e-mail: {ESCOLA_EMAIL}", False, WD_ALIGN_PARAGRAPH.CENTER, 8)
-    doc.add_paragraph()
-    p(f"CONSELHO DE CLASSE E SÉRIE PARTICIPATIVO — {registro.get('bimestre','')}", True, WD_ALIGN_PARAGRAPH.CENTER, 12)
-    p(f"Turma: {registro.get('turma','')} | Ano letivo: {registro.get('ano_letivo','')} | Data: {registro.get('data','')}", True, WD_ALIGN_PARAGRAPH.CENTER, 9)
-    doc.add_paragraph()
-    abertura = registro.get("texto_abertura") or f"Reuniram-se a equipe gestora, professores e responsáveis pelo acompanhamento pedagógico para procederem ao Conselho de Classe da turma {registro.get('turma','')}, registrando evidências, pontos de atenção, encaminhamentos e intervenções pedagógicas."
-    p(abertura, False, None, 9)
-
-    p("RENDIMENTOS - ESTUDANTES", True, None, 10)
-    estudantes = registro.get("estudantes") or []
-    table = doc.add_table(rows=1, cols=8)
-    table.style = "Table Grid"
-    hdr = table.rows[0].cells
-    headers = ["Nº", "Estudante", "Frequência", "Prova Paulista 1", "Prova Paulista 2", "Prova Interna", "Dificuldades", "Recomendações"]
-    for i, h in enumerate(headers):
-        hdr[i].text = h
-    for idx, est in enumerate(estudantes, 1):
-        cells = table.add_row().cells
-        cells[0].text = str(idx)
-        cells[1].text = str(est.get("nome", ""))
-        cells[2].text = str(est.get("frequencia", ""))
-        cells[3].text = str(est.get("prova_paulista_1", ""))
-        cells[4].text = str(est.get("prova_paulista_2", ""))
-        cells[5].text = str(est.get("prova_interna", ""))
-        cells[6].text = str(est.get("dificuldades", ""))
-        cells[7].text = str(est.get("recomendacoes", ""))
-
-    doc.add_page_break()
-    p("PERFIL DA TURMA", True, WD_ALIGN_PARAGRAPH.CENTER, 12)
-    perfil = registro.get("perfil", {})
-    for campo, rotulo in [
-        ("desempenho", "Desempenho acadêmico"),
-        ("dificuldades_aprendizagem", "Dificuldades de aprendizagem"),
-        ("comportamento", "Comportamento geral"),
-        ("participacao", "Participação em aula"),
-        ("relacoes", "Relações interpessoais"),
-        ("lideres", "Líderes de turma"),
-        ("competencias_socioemocionais", "Competências socioemocionais"),
-        ("estrategias_funcionaram", "Estratégias e instrumentos que funcionaram"),
-        ("focos_orientacao", "Focos de atenção"),
-        ("estudantes_destaque", "Estudantes destaque"),
-        ("recomendacoes", "Recomendações"),
-        ("observacoes", "Observações"),
-    ]:
-        valor = perfil.get(campo, "")
-        if isinstance(valor, list):
-            valor = "; ".join(valor)
-        p(f"{rotulo}: {valor}", False, None, 9)
-
-    doc.add_page_break()
-    p("PROTOCOLO DE ACOMPANHAMENTO DO CONSELHO - PEC", True, WD_ALIGN_PARAGRAPH.CENTER, 12)
-    prot = registro.get("protocolo_pec") or []
-    t = doc.add_table(rows=1, cols=4)
-    t.style = "Table Grid"
-    for i, h in enumerate(["Item", "Elemento do Conselho", "Situação", "Observação"]):
-        t.rows[0].cells[i].text = h
-    for item in prot:
-        c = t.add_row().cells
-        c[0].text = str(item.get("item", ""))
-        c[1].text = str(item.get("elemento", ""))
-        c[2].text = str(item.get("status", ""))
-        c[3].text = str(item.get("observacao", ""))
-
-    doc.add_page_break()
-    p("FOCOS DE ATENÇÃO", True, WD_ALIGN_PARAGRAPH.CENTER, 12)
-    focos = registro.get("focos") or []
-    t = doc.add_table(rows=1, cols=5)
-    t.style = "Table Grid"
-    for i, h in enumerate(["Série", "Estudante", "Frequência", "Notas abaixo de cinco", "Presença/Ciência"]):
-        t.rows[0].cells[i].text = h
-    for item in focos:
-        c = t.add_row().cells
-        c[0].text = str(item.get("serie", ""))
-        c[1].text = str(item.get("estudante", ""))
-        c[2].text = str(item.get("frequencia", ""))
-        c[3].text = str(item.get("notas_abaixo", ""))
-        c[4].text = str(item.get("presenca", ""))
-
-    p("PÓS-CONSELHO", True, WD_ALIGN_PARAGRAPH.CENTER, 12)
-    pos = registro.get("pos_conselho") or []
-    t = doc.add_table(rows=1, cols=5)
-    t.style = "Table Grid"
-    for i, h in enumerate(["Série", "Estudante", "Frequência (%)", "Notas abaixo de cinco", "Estudante - Ciência"]):
-        t.rows[0].cells[i].text = h
-    for item in pos:
-        c = t.add_row().cells
-        c[0].text = str(item.get("serie", ""))
-        c[1].text = str(item.get("estudante", ""))
-        c[2].text = str(item.get("frequencia", ""))
-        c[3].text = str(item.get("notas_abaixo", ""))
-        c[4].text = str(item.get("ciencia", ""))
-    p("Medidas pedagógicas:", True, None, 10)
-    p(registro.get("medidas_pedagogicas", ""), False, None, 9)
-    p("Assinaturas:", True, None, 10)
-    p(registro.get("assinaturas", ""), False, None, 9)
-
-    bio = BytesIO()
-    doc.save(bio)
-    bio.seek(0)
-    return bio.getvalue()
-
-
-def _df_estudantes_conselho(registro: dict) -> pd.DataFrame:
-    dados = registro.get("estudantes") or []
-    cols = ["ra", "nome", "turma", "frequencia", "prova_paulista_participacao", "prova_paulista_acertos", "componentes_pp", "prova_paulista_1", "prova_paulista_2", "prova_interna", "dificuldades", "recomendacoes", "observacoes"]
-    df = pd.DataFrame(dados)
-    for col in cols:
-        if col not in df.columns:
-            df[col] = ""
-    return df[cols]
-
-
-def _df_focos_conselho(registro: dict, origem: str = "focos") -> pd.DataFrame:
-    dados = registro.get(origem) or []
-    cols = ["serie", "estudante", "frequencia", "notas_abaixo", "presenca"] if origem == "focos" else ["serie", "estudante", "frequencia", "notas_abaixo", "ciencia"]
-    df = pd.DataFrame(dados)
-    for col in cols:
-        if col not in df.columns:
-            df[col] = ""
-    return df[cols]
-
-
-def _percentual_legivel(valor) -> str:
-    texto = str(valor or "").strip().replace("%", "").replace(",", ".")
-    if not texto:
-        return ""
-    try:
-        num = float(texto)
-        if num <= 1:
-            num *= 100
-        return f"{num:.1f}%".replace(".0%", "%")
-    except Exception:
-        return str(valor or "").strip()
-
-
-def _percentual_numero(valor, padrao=None):
-    texto = str(valor or "").strip().replace("%", "").replace(",", ".")
-    if not texto:
-        return padrao
-    try:
-        num = float(texto)
-        if num <= 1:
-            num *= 100
-        return num
-    except Exception:
-        return padrao
-
-
-def _normalizar_id_aluno(valor: str) -> str:
-    digitos = re.sub(r"\D+", "", str(valor or ""))
-    return digitos.lstrip("0") or digitos
-
-
-def _normalizar_nome_aluno(valor: str) -> str:
-    texto = unicodedata.normalize("NFKD", str(valor or "")).encode("ascii", "ignore").decode("ascii")
-    texto = re.sub(r"[^A-Z0-9 ]+", " ", texto.upper())
-    return re.sub(r"\s+", " ", texto).strip()
-
-
-def _extrair_frequencia_de_linha(row) -> str:
-    possiveis = [
-        "frequencia", "frequência", "frequencia_percentual", "frequência_percentual",
-        "freq", "freq_percentual", "percentual_frequencia", "percentual_frequência",
-        "frequencia_geral", "frequência_geral", "presenca", "presença"
-    ]
-    for col in possiveis:
-        if col in row and str(row.get(col, "")).strip():
-            return _percentual_legivel(row.get(col, ""))
-    for col in getattr(row, "index", []):
-        col_norm = _normalizar_chave_conselho(col)
-        if "freq" in col_norm or "frequencia" in col_norm or "presenca" in col_norm:
-            val = str(row.get(col, "")).strip()
-            if val:
-                return _percentual_legivel(val)
-    return ""
-
-
-def _ler_celula_xlsx(celula, ns, shared_strings):
-    tipo = celula.attrib.get("t", "")
-    if tipo == "inlineStr":
-        return "".join([t.text or "" for t in celula.findall(".//a:t", ns)]).strip()
-    valor = celula.find("a:v", ns)
-    if valor is None:
-        return ""
-    texto = valor.text or ""
-    if tipo == "s":
-        try:
-            return shared_strings[int(texto)]
-        except Exception:
-            return texto
-    return texto.strip()
-
-
-def _coluna_para_indice(coluna: str) -> int:
-    idx = 0
-    for ch in coluna:
-        idx = idx * 26 + ord(ch) - 64
-    return idx
-
-
-def _ler_resultados_turma_xlsx(arquivo) -> dict:
-    bruto = arquivo.getvalue() if hasattr(arquivo, "getvalue") else arquivo.read()
-    ns = {"a": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
-    shared_strings = []
-    with zipfile.ZipFile(BytesIO(bruto)) as z:
-        if "xl/sharedStrings.xml" in z.namelist():
-            ss = ET.fromstring(z.read("xl/sharedStrings.xml"))
-            for si in ss.findall("a:si", ns):
-                shared_strings.append("".join([t.text or "" for t in si.findall(".//a:t", ns)]))
-        sheet_name = "xl/worksheets/sheet1.xml"
-        if sheet_name not in z.namelist():
-            candidates = [n for n in z.namelist() if n.startswith("xl/worksheets/sheet") and n.endswith(".xml")]
-            if not candidates:
-                raise ValueError("Nenhuma planilha encontrada no arquivo Excel.")
-            sheet_name = candidates[0]
-        root = ET.fromstring(z.read(sheet_name))
-
-    linhas = []
-    for row in root.findall(".//a:sheetData/a:row", ns):
-        celulas = []
-        pos = 1
-        for c in row.findall("a:c", ns):
-            ref = c.attrib.get("r")
-            if ref:
-                letras = "".join(re.findall(r"[A-Z]+", ref))
-                idx = _coluna_para_indice(letras) if letras else pos
-            else:
-                idx = pos
-            pos = idx + 1
-            celulas.append((idx, _ler_celula_xlsx(c, ns, shared_strings)))
-        if celulas:
-            maxc = max(i for i, _ in celulas)
-            arr = [""] * maxc
-            for i, v in celulas:
-                arr[i - 1] = v
-            linhas.append(arr)
-
-    if not linhas:
-        raise ValueError("A planilha está vazia.")
-
-    header_idx = None
-    for i, linha in enumerate(linhas[:15]):
-        normalizados = [_normalizar_nome_aluno(x) for x in linha]
-        if any("NR RA" in x or x == "RA" for x in normalizados) and any(x == "NOME" for x in normalizados):
-            header_idx = i
-            break
-    if header_idx is None:
-        header_idx = 0
-    cabecalho = [str(x or "").strip() for x in linhas[header_idx]]
-    cab_norm = [_normalizar_nome_aluno(x) for x in cabecalho]
-
-    def achar_coluna(*nomes):
-        nomes_norm = [_normalizar_nome_aluno(n) for n in nomes]
-        for idx, col in enumerate(cab_norm):
-            for nome in nomes_norm:
-                if nome and (col == nome or nome in col):
-                    return idx
-        return None
-
-    idx_ra = achar_coluna("NR RA", "RA")
-    idx_nome = achar_coluna("Nome")
-    idx_part = achar_coluna("(%) de Participação", "Participação", "% de Participação")
-    idx_acertos = achar_coluna("(%) de Acertos", "Acertos", "% de Acertos")
-    if idx_nome is None:
-        raise ValueError("Não encontrei a coluna Nome na planilha.")
-
-    componentes = []
-    for idx, col in enumerate(cabecalho):
-        if idx in [idx_ra, idx_nome, idx_part, idx_acertos]:
-            continue
-        col_limpa = str(col or "").strip()
-        if col_limpa:
-            componentes.append((idx, col_limpa))
-
-    estudantes = []
-    filtros = ""
-    for linha in linhas[header_idx + 1:]:
-        nome = str(linha[idx_nome]).strip() if idx_nome < len(linha) else ""
-        if not nome:
-            continue
-        if nome.upper() == "TOTAL" or nome.upper().startswith("FILTROS APLICADOS"):
-            filtros = "\n".join([str(x) for x in linha if str(x).strip()])
-            continue
-        if nome.lower().startswith("filtros aplicados"):
-            filtros = "\n".join([str(x) for x in linha if str(x).strip()])
-            continue
-        ra = str(linha[idx_ra]).strip() if idx_ra is not None and idx_ra < len(linha) else ""
-        participacao = _percentual_legivel(linha[idx_part]) if idx_part is not None and idx_part < len(linha) else ""
-        acertos = _percentual_legivel(linha[idx_acertos]) if idx_acertos is not None and idx_acertos < len(linha) else ""
-        comp_dict = {}
-        baixos = []
-        for idx, comp in componentes:
-            val = str(linha[idx]).strip() if idx < len(linha) else ""
-            if val:
-                legivel = _percentual_legivel(val)
-                comp_dict[comp] = legivel
-                num = _percentual_numero(val, None)
-                if num is not None and num < 60:
-                    baixos.append(f"{comp}: {legivel}")
-        estudantes.append({
-            "ra": ra,
-            "nome": nome,
-            "participacao": participacao,
-            "acertos": acertos,
-            "componentes": comp_dict,
-            "componentes_texto": "; ".join([f"{k}: {v}" for k, v in comp_dict.items()]),
-            "componentes_abaixo": "; ".join(baixos),
-        })
-
-    meta = {}
-    if filtros:
-        for campo in ["NM_TURMA", "NM_SERIE", "NM_ESCOLA", "NM_DIRETORIA", "TP_PROVA"]:
-            m = re.search(rf"{campo}\s+é\s+([^\n]+)", filtros, flags=re.I)
-            if m:
-                meta[campo.lower()] = m.group(1).strip()
-    return {"estudantes": estudantes, "filtros": filtros, "meta": meta, "componentes": [c for _, c in componentes]}
-
-
-def _atualizar_estudantes_conselho_com_base(registro: dict, turma_sel: str, alunos_turma_conselho: pd.DataFrame) -> dict:
-    existentes = {}
-    for e in registro.get("estudantes", []):
-        chave_ra = _normalizar_id_aluno(e.get("ra", ""))
-        chave_nome = _normalizar_nome_aluno(e.get("nome", ""))
-        if chave_ra:
-            existentes[("ra", chave_ra)] = e
-        if chave_nome:
-            existentes[("nome", chave_nome)] = e
-    novos = []
-    for _, row in alunos_turma_conselho.sort_values("nome").iterrows():
-        ra = str(row.get("ra", "")).strip()
-        nome = str(row.get("nome", "")).strip()
-        item = existentes.get(("ra", _normalizar_id_aluno(ra))) or existentes.get(("nome", _normalizar_nome_aluno(nome))) or {}
-        item.update({"ra": ra, "nome": nome, "turma": str(row.get("turma", turma_sel)).strip()})
-        freq = _extrair_frequencia_de_linha(row)
-        if freq and not str(item.get("frequencia", "")).strip():
-            item["frequencia"] = freq
-        for c in ["frequencia", "prova_paulista_participacao", "prova_paulista_acertos", "componentes_pp", "prova_paulista_1", "prova_paulista_2", "prova_interna", "dificuldades", "recomendacoes", "observacoes"]:
-            item.setdefault(c, "")
-        novos.append(item)
-    registro["estudantes"] = novos
-    return registro
-
-
-def _aplicar_resultados_prova_paulista(registro: dict, dados_planilha: dict, turma_sel: str) -> tuple[dict, int, int]:
-    existentes = registro.get("estudantes", []) or []
-    por_ra = {_normalizar_id_aluno(e.get("ra", "")): e for e in existentes if _normalizar_id_aluno(e.get("ra", ""))}
-    por_nome = {_normalizar_nome_aluno(e.get("nome", "")): e for e in existentes if _normalizar_nome_aluno(e.get("nome", ""))}
-    alterados = 0
-    novos = 0
-    for aluno in dados_planilha.get("estudantes", []):
-        ra_key = _normalizar_id_aluno(aluno.get("ra", ""))
-        nome_key = _normalizar_nome_aluno(aluno.get("nome", ""))
-        item = por_ra.get(ra_key) or por_nome.get(nome_key)
-        if item is None:
-            item = {"ra": aluno.get("ra", ""), "nome": aluno.get("nome", ""), "turma": turma_sel, "frequencia": "", "prova_paulista_1": "", "prova_paulista_2": "", "prova_interna": "", "dificuldades": "", "recomendacoes": "", "observacoes": ""}
-            existentes.append(item)
-            novos += 1
-        item["prova_paulista_participacao"] = aluno.get("participacao", "")
-        item["prova_paulista_acertos"] = aluno.get("acertos", "")
-        item["componentes_pp"] = aluno.get("componentes_texto", "")
-        if not str(item.get("prova_paulista_1", "")).strip():
-            item["prova_paulista_1"] = aluno.get("acertos", "")
-        baixos = aluno.get("componentes_abaixo", "")
-        if baixos:
-            obs_atual = str(item.get("observacoes", "")).strip()
-            marca = f"Prova Paulista - componentes abaixo de 60%: {baixos}"
-            if marca not in obs_atual:
-                item["observacoes"] = (obs_atual + "\n" + marca).strip()
-            if not str(item.get("dificuldades", "")).strip():
-                item["dificuldades"] = "6"
-            if not str(item.get("recomendacoes", "")).strip():
-                item["recomendacoes"] = "10"
-        alterados += 1
-    registro["estudantes"] = existentes
-    registro["prova_paulista_importacao"] = {
-        "importado_em": datetime.now().isoformat(timespec="seconds"),
-        "total_linhas": len(dados_planilha.get("estudantes", [])),
-        "componentes": dados_planilha.get("componentes", []),
-        "meta": dados_planilha.get("meta", {}),
-    }
-    return registro, alterados, novos
-
-
-def _gerar_docx_pagina_conselho(registro: dict, pagina: str) -> bytes | None:
-    try:
-        from docx import Document
-        from docx.shared import Pt, Inches
-        from docx.enum.text import WD_ALIGN_PARAGRAPH
-    except Exception as e:
-        st.error(f"Para gerar DOCX, instale python-docx no ambiente: {e}")
-        return None
-    doc = Document()
-    sec = doc.sections[0]
-    sec.top_margin = Inches(0.45); sec.bottom_margin = Inches(0.45); sec.left_margin = Inches(0.45); sec.right_margin = Inches(0.45)
-    def p(txt="", bold=False, align=None, size=10):
-        par = doc.add_paragraph(); run = par.add_run(str(txt or "")); run.bold = bold; run.font.size = Pt(size)
-        if align is not None: par.alignment = align
-        return par
-    p("E.E. PROFª ELIANE AP. DANTAS DA SILVA - PEI", True, WD_ALIGN_PARAGRAPH.CENTER, 10)
-    p(f"CONSELHO DE CLASSE - {registro.get('turma','')} - {registro.get('bimestre','')} - {registro.get('ano_letivo','')}", True, WD_ALIGN_PARAGRAPH.CENTER, 12)
-    doc.add_paragraph()
-    pagina = str(pagina or "").lower()
-    if pagina == "visao":
-        p("VISÃO DA TURMA", True, None, 12)
-        p(f"Turma: {registro.get('turma','')}")
-        p(f"Data: {registro.get('data','')} | Local: {registro.get('local','')}")
-        p(f"Participantes: {registro.get('participantes','')}")
-        p(f"Total de estudantes no registro: {len(registro.get('estudantes', []))}")
-    elif pagina == "ata":
-        p("ATA E RENDIMENTO", True, None, 12)
-        p(registro.get("texto_abertura", ""))
-        t = doc.add_table(rows=1, cols=9); t.style = "Table Grid"
-        for i, h in enumerate(["Nº", "Estudante", "Freq.", "Part. PP", "Acertos PP", "Componentes", "Prova interna", "Dific.", "Recom."]): t.rows[0].cells[i].text = h
-        for i, est in enumerate(registro.get("estudantes", []), 1):
-            c = t.add_row().cells
-            vals = [i, est.get("nome",""), est.get("frequencia",""), est.get("prova_paulista_participacao",""), est.get("prova_paulista_acertos", est.get("prova_paulista_1", "")), est.get("componentes_pp",""), est.get("prova_interna",""), est.get("dificuldades",""), est.get("recomendacoes","")]
-            for j, val in enumerate(vals): c[j].text = str(val)
-    elif pagina == "perfil":
-        p("PERFIL DA TURMA", True, None, 12)
-        perfil = registro.get("perfil", {})
-        for k, v in perfil.items():
-            if isinstance(v, list): v = "; ".join(v)
-            p(f"{k}: {v}")
-    elif pagina == "pec":
-        p("PROTOCOLO PEC", True, None, 12)
-        t = doc.add_table(rows=1, cols=4); t.style = "Table Grid"
-        for i, h in enumerate(["Item", "Elemento", "Situação", "Observação"]): t.rows[0].cells[i].text = h
-        for item in registro.get("protocolo_pec", []):
-            c = t.add_row().cells
-            c[0].text = str(item.get("item", "")); c[1].text = str(item.get("elemento", "")); c[2].text = str(item.get("status", "")); c[3].text = str(item.get("observacao", ""))
-    elif pagina == "focos":
-        p("FOCOS DE ATENÇÃO", True, None, 12)
-        t = doc.add_table(rows=1, cols=5); t.style = "Table Grid"
-        for i, h in enumerate(["Série", "Estudante", "Frequência", "Notas abaixo de 5", "Presença/Ciência"]): t.rows[0].cells[i].text = h
-        for item in registro.get("focos", []):
-            c = t.add_row().cells
-            for j, k in enumerate(["serie", "estudante", "frequencia", "notas_abaixo", "presenca"]): c[j].text = str(item.get(k, ""))
-    elif pagina == "pos":
-        p("PÓS-CONSELHO", True, None, 12)
-        p("Medidas pedagógicas:", True); p(registro.get("medidas_pedagogicas", ""))
-        t = doc.add_table(rows=1, cols=5); t.style = "Table Grid"
-        for i, h in enumerate(["Série", "Estudante", "Frequência", "Notas abaixo de 5", "Ciência"]): t.rows[0].cells[i].text = h
-        for item in registro.get("pos_conselho", []):
-            c = t.add_row().cells
-            for j, k in enumerate(["serie", "estudante", "frequencia", "notas_abaixo", "ciencia"]): c[j].text = str(item.get(k, ""))
-        p("Assinaturas:", True); p(registro.get("assinaturas", ""))
-    bio = BytesIO(); doc.save(bio); bio.seek(0); return bio.getvalue()
-
-
-
-# ======================================================
-# CONSELHO - GERAÇÃO EM PDF (sem dependência python-docx)
-# ======================================================
-def _conselho_pdf_styles():
-    styles = getSampleStyleSheet()
-    normal = ParagraphStyle(
-        'ConselhoNormal', parent=styles['Normal'], fontName='Helvetica', fontSize=8,
-        leading=10, textColor=colors.HexColor('#2f2a44'), spaceAfter=4
-    )
-    small = ParagraphStyle(
-        'ConselhoSmall', parent=normal, fontSize=7, leading=8, spaceAfter=2
-    )
-    title = ParagraphStyle(
-        'ConselhoTitle', parent=styles['Title'], fontName='Helvetica-Bold', fontSize=13,
-        leading=15, alignment=TA_CENTER, textColor=colors.HexColor('#31215f'), spaceAfter=8
-    )
-    subtitle = ParagraphStyle(
-        'ConselhoSubtitle', parent=normal, fontName='Helvetica-Bold', fontSize=9,
-        leading=11, alignment=TA_CENTER, textColor=colors.HexColor('#4b5563'), spaceAfter=8
-    )
-    section = ParagraphStyle(
-        'ConselhoSection', parent=normal, fontName='Helvetica-Bold', fontSize=10,
-        leading=12, textColor=colors.HexColor('#31215f'), spaceBefore=8, spaceAfter=6
-    )
-    return normal, small, title, subtitle, section
-
-
-def _p_pdf(txt, style):
-    return Paragraph(html.escape(str(txt or '')).replace('\n', '<br/>'), style)
-
-
-def _tabela_pdf(headers, rows, widths=None, font_size=7):
-    normal, small, *_ = _conselho_pdf_styles()
-    data = [[_p_pdf(h, small) for h in headers]]
-    for row in rows:
-        data.append([_p_pdf(v, small) for v in row])
-    tbl = Table(data, colWidths=widths, repeatRows=1, hAlign='LEFT')
-    tbl.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#eee7ff')),
-        ('TEXTCOLOR', (0,0), (-1,0), colors.HexColor('#31215f')),
-        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0,0), (-1,-1), font_size),
-        ('VALIGN', (0,0), (-1,-1), 'TOP'),
-        ('GRID', (0,0), (-1,-1), 0.35, colors.HexColor('#d8b4fe')),
-        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#fbf7ff')]),
-        ('LEFTPADDING', (0,0), (-1,-1), 3),
-        ('RIGHTPADDING', (0,0), (-1,-1), 3),
-        ('TOPPADDING', (0,0), (-1,-1), 3),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
-    ]))
-    return tbl
-
-
-def _cabecalho_pdf(story, registro, titulo_pagina='CONSELHO DE CLASSE'):
-    normal, small, title, subtitle, section = _conselho_pdf_styles()
-    story.append(_p_pdf('GOVERNO DO ESTADO DE SÃO PAULO', subtitle))
-    story.append(_p_pdf('SECRETARIA DE ESTADO DA EDUCAÇÃO • UNIDADE REGIONAL DE ENSINO DE SUZANO - SP', subtitle))
-    story.append(_p_pdf('E.E. PROFª ELIANE AP. DANTAS DA SILVA • Programa Ensino Integral - PEI', subtitle))
-    story.append(_p_pdf(f'{ESCOLA_ENDERECO} | Fone: {ESCOLA_TELEFONE} | e-mail: {ESCOLA_EMAIL}', small))
-    story.append(Spacer(1, 0.18*cm))
-    story.append(_p_pdf(titulo_pagina, title))
-    story.append(_p_pdf(f"Turma: {registro.get('turma','')} | {registro.get('bimestre','')} | Ano letivo: {registro.get('ano_letivo','')} | Data: {registro.get('data','')}", subtitle))
-
-
-def _build_pdf(story, pagesize=A4):
-    bio = BytesIO()
-    doc = SimpleDocTemplate(
-        bio, pagesize=pagesize,
-        rightMargin=0.8*cm, leftMargin=0.8*cm,
-        topMargin=0.8*cm, bottomMargin=0.8*cm
-    )
-    doc.build(story)
-    bio.seek(0)
-    return bio.getvalue()
-
-
-def _gerar_docx_conselho_turma(registro: dict) -> bytes | None:
-    # Mantém o nome da função para compatibilidade interna, mas agora gera PDF.
-    try:
-        from reportlab.platypus import PageBreak
-        normal, small, title, subtitle, section = _conselho_pdf_styles()
-        story = []
-        _cabecalho_pdf(story, registro, 'CONSELHO DE CLASSE E SÉRIE PARTICIPATIVO')
-        abertura = registro.get('texto_abertura') or f"Reuniram-se a equipe gestora, professores e responsáveis pelo acompanhamento pedagógico para procederem ao Conselho de Classe da turma {registro.get('turma','')}, registrando evidências, pontos de atenção, encaminhamentos e intervenções pedagógicas."
-        story.append(_p_pdf(abertura, normal))
-        story.append(_p_pdf('ATA E RENDIMENTO DOS ESTUDANTES', section))
-        estudantes = registro.get('estudantes') or []
-        rows = []
-        for idx, est in enumerate(estudantes, 1):
-            rows.append([
-                idx, est.get('nome',''), est.get('frequencia',''),
-                est.get('prova_paulista_participacao',''),
-                est.get('prova_paulista_acertos', est.get('prova_paulista_1','')),
-                est.get('componentes_pp',''), est.get('prova_interna',''),
-                est.get('dificuldades',''), est.get('recomendacoes','')
-            ])
-        story.append(_tabela_pdf(['Nº','Estudante','Freq.','Part. PP','Acertos PP','Comp.','Prova interna','Dificuldades','Recomendações'], rows, widths=[0.7*cm,4.2*cm,1.3*cm,1.4*cm,1.5*cm,2.2*cm,1.7*cm,3*cm,3*cm]))
-        story.append(PageBreak())
-        _cabecalho_pdf(story, registro, 'PERFIL DA TURMA')
-        perfil = registro.get('perfil', {}) or {}
-        for campo, rotulo in [
-            ('desempenho','Desempenho acadêmico'),('dificuldades_aprendizagem','Dificuldades de aprendizagem'),
-            ('comportamento','Comportamento geral'),('participacao','Participação em aula'),
-            ('relacoes','Relações interpessoais'),('lideres','Líderes de turma'),
-            ('competencias_socioemocionais','Competências socioemocionais'),('estrategias_funcionaram','Estratégias que funcionaram'),
-            ('focos_orientacao','Focos de atenção'),('estudantes_destaque','Estudantes destaque'),
-            ('recomendacoes','Recomendações'),('observacoes','Observações')]:
-            valor = perfil.get(campo, '')
-            if isinstance(valor, list): valor = '; '.join(valor)
-            story.append(_p_pdf(f'<b>{rotulo}:</b> {valor}', normal))
-        story.append(PageBreak())
-        _cabecalho_pdf(story, registro, 'PROTOCOLO DE ACOMPANHAMENTO DO CONSELHO - PEC')
-        prot_rows = [[i.get('item',''), i.get('elemento',''), i.get('status',''), i.get('observacao','')] for i in (registro.get('protocolo_pec') or [])]
-        story.append(_tabela_pdf(['Item','Elemento do Conselho','Situação','Observação'], prot_rows, widths=[1*cm,9*cm,3*cm,5*cm]))
-        story.append(PageBreak())
-        _cabecalho_pdf(story, registro, 'FOCOS DE ATENÇÃO E PÓS-CONSELHO')
-        focos_rows = [[i.get('serie',''), i.get('estudante',''), i.get('frequencia',''), i.get('notas_abaixo',''), i.get('presenca','')] for i in (registro.get('focos') or [])]
-        story.append(_p_pdf('FOCOS DE ATENÇÃO', section))
-        story.append(_tabela_pdf(['Série','Estudante','Frequência','Notas abaixo de cinco','Presença/Ciência'], focos_rows, widths=[1.6*cm,6*cm,2.2*cm,4*cm,4*cm]))
-        pos_rows = [[i.get('serie',''), i.get('estudante',''), i.get('frequencia',''), i.get('notas_abaixo',''), i.get('ciencia','')] for i in (registro.get('pos_conselho') or [])]
-        story.append(_p_pdf('PÓS-CONSELHO', section))
-        story.append(_tabela_pdf(['Série','Estudante','Frequência','Notas abaixo de cinco','Ciência'], pos_rows, widths=[1.6*cm,6*cm,2.2*cm,4*cm,4*cm]))
-        story.append(_p_pdf('<b>Medidas pedagógicas:</b>', section)); story.append(_p_pdf(registro.get('medidas_pedagogicas',''), normal))
-        story.append(_p_pdf('<b>Assinaturas / ciência da equipe:</b>', section)); story.append(_p_pdf(registro.get('assinaturas',''), normal))
-        return _build_pdf(story, pagesize=landscape(A4))
-    except Exception as e:
-        st.error(f'Não foi possível gerar o PDF do Conselho: {e}')
-        return None
-
-
-def _gerar_docx_pagina_conselho(registro: dict, pagina: str) -> bytes | None:
-    # Mantém o nome da função para compatibilidade interna, mas agora gera PDF.
-    try:
-        normal, small, title, subtitle, section = _conselho_pdf_styles()
-        story = []
-        pagina = str(pagina or '').lower()
-        nomes = {'visao':'VISÃO DA TURMA','ata':'ATA E RENDIMENTO','perfil':'PERFIL DA TURMA','pec':'PROTOCOLO PEC','focos':'FOCOS DE ATENÇÃO','pos':'PÓS-CONSELHO'}
-        _cabecalho_pdf(story, registro, nomes.get(pagina, 'CONSELHO DE CLASSE'))
-        if pagina == 'visao':
-            story.append(_p_pdf(f"<b>Turma:</b> {registro.get('turma','')}", normal))
-            story.append(_p_pdf(f"<b>Data:</b> {registro.get('data','')} | <b>Horário:</b> {registro.get('horario','')} | <b>Local:</b> {registro.get('local','')}", normal))
-            story.append(_p_pdf(f"<b>Participantes:</b> {registro.get('participantes','')}", normal))
-            story.append(_p_pdf(f"<b>Total de estudantes no registro:</b> {len(registro.get('estudantes', []))}", normal))
-        elif pagina == 'ata':
-            story.append(_p_pdf(registro.get('texto_abertura',''), normal))
-            rows = []
-            for i, est in enumerate(registro.get('estudantes', []), 1):
-                rows.append([i, est.get('nome',''), est.get('frequencia',''), est.get('prova_paulista_participacao',''), est.get('prova_paulista_acertos', est.get('prova_paulista_1','')), est.get('componentes_pp',''), est.get('prova_interna',''), est.get('dificuldades',''), est.get('recomendacoes','')])
-            story.append(_tabela_pdf(['Nº','Estudante','Freq.','Part. PP','Acertos PP','Comp.','Prova interna','Dific.','Recom.'], rows, widths=[0.7*cm,4.2*cm,1.3*cm,1.4*cm,1.5*cm,2.2*cm,1.7*cm,3*cm,3*cm]))
-        elif pagina == 'perfil':
-            perfil = registro.get('perfil', {}) or {}
-            for k, v in perfil.items():
-                if isinstance(v, list): v = '; '.join(v)
-                story.append(_p_pdf(f'<b>{k}:</b> {v}', normal))
-        elif pagina == 'pec':
-            rows = [[i.get('item',''), i.get('elemento',''), i.get('status',''), i.get('observacao','')] for i in (registro.get('protocolo_pec') or [])]
-            story.append(_tabela_pdf(['Item','Elemento','Situação','Observação'], rows, widths=[1*cm,9*cm,3*cm,5*cm]))
-        elif pagina == 'focos':
-            rows = [[i.get('serie',''), i.get('estudante',''), i.get('frequencia',''), i.get('notas_abaixo',''), i.get('presenca','')] for i in (registro.get('focos') or [])]
-            story.append(_tabela_pdf(['Série','Estudante','Frequência','Notas abaixo de 5','Presença/Ciência'], rows, widths=[1.6*cm,6*cm,2.2*cm,4*cm,4*cm]))
-        elif pagina == 'pos':
-            rows = [[i.get('serie',''), i.get('estudante',''), i.get('frequencia',''), i.get('notas_abaixo',''), i.get('ciencia','')] for i in (registro.get('pos_conselho') or [])]
-            story.append(_p_pdf('<b>Medidas pedagógicas:</b>', section)); story.append(_p_pdf(registro.get('medidas_pedagogicas',''), normal))
-            story.append(_tabela_pdf(['Série','Estudante','Frequência','Notas abaixo de 5','Ciência'], rows, widths=[1.6*cm,6*cm,2.2*cm,4*cm,4*cm]))
-            story.append(_p_pdf('<b>Assinaturas:</b>', section)); story.append(_p_pdf(registro.get('assinaturas',''), normal))
-        return _build_pdf(story, pagesize=landscape(A4))
-    except Exception as e:
-        st.error(f'Não foi possível gerar o PDF desta página: {e}')
-        return None
-
 ESCOLA_IMAGEM_MENU_BASE64 = """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"""
 
 # ======================================================
@@ -2251,17 +2092,17 @@ ESCOLA_IMAGEM_MENU_BASE64 = """/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBAUEBAYFBQUGB
 st.sidebar.markdown(f"""
 <div style="background:#ffffff;border:1px solid #d8e6f3;border-radius:4px;margin-bottom:0.7rem;overflow:hidden;box-shadow:0 2px 8px rgba(15,23,42,0.04);">
     <div style="padding:0.8rem 0.8rem 0.65rem;display:flex;align-items:center;gap:0.65rem;">
-        <div style="width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,#3f9bd7,#22c7a8);display:grid;place-items:center;color:white;font-weight:900;font-size:1.05rem;">179</div>
+        <div style="width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,#3f9bd7,#22c7a8);display:grid;place-items:center;color:white;font-weight:900;font-size:1.35rem;">S</div>
         <div style="min-width:0;">
-            <div style="font-size:0.72rem;color:#64748b;text-transform:uppercase;font-weight:800;line-height:1.1;">Sistema Conviva</div>
-            <div style="font-size:1.25rem;color:#3f9bd7;font-weight:900;line-height:1.05;">Protocolo 179</div>
+            <div style="font-size:0.72rem;color:#64748b;text-transform:uppercase;font-weight:800;line-height:1.1;">Secretaria Escolar</div>
+            <div style="font-size:1.25rem;color:#3f9bd7;font-weight:900;line-height:1.05;">Digital</div>
         </div>
     </div>
     <div style="height:4px;background:linear-gradient(90deg,#ff5db1,#ffd166,#50e3c2,#4da3ff,#b47cff);"></div>
     <div style="padding:0.65rem 0.8rem 0.75rem;">
-        <div style="font-size:0.75rem;color:#64748b;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;">{ESCOLA_SUBTITULO}</div>
-        <div style="font-size:0.86rem;color:#1f2937;font-weight:800;line-height:1.35;margin-top:0.2rem;">E.E. Profª Eliane Ap. Dantas da Silva</div>
-        <div style="font-size:0.74rem;color:#64748b;line-height:1.35;margin-top:0.25rem;">Conviva • Protocolo 179<br>{ESCOLA_EMAIL}</div>
+        <div style="font-size:0.75rem;color:#64748b;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;">Sistema Conviva 179</div>
+        <div style="font-size:0.86rem;color:#1f2937;font-weight:700;line-height:1.35;margin-top:0.2rem;">{ESCOLA_SUBTITULO}</div>
+        <div style="font-size:0.74rem;color:#64748b;line-height:1.35;margin-top:0.25rem;">{ESCOLA_EMAIL}</div>
     </div>
 </div>
 <div style="margin:0 0 0.55rem 0;">
@@ -2277,6 +2118,7 @@ menu_items = [
     {"nome": "Dashboard", "icone": "🏠"},
     {"nome": "Registrar Ocorrência", "icone": "📝"},
     {"nome": "Relatório dos Estudantes", "icone": "🧾"},
+    {"nome": "Conselho", "icone": "🏛️"},
     {"nome": "Histórico de Ocorrências", "icone": "📋"},
     {"nome": "Comunicado aos Pais", "icone": "📄"},
     {"nome": "Lista de Alunos", "icone": "👥"},
@@ -2286,7 +2128,6 @@ menu_items = [
     {"nome": "Cadastrar Assinaturas", "icone": "👤"},
     {"nome": "Eletiva", "icone": "🎨"},
     {"nome": "Tutoria", "icone": "🫂"},
-    {"nome": "Conselho", "icone": "🏛️"},
     {"nome": "Gráficos e Indicadores", "icone": "📊"},
     {"nome": "Imprimir PDF", "icone": "🖨️"},
     {"nome": "Mapa da Sala", "icone": "🏫"},
@@ -2322,15 +2163,15 @@ def _render_sed_header_global(pagina_atual: str):
     <div class="sed-global-header">
         <div class="sed-header-top">
             <div class="sed-header-brand">
-                <div class="sed-logo-mark">179</div>
+                <div class="sed-logo-mark">S</div>
                 <div>
-                    <p class="sed-secretaria">Sistema Conviva • Protocolo 179</p>
-                    <p class="sed-system-title">E.E. Profª Eliane Ap. Dantas da Silva</p>
+                    <p class="sed-secretaria">Secretaria da Educação do Estado de São Paulo</p>
+                    <p class="sed-system-title">Secretaria Escolar Digital</p>
                 </div>
             </div>
             <div class="sed-user-box">
                 Olá, <b>{html.escape(str(usuario_nome).upper())}</b><br>
-                {html.escape(ESCOLA_SUBTITULO)}<br>
+                Você está logado no Sistema Conviva 179<br>
                 {html.escape(ESCOLA_EMAIL)}
             </div>
         </div>
@@ -2999,30 +2840,28 @@ def show_toast(message: str, type: str = "success", duration: int = 3000):
     st.toast(f"{icon} {message}")
 
 
-# [limpeza] definição duplicada removida: page_header
+# [limpeza] definição duplicada de page_header removida; mantida a versão final.
 
 
-def page_header(titulo: str, subtitulo: str = "", cor: str = "#2563eb"):
-    """Renderiza um cabeçalho de página moderno e consistente."""
-    partes = titulo.split(maxsplit=1)
+def page_header(titulo: str, subtitulo: str = "", cor: str = "#2f9ddd"):
+    """Cabeçalho padrão SED pastel para todas as páginas."""
+    partes = str(titulo or "").split(maxsplit=1)
     primeiro_token = partes[0] if partes else ""
     token_tem_texto = any(ch.isalnum() for ch in primeiro_token)
-
     if len(partes) > 1 and not token_tem_texto:
         icone = primeiro_token
         titulo_texto = partes[1]
     else:
         icone = "📌"
-        titulo_texto = titulo
-
-    sub_html = f'<p class="page-banner-subtitle">{subtitulo}</p>' if subtitulo else ""
+        titulo_texto = str(titulo or "Painel")
+    sub_html = f'<p class="page-banner-subtitle">{html.escape(str(subtitulo))}</p>' if subtitulo else ""
     st.markdown(f"""
-    <div class="page-banner" style="--banner-accent:{cor};">
+    <div class="page-banner" style="--banner-accent:{html.escape(str(cor))};">
         <div class="page-banner-content">
             <div class="page-banner-icon">{icone}</div>
             <div class="page-banner-copy">
-                <div class="page-banner-kicker">Painel</div>
-                <div class="page-banner-title">{titulo_texto}</div>
+                <div class="page-banner-kicker">Sistema Conviva 179</div>
+                <div class="page-banner-title">{html.escape(titulo_texto)}</div>
                 {sub_html}
             </div>
         </div>
@@ -3098,8 +2937,6 @@ def formatar_turma_eletiva(valor: str) -> str:
 def turma_para_comparacao(valor: str) -> str:
     """Normaliza turma para comparação segura, sem depender de variações de escrita."""
     return normalizar_texto(formatar_turma_eletiva(valor))
-
-
 
 
 # ======================================================
@@ -3810,7 +3647,7 @@ def _formatar_lista_nomes(nomes: list[str]) -> str:
         return nomes[0]
     return ", ".join(nomes[:-1]) + " e " + nomes[-1]
 
-# [limpeza] definição duplicada removida: _resposta_pedagogica_local
+# [limpeza] definição duplicada de _resposta_pedagogica_local removida; mantida a versão final.
 
 
 def chamar_ia_conviva_online(texto: str, tarefa: str, contexto: str = "") -> str:
@@ -6283,6 +6120,7 @@ ROTAS_MENU_SUPORTADAS = {
     normalizar_texto("🏠 Dashboard"),
     normalizar_texto("📝 Registrar Ocorrência"),
     normalizar_texto("🧾 Relatório dos Estudantes"),
+    normalizar_texto("🏛️ Conselho"),
     normalizar_texto("📋 Histórico de Ocorrências"),
     normalizar_texto("📄 Comunicado aos Pais"),
     normalizar_texto("👥 Lista de Alunos"),
@@ -6292,8 +6130,6 @@ ROTAS_MENU_SUPORTADAS = {
     normalizar_texto("👤 Cadastrar Assinaturas"),
     normalizar_texto("🎨 Eletiva"),
     normalizar_texto("🫂 Tutoria"),
-    normalizar_texto("🗂️ Conselho"),
-    normalizar_texto("🏛️ Conselho"),
     normalizar_texto("📊 Gráficos e Indicadores"),
     normalizar_texto("🖨️ Imprimir PDF"),
     normalizar_texto("🏫 Mapa da Sala"),
@@ -6313,6 +6149,364 @@ if ROTAS_MENU_AUSENTES:
 exibir_notificacoes_sidebar()
 exibir_gamificacao_sidebar()
 exibir_assistente_sidebar()
+
+
+# ======================================================
+# CONSELHO DE CLASSE — TABELA + PDF ORGANIZADO
+# ======================================================
+COLUNAS_CONSELHO_PADRAO = [
+    "Nº", "Estudante", "Freq.", "Part. PP", "Acertos PP", "Comp.",
+    "Prova interna", "Dificuldades", "Recomendações"
+]
+
+
+def _normalizar_chave_conselho(valor: str) -> str:
+    texto = normalizar_texto(str(valor or ""))
+    texto = texto.replace("%", " PERCENTUAL ")
+    texto = re.sub(r"[^A-Z0-9 ]+", " ", texto)
+    return re.sub(r"\s+", " ", texto).strip()
+
+
+def _limpar_valor_conselho(valor) -> str:
+    if valor is None:
+        return ""
+    try:
+        if pd.isna(valor):
+            return ""
+    except Exception:
+        pass
+    if isinstance(valor, float):
+        if valor.is_integer():
+            return str(int(valor))
+        return f"{valor:.1f}".replace(".", ",")
+    texto = str(valor).strip()
+    texto = re.sub(r"\s+", " ", texto)
+    return texto
+
+
+def _promover_cabecalho_conselho(df: pd.DataFrame) -> pd.DataFrame:
+    """Tenta localizar a linha de cabeçalho quando o Excel vem de conversão/PDF."""
+    if df is None or df.empty:
+        return pd.DataFrame(columns=COLUNAS_CONSELHO_PADRAO)
+    df = df.dropna(axis=0, how="all").dropna(axis=1, how="all").copy()
+    if df.empty:
+        return pd.DataFrame(columns=COLUNAS_CONSELHO_PADRAO)
+
+    nomes_colunas = " ".join(_normalizar_chave_conselho(c) for c in df.columns)
+    if "ESTUDANTE" in nomes_colunas or "ALUNO" in nomes_colunas:
+        return df
+
+    limite = min(len(df), 12)
+    for idx in range(limite):
+        linha = " ".join(_normalizar_chave_conselho(v) for v in df.iloc[idx].tolist())
+        if any(chave in linha for chave in ["ESTUDANTE", "ALUNO", "FREQ", "RECOMENDACOES", "DIFICULDADES"]):
+            novo = df.iloc[idx + 1:].copy()
+            novo.columns = [str(v).strip() if str(v).strip() else f"COL_{i+1}" for i, v in enumerate(df.iloc[idx].tolist())]
+            return novo.dropna(axis=0, how="all").dropna(axis=1, how="all")
+    return df
+
+
+def _mapear_colunas_conselho(df: pd.DataFrame) -> pd.DataFrame:
+    """Converte qualquer planilha parecida para as colunas usadas na ata/PDF."""
+    if df is None or df.empty:
+        return pd.DataFrame(columns=COLUNAS_CONSELHO_PADRAO)
+
+    df = _promover_cabecalho_conselho(df)
+    if df.empty:
+        return pd.DataFrame(columns=COLUNAS_CONSELHO_PADRAO)
+
+    mapa = {}
+    for col in df.columns:
+        n = _normalizar_chave_conselho(col)
+        if any(x in n for x in ["N ", "NUM", "NUMERO", "ITEM"]):
+            mapa.setdefault("Nº", col)
+        elif any(x in n for x in ["ESTUDANTE", "ALUNO", "NOME"]):
+            mapa.setdefault("Estudante", col)
+        elif "FREQ" in n or "FREQUENCIA" in n:
+            mapa.setdefault("Freq.", col)
+        elif "PART" in n and "PP" in n:
+            mapa.setdefault("Part. PP", col)
+        elif any(x in n for x in ["ACERTO", "ACERTOS"]):
+            mapa.setdefault("Acertos PP", col)
+        elif any(x in n for x in ["COMP", "COMPONENTE", "COMPONENTES"]):
+            mapa.setdefault("Comp.", col)
+        elif "PROVA" in n or "INTERNA" in n:
+            mapa.setdefault("Prova interna", col)
+        elif any(x in n for x in ["DIFIC", "DIFICULDADE"]):
+            mapa.setdefault("Dificuldades", col)
+        elif any(x in n for x in ["RECOM", "ENCAM", "ORIENT"]):
+            mapa.setdefault("Recomendações", col)
+
+    saida = pd.DataFrame()
+    usadas = set()
+    for padrao in COLUNAS_CONSELHO_PADRAO:
+        col_origem = mapa.get(padrao)
+        if col_origem is not None and col_origem not in usadas:
+            saida[padrao] = df[col_origem].apply(_limpar_valor_conselho)
+            usadas.add(col_origem)
+        else:
+            saida[padrao] = ""
+
+    # Se não localizou estudante, usa a segunda coluna como fallback.
+    if saida["Estudante"].astype(str).str.strip().eq("").all() and len(df.columns) >= 2:
+        saida["Estudante"] = df.iloc[:, 1].apply(_limpar_valor_conselho)
+    if saida["Nº"].astype(str).str.strip().eq("").all():
+        saida["Nº"] = [str(i + 1) for i in range(len(saida))]
+
+    saida = saida[saida["Estudante"].astype(str).str.strip().ne("")].copy()
+    saida.reset_index(drop=True, inplace=True)
+    return saida
+
+
+def _carregar_excel_conselho(arquivo_ou_url) -> pd.DataFrame:
+    try:
+        return _mapear_colunas_conselho(pd.read_excel(arquivo_ou_url, dtype=str))
+    except ImportError as exc:
+        raise RuntimeError("Para ler .xlsx no Streamlit Cloud, inclua openpyxl no requirements.txt.") from exc
+    except Exception as exc:
+        raise RuntimeError(f"Não foi possível ler a planilha: {exc}") from exc
+
+
+def _quebrar_texto_conselho(texto: str, limite: int = 420) -> str:
+    texto = _limpar_valor_conselho(texto)
+    if len(texto) <= limite:
+        return texto
+    return texto[: limite - 3].rstrip() + "..."
+
+
+def _altura_linha_conselho(linha: list, larguras_cm: list) -> float:
+    """Calcula altura aproximada para evitar células apertadas no PDF."""
+    max_linhas = 1
+    for valor, largura in zip(linha, larguras_cm):
+        texto = str(valor or "")
+        chars_por_linha = max(8, int(largura * 4.7))
+        linhas = max(1, (len(texto) // chars_por_linha) + 1)
+        max_linhas = max(max_linhas, linhas)
+    return min(max(0.72 * cm, (0.28 * cm) * max_linhas + 0.24 * cm), 2.45 * cm)
+
+
+def gerar_pdf_conselho_classe(df_conselho: pd.DataFrame, turma: str, bimestre: str, ano_letivo: str, data_conselho, observacoes: str = "") -> BytesIO:
+    """Gera PDF no padrão da Ata do Conselho, com células ajustadas e repetição de cabeçalho."""
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+
+    df_pdf = _mapear_colunas_conselho(df_conselho).copy()
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(A4),
+        rightMargin=0.85 * cm,
+        leftMargin=0.85 * cm,
+        topMargin=0.75 * cm,
+        bottomMargin=0.75 * cm,
+    )
+
+    styles = getSampleStyleSheet()
+    titulo = ParagraphStyle(
+        "ConselhoTitulo",
+        parent=styles["Title"],
+        fontName="Helvetica-Bold",
+        fontSize=13,
+        leading=15,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor("#2b2140"),
+        spaceAfter=4,
+    )
+    subtitulo = ParagraphStyle(
+        "ConselhoSubtitulo",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=8,
+        leading=10,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor("#23304a"),
+    )
+    texto = ParagraphStyle(
+        "ConselhoTexto",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=7,
+        leading=8.2,
+        alignment=TA_LEFT,
+        textColor=colors.HexColor("#111827"),
+    )
+    texto_centro = ParagraphStyle(
+        "ConselhoTextoCentro",
+        parent=texto,
+        alignment=TA_CENTER,
+    )
+    header = ParagraphStyle(
+        "ConselhoHeader",
+        parent=texto_centro,
+        fontName="Helvetica-Bold",
+        fontSize=6.6,
+        leading=7.4,
+        textColor=colors.HexColor("#2b2140"),
+    )
+    pequeno = ParagraphStyle(
+        "ConselhoPequeno",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=6.4,
+        leading=7.4,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor("#111827"),
+    )
+
+    data_txt = ""
+    try:
+        data_txt = pd.to_datetime(data_conselho).strftime("%Y-%m-%d")
+    except Exception:
+        data_txt = str(data_conselho or "")
+
+    story = []
+    story.append(Paragraph("GOVERNO DO ESTADO DE SÃO PAULO", subtitulo))
+    story.append(Paragraph("SECRETARIA DE ESTADO DA EDUCAÇÃO • UNIDADE REGIONAL DE ENSINO DE SUZANO - SP", subtitulo))
+    story.append(Paragraph("E.E. PROFª ELIANE AP. DANTAS DA SILVA • Programa Ensino Integral - PEI", subtitulo))
+    story.append(Paragraph(f"{ESCOLA_ENDERECO} | Fone: {ESCOLA_TELEFONE} | e-mail: {ESCOLA_EMAIL}", pequeno))
+    story.append(Spacer(1, 0.18 * cm))
+    story.append(Paragraph("CONSELHO DE CLASSE E SÉRIE PARTICIPATIVO", titulo))
+    story.append(Paragraph(f"Turma: {html.escape(str(turma))} | {html.escape(str(bimestre))} | Ano letivo: {html.escape(str(ano_letivo))} | Data: {html.escape(str(data_txt))}", subtitulo))
+    story.append(Spacer(1, 0.18 * cm))
+    intro = "Reuniram-se a equipe gestora, professores e responsáveis pelo acompanhamento pedagógico para procederem ao Conselho de Classe da turma, registrando evidências, pontos de atenção, encaminhamentos e intervenções pedagógicas."
+    story.append(Paragraph(intro, texto))
+    story.append(Spacer(1, 0.18 * cm))
+    story.append(Paragraph("<b>ATA E RENDIMENTO DOS ESTUDANTES</b>", ParagraphStyle("SecaoConselho", parent=texto, fontName="Helvetica-Bold", fontSize=9, leading=11, textColor=colors.HexColor("#2b2140"))))
+
+    colunas = COLUNAS_CONSELHO_PADRAO
+    larguras_cm = [0.8, 4.2, 1.15, 1.25, 1.35, 3.4, 1.8, 5.0, 6.1]
+    col_widths = [x * cm for x in larguras_cm]
+
+    dados = [[Paragraph(c, header) for c in colunas]]
+    row_heights = [0.58 * cm]
+
+    if df_pdf.empty:
+        df_pdf = pd.DataFrame([{c: "" for c in colunas}])
+        df_pdf.loc[0, "Estudante"] = "Sem estudantes carregados"
+
+    for _, row in df_pdf.iterrows():
+        linha_texto = [_quebrar_texto_conselho(row.get(c, ""), 520 if c in ["Dificuldades", "Recomendações"] else 280) for c in colunas]
+        linha_pdf = []
+        for c, valor in zip(colunas, linha_texto):
+            estilo = texto_centro if c in ["Nº", "Freq.", "Part. PP", "Acertos PP", "Prova interna"] else texto
+            linha_pdf.append(Paragraph(html.escape(str(valor)).replace("\n", "<br/>"), estilo))
+        dados.append(linha_pdf)
+        row_heights.append(_altura_linha_conselho(linha_texto, larguras_cm))
+
+    tabela = Table(dados, colWidths=col_widths, rowHeights=row_heights, repeatRows=1, splitByRow=1)
+    tabela.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f3e8ff")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#2b2140")),
+        ("GRID", (0, 0), (-1, -1), 0.45, colors.HexColor("#d8b4fe")),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("ALIGN", (0, 0), (0, -1), "CENTER"),
+        ("ALIGN", (2, 1), (4, -1), "CENTER"),
+        ("ALIGN", (6, 1), (6, -1), "CENTER"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 3),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#fbf7ff")]),
+    ]))
+    story.append(tabela)
+
+    if str(observacoes or "").strip():
+        story.append(Spacer(1, 0.22 * cm))
+        story.append(Paragraph("<b>Observações gerais</b>", ParagraphStyle("ObsTituloConselho", parent=texto, fontName="Helvetica-Bold", fontSize=8, leading=10)))
+        story.append(Paragraph(html.escape(str(observacoes)).replace("\n", "<br/>"), texto))
+
+    story.append(Spacer(1, 0.45 * cm))
+    assinaturas = Table([
+        [Paragraph("_________________________________________<br/>Professor(a) Coordenador(a)", texto_centro),
+         Paragraph("_________________________________________<br/>Gestão Escolar", texto_centro),
+         Paragraph("_________________________________________<br/>Professor(a)/Tutor(a)", texto_centro)]
+    ], colWidths=[8.5 * cm, 8.5 * cm, 8.5 * cm])
+    assinaturas.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP")]))
+    story.append(assinaturas)
+
+    doc.build(story)
+    buffer.seek(0)
+    return buffer
+
+
+def render_pagina_conselho():
+    page_header("🏛️ Conselho", "Ata, rendimento dos estudantes e impressão organizada do Conselho de Classe", "#7c3aed")
+
+    st.markdown("""
+    <div class="info-box">
+        Use esta página para carregar a tabela do Conselho em Excel, revisar os dados e gerar o PDF com células ajustadas para impressão.
+    </div>
+    """, unsafe_allow_html=True)
+
+    col_a, col_b, col_c, col_d = st.columns([1.2, 1, 1, 1])
+    with col_a:
+        turma = st.text_input("Turma", value=st.session_state.get("conselho_turma", "7º Ano C"), key="conselho_turma")
+    with col_b:
+        bimestre = st.selectbox("Bimestre", ["1º Bimestre", "2º Bimestre", "3º Bimestre", "4º Bimestre"], key="conselho_bimestre")
+    with col_c:
+        ano_letivo = st.text_input("Ano letivo", value=str(datetime.now().year), key="conselho_ano_letivo")
+    with col_d:
+        data_conselho = st.date_input("Data", value=datetime.now().date(), format="YYYY-MM-DD", key="conselho_data")
+
+    tab_upload, tab_tabela, tab_pdf = st.tabs(["📥 Carregar tabela", "📋 Revisar dados", "🖨️ Imprimir ata"])
+
+    with tab_upload:
+        st.markdown("### 📥 Carregar planilha do Conselho")
+        arquivo = st.file_uploader("Enviar arquivo Excel (.xlsx) da ata/tabela", type=["xlsx", "xls"], key="upload_conselho_xlsx")
+        url_excel = st.text_input("Ou cole um link direto do Excel/SharePoint", value="", key="url_conselho_excel")
+        c1, c2 = st.columns([1, 1])
+        with c1:
+            if st.button("📥 Carregar tabela", type="primary", key="btn_carregar_conselho"):
+                try:
+                    if arquivo is not None:
+                        st.session_state.df_conselho = _carregar_excel_conselho(arquivo)
+                        st.success("Tabela carregada do arquivo enviado.")
+                    elif str(url_excel or "").strip():
+                        st.session_state.df_conselho = _carregar_excel_conselho(str(url_excel).strip())
+                        st.success("Tabela carregada pelo link.")
+                    else:
+                        st.warning("Envie um arquivo .xlsx ou informe um link direto.")
+                except Exception as exc:
+                    st.error(str(exc))
+                    st.info("Se o link for do SharePoint com login, baixe o arquivo .xlsx e envie aqui pelo botão de upload.")
+        with c2:
+            if st.button("🧪 Criar tabela vazia", key="btn_conselho_modelo"):
+                st.session_state.df_conselho = pd.DataFrame([{c: "" for c in COLUNAS_CONSELHO_PADRAO} for _ in range(10)])
+                st.success("Modelo vazio criado para preenchimento manual.")
+
+        st.caption("Observação: links do SharePoint que exigem login podem não ser lidos automaticamente pelo Streamlit. O envio do .xlsx funciona de forma mais segura.")
+
+    with tab_tabela:
+        st.markdown("### 📋 Ata e rendimento dos estudantes")
+        df_atual = st.session_state.get("df_conselho", pd.DataFrame(columns=COLUNAS_CONSELHO_PADRAO))
+        if df_atual.empty:
+            st.info("Carregue uma planilha ou crie um modelo vazio na aba anterior.")
+        else:
+            df_atual = _mapear_colunas_conselho(df_atual)
+            st.session_state.df_conselho = st.data_editor(
+                df_atual,
+                use_container_width=True,
+                hide_index=True,
+                num_rows="dynamic",
+                key="editor_conselho",
+            )
+            st.caption("As colunas Dificuldades e Recomendações podem ter textos maiores; no PDF elas recebem mais largura e quebra automática.")
+
+    with tab_pdf:
+        st.markdown("### 🖨️ Gerar PDF do Conselho")
+        observacoes = st.text_area("Observações gerais da ata", value=st.session_state.get("conselho_observacoes", ""), height=90, key="conselho_observacoes")
+        df_pdf = _mapear_colunas_conselho(st.session_state.get("df_conselho", pd.DataFrame(columns=COLUNAS_CONSELHO_PADRAO)))
+        st.write(f"Registros na tabela: **{len(df_pdf)}**")
+        if not df_pdf.empty:
+            st.dataframe(df_pdf.head(8), use_container_width=True, hide_index=True)
+        if st.button("📄 Gerar PDF organizado", type="primary", key="btn_pdf_conselho"):
+            try:
+                pdf = gerar_pdf_conselho_classe(df_pdf, turma, bimestre, ano_letivo, data_conselho, observacoes)
+                nome_pdf = f"conselho_{gerar_chave_segura(turma)}_{gerar_chave_segura(bimestre)}_{ano_letivo}.pdf"
+                st.download_button("⬇️ Baixar PDF do Conselho", data=pdf, file_name=nome_pdf, mime="application/pdf", key="download_pdf_conselho")
+                st.success("PDF gerado com células ajustadas para impressão.")
+            except Exception as exc:
+                st.error(f"Erro ao gerar PDF: {exc}")
+
 # ======================================================
 # PÁGINA 🏠 DASHBOARD - COMPLETO E COLORIDO
 # ======================================================
@@ -6572,7 +6766,7 @@ def excluir_caderno_tutoria_supabase(chave: str) -> bool:
         return False
 
 
-# [limpeza] definição duplicada removida: render_login_professor_tutoria
+# [limpeza] definição duplicada de render_login_professor_tutoria removida; mantida a versão final.
 
 
 def gerar_pdf_cadernos_professor(professor: str, cadernos: dict) -> BytesIO:
@@ -6738,7 +6932,7 @@ def obter_caderno_tutoria_online(cadernos: dict, professor: str, estudante: str,
     return chave, caderno
 
 
-# [limpeza] definição duplicada removida: _atualizar_caderno
+# [limpeza] definição duplicada de _atualizar_caderno removida; mantida a versão final.
 
 
 def _linhas_professor_tutoria(registro_tutor: dict) -> list[dict]:
@@ -6758,10 +6952,10 @@ def _pdf_texto_caderno(valor, estilo: ParagraphStyle) -> Paragraph:
     return Paragraph(texto or "&nbsp;", estilo)
 
 
-# [limpeza] definição duplicada removida: gerar_pdf_caderno_tutoria
+# [limpeza] definição duplicada de gerar_pdf_caderno_tutoria removida; mantida a versão final.
 
 
-# [limpeza] definição duplicada removida: render_caderno_tutoria_online
+# [limpeza] definição duplicada de render_caderno_tutoria_online removida; mantida a versão final.
 
 
 # ======================================================
@@ -7640,10 +7834,10 @@ if menu == "🏠 Dashboard":
     <div class="sed-dashboard-header animate-fade-in">
         <div class="sed-dashboard-top">
             <div class="sed-dashboard-brand">
-                <div class="sed-dashboard-mark">179</div>
+                <div class="sed-dashboard-mark">S</div>
                 <div>
-                    <p class="sed-dashboard-kicker">Sistema Conviva • Protocolo 179</p>
-                    <p class="sed-dashboard-title">E.E. Profª Eliane Ap. Dantas da Silva</p>
+                    <p class="sed-dashboard-kicker">Secretaria da Educação do Estado de São Paulo</p>
+                    <p class="sed-dashboard-title">Secretaria Escolar Digital</p>
                 </div>
             </div>
             <div class="sed-dashboard-user">
@@ -7685,28 +7879,17 @@ if menu == "🏠 Dashboard":
     <div class="sed-panel">
         <div class="sed-panel-title">Plataformas do Sistema Conviva</div>
         <div class="sed-panel-body">
-            <p style="margin:0 0 .75rem 0;color:#6b5b95;font-size:.92rem;">Acesse rapidamente os principais módulos do sistema.</p>
+            <div class="sed-grid-modulos">
+                <div class="sed-module-card"><span class="sed-module-title">Registrar Ocorrência ↗</span><span class="sed-module-sub">Registro rápido e padronizado</span></div>
+                <div class="sed-module-card green"><span class="sed-module-title">Caderno de Tutoria ↗</span><span class="sed-module-sub">Acompanhamento individual e coletivo</span></div>
+                <div class="sed-module-card light"><span class="sed-module-title">Lista de Alunos ↗</span><span class="sed-module-sub">Consulta e gestão de estudantes</span></div>
+                <div class="sed-module-card red"><span class="sed-module-title">Comunicado aos Pais ↗</span><span class="sed-module-sub">Geração de comunicados</span></div>
+                <div class="sed-module-card gray"><span class="sed-module-title">Relatórios ↗</span><span class="sed-module-sub">Histórico pedagógico e evidências</span></div>
+                <div class="sed-module-card rainbow"><span class="sed-module-title">IA Conviva ↗</span><span class="sed-module-sub">Reescrita pedagógica humanizada</span></div>
+            </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
-
-    modulos_dashboard = [
-        ("📝 Registrar Ocorrência\nRegistro rápido e padronizado", "📝 Registrar Ocorrência", "dash_mod_ocorrencia"),
-        ("🏛️ Conselho\nDocumentos, atas e protocolos", "🏛️ Conselho", "dash_mod_conselho"),
-        ("🫂 Caderno de Tutoria\nAcompanhamento individual e coletivo", "🫂 Tutoria", "dash_mod_tutoria"),
-        ("👥 Lista de Alunos\nConsulta e gestão de estudantes", "👥 Lista de Alunos", "dash_mod_alunos"),
-        ("📄 Comunicado aos Pais\nGeração de comunicados", "📄 Comunicado aos Pais", "dash_mod_comunicado"),
-        ("📊 Relatórios\nHistórico pedagógico e evidências", "📊 Gráficos e Indicadores", "dash_mod_relatorios"),
-    ]
-    for linha in range(0, len(modulos_dashboard), 3):
-        cols_mod = st.columns(3, gap="medium")
-        for col_mod, (rotulo_mod, destino_mod, chave_mod) in zip(cols_mod, modulos_dashboard[linha:linha+3]):
-            with col_mod:
-                st.markdown('<div class="conviva-card-button">', unsafe_allow_html=True)
-                if st.button(rotulo_mod, key=chave_mod, use_container_width=True):
-                    st.session_state.pagina_atual = destino_mod
-                    st.rerun()
-                st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Métricas Principais ───────────────────────────────────
     total_ocorrencias = len(df_ocorrencias) if not df_ocorrencias.empty else 0
@@ -8404,6 +8587,10 @@ elif "REGISTRAR OCORR" in normalizar_texto(menu):
 # ======================================================
 # P?GINA ?? HIST?RICO DE OCORR?NCIAS (COMPLETA)
 # ======================================================
+
+
+elif "CONSELHO" in normalizar_texto(menu):
+    render_pagina_conselho()
 
 elif "HISTORICO DE OCORRENCIA" in normalizar_texto(menu):
     page_header("📋 Histórico de Ocorrências", "Consulte, edite e exclua registros de ocorrências", "#d97706")
@@ -13400,283 +13587,6 @@ elif menu == "🫂 Tutoria":
 # ======================================================
 # PÁGINA 🏫 MAPA DA SALA (COMPLETA)
 # ======================================================
-
-
-# ======================================================
-# PÁGINA 🗂️ CONSELHO
-# ======================================================
-
-elif "CONSELHO" in menu_normalizado:
-    page_header("Conselho de Classe", "Caderno online por turma: páginas editáveis, importação da Prova Paulista, focos, pós-conselho e impressão", "#d946ef")
-
-    st.markdown("""
-    <div class="conselho-online-hero">
-        <div class="conselho-online-title">📁 Conselho Online por Turma</div>
-        <p class="conselho-online-sub">
-            Cada documento do Conselho foi transformado em página editável, com salvamento por turma/bimestre, importação da planilha da Prova Paulista e impressão em PDF.
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    if df_alunos is None or df_alunos.empty or "turma" not in df_alunos.columns:
-        st.warning("Cadastre ou carregue estudantes antes de usar o Conselho por turma.")
-        st.stop()
-
-    turmas_conselho = sorted([t for t in df_alunos["turma"].dropna().astype(str).str.strip().unique().tolist() if t])
-    col_cfg1, col_cfg2, col_cfg3 = st.columns([1.4, .8, .9])
-    with col_cfg1:
-        turma_sel = st.selectbox("Turma do Conselho", turmas_conselho, key="conselho_online_turma")
-    with col_cfg2:
-        ano_letivo_sel = st.number_input("Ano letivo", min_value=2024, max_value=2035, value=datetime.now().year, step=1, key="conselho_online_ano")
-    with col_cfg3:
-        bimestre_sel = st.selectbox("Bimestre", ["1º Bimestre", "2º Bimestre", "3º Bimestre", "4º Bimestre"], key="conselho_online_bimestre")
-
-    chave_conselho, registro_conselho, base_conselho = _obter_registro_conselho(turma_sel, ano_letivo_sel, bimestre_sel, df_alunos)
-    alunos_turma_conselho = df_alunos[df_alunos["turma"].astype(str).str.strip() == str(turma_sel).strip()].copy()
-
-    st.markdown(f"""
-    <div class="conselho-form-note">
-        <b>Turma selecionada:</b> {html.escape(str(turma_sel))} &nbsp; | &nbsp;
-        <b>Estudantes localizados:</b> {len(alunos_turma_conselho)} &nbsp; | &nbsp;
-        <b>Chave do caderno:</b> <code>{html.escape(chave_conselho)}</code><br>
-        O Conselho salva por turma e bimestre. A importação da Prova Paulista preenche participação, acertos e componentes automaticamente quando encontra RA ou nome correspondente.
-    </div>
-    """, unsafe_allow_html=True)
-
-    tab_visao, tab_importar, tab_ata, tab_perfil, tab_pec, tab_focos, tab_pos, tab_exportar = st.tabs([
-        "1️⃣ Visão da turma",
-        "📥 Importar Prova Paulista",
-        "2️⃣ Ata e rendimento",
-        "3️⃣ Perfil da turma",
-        "4️⃣ Protocolo PEC",
-        "5️⃣ Focos de atenção",
-        "6️⃣ Pós-conselho",
-        "🖨️ Imprimir / modelos",
-    ])
-
-    with tab_visao:
-        st.markdown("### 1. Página inicial da turma")
-        colv1, colv2, colv3, colv4 = st.columns(4)
-        colv1.metric("Estudantes da turma", len(alunos_turma_conselho))
-        colv2.metric("Registros preenchidos", len(registro_conselho.get("estudantes", [])))
-        colv3.metric("Focos registrados", len(registro_conselho.get("focos", [])))
-        colv4.metric("Última atualização", str(registro_conselho.get("atualizado_em", "-")).split("T")[0])
-
-        col_i1, col_i2, col_i3 = st.columns(3)
-        with col_i1:
-            registro_conselho["data"] = str(st.date_input("Data do Conselho", value=pd.to_datetime(registro_conselho.get("data", datetime.now().strftime("%Y-%m-%d"))).date(), key="conselho_data_visao"))
-        with col_i2:
-            registro_conselho["horario"] = st.text_input("Horário", value=registro_conselho.get("horario", ""), key="conselho_horario_visao")
-        with col_i3:
-            registro_conselho["local"] = st.text_input("Local", value=registro_conselho.get("local", "Sala de Informática"), key="conselho_local_visao")
-        registro_conselho["participantes"] = st.text_input("Participantes", value=registro_conselho.get("participantes", "Direção, CGPG, CGPACs e professores da turma"), key="conselho_participantes_visao")
-
-        st.markdown("#### Estudantes da turma")
-        if not alunos_turma_conselho.empty:
-            cols_show = [c for c in ["ra", "nome", "turma", "situacao"] if c in alunos_turma_conselho.columns]
-            st.dataframe(alunos_turma_conselho[cols_show].sort_values("nome"), use_container_width=True, hide_index=True)
-
-        col_b1, col_b2 = st.columns(2)
-        with col_b1:
-            if st.button("🔄 Atualizar lista de estudantes e frequência", type="secondary", use_container_width=True, key="conselho_atualizar_lista"):
-                registro_conselho = _atualizar_estudantes_conselho_com_base(registro_conselho, turma_sel, alunos_turma_conselho)
-                _salvar_registro_conselho(chave_conselho, registro_conselho, base_conselho)
-                st.success("Lista atualizada. Se houver coluna de frequência na base de alunos, ela foi aplicada.")
-                st.rerun()
-        with col_b2:
-            pagina = _gerar_docx_pagina_conselho(registro_conselho, "visao")
-            if pagina:
-                st.download_button("🖨️ Baixar PDF: visão da turma", data=pagina, file_name=f"visao_{chave_conselho}.pdf", mime="application/pdf", use_container_width=True, key="print_visao_conselho")
-
-    with tab_importar:
-        st.markdown("### 📥 Importar resultados da Prova Paulista")
-        st.info("Envie a planilha baixada do site. O sistema lê apenas RA, nome, participação, acertos e componentes. Linhas de Total e Filtros são ignoradas.")
-        arquivo_pp = st.file_uploader("Planilha de resultados da turma (.xlsx)", type=["xlsx"], key="upload_resultados_prova_paulista")
-        if arquivo_pp is not None:
-            try:
-                dados_pp = _ler_resultados_turma_xlsx(arquivo_pp)
-                meta = dados_pp.get("meta", {})
-                if meta:
-                    st.success("Planilha lida com sucesso.")
-                    st.caption(" | ".join([f"{k.upper()}: {v}" for k, v in meta.items()]))
-                df_prev = pd.DataFrame([
-                    {
-                        "RA": a.get("ra", ""),
-                        "Nome": a.get("nome", ""),
-                        "Participação": a.get("participacao", ""),
-                        "Acertos": a.get("acertos", ""),
-                        "Componentes abaixo de 60%": a.get("componentes_abaixo", ""),
-                    }
-                    for a in dados_pp.get("estudantes", [])
-                ])
-                st.dataframe(df_prev, use_container_width=True, hide_index=True)
-                if st.button("✅ Aplicar dados da Prova Paulista nesta turma", type="primary", use_container_width=True, key="aplicar_pp_conselho"):
-                    registro_conselho, alterados, novos = _aplicar_resultados_prova_paulista(registro_conselho, dados_pp, turma_sel)
-                    _salvar_registro_conselho(chave_conselho, registro_conselho, base_conselho)
-                    st.success(f"Dados aplicados: {alterados} estudantes atualizados. Novos registros incluídos: {novos}.")
-                    st.rerun()
-            except Exception as e:
-                st.error(f"Não foi possível ler a planilha: {e}")
-
-        st.markdown("#### Frequência")
-        st.write("A frequência será buscada automaticamente da base de alunos se existir coluna como `frequencia`, `frequencia_percentual`, `freq` ou semelhante. Se essa informação vier em outra planilha, envie o arquivo e eu adapto o importador no mesmo padrão.")
-
-    with tab_ata:
-        st.markdown("### 2. Ata e rendimento dos estudantes")
-        registro_conselho["texto_abertura"] = st.text_area(
-            "Texto de abertura da ata",
-            value=registro_conselho.get("texto_abertura", ""),
-            height=110,
-            placeholder="Descreva a reunião, participantes e objetivo pedagógico do Conselho de Classe.",
-            key="conselho_texto_abertura",
-        )
-        st.caption("Edite os dados por estudante. A Prova Paulista pode ser preenchida automaticamente pela aba de importação.")
-        df_est = _df_estudantes_conselho(registro_conselho)
-        edit_est = st.data_editor(
-            df_est,
-            use_container_width=True,
-            hide_index=True,
-            num_rows="dynamic",
-            key="editor_estudantes_conselho",
-            column_config={
-                "ra": st.column_config.TextColumn("RA"),
-                "nome": st.column_config.TextColumn("Estudante", width="large"),
-                "turma": st.column_config.TextColumn("Turma"),
-                "frequencia": st.column_config.TextColumn("Frequência %"),
-                "prova_paulista_participacao": st.column_config.TextColumn("Participação PP"),
-                "prova_paulista_acertos": st.column_config.TextColumn("Acertos PP"),
-                "componentes_pp": st.column_config.TextColumn("Componentes PP", width="large"),
-                "prova_paulista_1": st.column_config.TextColumn("PP / síntese"),
-                "prova_paulista_2": st.column_config.TextColumn("Prova Paulista 2"),
-                "prova_interna": st.column_config.TextColumn("Prova interna"),
-                "dificuldades": st.column_config.TextColumn("Dificuldades 1-6"),
-                "recomendacoes": st.column_config.TextColumn("Recomendações 7-12"),
-                "observacoes": st.column_config.TextColumn("Observações", width="large"),
-            }
-        )
-        registro_conselho["estudantes"] = edit_est.fillna("").to_dict(orient="records")
-        with st.expander("📖 Legenda de dificuldades e recomendações", expanded=False):
-            col_l1, col_l2 = st.columns(2)
-            with col_l1:
-                st.markdown("**Dificuldades dos estudantes**")
-                for cod, desc in DIFICULDADES_CONSELHO.items(): st.write(f"{cod} – {desc}")
-            with col_l2:
-                st.markdown("**Recomendações / providências**")
-                for cod, desc in RECOMENDACOES_CONSELHO.items(): st.write(f"{cod} – {desc}")
-        col_a, col_print = st.columns(2)
-        with col_a:
-            if st.button("💾 Salvar ata e rendimento", type="primary", use_container_width=True, key="salvar_ata_conselho"):
-                _salvar_registro_conselho(chave_conselho, registro_conselho, base_conselho); st.success("Ata e rendimento salvos para esta turma.")
-        with col_print:
-            pagina = _gerar_docx_pagina_conselho(registro_conselho, "ata")
-            if pagina:
-                st.download_button("🖨️ Baixar PDF: ata e rendimento", data=pagina, file_name=f"ata_rendimento_{chave_conselho}.pdf", mime="application/pdf", use_container_width=True, key="print_ata_conselho")
-
-    with tab_perfil:
-        st.markdown("### 3. Perfil da turma")
-        perfil = registro_conselho.get("perfil", {})
-        perfil["desempenho"] = st.radio("Qual o desempenho acadêmico da turma?", ["insatisfatório", "regular", "satisfatório", "ótimo"], index=(["insatisfatório", "regular", "satisfatório", "ótimo"].index(perfil.get("desempenho")) if perfil.get("desempenho") in ["insatisfatório", "regular", "satisfatório", "ótimo"] else 1), horizontal=True, key="perfil_desempenho")
-        perfil["dificuldades_aprendizagem"] = st.multiselect("Os estudantes apresentam dificuldades na aprendizagem?", ["Necessitam de reforço e acompanhamento mais próximo", "Não conseguem acompanhar a aula, sendo necessário retomar conteúdos", "Apresentam defasagem de habilidades e precisam de atividades diferenciadas", "Outro"], default=perfil.get("dificuldades_aprendizagem", []), key="perfil_dificuldades")
-        perfil["comportamento"] = st.multiselect("Qual o comportamento geral apresentado pela turma?", ["Turma majoritariamente bem-comportada e respeitosa", "Há casos isolados de indisciplina que precisam de monitoramento", "Necessita medidas mais firmes quanto à indisciplina e respeito", "Apresenta bom comportamento", "Outro"], default=perfil.get("comportamento", []), key="perfil_comportamento")
-        perfil["participacao"] = st.multiselect("Como a turma participa na aula?", ["Participação ativa, com interesse e engajamento", "Alguns estudantes são tímidos e precisam ser incentivados", "Participação baixa, com muitos estudantes que não realizam atividades", "Outro"], default=perfil.get("participacao", []), key="perfil_participacao")
-        perfil["relacoes"] = st.multiselect("Como são as relações interpessoais?", ["Bom relacionamento entre os estudantes, com poucos conflitos", "Espírito de colaboração e ajuda mútua", "Há conflitos e dificuldade de convivência", "Não há colaboração entre eles", "Outro"], default=perfil.get("relacoes", []), key="perfil_relacoes")
-        perfil["lideres"] = st.text_input("Líderes de turma", value=perfil.get("lideres", ""), key="perfil_lideres")
-        perfil["competencias_socioemocionais"] = st.text_area("Competências socioemocionais trabalhadas", value=perfil.get("competencias_socioemocionais", ""), height=90, key="perfil_socio")
-        perfil["estrategias_funcionaram"] = st.text_area("Estratégias, instrumentos de avaliação e atividades que funcionaram", value=perfil.get("estrategias_funcionaram", ""), height=90, key="perfil_estrategias")
-        perfil["focos_orientacao"] = st.text_area("Focos de atenção para orientação da turma", value=perfil.get("focos_orientacao", ""), height=90, key="perfil_focos")
-        perfil["estudantes_destaque"] = st.text_area("Estudantes destaque", value=perfil.get("estudantes_destaque", ""), height=80, key="perfil_destaques")
-        perfil["recomendacoes"] = st.multiselect("Recomendações", ["Apoio socioemocional", "Monitoramento da disciplina", "Incentivo à participação", "Acompanhamento familiar", "Recuperação e reforço", "Outra"], default=perfil.get("recomendacoes", []), key="perfil_recomendacoes")
-        perfil["observacoes"] = st.text_area("Observações gerais do perfil da turma", value=perfil.get("observacoes", ""), height=90, key="perfil_obs")
-        registro_conselho["perfil"] = perfil
-        col_p1, col_p2 = st.columns(2)
-        with col_p1:
-            if st.button("💾 Salvar perfil da turma", type="primary", use_container_width=True, key="salvar_perfil_conselho"):
-                _salvar_registro_conselho(chave_conselho, registro_conselho, base_conselho); st.success("Perfil da turma salvo.")
-        with col_p2:
-            pagina = _gerar_docx_pagina_conselho(registro_conselho, "perfil")
-            if pagina:
-                st.download_button("🖨️ Baixar PDF: perfil", data=pagina, file_name=f"perfil_{chave_conselho}.pdf", mime="application/pdf", use_container_width=True, key="print_perfil_conselho")
-
-    with tab_pec:
-        st.markdown("### 4. Protocolo de Acompanhamento do Conselho — PEC")
-        protocolo = registro_conselho.get("protocolo_pec") or []
-        novos_itens = []
-        for idx, item in enumerate(protocolo):
-            with st.expander(f"Item {item.get('item', idx+1)} — {item.get('elemento', '')[:80]}", expanded=False):
-                st.write(item.get("elemento", ""))
-                status = st.radio("Situação", ["Evidenciado", "Não evidenciado", "Evidenciado em partes"], index=(["Evidenciado", "Não evidenciado", "Evidenciado em partes"].index(item.get("status")) if item.get("status") in ["Evidenciado", "Não evidenciado", "Evidenciado em partes"] else 0), horizontal=True, key=f"pec_status_{idx}")
-                obs = st.text_area("Observação/evidência", value=item.get("observacao", ""), height=70, key=f"pec_obs_{idx}")
-                novos_itens.append({"item": item.get("item", idx+1), "elemento": item.get("elemento", ""), "status": status, "observacao": obs})
-        registro_conselho["protocolo_pec"] = novos_itens
-        col_pec1, col_pec2 = st.columns(2)
-        with col_pec1:
-            if st.button("💾 Salvar protocolo PEC", type="primary", use_container_width=True, key="salvar_pec_conselho"):
-                _salvar_registro_conselho(chave_conselho, registro_conselho, base_conselho); st.success("Protocolo PEC salvo.")
-        with col_pec2:
-            pagina = _gerar_docx_pagina_conselho(registro_conselho, "pec")
-            if pagina:
-                st.download_button("🖨️ Baixar PDF: protocolo PEC", data=pagina, file_name=f"protocolo_pec_{chave_conselho}.pdf", mime="application/pdf", use_container_width=True, key="print_pec_conselho")
-
-    with tab_focos:
-        st.markdown("### 5. Focos de atenção")
-        if st.button("✨ Sugerir focos a partir dos estudantes da ata", type="secondary", use_container_width=True, key="sugerir_focos_conselho"):
-            focos = []
-            for est in registro_conselho.get("estudantes", []):
-                freq_val = _percentual_numero(est.get("frequencia", ""), 100)
-                dif = str(est.get("dificuldades", "")).strip(); rec = str(est.get("recomendacoes", "")).strip(); baixos = str(est.get("componentes_pp", "")).strip()
-                if freq_val < 85 or dif or rec or "0." in baixos:
-                    focos.append({"serie": est.get("turma", turma_sel), "estudante": est.get("nome", ""), "frequencia": est.get("frequencia", ""), "notas_abaixo": est.get("componentes_abaixo", ""), "presenca": ""})
-            registro_conselho["focos"] = focos; st.success("Lista de focos sugerida. Revise antes de salvar.")
-        df_focos = _df_focos_conselho(registro_conselho, "focos")
-        edit_focos = st.data_editor(df_focos, use_container_width=True, hide_index=True, num_rows="dynamic", key="editor_focos_conselho")
-        registro_conselho["focos"] = edit_focos.fillna("").to_dict(orient="records")
-        col_f1, col_f2 = st.columns(2)
-        with col_f1:
-            if st.button("💾 Salvar focos de atenção", type="primary", use_container_width=True, key="salvar_focos_conselho"):
-                _salvar_registro_conselho(chave_conselho, registro_conselho, base_conselho); st.success("Focos de atenção salvos.")
-        with col_f2:
-            pagina = _gerar_docx_pagina_conselho(registro_conselho, "focos")
-            if pagina:
-                st.download_button("🖨️ Baixar PDF: focos", data=pagina, file_name=f"focos_{chave_conselho}.pdf", mime="application/pdf", use_container_width=True, key="print_focos_conselho")
-
-    with tab_pos:
-        st.markdown("### 6. Pós-conselho")
-        if st.button("📋 Copiar focos para o pós-conselho", type="secondary", use_container_width=True, key="copiar_focos_pos"):
-            registro_conselho["pos_conselho"] = [{"serie": f.get("serie", ""), "estudante": f.get("estudante", ""), "frequencia": f.get("frequencia", ""), "notas_abaixo": f.get("notas_abaixo", ""), "ciencia": f.get("presenca", "")} for f in registro_conselho.get("focos", [])]
-            st.success("Focos copiados para o pós-conselho.")
-        df_pos = _df_focos_conselho(registro_conselho, "pos_conselho")
-        edit_pos = st.data_editor(df_pos, use_container_width=True, hide_index=True, num_rows="dynamic", key="editor_pos_conselho")
-        registro_conselho["pos_conselho"] = edit_pos.fillna("").to_dict(orient="records")
-        registro_conselho["medidas_pedagogicas"] = st.text_area("Medidas pedagógicas", value=registro_conselho.get("medidas_pedagogicas", ""), height=130, key="medidas_pos_conselho")
-        registro_conselho["assinaturas"] = st.text_area("Assinaturas / ciência da equipe", value=registro_conselho.get("assinaturas", ""), height=90, key="assinaturas_conselho")
-        col_pos1, col_pos2 = st.columns(2)
-        with col_pos1:
-            if st.button("💾 Salvar pós-conselho", type="primary", use_container_width=True, key="salvar_pos_conselho"):
-                _salvar_registro_conselho(chave_conselho, registro_conselho, base_conselho); st.success("Pós-conselho salvo.")
-        with col_pos2:
-            pagina = _gerar_docx_pagina_conselho(registro_conselho, "pos")
-            if pagina:
-                st.download_button("🖨️ Baixar PDF: pós-conselho", data=pagina, file_name=f"pos_conselho_{chave_conselho}.pdf", mime="application/pdf", use_container_width=True, key="print_pos_conselho")
-
-    with tab_exportar:
-        st.markdown("### 🖨️ Imprimir, exportar e modelos originais")
-        col_e1, col_e2 = st.columns(2)
-        with col_e1:
-            if st.button("💾 Salvar tudo antes de exportar", type="primary", use_container_width=True, key="salvar_tudo_conselho"):
-                _salvar_registro_conselho(chave_conselho, registro_conselho, base_conselho); st.success("Conselho salvo.")
-            docx_bytes = _gerar_docx_conselho_turma(registro_conselho)
-            if docx_bytes:
-                nome_docx = f"conselho_{_normalizar_chave_conselho(turma_sel)}_{_normalizar_chave_conselho(bimestre_sel)}_{ano_letivo_sel}.pdf"
-                st.download_button("⬇️ Baixar Conselho completo preenchido em PDF", data=docx_bytes, file_name=nome_docx, mime="application/pdf", use_container_width=True, key="baixar_docx_conselho_preenchido")
-            st.download_button("⬇️ Baixar dados em JSON", data=json.dumps(registro_conselho, ensure_ascii=False, indent=2).encode("utf-8"), file_name=f"dados_{chave_conselho}.json", mime="application/json", use_container_width=True, key="baixar_json_conselho")
-        with col_e2:
-            st.markdown("**Modelos originais enviados**")
-            for d in DOCUMENTOS_CONSELHO_PADRAO:
-                caminho = _documento_conselho_path(d["arquivo"])
-                if caminho.exists():
-                    st.download_button(f"⬇️ {d['titulo']}", data=caminho.read_bytes(), file_name=caminho.name, mime=_mime_download(caminho), key=f"download_modelo_original_{d['arquivo']}", use_container_width=True)
-
-    _salvar_registro_conselho(chave_conselho, registro_conselho, base_conselho)
 
 elif menu == "🏫 Mapa da Sala":
     page_header("🏫 Mapa da Sala de Aula", "Organize assentos e distribua alunos visualmente", "#059669")
