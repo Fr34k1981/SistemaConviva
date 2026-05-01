@@ -1869,7 +1869,6 @@ div[data-testid="stForm"] {
 
 /* Cards centrais no estilo modulos da SED, com pastel */
 .quick-action-card,
-.metric-card,
 .sed-feature-card,
 .sed-tool-card,
 .sed-kpi-item {
@@ -2268,6 +2267,7 @@ menu_items = [
     {"nome": "Registrar Ocorrência", "icone": "📝"},
     {"nome": "Relatório dos Estudantes", "icone": "🧾"},
     {"nome": "Conselho", "icone": "🏛️"},
+    {"nome": "Prova Paulista", "icone": "📈"},
     {"nome": "Histórico de Ocorrências", "icone": "📋"},
     {"nome": "Comunicado aos Pais", "icone": "📄"},
     {"nome": "Lista de Alunos", "icone": "👥"},
@@ -5659,7 +5659,9 @@ def normalizar_dataframe_importacao(df_import: pd.DataFrame) -> pd.DataFrame:
     for i in range(limite):
         vals = [normalizar_texto(v) for v in df.iloc[i].fillna("").astype(str).tolist()]
         joined = " ".join(vals)
-        if all(p in joined for p in palavras_chave):
+        tem_nome = "NOME" in joined or "ESTUDANTE" in joined
+        tem_ra = re.search(r"\bRA\b", joined) is not None or "NR RA" in joined
+        if all(p in joined for p in palavras_chave) or (tem_nome and tem_ra):
             linha_header = i
             break
     if linha_header is not None:
@@ -6270,6 +6272,7 @@ ROTAS_MENU_SUPORTADAS = {
     normalizar_texto("📝 Registrar Ocorrência"),
     normalizar_texto("🧾 Relatório dos Estudantes"),
     normalizar_texto("🏛️ Conselho"),
+    normalizar_texto("📈 Prova Paulista"),
     normalizar_texto("📋 Histórico de Ocorrências"),
     normalizar_texto("📄 Comunicado aos Pais"),
     normalizar_texto("👥 Lista de Alunos"),
@@ -6621,6 +6624,8 @@ COLUNAS_CONSELHO_IMPORTACAO = [
 ]
 
 CONSELHO_DADOS_LOCAL_PATH = os.path.join(os.getcwd(), "data", "conselho_turmas_local.json")
+PROVA_PAULISTA_LOCAL_PATH = os.path.join(os.getcwd(), "data", "prova_paulista_local.json")
+COMPONENTES_PROVA_PAULISTA = ["MAT", "PORT", "ING", "HIST", "GEO", "CIE", "FILO", "SOC", "BIO", "FÍS", "FIS", "QUI", "FIN", "TEC"]
 
 PROTOCOLO_PEC_ITENS = [
     "Há evidência de análise das aprendizagens com coerência entre as notas dos estudantes e as habilidades desenvolvidas e/ou em desenvolvimento?",
@@ -6690,7 +6695,14 @@ def _criar_modelo_conselho_por_turma(turma: str, alunos_df: pd.DataFrame) -> pd.
         item["Turma"] = formatar_turma_eletiva(aluno.get("turma", turma))
         item["Estudante"] = _limpar_valor_conselho(aluno.get("nome", ""))
         linhas.append(item)
-    return pd.DataFrame(linhas, columns=COLUNAS_CONSELHO_ONLINE)
+    modelo = pd.DataFrame(linhas, columns=COLUNAS_CONSELHO_ONLINE)
+    try:
+        pp_turma = buscar_prova_paulista_turma(turma)
+        if not pp_turma.empty:
+            modelo = _mesclar_importacao_no_modelo_conselho(modelo, _prova_paulista_para_importacao_conselho(pp_turma))
+    except Exception:
+        pass
+    return modelo
 
 
 def _garantir_colunas_conselho_online(df: pd.DataFrame) -> pd.DataFrame:
@@ -6800,6 +6812,54 @@ def _excel_bytes_conselho_modelo(df: pd.DataFrame) -> BytesIO:
     return output
 
 
+def _valor_celula_xlsx_simples(celula, shared_strings: list[str]) -> str:
+    ns_main = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+    inline = celula.find(ns_main + "is")
+    if inline is not None:
+        return "".join(t.text or "" for t in inline.iter(ns_main + "t")).strip()
+    valor = celula.find(ns_main + "v")
+    texto = "" if valor is None else str(valor.text or "").strip()
+    if celula.attrib.get("t") == "s" and texto.isdigit():
+        idx = int(texto)
+        return shared_strings[idx] if 0 <= idx < len(shared_strings) else ""
+    return texto
+
+
+def _ler_xlsx_simples(arquivo_upload) -> pd.DataFrame:
+    bruto = arquivo_upload.getvalue()
+    ns_main = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+    ns_rel = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
+    with zipfile.ZipFile(BytesIO(bruto)) as zf:
+        shared = []
+        if "xl/sharedStrings.xml" in zf.namelist():
+            root_shared = ET.fromstring(zf.read("xl/sharedStrings.xml"))
+            for si in root_shared.findall(ns_main + "si"):
+                shared.append("".join(t.text or "" for t in si.iter(ns_main + "t")))
+
+        workbook = ET.fromstring(zf.read("xl/workbook.xml"))
+        rels = ET.fromstring(zf.read("xl/_rels/workbook.xml.rels"))
+        rel_map = {rel.attrib["Id"]: rel.attrib["Target"] for rel in rels}
+        partes = []
+        for sheet in workbook.findall(ns_main + "sheets/" + ns_main + "sheet"):
+            nome_aba = sheet.attrib.get("name", "Planilha")
+            rel_id = sheet.attrib.get(ns_rel + "id")
+            target = str(rel_map.get(rel_id, "worksheets/sheet1.xml")).lstrip("/")
+            path = target if target.startswith("xl/") else f"xl/{target}"
+            root_sheet = ET.fromstring(zf.read(path))
+            matriz = []
+            for row in root_sheet.findall(".//" + ns_main + "sheetData/" + ns_main + "row"):
+                valores = [_valor_celula_xlsx_simples(c, shared) for c in row.findall(ns_main + "c")]
+                matriz.append(valores)
+            if not matriz:
+                continue
+            largura = max(len(r) for r in matriz)
+            matriz = [r + [""] * (largura - len(r)) for r in matriz]
+            df = pd.DataFrame(matriz)
+            df["Origem da aba"] = nome_aba
+            partes.append(df)
+        return pd.concat(partes, ignore_index=True, sort=False) if partes else pd.DataFrame()
+
+
 def _ler_planilha_conselho_upload(arquivo_upload) -> pd.DataFrame:
     nome = str(getattr(arquivo_upload, "name", "") or "").lower()
     if nome.endswith(".csv"):
@@ -6807,15 +6867,28 @@ def _ler_planilha_conselho_upload(arquivo_upload) -> pd.DataFrame:
         return ler_csv_flexivel(arquivo_upload)
 
     arquivo_upload.seek(0)
-    abas = pd.read_excel(arquivo_upload, sheet_name=None, dtype=str)
-    partes = []
-    for nome_aba, df_aba in abas.items():
-        if df_aba is None or df_aba.empty:
-            continue
-        tmp = df_aba.copy()
-        tmp["Origem da aba"] = str(nome_aba)
-        partes.append(tmp)
-    return pd.concat(partes, ignore_index=True, sort=False) if partes else pd.DataFrame()
+    try:
+        abas = pd.read_excel(arquivo_upload, sheet_name=None, dtype=str)
+        partes = []
+        for nome_aba, df_aba in abas.items():
+            if df_aba is None or df_aba.empty:
+                continue
+            tmp = df_aba.copy()
+            tmp["Origem da aba"] = str(nome_aba)
+            partes.append(tmp)
+        return pd.concat(partes, ignore_index=True, sort=False) if partes else pd.DataFrame()
+    except ImportError:
+        arquivo_upload.seek(0)
+        return _ler_xlsx_simples(arquivo_upload)
+
+
+def _ler_planilha_prova_paulista_upload(arquivo_upload) -> pd.DataFrame:
+    nome = str(getattr(arquivo_upload, "name", "") or "").lower()
+    if nome.endswith(".csv"):
+        arquivo_upload.seek(0)
+        return ler_csv_flexivel(arquivo_upload)
+    arquivo_upload.seek(0)
+    return _ler_xlsx_simples(arquivo_upload)
 
 
 def _detectar_coluna_por_nomes(df: pd.DataFrame, candidatos: list[str]) -> str | None:
@@ -6860,8 +6933,8 @@ def _normalizar_importacao_conselho(df_import: pd.DataFrame, origem: str, turma_
     col_nome = _detectar_coluna_por_nomes(df, ["Nome do Aluno", "Estudante", "Aluno", "Nome"])
     col_turma = _detectar_coluna_por_nomes(df, ["Turma", "Série", "Serie", "Sala"])
     col_freq = _detectar_coluna_por_nomes(df, ["Frequência", "Frequencia", "Freq", "% Frequência", "Presença", "Presenca"])
-    col_pp1 = _detectar_coluna_por_nomes(df, ["Prova Paulista 1", "PP 1", "Acertos PP", "Prova Paulista", "Acertos"])
-    col_pp2 = _detectar_coluna_por_nomes(df, ["Prova Paulista 2", "PP 2"])
+    col_pp1 = _detectar_coluna_por_nomes(df, ["Prova Paulista 1", "PP 1", "Acertos PP", "Acertos"])
+    col_pp2 = _detectar_coluna_por_nomes(df, ["Prova Paulista 2", "PP 2", "Participação", "Participacao"])
     col_mapao = _detectar_coluna_por_nomes(df, ["Mapão", "Mapao", "Mapa", "Rendimento"])
     col_prova = _detectar_coluna_por_nomes(df, ["Prova interna", "Avaliação interna", "Avaliacao interna", "Nota"])
     col_notas = _detectar_coluna_por_nomes(df, ["Notas abaixo", "Abaixo de cinco", "Abaixo de 5", "Menor que cinco"])
@@ -6879,9 +6952,9 @@ def _normalizar_importacao_conselho(df_import: pd.DataFrame, origem: str, turma_
     saida["RA"] = df[col_ra].apply(lambda v: "".join(c for c in str(v) if c.isdigit())) if col_ra else ""
     saida["Turma"] = df[col_turma].apply(formatar_turma_eletiva) if col_turma else formatar_turma_eletiva(turma_padrao)
     saida["Estudante"] = df[col_nome].apply(_limpar_valor_conselho) if col_nome else ""
-    saida["Frequência (%)"] = df[col_freq].apply(_limpar_valor_conselho) if col_freq else ""
-    saida["Prova Paulista 1"] = df[col_pp1].apply(_limpar_valor_conselho) if col_pp1 else ""
-    saida["Prova Paulista 2"] = df[col_pp2].apply(_limpar_valor_conselho) if col_pp2 else ""
+    saida["Frequência (%)"] = df[col_freq].apply(_formatar_percentual_prova_paulista) if col_freq else ""
+    saida["Prova Paulista 1"] = df[col_pp1].apply(_formatar_percentual_prova_paulista) if col_pp1 else ""
+    saida["Prova Paulista 2"] = df[col_pp2].apply(_formatar_percentual_prova_paulista) if col_pp2 else ""
     saida["Mapão"] = df[col_mapao].apply(_limpar_valor_conselho) if col_mapao else ""
     saida["Prova interna"] = df[col_prova].apply(_limpar_valor_conselho) if col_prova else ""
     saida["Notas abaixo de cinco"] = df[col_notas].apply(_limpar_valor_conselho) if col_notas else ""
@@ -6898,6 +6971,196 @@ def _normalizar_importacao_conselho(df_import: pd.DataFrame, origem: str, turma_
         | saida["Estudante"].astype(str).str.strip().ne("")
     ].copy()
     return saida[COLUNAS_CONSELHO_IMPORTACAO].reset_index(drop=True)
+
+
+def _formatar_percentual_prova_paulista(valor) -> str:
+    texto = _limpar_valor_conselho(valor)
+    if not texto:
+        return ""
+    try:
+        numero = float(str(texto).replace("%", "").replace(",", "."))
+        if numero <= 1:
+            numero *= 100
+        return f"{numero:.1f}%".replace(".", ",")
+    except Exception:
+        return texto
+
+
+def _normalizar_header_prova_paulista(valor: str) -> str:
+    texto = normalizar_texto(valor)
+    texto = texto.replace("%", " PERCENTUAL ")
+    texto = re.sub(r"[^A-Z0-9 ]+", " ", texto)
+    return re.sub(r"\s+", " ", texto).strip()
+
+
+def _extrair_turma_metadata_prova_paulista(matriz: list[list[str]]) -> str:
+    for linha in matriz:
+        texto = " ".join(str(v or "") for v in linha)
+        if "NM_TURMA" in texto and " é " in texto:
+            return formatar_turma_eletiva(texto.split(" é ", 1)[1].split(" - ", 1)[0].strip())
+    return ""
+
+
+def _preparar_matriz_prova_paulista(df_bruto: pd.DataFrame) -> tuple[list[str], list[list[str]], dict]:
+    matriz = []
+    for _, row in df_bruto.fillna("").iterrows():
+        vals = [str(v).strip() for v in row.tolist()]
+        vals = [v for i, v in enumerate(vals) if not (str(df_bruto.columns[i]) == "Origem da aba")]
+        if any(vals):
+            matriz.append(vals)
+    metadata = {"turma": _extrair_turma_metadata_prova_paulista(matriz)}
+    header_idx = None
+    for idx, linha in enumerate(matriz[:20]):
+        norm = [_normalizar_header_prova_paulista(v) for v in linha]
+        tem_ra = any("RA" == v or "NR RA" in v or "REGISTRO" in v for v in norm)
+        tem_nome = any(v == "NOME" or "NOME" in v or "ESTUDANTE" in v for v in norm)
+        tem_acertos = any("ACERTOS" in v for v in norm)
+        if tem_ra and tem_nome and tem_acertos:
+            header_idx = idx
+            break
+    if header_idx is None:
+        return [], [], metadata
+    header = matriz[header_idx]
+    dados = []
+    for linha in matriz[header_idx + 1:]:
+        primeiro = str(linha[0] if linha else "").strip()
+        if not primeiro or normalizar_texto(primeiro).startswith("FILTROS"):
+            break
+        if normalizar_texto(primeiro) == "TOTAL":
+            break
+        dados.append(linha + [""] * (len(header) - len(linha)))
+    return header, dados, metadata
+
+
+def normalizar_prova_paulista(df_bruto: pd.DataFrame, turma_padrao: str = "", ano_letivo: str = "", bimestre: str = "") -> tuple[pd.DataFrame, dict]:
+    header, dados, metadata = _preparar_matriz_prova_paulista(df_bruto)
+    if not header or not dados:
+        return pd.DataFrame(), metadata
+    turma_final = formatar_turma_eletiva(turma_padrao or metadata.get("turma", ""))
+    colunas_norm = [_normalizar_header_prova_paulista(c) for c in header]
+
+    def idx_por(cond):
+        for i, col in enumerate(colunas_norm):
+            if cond(col):
+                return i
+        return None
+
+    idx_ra = idx_por(lambda c: c == "RA" or "NR RA" in c or "REGISTRO" in c)
+    idx_nome = idx_por(lambda c: c == "NOME" or "ESTUDANTE" in c)
+    idx_part = idx_por(lambda c: "PARTICIPACAO" in c)
+    idx_acertos = idx_por(lambda c: "ACERTOS" in c)
+    componentes_idx = []
+    for i, col in enumerate(header):
+        comp = str(col).strip().upper()
+        comp_norm = _normalizar_header_prova_paulista(comp)
+        if comp_norm in COMPONENTES_PROVA_PAULISTA:
+            componentes_idx.append((comp_norm.replace("FIS", "FÍS"), i))
+
+    linhas = []
+    for linha in dados:
+        ra = "".join(ch for ch in str(linha[idx_ra] if idx_ra is not None and idx_ra < len(linha) else "") if ch.isdigit())
+        nome = _limpar_valor_conselho(linha[idx_nome] if idx_nome is not None and idx_nome < len(linha) else "")
+        if not ra and not nome:
+            continue
+        registro = {
+            "RA": ra,
+            "Estudante": nome,
+            "Turma": turma_final,
+            "Ano letivo": str(ano_letivo or datetime.now().year),
+            "Bimestre": str(bimestre or ""),
+            "Participação (%)": _formatar_percentual_prova_paulista(linha[idx_part] if idx_part is not None and idx_part < len(linha) else ""),
+            "Acertos (%)": _formatar_percentual_prova_paulista(linha[idx_acertos] if idx_acertos is not None and idx_acertos < len(linha) else ""),
+        }
+        for comp, idx_comp in componentes_idx:
+            valor = linha[idx_comp] if idx_comp < len(linha) else ""
+            if _limpar_valor_conselho(valor):
+                registro[comp] = _formatar_percentual_prova_paulista(valor)
+        linhas.append(registro)
+    return pd.DataFrame(linhas), metadata
+
+
+def _carregar_prova_paulista_local() -> list[dict]:
+    _garantir_arquivo_json_local(PROVA_PAULISTA_LOCAL_PATH, [])
+    try:
+        with open(PROVA_PAULISTA_LOCAL_PATH, "r", encoding="utf-8") as arquivo:
+            dados = json.load(arquivo)
+        return dados if isinstance(dados, list) else []
+    except Exception:
+        return []
+
+
+def _salvar_prova_paulista_local(registros: list[dict]) -> bool:
+    _garantir_arquivo_json_local(PROVA_PAULISTA_LOCAL_PATH, [])
+    with open(PROVA_PAULISTA_LOCAL_PATH, "w", encoding="utf-8") as arquivo:
+        json.dump(registros, arquivo, ensure_ascii=False, indent=2)
+    return True
+
+
+def carregar_prova_paulista_df() -> pd.DataFrame:
+    return pd.DataFrame(_carregar_prova_paulista_local())
+
+
+def salvar_registros_prova_paulista(df_novo: pd.DataFrame) -> int:
+    if df_novo is None or df_novo.empty:
+        return 0
+    existentes = _carregar_prova_paulista_local()
+    indice = {}
+    for i, item in enumerate(existentes):
+        chave = (
+            str(item.get("RA", "")).strip(),
+            turma_para_comparacao(item.get("Turma", "")),
+            str(item.get("Ano letivo", "")).strip(),
+            str(item.get("Bimestre", "")).strip(),
+        )
+        indice[chave] = i
+    gravados = 0
+    for item in df_novo.fillna("").to_dict(orient="records"):
+        chave = (
+            str(item.get("RA", "")).strip(),
+            turma_para_comparacao(item.get("Turma", "")),
+            str(item.get("Ano letivo", "")).strip(),
+            str(item.get("Bimestre", "")).strip(),
+        )
+        if chave in indice:
+            existentes[indice[chave]].update(item)
+        else:
+            existentes.append(item)
+        gravados += 1
+    _salvar_prova_paulista_local(existentes)
+    return gravados
+
+
+def buscar_prova_paulista_turma(turma: str, ano_letivo: str = "", bimestre: str = "") -> pd.DataFrame:
+    df = carregar_prova_paulista_df()
+    if df.empty:
+        return df
+    if "Turma" in df.columns and turma:
+        df = df[df["Turma"].apply(turma_para_comparacao) == turma_para_comparacao(turma)].copy()
+    if "Ano letivo" in df.columns and ano_letivo:
+        df = df[df["Ano letivo"].astype(str).str.strip() == str(ano_letivo).strip()].copy()
+    if "Bimestre" in df.columns and bimestre:
+        df_bim = df[df["Bimestre"].astype(str).str.strip() == str(bimestre).strip()].copy()
+        if not df_bim.empty:
+            df = df_bim
+    return df.reset_index(drop=True)
+
+
+def _prova_paulista_para_importacao_conselho(df_pp: pd.DataFrame) -> pd.DataFrame:
+    if df_pp is None or df_pp.empty:
+        return pd.DataFrame(columns=COLUNAS_CONSELHO_IMPORTACAO)
+    saida = pd.DataFrame(index=df_pp.index)
+    vazio = pd.Series([""] * len(df_pp), index=df_pp.index)
+    saida["RA"] = df_pp.get("RA", vazio).astype(str)
+    saida["Turma"] = df_pp.get("Turma", vazio).astype(str)
+    saida["Estudante"] = df_pp.get("Estudante", vazio).astype(str)
+    saida["Frequência (%)"] = ""
+    saida["Prova Paulista 1"] = df_pp.get("Acertos (%)", vazio).astype(str)
+    saida["Prova Paulista 2"] = ""
+    saida["Mapão"] = ""
+    saida["Prova interna"] = ""
+    saida["Notas abaixo de cinco"] = ""
+    saida["Observações / encaminhamentos"] = ""
+    return saida[COLUNAS_CONSELHO_IMPORTACAO]
 
 
 def _chaves_linha_conselho(row) -> list[str]:
@@ -7331,8 +7594,15 @@ def render_pagina_conselho():
                 ]:
                     if arquivo is None:
                         continue
-                    df_lido = _ler_planilha_conselho_upload(arquivo)
-                    df_norm = _normalizar_importacao_conselho(df_lido, origem, turma)
+                    if origem == "Prova Paulista":
+                        df_lido = _ler_planilha_prova_paulista_upload(arquivo)
+                        df_pp, _ = normalizar_prova_paulista(df_lido, turma_padrao=turma, ano_letivo=ano_letivo, bimestre=bimestre)
+                        if not df_pp.empty:
+                            salvar_registros_prova_paulista(df_pp)
+                        df_norm = _prova_paulista_para_importacao_conselho(df_pp)
+                    else:
+                        df_lido = _ler_planilha_conselho_upload(arquivo)
+                        df_norm = _normalizar_importacao_conselho(df_lido, origem, turma)
                     total_importado += len(df_norm)
                     detalhes.append(f"{origem}: {len(df_norm)} linha(s)")
                     df_online = _mesclar_importacao_no_modelo_conselho(df_online, df_norm)
@@ -7350,6 +7620,18 @@ def render_pagina_conselho():
                     st.caption(" | ".join(detalhes))
             except Exception as exc:
                 st.error(f"Erro ao importar dados da turma: {exc}")
+
+        if st.button("📚 Buscar Prova Paulista arquivada para esta turma", key="btn_buscar_pp_arquivada_conselho"):
+            df_pp_salvo = buscar_prova_paulista_turma(turma, ano_letivo=ano_letivo, bimestre=bimestre)
+            if df_pp_salvo.empty:
+                st.warning("Nenhum resultado arquivado para esta turma/bimestre.")
+            else:
+                df_online = st.session_state.get("df_conselho_online", _criar_modelo_conselho_por_turma(turma, df_alunos))
+                df_online = _mesclar_importacao_no_modelo_conselho(df_online, _prova_paulista_para_importacao_conselho(df_pp_salvo))
+                st.session_state.df_conselho_online = df_online
+                st.session_state.df_conselho = _modelo_online_para_resumo_conselho(df_online)
+                _salvar_contexto_conselho(turma, bimestre, ano_letivo, df_online, st.session_state.df_conselho)
+                st.success(f"{len(df_pp_salvo)} resultado(s) da Prova Paulista vinculados ao Conselho.")
 
         with st.expander("Importação antiga de tabela resumida do Excel", expanded=False):
             arquivo = st.file_uploader("Enviar arquivo Excel (.xlsx) da ata/tabela", type=["xlsx", "xls"], key="upload_conselho_xlsx")
@@ -7460,6 +7742,82 @@ def render_pagina_conselho():
                     st.success("PDF dos documentos do Conselho gerado.")
                 except Exception as exc:
                     st.error(f"Erro ao gerar documentos do Conselho: {exc}")
+
+
+def render_pagina_prova_paulista():
+    page_header("📈 Prova Paulista", "Importe e arquive os resultados por sala para uso no Conselho e relatórios", "#2563eb")
+
+    st.markdown("""
+    <div class="info-box">
+        Esta página guarda somente os dados úteis da planilha: RA, estudante, turma, participação, acertos gerais e acertos por componente. Linhas de total e filtros são ignoradas.
+    </div>
+    """, unsafe_allow_html=True)
+
+    turmas_cadastradas = []
+    if df_alunos is not None and not df_alunos.empty and "turma" in df_alunos.columns:
+        turmas_cadastradas = sorted(
+            [formatar_turma_eletiva(t) for t in df_alunos["turma"].dropna().astype(str).unique().tolist() if str(t).strip()],
+            key=ordenar_turma_tutoria
+        )
+
+    col_a, col_b, col_c = st.columns([1.2, 1, 1])
+    with col_a:
+        turma_manual = st.selectbox("Turma", ["Detectar pela planilha"] + turmas_cadastradas, key="pp_turma_upload") if turmas_cadastradas else st.text_input("Turma", key="pp_turma_upload_text")
+    with col_b:
+        ano_pp = st.text_input("Ano letivo", value=str(datetime.now().year), key="pp_ano_upload")
+    with col_c:
+        bimestre_pp = st.selectbox("Bimestre", ["", "1º Bimestre", "2º Bimestre", "3º Bimestre", "4º Bimestre"], key="pp_bimestre_upload")
+
+    arquivo_pp = st.file_uploader("Enviar RESULTADOS DA TURMA (.xlsx, .xls ou .csv)", type=["xlsx", "xls", "csv"], key="upload_pagina_prova_paulista")
+    if arquivo_pp is not None:
+        try:
+            df_lido = _ler_planilha_prova_paulista_upload(arquivo_pp)
+            turma_padrao = "" if turma_manual == "Detectar pela planilha" else turma_manual
+            df_pp, metadata = normalizar_prova_paulista(df_lido, turma_padrao=turma_padrao, ano_letivo=ano_pp, bimestre=bimestre_pp)
+            if df_pp.empty:
+                st.warning("Não consegui localizar as colunas NR RA, Nome, Participação e Acertos nesta planilha.")
+            else:
+                turma_detectada = metadata.get("turma", "")
+                if turma_detectada:
+                    st.caption(f"Turma detectada na planilha: {turma_detectada}")
+                st.dataframe(df_pp, use_container_width=True, hide_index=True)
+                if st.button("💾 Arquivar resultados da Prova Paulista", type="primary", key="btn_salvar_pp"):
+                    qtd = salvar_registros_prova_paulista(df_pp)
+                    st.success(f"{qtd} resultado(s) arquivado(s).")
+        except Exception as exc:
+            st.error(f"Erro ao processar Prova Paulista: {exc}")
+
+    st.markdown("### Resultados arquivados")
+    df_arquivo = carregar_prova_paulista_df()
+    if df_arquivo.empty:
+        st.info("Nenhum resultado arquivado ainda.")
+        return
+
+    col_f1, col_f2, col_f3 = st.columns([1, 1, 1])
+    turmas_arquivo = sorted([t for t in df_arquivo.get("Turma", pd.Series(dtype=str)).dropna().astype(str).unique().tolist() if t], key=ordenar_turma_tutoria)
+    anos_arquivo = sorted([a for a in df_arquivo.get("Ano letivo", pd.Series(dtype=str)).dropna().astype(str).unique().tolist() if a], reverse=True)
+    bims_arquivo = sorted([b for b in df_arquivo.get("Bimestre", pd.Series(dtype=str)).dropna().astype(str).unique().tolist() if b])
+    with col_f1:
+        filtro_turma = st.selectbox("Filtrar turma", ["Todas"] + turmas_arquivo, key="pp_filtro_turma")
+    with col_f2:
+        filtro_ano = st.selectbox("Filtrar ano", ["Todos"] + anos_arquivo, key="pp_filtro_ano")
+    with col_f3:
+        filtro_bim = st.selectbox("Filtrar bimestre", ["Todos"] + bims_arquivo, key="pp_filtro_bim")
+
+    df_view = df_arquivo.copy()
+    if filtro_turma != "Todas":
+        df_view = df_view[df_view["Turma"].astype(str) == filtro_turma]
+    if filtro_ano != "Todos":
+        df_view = df_view[df_view["Ano letivo"].astype(str) == filtro_ano]
+    if filtro_bim != "Todos":
+        df_view = df_view[df_view["Bimestre"].astype(str) == filtro_bim]
+
+    st.write(f"Registros exibidos: **{len(df_view)}**")
+    st.dataframe(df_view, use_container_width=True, hide_index=True)
+
+    if not df_view.empty and "Turma" in df_view.columns:
+        resumo = df_view.groupby("Turma").agg(Estudantes=("RA", "count")).reset_index()
+        st.dataframe(resumo, use_container_width=True, hide_index=True)
 
 
 # ======================================================
@@ -9546,6 +9904,9 @@ elif "REGISTRAR OCORR" in normalizar_texto(menu):
 
 elif "CONSELHO" in normalizar_texto(menu):
     render_pagina_conselho()
+
+elif "PROVA PAULISTA" in normalizar_texto(menu):
+    render_pagina_prova_paulista()
 
 elif "HISTORICO DE OCORRENCIA" in normalizar_texto(menu):
     page_header("📋 Histórico de Ocorrências", "Consulte, edite e exclua registros de ocorrências", "#d97706")
