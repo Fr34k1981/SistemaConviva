@@ -18,7 +18,9 @@ import json
 import zipfile
 import pytz
 import unicodedata
+import glob
 from pathlib import Path
+import streamlit.components.v1 as components
 
 # 👇 IMPORT DO DOTENV
 from dotenv import find_dotenv, load_dotenv
@@ -157,6 +159,16 @@ st.set_page_config(
     layout="wide",
     page_icon="🏫",
     initial_sidebar_state="expanded"
+)
+components.html(
+    """
+    <script>
+    setInterval(() => {
+      try { fetch(window.parent.location.href, {cache: "no-store", mode: "no-cors"}); } catch (e) {}
+    }, 240000);
+    </script>
+    """,
+    height=0,
 )
 # ======================================================
 # CSS PREMIUM EDUCACIONAL — DESIGN MODERNO E PROFISSIONAL
@@ -597,6 +609,73 @@ button {
     opacity: 0.75;
     position: relative;
     z-index: 1;
+}
+
+.dashboard-stat-card {
+    border-radius: 18px !important;
+    padding: 1.15rem 1rem !important;
+    min-height: 156px !important;
+    color: #ffffff !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
+    border: 1px solid rgba(255,255,255,0.28) !important;
+    box-shadow: 0 18px 34px rgba(15,23,42,0.18) !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+.dashboard-stat-card::after {
+    content: "" !important;
+    position: absolute !important;
+    inset: auto -28px -34px auto !important;
+    width: 118px !important;
+    height: 118px !important;
+    border-radius: 999px !important;
+    background: rgba(255,255,255,0.16) !important;
+}
+
+.dashboard-stat-card * {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.20) !important;
+    position: relative !important;
+    z-index: 1 !important;
+}
+
+.dashboard-stat-icon {
+    font-size: 1.45rem !important;
+    width: 46px !important;
+    height: 46px !important;
+    display: grid !important;
+    place-items: center !important;
+    border-radius: 12px !important;
+    background: rgba(255,255,255,0.20) !important;
+    border: 1px solid rgba(255,255,255,0.26) !important;
+    margin-bottom: 0.75rem !important;
+}
+
+.dashboard-stat-value {
+    font-family: 'Nunito', sans-serif !important;
+    font-size: 2.35rem !important;
+    font-weight: 950 !important;
+    line-height: 1 !important;
+}
+
+.dashboard-stat-label {
+    margin-top: 0.55rem !important;
+    font-size: 0.75rem !important;
+    font-weight: 900 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0 !important;
+}
+
+.dashboard-stat-sub {
+    margin-top: 0.35rem !important;
+    font-size: 0.72rem !important;
+    font-weight: 750 !important;
+    opacity: 0.92 !important;
 }
 
 /* ============================================ */
@@ -2225,13 +2304,28 @@ section[data-testid="stSidebar"] div[data-testid="stButton"] > button[kind="prim
     .sed-top-actions { justify-content: flex-start !important; }
 }
 
+section[data-testid="stSidebar"][aria-expanded="false"] {
+    min-width: 0 !important;
+    max-width: 0 !important;
+    width: 0 !important;
+}
+
+section[data-testid="stSidebar"][aria-expanded="false"] > div:first-child {
+    display: none !important;
+}
+
+section[data-testid="stSidebar"][aria-expanded="false"] ~ div .main .block-container,
+section[data-testid="stSidebar"][aria-expanded="false"] + div .main .block-container {
+    padding-left: 1rem !important;
+}
+
 </style>
 """, unsafe_allow_html=True)
 # ======================================================
 # DADOS DA ESCOLA
 # ======================================================
 ESCOLA_NOME = "ELIANE APARECIDA DANTAS DA SILVA PROFESSORA - PEI"
-ESCOLA_SUBTITULO = "Escola dos Sonhos • Escola Estadual"
+ESCOLA_SUBTITULO = "E.E. Professora Eliane Aparecida Dantas da Silva"
 ESCOLA_NOME_EXIBICAO = "E.E. Professora Eliane Aparecida Dantas da Silva - PEI"
 ESCOLA_ENDERECO = "VALTER DE SOUZA COSTA, 147 - RUA JARDIM PRIMAVERA - Ferraz de Vasconcelos - São Paulo"
 ESCOLA_CEP = "CEP: 08535-310"
@@ -2290,6 +2384,7 @@ menu_items = [
     {"nome": "Gráficos e Indicadores", "icone": "📊"},
     {"nome": "Imprimir PDF", "icone": "🖨️"},
     {"nome": "Mapão", "icone": "🗺️"},
+    {"nome": "Mapa da Sala", "icone": "🏫"},
     {"nome": "Agendamento de Espaços", "icone": "📅"},
     {"nome": "Portal do Responsável", "icone": "👨‍👩‍👧"},
     {"nome": "Backups", "icone": "💾"},
@@ -2524,12 +2619,13 @@ def normalizar_base_tutoria(tutoria_raw: dict | None) -> dict:
                 nome=nome_tutor,
                 tipo=normalizar_perfil_tutoria(dados.get("tipo", "Professor(a)"))
             )
-            registro["espaco"] = str(dados.get("espaco", "")).strip()
+            registro["espaco"] = str(dados.get("espaco", "")).strip() or espaco_padrao_tutoria_por_responsavel(nome_tutor)
             registro["horario"] = str(dados.get("horario", "")).strip()
             registro["dia"] = str(dados.get("dia", "")).strip()
             registro["alunos"] = normalizar_alunos_tutoria(dados.get("alunos", []))
         else:
             registro = estrutura_tutoria_vazia(nome=nome_tutor)
+            registro["espaco"] = espaco_padrao_tutoria_por_responsavel(nome_tutor)
             registro["alunos"] = normalizar_alunos_tutoria(dados)
         base[nome_tutor] = registro
     return base
@@ -3490,31 +3586,51 @@ TUTORIA_ESPACOS_PADRAO = [
     "Sala 9",
     "Sala 10",
     "Sala 11",
-    "Patio",
-    "Direcao",
-    "Coordenacao",
-    "Informatica",
+    "Pátio",
+    "Direção",
+    "Coordenação",
+    "Informática",
 ]
 
 TUTORIA_RESPONSAVEIS_REFERENCIA = {
-    "Sala 1": "Patricia",
-    "Sala 2": "Veronica",
-    "Sala 3": "Fagna",
-    "Sala 4": "Elaine",
-    "Sala de Leitura": "Giovana",
-    "Sala 5": "Fernanda",
     "Sala 6": "Lourdes",
-    "Sala de video": "Anderson",
+    "Sala de vídeo": "Anderson",
     "Sala 7": "Shirley",
     "Sala 8": "Rosemeire",
-    "Sala 9": "Rosangela",
+    "Sala 9": "Rosângela",
     "Sala 10": "Solange",
     "Sala 11": "Silvana/Jaqueline",
-    "Patio": "Itatiara / Lucineide / Guilherme C.",
-    "Direcao": "Renan",
-    "Coordenacao": "Aleandro",
-    "Informatica": "Erika",
+    "Pátio": "Itatiara / Lucineide / Guilherme C.",
+    "Direção": "Renan",
+    "Coordenação": "Aleandro",
+    "Informática": "Érika",
 }
+
+TUTORIA_LOCALIZACAO_PROFESSORES = {
+    "LOURDES": "Sala 6",
+    "ANDERSON": "Sala de vídeo",
+    "SHIRLEY": "Sala 7",
+    "ROSEMEIRE": "Sala 8",
+    "ROSANGELA": "Sala 9",
+    "SOLANGE": "Sala 10",
+    "SILVANA": "Sala 11",
+    "JAQUELINE": "Sala 11",
+    "ITATIARA": "Pátio",
+    "LUCINEIDE": "Pátio",
+    "GUILHERME C": "Pátio",
+    "GUILHERME COSTA": "Pátio",
+    "RENAN": "Direção",
+    "ALEANDRO": "Coordenação",
+    "ERIKA": "Informática",
+    "ÉRIKA": "Informática",
+}
+
+def espaco_padrao_tutoria_por_responsavel(nome_responsavel: str) -> str:
+    nome_norm = normalizar_texto(nome_responsavel)
+    for chave, espaco in TUTORIA_LOCALIZACAO_PROFESSORES.items():
+        if normalizar_texto(chave) in nome_norm:
+            return espaco
+    return ""
 
 def normalizar_espaco_tutoria(valor: str) -> str:
     """
@@ -3534,6 +3650,13 @@ def normalizar_espaco_tutoria(valor: str) -> str:
             texto = possivel_espaco
 
     mapa_padrao = {normalizar_texto(item): item for item in TUTORIA_ESPACOS_PADRAO}
+    mapa_padrao.update({
+        "SALA DE VIDEO": "Sala de vídeo",
+        "PATIO": "Pátio",
+        "DIRECAO": "Direção",
+        "COORDENACAO": "Coordenação",
+        "INFORMATICA": "Informática",
+    })
     chave = normalizar_texto(texto)
     return mapa_padrao.get(chave, texto)
 
@@ -8617,6 +8740,97 @@ COLUNAS_PROVA_PAULISTA_PADRAO = [
     "Estudante", "Turma", "Componente", "Bimestre", "Participação", "Acertos", "Total de Questões", "Percentual"
 ]
 
+def _coluna_excel_para_indice(ref: str) -> int:
+    letras = "".join(ch for ch in str(ref or "") if ch.isalpha()).upper()
+    indice = 0
+    for ch in letras:
+        indice = indice * 26 + (ord(ch) - ord("A") + 1)
+    return max(indice - 1, 0)
+
+
+def _ler_xlsx_sem_openpyxl(arquivo_ou_caminho) -> pd.DataFrame:
+    """Le a primeira aba de um XLSX diretamente do XML, sem depender de openpyxl."""
+    ns = {
+        "a": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
+        "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+    }
+    with zipfile.ZipFile(arquivo_ou_caminho) as z:
+        shared_strings = []
+        if "xl/sharedStrings.xml" in z.namelist():
+            root = ET.fromstring(z.read("xl/sharedStrings.xml"))
+            for si in root.findall("a:si", ns):
+                textos = [t.text or "" for t in si.iterfind(".//a:t", ns)]
+                shared_strings.append("".join(textos))
+
+        sheet_path = "xl/worksheets/sheet1.xml"
+        try:
+            workbook = ET.fromstring(z.read("xl/workbook.xml"))
+            rels = ET.fromstring(z.read("xl/_rels/workbook.xml.rels"))
+            rel_map = {rel.attrib.get("Id", ""): rel.attrib.get("Target", "") for rel in rels}
+            primeira = workbook.find("a:sheets/a:sheet", ns)
+            if primeira is not None:
+                rel_id = primeira.attrib.get("{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id", "")
+                target = rel_map.get(rel_id, "")
+                if target:
+                    sheet_path = target.replace("\\", "/")
+                    if not sheet_path.startswith("xl/"):
+                        sheet_path = f"xl/{sheet_path}"
+        except Exception:
+            pass
+
+        root_sheet = ET.fromstring(z.read(sheet_path))
+        rows = []
+        max_col = 0
+        for row in root_sheet.findall(".//a:sheetData/a:row", ns):
+            valores = {}
+            for cell in row.findall("a:c", ns):
+                idx = _coluna_excel_para_indice(cell.attrib.get("r", ""))
+                max_col = max(max_col, idx)
+                tipo = cell.attrib.get("t", "")
+                valor = ""
+                if tipo == "inlineStr":
+                    valor = "".join(t.text or "" for t in cell.iterfind(".//a:t", ns))
+                else:
+                    v = cell.find("a:v", ns)
+                    if v is not None and v.text is not None:
+                        valor = v.text
+                    if tipo == "s" and str(valor).isdigit():
+                        pos = int(valor)
+                        valor = shared_strings[pos] if pos < len(shared_strings) else valor
+                valores[idx] = str(valor).strip()
+            if valores:
+                rows.append([valores.get(i, "") for i in range(max_col + 1)])
+
+    if not rows:
+        return pd.DataFrame()
+    largura = max(len(r) for r in rows)
+    rows = [r + [""] * (largura - len(r)) for r in rows]
+    header_idx = 0
+    for i, row in enumerate(rows[:30]):
+        linha_norm = " ".join(normalizar_texto(v) for v in row)
+        if any(t in linha_norm for t in ["ALUNO", "ESTUDANTE", "NM_ALUNO", "NM TURMA", "ACERT"]):
+            header_idx = i
+            break
+    header = [str(v).strip() or f"Coluna {i+1}" for i, v in enumerate(rows[header_idx])]
+    dados = rows[header_idx + 1:]
+    return pd.DataFrame(dados, columns=header)
+
+
+def _ler_planilha_upload_ou_caminho(arquivo_ou_caminho, nome: str = "") -> pd.DataFrame:
+    nome_final = str(nome or getattr(arquivo_ou_caminho, "name", "") or arquivo_ou_caminho).lower()
+    if nome_final.endswith(".csv"):
+        return pd.read_csv(arquivo_ou_caminho)
+    try:
+        return pd.read_excel(arquivo_ou_caminho)
+    except Exception:
+        try:
+            if hasattr(arquivo_ou_caminho, "seek"):
+                arquivo_ou_caminho.seek(0)
+            return _ler_xlsx_sem_openpyxl(arquivo_ou_caminho)
+        finally:
+            if hasattr(arquivo_ou_caminho, "seek"):
+                arquivo_ou_caminho.seek(0)
+
 
 def _normalizar_dataframe_prova_paulista(df: pd.DataFrame) -> pd.DataFrame:
     if df is None or df.empty:
@@ -8626,9 +8840,9 @@ def _normalizar_dataframe_prova_paulista(df: pd.DataFrame) -> pd.DataFrame:
     mapa = {}
     for c in base.columns:
         n = normalizar_texto(c)
-        if n in ["ESTUDANTE", "ALUNO", "NOME", "NOME DO ALUNO", "NOME DO ESTUDANTE"]:
+        if n in ["ESTUDANTE", "ALUNO", "NOME", "NOME DO ALUNO", "NOME DO ESTUDANTE", "NM ALUNO", "NM_ALUNO"]:
             mapa[c] = "Estudante"
-        elif n in ["TURMA", "SERIE", "SÉRIE", "ANO", "ANO SERIE", "ANO/SERIE"]:
+        elif n in ["TURMA", "SERIE", "SÉRIE", "ANO", "ANO SERIE", "ANO/SERIE", "NM TURMA", "NM_TURMA"]:
             mapa[c] = "Turma"
         elif n in ["COMPONENTE", "COMPONENTE CURRICULAR", "DISCIPLINA", "MATERIA", "MATÉRIA"]:
             mapa[c] = "Componente"
@@ -8638,7 +8852,7 @@ def _normalizar_dataframe_prova_paulista(df: pd.DataFrame) -> pd.DataFrame:
             mapa[c] = "Participação"
         elif "TOTAL" in n and ("QUEST" in n or "ITENS" in n):
             mapa[c] = "Total de Questões"
-        elif "PERCENT" in n or n in ["%", "PERCENTUAL", "PORCENTAGEM"]:
+        elif ("PERCENT" in n or "PORCENT" in n or n in ["%", "PERCENTUAL", "PORCENTAGEM"]) and "ACERT" not in n and "PART" not in n:
             mapa[c] = "Percentual"
         elif "ACERT" in n or "PROVA PAULISTA" in n or n in ["PP", "ACERTOS PP"]:
             mapa[c] = "Acertos"
@@ -8685,6 +8899,21 @@ def _carregar_prova_paulista_local() -> pd.DataFrame:
                     break
             except Exception:
                 continue
+    try:
+        downloads_dir = Path.home() / "Downloads"
+        candidatos_xlsx = sorted(
+            glob.glob(str(downloads_dir / "RESULTADOS DA TURMA*.xlsx")),
+            key=lambda p: os.path.getmtime(p),
+            reverse=True,
+        )
+        for caminho_pp in candidatos_xlsx[:3]:
+            try:
+                fontes.append(_ler_planilha_upload_ou_caminho(caminho_pp))
+                break
+            except Exception:
+                continue
+    except Exception:
+        pass
     if not fontes:
         return pd.DataFrame(columns=COLUNAS_PROVA_PAULISTA_PADRAO)
     df = pd.concat([_normalizar_dataframe_prova_paulista(f) for f in fontes], ignore_index=True)
@@ -8714,6 +8943,7 @@ def _top10_prova_paulista(df: pd.DataFrame) -> pd.DataFrame:
     pont = pd.to_numeric(base["Percentual"].astype(str).str.replace("%", "", regex=False).str.replace(",", ".", regex=False), errors="coerce")
     acertos = pd.to_numeric(base["Acertos"].astype(str).str.replace("%", "", regex=False).str.replace(",", ".", regex=False), errors="coerce")
     base["_resultado"] = pont.fillna(acertos)
+    base.loc[base["_resultado"].between(0, 1, inclusive="both"), "_resultado"] = base["_resultado"] * 100
     base = base.dropna(subset=["_resultado"])
     if base.empty:
         return pd.DataFrame(columns=["Posição", "Estudante", "Turma", "Resultado"])
@@ -8734,10 +8964,7 @@ def _render_pagina_prova_paulista():
         arquivo = st.file_uploader("Enviar planilha da Prova Paulista (.xlsx, .xls ou .csv)", type=["xlsx", "xls", "csv"], key="upload_prova_paulista_restaurada")
         if arquivo is not None:
             try:
-                if arquivo.name.lower().endswith(".csv"):
-                    novo_df = pd.read_csv(arquivo)
-                else:
-                    novo_df = pd.read_excel(arquivo)
+                novo_df = _ler_planilha_upload_ou_caminho(arquivo, arquivo.name)
                 novo_df = _normalizar_dataframe_prova_paulista(novo_df)
                 _salvar_prova_paulista_local(novo_df)
                 st.success("Dados da Prova Paulista carregados e preservados no sistema.")
@@ -8781,6 +9008,117 @@ def _render_pagina_prova_paulista():
             st.info("Preencha as colunas Acertos ou Percentual para montar o ranking.")
         else:
             st.dataframe(ranking, use_container_width=True, hide_index=True)
+
+
+# ======================================================
+# MAPÃO — DADOS ONLINE SEPARADOS DO MAPA DA SALA
+# ======================================================
+MAPAO_LOCAL = DATA_DIR / "mapao_online.json"
+COLUNAS_MAPAO_PADRAO = [
+    "Estudante", "Turma", "Situação", "Frequência (%)", "Faltas", "Faltas anuais",
+    "Notas abaixo de cinco", "Componentes", "Bimestre"
+]
+
+
+def _normalizar_dataframe_mapao(df: pd.DataFrame) -> pd.DataFrame:
+    if df is None or df.empty:
+        return pd.DataFrame(columns=COLUNAS_MAPAO_PADRAO)
+    base = df.copy()
+    base.columns = [str(c).strip() for c in base.columns]
+    mapa = {}
+    for c in base.columns:
+        n = normalizar_texto(c)
+        if n in ["ALUNO", "ESTUDANTE", "NOME", "NOME DO ALUNO", "NOME DO ESTUDANTE"]:
+            mapa[c] = "Estudante"
+        elif n in ["TURMA", "SERIE", "SÉRIE", "ANO SERIE", "ANO/SERIE"]:
+            mapa[c] = "Turma"
+        elif "SITUAC" in n:
+            mapa[c] = "Situação"
+        elif "FRE" in n and "%" in str(c):
+            mapa[c] = "Frequência (%)"
+        elif n in ["TF", "FALTAS", "TOTAL DE FALTAS"]:
+            mapa[c] = "Faltas"
+        elif "FALT" in n and "AN" in n:
+            mapa[c] = "Faltas anuais"
+        elif "ABAIXO" in n or "MENOR QUE 5" in n or "MENOR 5" in n:
+            mapa[c] = "Notas abaixo de cinco"
+        elif "COMPONENT" in n or "DISCIPLINA" in n:
+            mapa[c] = "Componentes"
+        elif "BIM" in n or "FECHAMENTO" in n:
+            mapa[c] = "Bimestre"
+    if mapa:
+        base = base.rename(columns=mapa)
+    base = base.loc[:, ~base.columns.duplicated()].copy()
+    for c in COLUNAS_MAPAO_PADRAO:
+        if c not in base.columns:
+            base[c] = ""
+    base["Estudante"] = base["Estudante"].astype(str).str.strip()
+    base = base[base["Estudante"].str.len() > 0]
+    return base[COLUNAS_MAPAO_PADRAO + [c for c in base.columns if c not in COLUNAS_MAPAO_PADRAO]]
+
+
+def _carregar_mapao_local() -> pd.DataFrame:
+    fontes = []
+    for chave in ["df_mapao", "mapao_df", "df_mapao_online"]:
+        obj = st.session_state.get(chave)
+        if isinstance(obj, pd.DataFrame) and not obj.empty:
+            fontes.append(obj)
+    try:
+        if MAPAO_LOCAL.exists():
+            fontes.append(pd.read_json(MAPAO_LOCAL, orient="records"))
+    except Exception:
+        pass
+    if not fontes:
+        return pd.DataFrame(columns=COLUNAS_MAPAO_PADRAO)
+    return _normalizar_dataframe_mapao(pd.concat(fontes, ignore_index=True))
+
+
+def _salvar_mapao_local(df: pd.DataFrame) -> None:
+    df = _normalizar_dataframe_mapao(df)
+    st.session_state["df_mapao"] = df
+    st.session_state["mapao_df"] = df
+    try:
+        MAPAO_LOCAL.parent.mkdir(parents=True, exist_ok=True)
+        df.to_json(MAPAO_LOCAL, orient="records", force_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
+def _render_pagina_mapao():
+    page_header("🗺️ Mapão", "Importe frequência, situação e componentes para Conselho e Tutoria", "#059669")
+    st.info("Mapão é a planilha pedagógica da turma. Mapa da Sala fica em outra página, apenas para organização dos assentos.")
+    df_mapao = _carregar_mapao_local()
+    aba_upload, aba_dados = st.tabs(["📥 Importar Mapão", "🧾 Dados arquivados"])
+    with aba_upload:
+        arquivo = st.file_uploader("Enviar planilha do Mapão (.xlsx, .xls ou .csv)", type=["xlsx", "xls", "csv"], key="upload_mapao_online")
+        if arquivo is not None:
+            try:
+                if arquivo.name.lower().endswith(".csv"):
+                    novo_df = pd.read_csv(arquivo)
+                else:
+                    novo_df = pd.read_excel(arquivo)
+                novo_df = _normalizar_dataframe_mapao(novo_df)
+                _salvar_mapao_local(novo_df)
+                st.success("Mapão importado e arquivado.")
+                df_mapao = novo_df
+            except Exception as e:
+                st.error(f"Não foi possível importar o Mapão: {e}")
+        if df_mapao.empty:
+            st.warning("Nenhum Mapão arquivado ainda.")
+        else:
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Registros", len(df_mapao))
+            c2.metric("Estudantes", df_mapao["Estudante"].nunique())
+            c3.metric("Turmas", df_mapao["Turma"].astype(str).replace("", pd.NA).dropna().nunique())
+            st.dataframe(df_mapao.head(80), use_container_width=True, hide_index=True)
+    with aba_dados:
+        if df_mapao.empty:
+            df_mapao = pd.DataFrame([{c: "" for c in COLUNAS_MAPAO_PADRAO}])
+        editado = st.data_editor(df_mapao, use_container_width=True, hide_index=True, num_rows="dynamic", key="editor_mapao_online")
+        if st.button("💾 Salvar Mapão", type="primary", use_container_width=True):
+            _salvar_mapao_local(editado)
+            st.success("Mapão salvo para consulta nas demais páginas.")
+            st.rerun()
 
 if menu == "🏠 Dashboard":
     # ── Header no modelo SED, mantendo identidade do sistema ──
@@ -8830,16 +9168,16 @@ if menu == "🏠 Dashboard":
     """, unsafe_allow_html=True)
 
     st.markdown("""
-    <div class="sed-panel">
-        <div class="sed-panel-title">Plataformas do Sistema Conviva</div>
-        <div class="sed-panel-body">
-            <div class="sed-grid-modulos">
-                <div class="sed-module-card"><span class="sed-module-title">Registrar Ocorrência ↗</span><span class="sed-module-sub">Registro rápido e padronizado</span></div>
-                <div class="sed-module-card green"><span class="sed-module-title">Caderno de Tutoria ↗</span><span class="sed-module-sub">Acompanhamento individual e coletivo</span></div>
-                <div class="sed-module-card light"><span class="sed-module-title">Lista de Alunos ↗</span><span class="sed-module-sub">Consulta e gestão de estudantes</span></div>
-                <div class="sed-module-card red"><span class="sed-module-title">Comunicado aos Pais ↗</span><span class="sed-module-sub">Geração de comunicados</span></div>
-                <div class="sed-module-card gray"><span class="sed-module-title">Relatórios ↗</span><span class="sed-module-sub">Histórico pedagógico e evidências</span></div>
-                <div class="sed-module-card rainbow"><span class="sed-module-title">IA Conviva ↗</span><span class="sed-module-sub">Reescrita pedagógica humanizada</span></div>
+    <div style="margin:1rem 0 1.15rem 0;padding:1rem;border-radius:10px;background:linear-gradient(135deg,rgba(255,255,255,.96),rgba(239,253,255,.92));border:1px solid rgba(147,197,253,.62);box-shadow:0 8px 22px rgba(47,157,221,.10);">
+        <div style="margin-bottom:.75rem;font-family:'Nunito',sans-serif;color:#22385f;font-size:1rem;font-weight:900;">Plataformas do Sistema Conviva</div>
+        <div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(235px,1fr));gap:.6rem;">
+                <div style="min-height:58px;padding:.7rem .8rem;border-radius:8px;background:#eff6ff;border-left:5px solid #2563eb;display:flex;flex-direction:column;justify-content:center;"><span style="color:#1e293b;font-weight:850;">Registrar Ocorrência ↗</span><span style="margin-top:.2rem;color:#64748b;font-size:.83rem;">Registro rápido e padronizado</span></div>
+                <div style="min-height:58px;padding:.7rem .8rem;border-radius:8px;background:#ecfdf5;border-left:5px solid #059669;display:flex;flex-direction:column;justify-content:center;"><span style="color:#1e293b;font-weight:850;">Caderno de Tutoria ↗</span><span style="margin-top:.2rem;color:#64748b;font-size:.83rem;">Acompanhamento individual e coletivo</span></div>
+                <div style="min-height:58px;padding:.7rem .8rem;border-radius:8px;background:#ecfeff;border-left:5px solid #0891b2;display:flex;flex-direction:column;justify-content:center;"><span style="color:#1e293b;font-weight:850;">Lista de Alunos ↗</span><span style="margin-top:.2rem;color:#64748b;font-size:.83rem;">Consulta e gestão de estudantes</span></div>
+                <div style="min-height:58px;padding:.7rem .8rem;border-radius:8px;background:#fff1f2;border-left:5px solid #e11d48;display:flex;flex-direction:column;justify-content:center;"><span style="color:#1e293b;font-weight:850;">Comunicado aos Pais ↗</span><span style="margin-top:.2rem;color:#64748b;font-size:.83rem;">Geração de comunicados</span></div>
+                <div style="min-height:58px;padding:.7rem .8rem;border-radius:8px;background:#f8fafc;border-left:5px solid #64748b;display:flex;flex-direction:column;justify-content:center;"><span style="color:#1e293b;font-weight:850;">Relatórios ↗</span><span style="margin-top:.2rem;color:#64748b;font-size:.83rem;">Histórico pedagógico e evidências</span></div>
+                <div style="min-height:58px;padding:.7rem .8rem;border-radius:8px;background:linear-gradient(135deg,#fff7ed,#ecfeff);border-left:5px solid #a855f7;display:flex;flex-direction:column;justify-content:center;"><span style="color:#1e293b;font-weight:850;">IA Conviva ↗</span><span style="margin-top:.2rem;color:#64748b;font-size:.83rem;">Reescrita pedagógica humanizada</span></div>
             </div>
         </div>
     </div>
@@ -8920,17 +9258,6 @@ if menu == "🏠 Dashboard":
     resumo_panorama, df_panorama_dia = _resumo_panorama_letivo(df_ocorrencias, data_panorama)
     qtd_panorama = len(df_panorama_dia) if df_panorama_dia is not None else 0
     dados_panorama_card = _dados_panorama_letivo(df_panorama_dia, data_panorama)
-    chave_resumo_ia_panorama = f"dashboard_panorama_ia_{data_panorama.strftime('%Y%m%d')}_{qtd_panorama}"
-
-    col_periodo, col_ia_panorama = st.columns([3, 1])
-    with col_ia_panorama:
-        if ia_conviva_configurada():
-            if st.button("Reescrever com IA", key=f"btn_ia_panorama_{data_panorama.strftime('%Y%m%d')}", use_container_width=True):
-                with st.spinner("Escrevendo panorama com IA..."):
-                    st.session_state[chave_resumo_ia_panorama] = _resumo_panorama_ia(dados_panorama_card)
-        else:
-            st.caption("IA online não configurada.")
-    resumo_panorama = st.session_state.get(chave_resumo_ia_panorama, resumo_panorama)
 
     st.markdown("""
     <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
@@ -8992,15 +9319,14 @@ if menu == "🏠 Dashboard":
     for col, grad, icon, value, label, sub, delay in cards_data:
         with col:
             st.markdown(f"""
-            <div class="metric-card dashboard-color-card animate-fade-in" style="
+            <div class="dashboard-stat-card animate-fade-in" style="
                 background: {grad} !important;
-                box-shadow: 0 8px 20px rgba(0,0,0,0.18);
                 animation-delay: {delay};
             ">
-                <div class="metric-icon">{icon}</div>
-                <div class="metric-value">{value}</div>
-                <div class="metric-label">{label}</div>
-                <div class="metric-sub">{sub}</div>
+                <div class="dashboard-stat-icon">{icon}</div>
+                <div class="dashboard-stat-value">{value}</div>
+                <div class="dashboard-stat-label">{label}</div>
+                <div class="dashboard-stat-sub">{sub}</div>
             </div>
             """, unsafe_allow_html=True)
 
@@ -9046,6 +9372,18 @@ if menu == "🏠 Dashboard":
         &nbsp;·&nbsp; 🗓️ Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
     </div>
     """, unsafe_allow_html=True)
+
+    top10_pp_dashboard = _top10_prova_paulista(_carregar_prova_paulista_local())
+    st.markdown("""
+    <div style="display:flex; align-items:center; gap:0.5rem; margin:1.15rem 0 0.75rem 0;">
+        <div style="width:4px; height:22px; background:linear-gradient(180deg,#22c55e,#0ea5e9); border-radius:4px;"></div>
+        <h3 style="margin:0; font-family:'Nunito',sans-serif; font-size:1.1rem; color:#0f172a;">🏅 Top 10 — Prova Paulista</h3>
+    </div>
+    """, unsafe_allow_html=True)
+    if top10_pp_dashboard.empty:
+        st.info("Assim que uma planilha da Prova Paulista for carregada, o ranking por acertos aparece aqui.")
+    else:
+        st.dataframe(top10_pp_dashboard, use_container_width=True, hide_index=True)
 
     # ── Gráficos e Top 10 no Dashboard ───────────────────────
     if not df_ocorrencias.empty:
@@ -9189,80 +9527,6 @@ if menu == "🏠 Dashboard":
             </div>
             """, unsafe_allow_html=True)
 
-
-        # ── Top 10 Prova Paulista ─────────────────────────────
-        def _dashboard_top10_prova_paulista():
-            fontes = []
-            try:
-                if not df_alunos.empty:
-                    fontes.append(df_alunos.copy())
-            except Exception:
-                pass
-            try:
-                df_pp_dash = _carregar_prova_paulista_local()
-                if isinstance(df_pp_dash, pd.DataFrame) and not df_pp_dash.empty:
-                    fontes.append(df_pp_dash.copy())
-            except Exception:
-                pass
-            try:
-                df_conselho_dash = st.session_state.get("df_conselho", pd.DataFrame())
-                if isinstance(df_conselho_dash, pd.DataFrame) and not df_conselho_dash.empty:
-                    fontes.append(_mapear_colunas_conselho(df_conselho_dash).copy())
-            except Exception:
-                pass
-
-            candidatos = []
-            for base_pp in fontes:
-                if base_pp is None or base_pp.empty:
-                    continue
-                cols_norm = {normalizar_texto(c): c for c in base_pp.columns}
-                col_nome = None
-                for chave in ("ESTUDANTE", "ALUNO", "NOME", "NOME DO ALUNO"):
-                    if chave in cols_norm:
-                        col_nome = cols_norm[chave]
-                        break
-                col_turma = None
-                for chave in ("TURMA", "SERIE", "SÉRIE", "ANO SERIE", "ANO/SERIE"):
-                    if chave in cols_norm:
-                        col_turma = cols_norm[chave]
-                        break
-                col_pp = None
-                for chave_norm, col_original in cols_norm.items():
-                    if any(t in chave_norm for t in ["ACERTOS PP", "PROVA PAULISTA", "PROVA PAULISTA 2", "PROVA PAULISTA 1", "ACERTOS"]):
-                        if "PART" not in chave_norm and "PARTICIP" not in chave_norm:
-                            col_pp = col_original
-                            break
-                if not col_nome or not col_pp:
-                    continue
-                temp = base_pp[[c for c in [col_nome, col_turma, col_pp] if c]].copy()
-                temp.columns = ["Aluno", "Turma", "Prova Paulista"] if col_turma else ["Aluno", "Prova Paulista"]
-                if "Turma" not in temp.columns:
-                    temp["Turma"] = "—"
-                temp["Aluno"] = temp["Aluno"].astype(str).str.strip()
-                temp["Turma"] = temp["Turma"].astype(str).str.strip().replace("", "—")
-                temp["PP_num"] = pd.to_numeric(temp["Prova Paulista"].astype(str).str.replace("%", "", regex=False).str.replace(",", ".", regex=False), errors="coerce")
-                temp = temp[temp["Aluno"].astype(str).str.len() > 0]
-                temp = temp.dropna(subset=["PP_num"])
-                if not temp.empty:
-                    candidatos.append(temp)
-            if not candidatos:
-                return pd.DataFrame(columns=["Aluno", "Turma", "Prova Paulista"])
-            resultado = pd.concat(candidatos, ignore_index=True)
-            resultado = resultado.sort_values("PP_num", ascending=False).drop_duplicates("Aluno", keep="first").head(10)
-            resultado["Prova Paulista"] = resultado["PP_num"].map(lambda x: f"{x:.1f}".replace(".0", ""))
-            return resultado[["Aluno", "Turma", "Prova Paulista"]]
-
-        top10_pp = _dashboard_top10_prova_paulista()
-        st.markdown("""
-        <div style="display:flex; align-items:center; gap:0.5rem; margin:1.15rem 0 0.75rem 0;">
-            <div style="width:4px; height:22px; background:linear-gradient(180deg,#22c55e,#0ea5e9); border-radius:4px;"></div>
-            <h3 style="margin:0; font-family:'Nunito',sans-serif; font-size:1.1rem; color:#0f172a;">🏅 Top 10 — Prova Paulista</h3>
-        </div>
-        """, unsafe_allow_html=True)
-        if top10_pp.empty:
-            st.info("Assim que houver coluna de Prova Paulista/Acertos PP na tabela de alunos ou na aba Conselho, o Top 10 aparecerá aqui automaticamente.")
-        else:
-            st.dataframe(top10_pp, use_container_width=True, hide_index=True)
     else:
         st.markdown("""
         <div style="text-align:center; padding:2rem; color:#94a3b8; background:white; border-radius:16px; border:1.5px dashed #e2e8f0; margin-top:1rem;">
@@ -14625,8 +14889,11 @@ elif menu == "🫂 Tutoria":
 # PÁGINA 🏫 MAPA DA SALA (COMPLETA)
 # ======================================================
 
-elif menu in ["🏫 Mapa da Sala", "🗺️ Mapão"]:
-    page_header("🗺️ Mapão / Mapa da Sala", "Organize assentos e distribua alunos visualmente", "#059669")
+elif menu == "🗺️ Mapão":
+    _render_pagina_mapao()
+
+elif menu == "🏫 Mapa da Sala":
+    page_header("🏫 Mapa da Sala", "Organize assentos e distribua alunos visualmente", "#059669")
     
     st.markdown("""
     <div style="
