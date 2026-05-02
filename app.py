@@ -38,6 +38,15 @@ def carregar_variaveis_ambiente():
 carregar_variaveis_ambiente()
 
 # ======================================================
+# CAMINHOS DO PROJETO
+# ======================================================
+# DATA_DIR precisa existir antes das paginas Prova Paulista, Mapao e Conselho.
+# No Streamlit Cloud, __file__ aponta para /mount/src/<repo>/app.py.
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR / "data"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+# ======================================================
 # REPORTLAB (PDF)
 # ======================================================
 from reportlab.lib import colors
