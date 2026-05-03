@@ -616,6 +616,10 @@ button {
     padding: 1.15rem 1rem !important;
     min-height: 156px !important;
     color: #ffffff !important;
+    opacity: 1 !important;
+    filter: none !important;
+    background-color: #2563eb !important;
+    background-image: var(--card-bg, linear-gradient(135deg,#2563eb,#1d4ed8)) !important;
     display: flex !important;
     flex-direction: column !important;
     align-items: flex-start !important;
@@ -640,6 +644,7 @@ button {
     color: #ffffff !important;
     -webkit-text-fill-color: #ffffff !important;
     text-shadow: 0 2px 10px rgba(0,0,0,0.20) !important;
+    opacity: 1 !important;
     position: relative !important;
     z-index: 1 !important;
 }
@@ -3290,6 +3295,7 @@ def formatar_turma_eletiva(valor: str) -> str:
         .replace("SÉRIE", " ")
         .replace("º", " ")
         .replace("ª", " ")
+        .replace("°", " ")
         .replace("-", " ")
         .replace("/", " ")
     )
@@ -3329,9 +3335,9 @@ def extrair_numero_letra_turma(valor: str) -> tuple[int | None, str]:
 def classificar_etapa_tutoria(valor: str) -> str:
     numero, _ = extrair_numero_letra_turma(valor)
     if numero in (6, 7, 8, 9):
-        return "Ensino Fundamental"
+        return "Ensino Fundamental - Anos Finais"
     if numero in (1, 2, 3):
-        return "Ensino Medio"
+        return "Ensino Médio"
     return "Sem etapa definida"
 
 def classificar_turno_tutoria(valor: str) -> str:
@@ -3348,6 +3354,65 @@ def classificar_turno_tutoria(valor: str) -> str:
 def ordenar_turma_tutoria(turma: str) -> tuple[int, str]:
     numero, letra = extrair_numero_letra_turma(turma)
     return (numero if numero is not None else 99, letra or "Z")
+
+
+def classificar_turma_sistema(turma: str) -> dict:
+    """Classificação única usada por Prova Paulista, Mapão, Tutoria, Eletiva e Conselho."""
+    turma_fmt = formatar_turma_eletiva(turma)
+    return {
+        "turma": turma_fmt,
+        "ciclo": classificar_etapa_tutoria(turma_fmt),
+        "turno": classificar_turno_tutoria(turma_fmt),
+    }
+
+
+def _normalizar_percentual(valor) -> float | None:
+    """Converte valores de percentual vindos como 0.88, 88,6 ou 88%."""
+    texto = str(valor or "").strip()
+    if not texto or texto.lower() in {"nan", "none", "null", "-"}:
+        return None
+    texto = texto.replace("%", "").replace(",", ".")
+    try:
+        numero = float(texto)
+    except Exception:
+        return None
+    if 0 <= numero <= 1:
+        numero *= 100
+    return round(numero, 2)
+
+
+def _parse_numero_br(valor) -> float | None:
+    texto = str(valor or "").strip().replace(",", ".")
+    if not texto or texto.lower() in {"nan", "none", "null", "-"}:
+        return None
+    try:
+        return float(texto)
+    except Exception:
+        return None
+
+
+def _opcoes_turmas_sistema() -> list[str]:
+    fontes = []
+    try:
+        obj = st.session_state.get("df_alunos")
+        if isinstance(obj, pd.DataFrame) and not obj.empty:
+            fontes.append(obj)
+    except Exception:
+        pass
+    try:
+        if "df_alunos" in globals() and isinstance(df_alunos, pd.DataFrame) and not df_alunos.empty:
+            fontes.append(df_alunos)
+    except Exception:
+        pass
+    turmas = set()
+    for fonte in fontes:
+        if "turma" not in fonte.columns:
+            continue
+        for turma in fonte["turma"].dropna().astype(str):
+            turma_fmt = formatar_turma_eletiva(turma)
+            if turma_fmt:
+                turmas.add(turma_fmt)
+    return sorted(turmas, key=ordenar_turma_tutoria)
 
 def estudante_ativo(linha) -> bool:
     """Considera ativo todo estudante que nao esteja claramente marcado como inativo."""
@@ -4462,7 +4527,10 @@ def _supabase_request(method: str, path: str, **kwargs):
     if not SUPABASE_VALID:
         raise ErroConexaoDB("Supabase não configurado. Verifique SUPABASE_URL e SUPABASE_KEY.")
     url = f"{SUPABASE_URL}/rest/v1/{path}"
-    response = requests.request(method, url, headers=HEADERS, timeout=15, **kwargs)
+    headers_extra = kwargs.pop("headers", None) or {}
+    headers = dict(HEADERS)
+    headers.update(headers_extra)
+    response = requests.request(method, url, headers=headers, timeout=15, **kwargs)
     if response.status_code >= 400:
         logger.error(f"Erro Supabase ({response.status_code}): {response.text}")
         response.raise_for_status()
@@ -5424,17 +5492,56 @@ def converter_tutoria_para_registros(tutoria_dict: dict, origem: str = "excel") 
     registros = []
     for tutor, dados in normalizar_base_tutoria(tutoria_dict).items():
         for item in dados.get("alunos", []):
+            serie_fmt = formatar_turma_eletiva(item.get("serie", ""))
             registros.append({
                 "professora": tutor,
                 "nome_aluno": item.get("nome", ""),
-                "serie": formatar_turma_eletiva(item.get("serie", "")),
+                "serie": serie_fmt,
                 "origem": origem,
                 "tipo": normalizar_perfil_tutoria(dados.get("tipo", "Professor(a)")),
                 "espaco": str(dados.get("espaco", "")).strip(),
                 "horario": str(dados.get("horario", "")).strip(),
-                "dia": str(dados.get("dia", "")).strip()
+                "dia": str(dados.get("dia", "")).strip(),
+                "turno": classificar_turno_tutoria(serie_fmt),
             })
     return registros
+
+
+def converter_tutoria_responsaveis_para_registros(tutoria_dict: dict) -> list:
+    registros = []
+    for tutor, dados in normalizar_base_tutoria(tutoria_dict).items():
+        alunos = dados.get("alunos", []) or []
+        turnos = sorted({
+            classificar_turno_tutoria(item.get("serie", ""))
+            for item in alunos
+            if classificar_turno_tutoria(item.get("serie", "")) != "Sem turno definido"
+        })
+        registros.append({
+            "responsavel": tutor,
+            "perfil": normalizar_perfil_tutoria(dados.get("tipo", "Professor(a)")),
+            "espaco": str(dados.get("espaco", "") or espaco_oficial_por_tutor(tutor)).strip(),
+            "horario": str(dados.get("horario", "") or TUTORIA_HORARIO_PADRAO_TURNO1).strip(),
+            "dia": str(dados.get("dia", "") or TUTORIA_DIA_PADRAO_TURNO1).strip(),
+            "turno": ", ".join(turnos),
+            "ativo": True,
+        })
+    return registros
+
+
+def sincronizar_tutoria_responsaveis_supabase(tutoria_dict: dict) -> tuple[bool, str]:
+    registros = converter_tutoria_responsaveis_para_registros(tutoria_dict)
+    if not SUPABASE_VALID or not registros:
+        return False, "Supabase indisponível ou sem registros."
+    try:
+        _supabase_request(
+            "POST",
+            "tutoria_responsaveis?on_conflict=responsavel",
+            json=registros,
+            headers={"Prefer": "resolution=merge-duplicates,return=representation"},
+        )
+        return True, "Responsáveis da tutoria sincronizados no Supabase."
+    except Exception as e:
+        return False, mensagem_erro_tutoria_supabase(e)
 
 def converter_tutoria_supabase_para_dict(df_tutoria: pd.DataFrame) -> dict:
     if df_tutoria.empty:
@@ -5447,6 +5554,7 @@ def converter_tutoria_supabase_para_dict(df_tutoria: pd.DataFrame) -> dict:
     aliases_espaco = ["espaco", "espaço", "espaco_usado", "espaço_usado", "sala", "ambiente", "local"]
     aliases_horario = ["horario", "horário", "hora", "periodo", "período"]
     aliases_dia = ["dia", "dia_semana", "dia_da_semana", "semana"]
+    aliases_turno = ["turno", "periodo_turno", "período_turno"]
     for _, row in df_tutoria.iterrows():
         tutor = _valor_primeiro_campo(row, aliases_tutor)
         nome_aluno = _valor_primeiro_campo(row, aliases_aluno)
@@ -5458,6 +5566,7 @@ def converter_tutoria_supabase_para_dict(df_tutoria: pd.DataFrame) -> dict:
         espaco = _valor_primeiro_campo(row, aliases_espaco)
         horario = _valor_primeiro_campo(row, aliases_horario)
         dia = _valor_primeiro_campo(row, aliases_dia)
+        turno = _valor_primeiro_campo(row, aliases_turno)
         if tipo:
             tutoria[tutor]["tipo"] = tipo
         if espaco:
@@ -5472,6 +5581,8 @@ def converter_tutoria_supabase_para_dict(df_tutoria: pd.DataFrame) -> dict:
             if ra:
                 item["ra"] = "".join(ch for ch in str(ra) if ch.isdigit())
             tutoria[tutor]["alunos"].append(item)
+        if turno:
+            tutoria[tutor]["turno"] = turno
     return normalizar_base_tutoria(tutoria)
 
 def montar_dataframe_eletiva(nome_professora: str, df_alunos: pd.DataFrame, eletivas_dict: dict) -> pd.DataFrame:
@@ -5536,10 +5647,13 @@ def montar_dataframe_eletiva(nome_professora: str, df_alunos: pd.DataFrame, elet
 
         if melhor_match is not None:
             turma_final = str(melhor_match.get("turma", "")).strip() or serie_original
+            classif_final = classificar_turma_sistema(turma_final)
             registros.append({
                 "Professor(a)": nome_professora,
                 "Nome": nome_original,
                 "Turma": turma_final,
+                "Ciclo": classif_final["ciclo"],
+                "Turno": classif_final["turno"],
                 "Aluno Cadastrado": melhor_match.get("nome", ""),
                 "RA": melhor_match.get("ra", ""),
                 "Turma no Sistema": melhor_match.get("turma", ""),
@@ -5547,10 +5661,13 @@ def montar_dataframe_eletiva(nome_professora: str, df_alunos: pd.DataFrame, elet
                 "Status": "Encontrado",
             })
         else:
+            classif_final = classificar_turma_sistema(serie_original)
             registros.append({
                 "Professor(a)": nome_professora,
                 "Nome": nome_original,
                 "Turma": serie_original,
+                "Ciclo": classif_final["ciclo"],
+                "Turno": classif_final["turno"],
                 "Aluno Cadastrado": "",
                 "RA": "",
                 "Turma no Sistema": "",
@@ -6944,6 +7061,190 @@ def _criar_modelo_conselho_online(qtd_linhas: int = 30) -> pd.DataFrame:
     return pd.DataFrame(linhas)
 
 
+def _montar_modelo_conselho_por_turma(turma: str, bimestre: str, ano_letivo: str) -> pd.DataFrame:
+    turma_fmt = formatar_turma_eletiva(turma)
+    alunos_base = pd.DataFrame()
+    try:
+        if "df_alunos" in globals() and isinstance(df_alunos, pd.DataFrame):
+            alunos_base = df_alunos.copy()
+    except Exception:
+        alunos_base = pd.DataFrame()
+    if alunos_base.empty or "nome" not in alunos_base.columns:
+        return _criar_modelo_conselho_online(30)
+
+    if "turma" not in alunos_base.columns:
+        alunos_base["turma"] = ""
+    alunos_base["turma_fmt"] = alunos_base["turma"].astype(str).apply(formatar_turma_eletiva)
+    alunos_base = alunos_base[alunos_base["turma_fmt"] == turma_fmt].copy()
+    alunos_base = alunos_base.sort_values("nome", key=lambda s: s.map(normalizar_texto), kind="stable").reset_index(drop=True)
+
+    pp = _normalizar_dataframe_prova_paulista(_carregar_prova_paulista_local())
+    if not pp.empty:
+        pp = pp[(pp["Turma"].astype(str).apply(formatar_turma_eletiva) == turma_fmt)]
+        if bimestre:
+            pp = pp[pp["Bimestre"].astype(str).str.strip().eq(str(bimestre).strip()) | pp["Bimestre"].astype(str).str.strip().eq("")]
+        if ano_letivo:
+            pp = pp[pp["Ano letivo"].astype(str).str.strip().eq(str(ano_letivo).strip()) | pp["Ano letivo"].astype(str).str.strip().eq("")]
+
+    mapao = _normalizar_dataframe_mapao(_carregar_mapao_local())
+    if not mapao.empty:
+        mapao = mapao[(mapao["Turma"].astype(str).apply(formatar_turma_eletiva) == turma_fmt)]
+        if bimestre:
+            mapao = mapao[mapao["Bimestre"].astype(str).str.strip().eq(str(bimestre).strip()) | mapao["Bimestre"].astype(str).str.strip().eq("")]
+        if ano_letivo:
+            mapao = mapao[mapao["Ano letivo"].astype(str).str.strip().eq(str(ano_letivo).strip()) | mapao["Ano letivo"].astype(str).str.strip().eq("")]
+
+    def _linha_por_aluno(nome: str, ra: str, idx: int) -> dict:
+        nome_norm = normalizar_texto(nome)
+        ra_norm = "".join(ch for ch in str(ra or "") if ch.isdigit())
+        linha = {c: "" for c in COLUNAS_CONSELHO_ONLINE}
+        linha["Nº"] = str(idx + 1)
+        linha["Estudante"] = nome
+
+        if not pp.empty:
+            cand = pp[pp["RA"].astype(str).str.replace(r"\D", "", regex=True).eq(ra_norm)] if ra_norm else pd.DataFrame()
+            if cand.empty:
+                cand = pp[pp["Estudante"].astype(str).map(normalizar_texto).eq(nome_norm)]
+            if not cand.empty:
+                row = cand.iloc[-1]
+                acertos = row.get("Acertos", "")
+                linha["Prova Paulista 1"] = f"{float(acertos):.1f}%".replace(".0%", "%") if pd.notna(acertos) and str(acertos) != "" else ""
+
+        if not mapao.empty:
+            cand_m = mapao[mapao["Estudante"].astype(str).map(normalizar_texto).eq(nome_norm)]
+            if not cand_m.empty:
+                row_m = cand_m.iloc[-1]
+                freq = row_m.get("Frequência (%)", "")
+                linha["Frequência (%)"] = f"{float(freq):.1f}%".replace(".0%", "%") if pd.notna(freq) and str(freq) != "" else ""
+                linha["Notas abaixo de cinco"] = row_m.get("Notas abaixo de cinco", "")
+        return linha
+
+    linhas = []
+    for idx, aluno in alunos_base.iterrows():
+        linhas.append(_linha_por_aluno(str(aluno.get("nome", "")).strip(), str(aluno.get("ra", "")).strip(), idx))
+    return pd.DataFrame(linhas or [{c: "" for c in COLUNAS_CONSELHO_ONLINE}], columns=COLUNAS_CONSELHO_ONLINE)
+
+
+CONSELHO_ATAS_LOCAL = DATA_DIR / "conselho_atas_online.json"
+
+
+def _coletar_dados_ata_conselho() -> dict:
+    campos = [
+        "conselho_titulo_documento", "conselho_texto_abertura", "conselho_perfil_desempenho",
+        "conselho_perfil_dificuldades", "conselho_perfil_comportamento", "conselho_perfil_participacao",
+        "conselho_perfil_relacoes", "conselho_perfil_lideres", "conselho_perfil_notas_abaixo",
+        "conselho_perfil_socioemocionais", "conselho_perfil_estrategias", "conselho_perfil_destaques",
+        "conselho_perfil_focos", "conselho_encaminhamentos_gerais", "conselho_medidas_pos",
+        "conselho_observacoes",
+    ]
+    dados = {campo: st.session_state.get(campo, "") for campo in campos}
+    for chave_df in ["df_conselho_protocolo", "df_conselho_focos", "df_conselho_pos", "df_conselho_assinaturas"]:
+        obj = st.session_state.get(chave_df)
+        if isinstance(obj, pd.DataFrame):
+            dados[chave_df] = obj.to_dict("records")
+    return dados
+
+
+def _aplicar_dados_ata_conselho(dados: dict):
+    for chave, valor in (dados or {}).items():
+        if chave in ["df_conselho_protocolo", "df_conselho_focos", "df_conselho_pos", "df_conselho_assinaturas"]:
+            st.session_state[chave] = pd.DataFrame(valor or [])
+        else:
+            st.session_state[chave] = valor
+
+
+def _payload_conselho_ata(turma: str, bimestre: str, ano_letivo: str, data_conselho) -> dict:
+    classif = classificar_turma_sistema(turma)
+    tabela = st.session_state.get("df_conselho_online", pd.DataFrame())
+    if isinstance(tabela, pd.DataFrame):
+        tabela_registros = tabela.to_dict("records")
+    else:
+        tabela_registros = []
+    return {
+        "ano_letivo": str(ano_letivo or ""),
+        "bimestre": str(bimestre or ""),
+        "turma": classif["turma"],
+        "ciclo": classif["ciclo"],
+        "turno": classif["turno"],
+        "data_conselho": str(data_conselho) if data_conselho else None,
+        "dados_ata": _coletar_dados_ata_conselho(),
+        "tabela_estudantes": tabela_registros,
+    }
+
+
+def _salvar_conselho_ata_local(payload: dict):
+    registros = []
+    try:
+        if CONSELHO_ATAS_LOCAL.exists():
+            registros = json.loads(CONSELHO_ATAS_LOCAL.read_text(encoding="utf-8"))
+    except Exception:
+        registros = []
+    chave = (payload.get("ano_letivo"), payload.get("bimestre"), payload.get("turma"))
+    registros = [
+        item for item in registros
+        if (item.get("ano_letivo"), item.get("bimestre"), item.get("turma")) != chave
+    ]
+    registros.append(payload)
+    CONSELHO_ATAS_LOCAL.parent.mkdir(parents=True, exist_ok=True)
+    CONSELHO_ATAS_LOCAL.write_text(json.dumps(registros, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _salvar_conselho_ata_online(turma: str, bimestre: str, ano_letivo: str, data_conselho) -> tuple[bool, str]:
+    payload = _payload_conselho_ata(turma, bimestre, ano_letivo, data_conselho)
+    _salvar_conselho_ata_local(payload)
+    if not SUPABASE_VALID:
+        return False, "Ata salva localmente. Supabase não configurado."
+    try:
+        _supabase_request(
+            "POST",
+            "conselho_atas?on_conflict=ano_letivo,bimestre,turma",
+            json=[payload],
+            headers={"Prefer": "resolution=merge-duplicates,return=representation"},
+        )
+        return True, "Ata salva no Supabase."
+    except Exception as e:
+        return False, f"Ata salva localmente. Falha ao salvar no Supabase: {e}"
+
+
+def _carregar_conselho_ata_online(turma: str, bimestre: str, ano_letivo: str) -> tuple[bool, str]:
+    classif = classificar_turma_sistema(turma)
+    payload = None
+    if SUPABASE_VALID:
+        try:
+            path = (
+                "conselho_atas?select=*&"
+                f"ano_letivo=eq.{requests.utils.quote(str(ano_letivo), safe='')}&"
+                f"bimestre=eq.{requests.utils.quote(str(bimestre), safe='')}&"
+                f"turma=eq.{requests.utils.quote(classif['turma'], safe='')}&limit=1"
+            )
+            df = _supabase_get_dataframe(path, "carregar ata do conselho")
+            if not df.empty:
+                payload = df.iloc[0].to_dict()
+        except Exception:
+            payload = None
+    if payload is None:
+        try:
+            if CONSELHO_ATAS_LOCAL.exists():
+                registros = json.loads(CONSELHO_ATAS_LOCAL.read_text(encoding="utf-8"))
+                for item in registros:
+                    if (
+                        str(item.get("ano_letivo")) == str(ano_letivo)
+                        and str(item.get("bimestre")) == str(bimestre)
+                        and formatar_turma_eletiva(item.get("turma", "")) == classif["turma"]
+                    ):
+                        payload = item
+                        break
+        except Exception:
+            payload = None
+    if not payload:
+        return False, "Nenhuma ata salva para esta turma/bimestre/ano."
+    _aplicar_dados_ata_conselho(payload.get("dados_ata", {}))
+    tabela = payload.get("tabela_estudantes", [])
+    if tabela:
+        st.session_state.df_conselho_online = pd.DataFrame(tabela)
+    return True, "Ata carregada para edição."
+
+
 def _modelo_online_para_resumo_conselho(df_online: pd.DataFrame) -> pd.DataFrame:
     if df_online is None or df_online.empty:
         return pd.DataFrame(columns=COLUNAS_CONSELHO_PADRAO)
@@ -7158,6 +7459,19 @@ def render_pagina_conselho():
     with col_d:
         data_conselho = st.date_input("Data", value=datetime.now().date(), format="YYYY-MM-DD", key="conselho_data")
     st.markdown('</div>', unsafe_allow_html=True)
+    classif_conselho = classificar_turma_sistema(turma)
+    st.caption(f"Turma classificada como: {classif_conselho['ciclo']} · {classif_conselho['turno']}")
+    col_load_ata, col_save_ata = st.columns(2)
+    with col_load_ata:
+        if st.button("📂 Reabrir ata online salva", key="btn_carregar_ata_conselho", use_container_width=True):
+            ok_ata, msg_ata = _carregar_conselho_ata_online(turma, bimestre, ano_letivo)
+            st.success(msg_ata) if ok_ata else st.warning(msg_ata)
+            if ok_ata:
+                st.rerun()
+    with col_save_ata:
+        if st.button("💾 Salvar ata online", key="btn_salvar_ata_conselho_topo", use_container_width=True):
+            ok_ata, msg_ata = _salvar_conselho_ata_online(turma, bimestre, ano_letivo, data_conselho)
+            st.success(msg_ata) if ok_ata else st.warning(msg_ata)
 
     tab_docs, tab_online, tab_excel, tab_revisar, tab_pdf = st.tabs([
         "📚 Documentos do Conselho",
@@ -7273,7 +7587,7 @@ def render_pagina_conselho():
     with tab_online:
         st.markdown("### 📝 Modelo online para preenchimento")
         st.caption("Use esta grade para preencher diretamente no sistema, sem depender do Excel. Depois clique em atualizar a tabela resumida para impressão.")
-        c1, c2, c3 = st.columns([1, 1, 1])
+        c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
         with c1:
             if st.button("🧪 Criar modelo online vazio", type="primary", key="btn_criar_modelo_online_conselho"):
                 st.session_state.df_conselho_online = _criar_modelo_conselho_online(30)
@@ -7289,6 +7603,13 @@ def render_pagina_conselho():
                 df_online = st.session_state.get("df_conselho_online", pd.DataFrame(columns=COLUNAS_CONSELHO_ONLINE))
                 st.session_state.df_conselho = _modelo_online_para_resumo_conselho(df_online)
                 st.success("Tabela resumida atualizada para revisão e impressão.")
+        with c4:
+            if st.button("👥 Buscar turma + dados", key="btn_conselho_buscar_turma_dados"):
+                if not str(turma or "").strip():
+                    st.warning("Informe a turma antes de buscar os estudantes.")
+                else:
+                    st.session_state.df_conselho_online = _montar_modelo_conselho_por_turma(turma, bimestre, ano_letivo)
+                    st.success("Estudantes e dados disponíveis de Prova Paulista/Mapão foram carregados.")
 
         if "df_conselho_online" not in st.session_state:
             st.session_state.df_conselho_online = _criar_modelo_conselho_online(30)
@@ -9120,6 +9441,672 @@ def _render_pagina_mapao():
             st.success("Mapão salvo para consulta nas demais páginas.")
             st.rerun()
 
+
+# ======================================================
+# ESTABILIZAÇÃO — PROVA PAULISTA, MAPÃO E SUPABASE
+# ======================================================
+PROVA_COMPONENTES_COLUNAS = ["MAT", "PORT", "ING", "HIST", "GEO", "CIE", "FILO", "SOC", "BIO", "FÍS", "QUI", "FIN", "TEC"]
+COLUNAS_PROVA_PAULISTA_PADRAO = [
+    "RA", "Estudante", "Turma", "Ciclo", "Turno", "Bimestre", "Ano letivo",
+    "Participação", "Acertos", *PROVA_COMPONENTES_COLUNAS, "Arquivo origem"
+]
+
+
+def _linhas_xlsx_sem_openpyxl(arquivo_ou_caminho) -> list[list[str]]:
+    """Le todas as linhas da primeira aba do XLSX sem depender de openpyxl."""
+    ns = {
+        "a": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
+        "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+    }
+    if hasattr(arquivo_ou_caminho, "seek"):
+        arquivo_ou_caminho.seek(0)
+    try:
+        with zipfile.ZipFile(arquivo_ou_caminho) as z:
+            shared_strings = []
+            if "xl/sharedStrings.xml" in z.namelist():
+                root = ET.fromstring(z.read("xl/sharedStrings.xml"))
+                for si in root.findall("a:si", ns):
+                    shared_strings.append("".join(t.text or "" for t in si.iterfind(".//a:t", ns)))
+
+            sheet_path = "xl/worksheets/sheet1.xml"
+            try:
+                workbook = ET.fromstring(z.read("xl/workbook.xml"))
+                rels = ET.fromstring(z.read("xl/_rels/workbook.xml.rels"))
+                rel_map = {rel.attrib.get("Id", ""): rel.attrib.get("Target", "") for rel in rels}
+                primeira = workbook.find("a:sheets/a:sheet", ns)
+                if primeira is not None:
+                    rel_id = primeira.attrib.get("{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id", "")
+                    target = rel_map.get(rel_id, "")
+                    if target:
+                        sheet_path = target.replace("\\", "/")
+                        if not sheet_path.startswith("xl/"):
+                            sheet_path = f"xl/{sheet_path}"
+            except Exception:
+                pass
+
+            root_sheet = ET.fromstring(z.read(sheet_path))
+            rows = []
+            max_col = 0
+            for row in root_sheet.findall(".//a:sheetData/a:row", ns):
+                valores = {}
+                for cell in row.findall("a:c", ns):
+                    idx = _coluna_excel_para_indice(cell.attrib.get("r", ""))
+                    max_col = max(max_col, idx)
+                    tipo = cell.attrib.get("t", "")
+                    valor = ""
+                    if tipo == "inlineStr":
+                        valor = "".join(t.text or "" for t in cell.iterfind(".//a:t", ns))
+                    else:
+                        v = cell.find("a:v", ns)
+                        if v is not None and v.text is not None:
+                            valor = v.text
+                        if tipo == "s" and str(valor).isdigit():
+                            pos = int(valor)
+                            valor = shared_strings[pos] if pos < len(shared_strings) else valor
+                    valores[idx] = str(valor).strip()
+                if valores:
+                    rows.append([valores.get(i, "") for i in range(max_col + 1)])
+            largura = max((len(r) for r in rows), default=0)
+            return [r + [""] * (largura - len(r)) for r in rows]
+    finally:
+        if hasattr(arquivo_ou_caminho, "seek"):
+            arquivo_ou_caminho.seek(0)
+
+
+def _componentes_dict_de_linha(row: pd.Series) -> dict:
+    componentes = {}
+    for comp in PROVA_COMPONENTES_COLUNAS:
+        valor = row.get(comp, "")
+        pct = _normalizar_percentual(valor)
+        if pct is not None:
+            componentes[comp] = pct
+    return componentes
+
+
+def _normalizar_dataframe_prova_paulista(
+    df: pd.DataFrame,
+    turma: str = "",
+    bimestre: str = "",
+    ano_letivo: str = "",
+    arquivo_origem: str = "",
+) -> pd.DataFrame:
+    if df is None or df.empty:
+        return pd.DataFrame(columns=COLUNAS_PROVA_PAULISTA_PADRAO)
+
+    base = df.copy()
+    base.columns = [str(c).strip() for c in base.columns]
+    mapa = {}
+    for c in base.columns:
+        n = normalizar_texto(c)
+        if n in ["NR RA", "RA", "REGISTRO ALUNO", "REGISTRO_ALUNO"]:
+            mapa[c] = "RA"
+        elif n in ["ESTUDANTE", "ALUNO", "NOME", "NOME DO ALUNO", "NOME DO ESTUDANTE", "NM ALUNO", "NM_ALUNO", "ESTUDANTE"]:
+            mapa[c] = "Estudante"
+        elif n in ["TURMA", "SERIE", "SÉRIE", "ANO SERIE", "ANO/SERIE", "NM TURMA", "NM_TURMA"]:
+            mapa[c] = "Turma"
+        elif "BIM" in n:
+            mapa[c] = "Bimestre"
+        elif "ANO LETIVO" in n or n == "ANO":
+            mapa[c] = "Ano letivo"
+        elif "PART" in n:
+            mapa[c] = "Participação"
+        elif "ACERT" in n:
+            mapa[c] = "Acertos"
+        elif n in [normalizar_texto(comp) for comp in PROVA_COMPONENTES_COLUNAS]:
+            comp_real = next((comp for comp in PROVA_COMPONENTES_COLUNAS if normalizar_texto(comp) == n), c)
+            mapa[c] = comp_real
+    if mapa:
+        base = base.rename(columns=mapa)
+    base = base.loc[:, ~base.columns.duplicated()].copy()
+
+    if "componentes" in base.columns and not any(comp in base.columns for comp in PROVA_COMPONENTES_COLUNAS):
+        for comp in PROVA_COMPONENTES_COLUNAS:
+            base[comp] = ""
+        for idx, valor in base["componentes"].items():
+            try:
+                dados = valor if isinstance(valor, dict) else json.loads(str(valor or "{}"))
+            except Exception:
+                dados = {}
+            for comp in PROVA_COMPONENTES_COLUNAS:
+                if comp in dados:
+                    base.at[idx, comp] = dados.get(comp)
+
+    for c in COLUNAS_PROVA_PAULISTA_PADRAO:
+        if c not in base.columns:
+            base[c] = ""
+
+    if turma:
+        meta_turma = classificar_turma_sistema(turma)
+        base["Turma"] = meta_turma["turma"]
+        base["Ciclo"] = meta_turma["ciclo"]
+        base["Turno"] = meta_turma["turno"]
+    else:
+        base["Turma"] = base["Turma"].astype(str).apply(formatar_turma_eletiva)
+        base["Ciclo"] = base["Turma"].apply(lambda t: classificar_turma_sistema(t)["ciclo"])
+        base["Turno"] = base["Turma"].apply(lambda t: classificar_turma_sistema(t)["turno"])
+
+    if bimestre:
+        base["Bimestre"] = bimestre
+    if ano_letivo:
+        base["Ano letivo"] = str(ano_letivo)
+    if arquivo_origem:
+        base["Arquivo origem"] = arquivo_origem
+
+    base["RA"] = base["RA"].astype(str).str.replace(r"\D", "", regex=True)
+    base["Estudante"] = base["Estudante"].astype(str).str.strip()
+    base = base[base["Estudante"].str.len() > 0].copy()
+    base = base[~base["Estudante"].apply(lambda v: normalizar_texto(v) in {"TOTAL", "FILTROS APLICADOS", "NOME"})]
+    base["Participação"] = base["Participação"].apply(_normalizar_percentual)
+    base["Acertos"] = base["Acertos"].apply(_normalizar_percentual)
+    for comp in PROVA_COMPONENTES_COLUNAS:
+        base[comp] = base[comp].apply(_normalizar_percentual)
+    return base[COLUNAS_PROVA_PAULISTA_PADRAO].reset_index(drop=True)
+
+
+def _payload_prova_paulista(df: pd.DataFrame) -> list[dict]:
+    payload = []
+    for idx, row in _normalizar_dataframe_prova_paulista(df).iterrows():
+        ra = str(row.get("RA", "") or "").strip()
+        if not ra:
+            ra = f"SEM_RA_{idx + 1}_{gerar_chave_segura(row.get('Estudante', ''))}"
+        payload.append({
+            "ano_letivo": str(row.get("Ano letivo", "") or ""),
+            "bimestre": str(row.get("Bimestre", "") or ""),
+            "turma": str(row.get("Turma", "") or ""),
+            "ciclo": str(row.get("Ciclo", "") or ""),
+            "turno": str(row.get("Turno", "") or ""),
+            "ra": ra,
+            "estudante": str(row.get("Estudante", "") or ""),
+            "participacao": row.get("Participação") if pd.notna(row.get("Participação")) else None,
+            "acertos_percentual": row.get("Acertos") if pd.notna(row.get("Acertos")) else None,
+            "componentes": _componentes_dict_de_linha(row),
+            "arquivo_origem": str(row.get("Arquivo origem", "") or ""),
+        })
+    return payload
+
+
+def _salvar_prova_paulista_supabase(df: pd.DataFrame) -> tuple[bool, str]:
+    payload = _payload_prova_paulista(df)
+    if not payload:
+        return False, "Nenhum registro válido para salvar."
+    if not SUPABASE_VALID:
+        return False, "Supabase não configurado."
+    try:
+        _supabase_request(
+            "POST",
+            "prova_paulista_resultados?on_conflict=ano_letivo,bimestre,turma,ra",
+            json=payload,
+            headers={"Prefer": "resolution=merge-duplicates,return=representation"},
+        )
+        try:
+            _supabase_get_dataframe.clear()
+        except Exception:
+            pass
+        return True, f"{len(payload)} resultado(s) salvos no Supabase."
+    except Exception as e:
+        return False, f"Falha ao salvar no Supabase: {e}"
+
+
+def _carregar_prova_paulista_local() -> pd.DataFrame:
+    fontes = []
+    if SUPABASE_VALID:
+        try:
+            df_sup = _supabase_get_dataframe("prova_paulista_resultados?select=*&limit=10000", "carregar prova paulista")
+            if not df_sup.empty:
+                df_sup = df_sup.rename(columns={
+                    "ra": "RA",
+                    "estudante": "Estudante",
+                    "turma": "Turma",
+                    "ciclo": "Ciclo",
+                    "turno": "Turno",
+                    "bimestre": "Bimestre",
+                    "ano_letivo": "Ano letivo",
+                    "participacao": "Participação",
+                    "acertos_percentual": "Acertos",
+                    "arquivo_origem": "Arquivo origem",
+                })
+                fontes.append(df_sup)
+        except Exception:
+            pass
+    for chave in ["df_prova_paulista", "prova_paulista_df", "df_prova_paulista_online"]:
+        obj = st.session_state.get(chave)
+        if isinstance(obj, pd.DataFrame) and not obj.empty:
+            fontes.append(obj)
+    try:
+        if PROVA_PAULISTA_LOCAL.exists():
+            fontes.append(pd.read_json(PROVA_PAULISTA_LOCAL, orient="records"))
+    except Exception:
+        pass
+    if not fontes:
+        return pd.DataFrame(columns=COLUNAS_PROVA_PAULISTA_PADRAO)
+    df = pd.concat([_normalizar_dataframe_prova_paulista(f) for f in fontes], ignore_index=True)
+    df = df.drop_duplicates(subset=["Ano letivo", "Bimestre", "Turma", "RA", "Estudante"], keep="last")
+    return df.reset_index(drop=True)
+
+
+def _salvar_prova_paulista_local(df: pd.DataFrame, tentar_supabase: bool = True) -> tuple[bool, str]:
+    df = _normalizar_dataframe_prova_paulista(df)
+    st.session_state["df_prova_paulista"] = df
+    st.session_state["prova_paulista_df"] = df
+    try:
+        PROVA_PAULISTA_LOCAL.parent.mkdir(parents=True, exist_ok=True)
+        df.to_json(PROVA_PAULISTA_LOCAL, orient="records", force_ascii=False, indent=2)
+    except Exception:
+        pass
+    if tentar_supabase:
+        ok, msg = _salvar_prova_paulista_supabase(df)
+        if ok:
+            return True, msg
+        return False, f"Salvo localmente. {msg}"
+    return True, "Dados salvos localmente."
+
+
+def _top10_prova_paulista(df: pd.DataFrame) -> pd.DataFrame:
+    df = _normalizar_dataframe_prova_paulista(df)
+    if df.empty:
+        return pd.DataFrame(columns=["Posição", "Estudante", "Turma", "Resultado"])
+    base = df.copy()
+    base["_resultado"] = pd.to_numeric(base["Acertos"], errors="coerce")
+    base = base.dropna(subset=["_resultado"])
+    if base.empty:
+        return pd.DataFrame(columns=["Posição", "Estudante", "Turma", "Resultado"])
+    base = base.sort_values("_resultado", ascending=False).drop_duplicates("Estudante", keep="first").head(10).reset_index(drop=True)
+    base["Posição"] = [f"{i + 1}º" for i in range(len(base))]
+    base["Resultado"] = base["_resultado"].map(lambda x: f"{x:.1f}%".replace(".0%", "%"))
+    return base[["Posição", "Estudante", "Turma", "Resultado"]]
+
+
+def _render_pagina_prova_paulista():
+    page_header("🏆 Prova Paulista", "Importação, conferência, salvamento e ranking por turma", "#2563eb")
+    df_pp = _carregar_prova_paulista_local()
+    tab_base, tab_editor, tab_top10 = st.tabs(["📥 Carregar dados", "🧾 Dados da Prova Paulista", "🏅 Top 10"])
+
+    with tab_base:
+        st.markdown("### Carregar resultados da turma")
+        opcoes_turma = [""] + _opcoes_turmas_sistema()
+        col_m1, col_m2, col_m3, col_m4 = st.columns([1.2, 1, 0.8, 1])
+        with col_m1:
+            turma_sel = st.selectbox("Turma para salvar", opcoes_turma, key="pp_turma_select")
+            turma_manual = st.text_input("Ou digite a turma", value="", key="pp_turma_manual", placeholder="Ex: 6º A")
+            turma_final = turma_manual.strip() or turma_sel
+        with col_m2:
+            bimestre_final = st.selectbox("Bimestre", ["1º Bimestre", "2º Bimestre", "3º Bimestre", "4º Bimestre"], key="pp_bimestre")
+        with col_m3:
+            ano_final = st.text_input("Ano letivo", value=str(datetime.now().year), key="pp_ano")
+        meta = classificar_turma_sistema(turma_final)
+        with col_m4:
+            st.markdown("**Ciclo/Turno**")
+            st.caption(f"{meta['ciclo']} · {meta['turno']}" if turma_final else "Selecione uma turma")
+
+        arquivo = st.file_uploader("Enviar planilha da Prova Paulista (.xlsx, .xls ou .csv)", type=["xlsx", "xls", "csv"], key="upload_prova_paulista_restaurada")
+        if arquivo is not None:
+            try:
+                novo_df = _ler_planilha_upload_ou_caminho(arquivo, arquivo.name)
+                preview = _normalizar_dataframe_prova_paulista(novo_df, turma_final, bimestre_final, ano_final, arquivo.name)
+                st.session_state["prova_paulista_preview"] = preview
+            except Exception as e:
+                st.error(f"Não foi possível ler o arquivo: {e}")
+
+        preview = st.session_state.get("prova_paulista_preview", pd.DataFrame())
+        if isinstance(preview, pd.DataFrame) and not preview.empty:
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Registros na prévia", len(preview))
+            c2.metric("Estudantes", preview["Estudante"].nunique())
+            c3.metric("Turma", preview["Turma"].dropna().astype(str).replace("", pd.NA).dropna().iloc[0] if preview["Turma"].astype(str).str.strip().any() else "não definida")
+            st.dataframe(preview, use_container_width=True, hide_index=True, height=520)
+            if st.button("💾 Salvar Prova Paulista no Supabase", type="primary", use_container_width=True, key="pp_salvar_supabase"):
+                if not turma_final:
+                    st.warning("Selecione ou digite a turma antes de salvar.")
+                else:
+                    preview = _normalizar_dataframe_prova_paulista(preview, turma_final, bimestre_final, ano_final, str(preview.get("Arquivo origem", pd.Series([""])).iloc[0] or ""))
+                    ok, msg = _salvar_prova_paulista_local(preview, tentar_supabase=True)
+                    st.success(msg) if ok else st.warning(msg)
+                    st.session_state.pop("prova_paulista_preview", None)
+                    st.rerun()
+        elif df_pp.empty:
+            st.warning("Nenhum dado da Prova Paulista salvo ainda.")
+        else:
+            st.info("Há dados salvos. Use a aba Dados da Prova Paulista para revisar.")
+
+    with tab_editor:
+        st.markdown("### Conferir e editar dados salvos")
+        if df_pp.empty:
+            df_pp = pd.DataFrame([{c: "" for c in COLUNAS_PROVA_PAULISTA_PADRAO}])
+        editado = st.data_editor(
+            _normalizar_dataframe_prova_paulista(df_pp),
+            use_container_width=True,
+            hide_index=True,
+            height=560,
+            num_rows="dynamic",
+            key="editor_prova_paulista_restaurado",
+        )
+        if st.button("💾 Salvar alterações da Prova Paulista", type="primary", use_container_width=True):
+            ok, msg = _salvar_prova_paulista_local(editado, tentar_supabase=True)
+            st.success(msg) if ok else st.warning(msg)
+            st.rerun()
+
+    with tab_top10:
+        st.markdown("### 🏅 Top 10 da Prova Paulista")
+        ranking = _top10_prova_paulista(df_pp)
+        if ranking.empty:
+            st.info("Carregue e salve uma planilha para montar o ranking por acertos.")
+        else:
+            st.dataframe(ranking, use_container_width=True, hide_index=True, height=420)
+
+
+COLUNAS_MAPAO_PADRAO = [
+    "Estudante", "Turma", "Ciclo", "Turno", "Bimestre", "Ano letivo", "Situação",
+    "Frequência (%)", "Faltas", "Faltas anuais", "Notas abaixo de cinco",
+    "Componentes", "Total de Aulas", "Arquivo origem"
+]
+
+
+def _extrair_mapao_de_linhas(rows: list[list[str]], turma: str = "", bimestre: str = "", ano_letivo: str = "", arquivo_origem: str = "") -> pd.DataFrame:
+    meta = {"ano": ano_letivo, "turma": turma, "bimestre": bimestre, "total_aulas": ""}
+    for row in rows[:20]:
+        if not row:
+            continue
+        chave = normalizar_texto(row[0]).replace(":", "")
+        valor = str(row[1]).strip() if len(row) > 1 else ""
+        if chave == "ANO LETIVO" and not meta["ano"]:
+            meta["ano"] = valor
+        elif chave == "TURMA" and not meta["turma"]:
+            meta["turma"] = formatar_turma_eletiva(valor)
+        elif chave == "TIPO FECHAMENTO" and not meta["bimestre"]:
+            meta["bimestre"] = valor.replace("Conselho ", "").strip() or bimestre
+        elif chave == "TOTAL DE AULAS DADAS":
+            meta["total_aulas"] = valor
+
+    turma_final = turma or meta["turma"]
+    bimestre_final = bimestre or meta["bimestre"]
+    ano_final = str(ano_letivo or meta["ano"] or datetime.now().year)
+    classificacao = classificar_turma_sistema(turma_final)
+    total_aulas = _parse_numero_br(meta["total_aulas"])
+
+    header_idx = None
+    for i, row in enumerate(rows):
+        linha = " ".join(normalizar_texto(v) for v in row[:5])
+        if "ALUNO" in linha and "SITUAC" in linha:
+            header_idx = i
+            break
+    if header_idx is None or header_idx + 1 >= len(rows):
+        return pd.DataFrame(columns=COLUNAS_MAPAO_PADRAO)
+
+    componentes_inicio = []
+    header = rows[header_idx]
+    for idx, valor in enumerate(header):
+        nome = str(valor or "").strip()
+        if idx >= 2 and nome:
+            comp = re.sub(r"\s+\d+$", "", nome.replace("\n", " ")).strip()
+            if comp:
+                componentes_inicio.append((idx, comp))
+
+    registros = []
+    for row in rows[header_idx + 2:]:
+        estudante = str(row[0]).strip() if len(row) > 0 else ""
+        situacao = str(row[1]).strip() if len(row) > 1 else ""
+        if not estudante or normalizar_texto(estudante) in {"ALUNO", "TOTAL"}:
+            continue
+        componentes = {}
+        notas_baixas = []
+        faltas_total = 0.0
+        for start, comp in componentes_inicio:
+            mencao = row[start + 1] if len(row) > start + 1 else ""
+            faltas = _parse_numero_br(row[start + 2] if len(row) > start + 2 else "")
+            ac = _parse_numero_br(row[start + 3] if len(row) > start + 3 else "")
+            mencao_num = _parse_numero_br(mencao)
+            if faltas is not None:
+                faltas_total += faltas
+            componentes[comp] = {
+                "mencao": mencao if str(mencao).strip() else None,
+                "faltas": faltas,
+                "ausencias_compensadas": ac,
+            }
+            if mencao_num is not None and mencao_num < 5:
+                notas_baixas.append({"componente": comp, "mencao": mencao_num})
+        frequencia = None
+        if total_aulas and total_aulas > 0:
+            frequencia = round(max(0, 100 - (faltas_total / total_aulas * 100)), 1)
+        registros.append({
+            "Estudante": estudante,
+            "Turma": classificacao["turma"],
+            "Ciclo": classificacao["ciclo"],
+            "Turno": classificacao["turno"],
+            "Bimestre": bimestre_final,
+            "Ano letivo": ano_final,
+            "Situação": situacao,
+            "Frequência (%)": frequencia,
+            "Faltas": faltas_total,
+            "Faltas anuais": faltas_total,
+            "Notas abaixo de cinco": ", ".join([f"{n['componente']} ({n['mencao']})" for n in notas_baixas]),
+            "Componentes": json.dumps(componentes, ensure_ascii=False),
+            "Total de Aulas": total_aulas,
+            "Arquivo origem": arquivo_origem,
+        })
+    return pd.DataFrame(registros, columns=COLUNAS_MAPAO_PADRAO)
+
+
+def _normalizar_dataframe_mapao(df: pd.DataFrame) -> pd.DataFrame:
+    if df is None or df.empty:
+        return pd.DataFrame(columns=COLUNAS_MAPAO_PADRAO)
+    base = df.copy()
+    base.columns = [str(c).strip() for c in base.columns]
+    mapa = {}
+    for c in base.columns:
+        n = normalizar_texto(c)
+        if n in ["ALUNO", "ESTUDANTE", "NOME", "NOME DO ALUNO", "NOME DO ESTUDANTE", "ESTUDANTE"]:
+            mapa[c] = "Estudante"
+        elif n in ["TURMA", "SERIE", "SÉRIE", "ANO SERIE", "ANO/SERIE"]:
+            mapa[c] = "Turma"
+        elif "SITUAC" in n:
+            mapa[c] = "Situação"
+        elif "FREQUENCIA" in n or "FREQ" in n:
+            mapa[c] = "Frequência (%)"
+        elif n in ["TF", "FALTAS", "TOTAL DE FALTAS"]:
+            mapa[c] = "Faltas"
+        elif "FALT" in n and "AN" in n:
+            mapa[c] = "Faltas anuais"
+        elif "ABAIXO" in n or "MENOR QUE 5" in n or "MENOR 5" in n:
+            mapa[c] = "Notas abaixo de cinco"
+        elif "COMPONENT" in n:
+            mapa[c] = "Componentes"
+        elif "BIM" in n or "FECHAMENTO" in n:
+            mapa[c] = "Bimestre"
+        elif "ANO LETIVO" in n:
+            mapa[c] = "Ano letivo"
+    if mapa:
+        base = base.rename(columns=mapa)
+    base = base.loc[:, ~base.columns.duplicated()].copy()
+    for c in COLUNAS_MAPAO_PADRAO:
+        if c not in base.columns:
+            base[c] = ""
+    base["Turma"] = base["Turma"].astype(str).apply(formatar_turma_eletiva)
+    base["Ciclo"] = base.apply(lambda r: r.get("Ciclo") or classificar_turma_sistema(r.get("Turma", ""))["ciclo"], axis=1)
+    base["Turno"] = base.apply(lambda r: r.get("Turno") or classificar_turma_sistema(r.get("Turma", ""))["turno"], axis=1)
+    base["Estudante"] = base["Estudante"].astype(str).str.strip()
+    base = base[base["Estudante"].str.len() > 0]
+    return base[COLUNAS_MAPAO_PADRAO].reset_index(drop=True)
+
+
+def _payload_mapao(df: pd.DataFrame) -> list[dict]:
+    payload = []
+    for _, row in _normalizar_dataframe_mapao(df).iterrows():
+        try:
+            componentes = json.loads(str(row.get("Componentes", "{}") or "{}"))
+        except Exception:
+            componentes = {}
+        notas = []
+        for comp, dados in componentes.items():
+            mencao = _parse_numero_br((dados or {}).get("mencao") if isinstance(dados, dict) else "")
+            if mencao is not None and mencao < 5:
+                notas.append({"componente": comp, "mencao": mencao})
+        payload.append({
+            "ano_letivo": str(row.get("Ano letivo", "") or ""),
+            "bimestre": str(row.get("Bimestre", "") or ""),
+            "turma": str(row.get("Turma", "") or ""),
+            "ciclo": str(row.get("Ciclo", "") or ""),
+            "turno": str(row.get("Turno", "") or ""),
+            "estudante": str(row.get("Estudante", "") or ""),
+            "situacao": str(row.get("Situação", "") or ""),
+            "total_aulas": _parse_numero_br(row.get("Total de Aulas")),
+            "frequencia_percentual": _parse_numero_br(row.get("Frequência (%)")),
+            "faltas": _parse_numero_br(row.get("Faltas")),
+            "faltas_anuais": _parse_numero_br(row.get("Faltas anuais")),
+            "componentes": componentes,
+            "notas_abaixo_cinco": notas,
+            "arquivo_origem": str(row.get("Arquivo origem", "") or ""),
+        })
+    return payload
+
+
+def _salvar_mapao_supabase(df: pd.DataFrame) -> tuple[bool, str]:
+    payload = _payload_mapao(df)
+    if not payload:
+        return False, "Nenhum registro válido para salvar."
+    if not SUPABASE_VALID:
+        return False, "Supabase não configurado."
+    try:
+        _supabase_request(
+            "POST",
+            "mapao_resultados?on_conflict=ano_letivo,bimestre,turma,estudante",
+            json=payload,
+            headers={"Prefer": "resolution=merge-duplicates,return=representation"},
+        )
+        try:
+            _supabase_get_dataframe.clear()
+        except Exception:
+            pass
+        return True, f"{len(payload)} registro(s) do Mapão salvos no Supabase."
+    except Exception as e:
+        return False, f"Falha ao salvar no Supabase: {e}"
+
+
+def _carregar_mapao_local() -> pd.DataFrame:
+    fontes = []
+    if SUPABASE_VALID:
+        try:
+            df_sup = _supabase_get_dataframe("mapao_resultados?select=*&limit=10000", "carregar mapão")
+            if not df_sup.empty:
+                df_sup = df_sup.rename(columns={
+                    "estudante": "Estudante",
+                    "turma": "Turma",
+                    "ciclo": "Ciclo",
+                    "turno": "Turno",
+                    "bimestre": "Bimestre",
+                    "ano_letivo": "Ano letivo",
+                    "situacao": "Situação",
+                    "frequencia_percentual": "Frequência (%)",
+                    "faltas": "Faltas",
+                    "faltas_anuais": "Faltas anuais",
+                    "componentes": "Componentes",
+                    "total_aulas": "Total de Aulas",
+                    "arquivo_origem": "Arquivo origem",
+                })
+                df_sup["Componentes"] = df_sup["Componentes"].apply(lambda v: json.dumps(v, ensure_ascii=False) if isinstance(v, (dict, list)) else v)
+                fontes.append(df_sup)
+        except Exception:
+            pass
+    for chave in ["df_mapao", "mapao_df", "df_mapao_online"]:
+        obj = st.session_state.get(chave)
+        if isinstance(obj, pd.DataFrame) and not obj.empty:
+            fontes.append(obj)
+    try:
+        if MAPAO_LOCAL.exists():
+            fontes.append(pd.read_json(MAPAO_LOCAL, orient="records"))
+    except Exception:
+        pass
+    if not fontes:
+        return pd.DataFrame(columns=COLUNAS_MAPAO_PADRAO)
+    return _normalizar_dataframe_mapao(pd.concat(fontes, ignore_index=True))
+
+
+def _salvar_mapao_local(df: pd.DataFrame, tentar_supabase: bool = True) -> tuple[bool, str]:
+    df = _normalizar_dataframe_mapao(df)
+    st.session_state["df_mapao"] = df
+    st.session_state["mapao_df"] = df
+    try:
+        MAPAO_LOCAL.parent.mkdir(parents=True, exist_ok=True)
+        df.to_json(MAPAO_LOCAL, orient="records", force_ascii=False, indent=2)
+    except Exception:
+        pass
+    if tentar_supabase:
+        ok, msg = _salvar_mapao_supabase(df)
+        if ok:
+            return True, msg
+        return False, f"Salvo localmente. {msg}"
+    return True, "Mapão salvo localmente."
+
+
+def _render_pagina_mapao():
+    page_header("🗺️ Mapão", "Importe frequência, situação e componentes para Conselho e Tutoria", "#059669")
+    st.info("Mapão é a planilha pedagógica da turma. Mapa da Sala fica em outra página, apenas para organização dos assentos.")
+    df_mapao = _carregar_mapao_local()
+    aba_upload, aba_dados = st.tabs(["📥 Importar Mapão", "🧾 Dados arquivados"])
+    with aba_upload:
+        opcoes_turma = [""] + _opcoes_turmas_sistema()
+        col_m1, col_m2, col_m3, col_m4 = st.columns([1.2, 1, 0.8, 1])
+        with col_m1:
+            turma_sel = st.selectbox("Turma para salvar", opcoes_turma, key="mapao_turma_select")
+            turma_manual = st.text_input("Ou digite a turma", value="", key="mapao_turma_manual", placeholder="Ex: 6º A")
+            turma_final = turma_manual.strip() or turma_sel
+        with col_m2:
+            bimestre_final = st.selectbox("Bimestre", ["1º Bimestre", "2º Bimestre", "3º Bimestre", "4º Bimestre"], key="mapao_bimestre")
+        with col_m3:
+            ano_final = st.text_input("Ano letivo", value=str(datetime.now().year), key="mapao_ano")
+        meta = classificar_turma_sistema(turma_final)
+        with col_m4:
+            st.markdown("**Ciclo/Turno**")
+            st.caption(f"{meta['ciclo']} · {meta['turno']}" if turma_final else "Selecione uma turma")
+
+        arquivo = st.file_uploader("Enviar planilha do Mapão (.xlsx, .xls ou .csv)", type=["xlsx", "xls", "csv"], key="upload_mapao_online")
+        if arquivo is not None:
+            try:
+                if arquivo.name.lower().endswith(".csv"):
+                    bruto = pd.read_csv(arquivo)
+                    preview = _normalizar_dataframe_mapao(bruto)
+                    if turma_final:
+                        meta_turma = classificar_turma_sistema(turma_final)
+                        preview["Turma"] = meta_turma["turma"]
+                        preview["Ciclo"] = meta_turma["ciclo"]
+                        preview["Turno"] = meta_turma["turno"]
+                    preview["Bimestre"] = bimestre_final
+                    preview["Ano letivo"] = ano_final
+                    preview["Arquivo origem"] = arquivo.name
+                else:
+                    rows = _linhas_xlsx_sem_openpyxl(arquivo)
+                    preview = _extrair_mapao_de_linhas(rows, turma_final, bimestre_final, ano_final, arquivo.name)
+                st.session_state["mapao_preview"] = preview
+            except Exception as e:
+                st.error(f"Não foi possível importar o Mapão: {e}")
+
+        preview = st.session_state.get("mapao_preview", pd.DataFrame())
+        if isinstance(preview, pd.DataFrame) and not preview.empty:
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Registros na prévia", len(preview))
+            c2.metric("Estudantes", preview["Estudante"].nunique())
+            c3.metric("Turma", preview["Turma"].dropna().astype(str).replace("", pd.NA).dropna().iloc[0] if preview["Turma"].astype(str).str.strip().any() else "não definida")
+            st.dataframe(preview, use_container_width=True, hide_index=True, height=560)
+            if st.button("💾 Salvar Mapão no Supabase", type="primary", use_container_width=True, key="mapao_salvar_supabase"):
+                if not turma_final and not preview["Turma"].astype(str).str.strip().any():
+                    st.warning("Selecione ou digite a turma antes de salvar.")
+                else:
+                    ok, msg = _salvar_mapao_local(preview, tentar_supabase=True)
+                    st.success(msg) if ok else st.warning(msg)
+                    st.session_state.pop("mapao_preview", None)
+                    st.rerun()
+        elif df_mapao.empty:
+            st.warning("Nenhum Mapão arquivado ainda.")
+        else:
+            st.info("Há Mapão salvo. Use a aba Dados arquivados para revisar.")
+    with aba_dados:
+        if df_mapao.empty:
+            df_mapao = pd.DataFrame([{c: "" for c in COLUNAS_MAPAO_PADRAO}])
+        editado = st.data_editor(df_mapao, use_container_width=True, hide_index=True, height=560, num_rows="dynamic", key="editor_mapao_online")
+        if st.button("💾 Salvar alterações do Mapão", type="primary", use_container_width=True):
+            ok, msg = _salvar_mapao_local(editado, tentar_supabase=True)
+            st.success(msg) if ok else st.warning(msg)
+            st.rerun()
+
 if menu == "🏠 Dashboard":
     # ── Header no modelo SED, mantendo identidade do sistema ──
     st.markdown(f"""
@@ -9320,7 +10307,10 @@ if menu == "🏠 Dashboard":
         with col:
             st.markdown(f"""
             <div class="dashboard-stat-card animate-fade-in" style="
+                --card-bg: {grad};
                 background: {grad} !important;
+                background-image: {grad} !important;
+                opacity: 1 !important;
                 animation-delay: {delay};
             ">
                 <div class="dashboard-stat-icon">{icon}</div>
@@ -12561,18 +13551,28 @@ elif menu == "🎨 Eletiva":
 
     dados_professoras = []
     for prof, alunos in ELETIVAS.items():
-        series = ", ".join(sorted({formatar_turma_eletiva(a.get("serie", "")) for a in alunos if a.get("serie")}))
+        turmas_prof = sorted({formatar_turma_eletiva(a.get("serie", "")) for a in alunos if a.get("serie")}, key=ordenar_turma_tutoria)
+        series = ", ".join(turmas_prof)
+        turnos_prof = ", ".join(sorted({classificar_turno_tutoria(t) for t in turmas_prof if classificar_turno_tutoria(t) != "Sem turno definido"}))
         dados_professoras.append({
             "Professora": prof,
             "Total de Alunos": len(alunos),
+            "Turno": turnos_prof or "Sem turno definido",
             "Turmas": series
         })
     
     df_professoras = pd.DataFrame(dados_professoras).sort_values("Professora", key=lambda s: s.map(normalizar_texto)).reset_index(drop=True)
+    filtro_turno_eletiva = st.radio("Exibir turno", ["Todos", "Turno 1", "Turno 2"], horizontal=True, key="filtro_turno_eletiva")
+    if filtro_turno_eletiva != "Todos":
+        df_professoras = df_professoras[df_professoras["Turno"].astype(str).str.contains(filtro_turno_eletiva, na=False)]
     st.dataframe(df_professoras, use_container_width=True, hide_index=True)
+    professoras_opcoes = df_professoras["Professora"].tolist()
+    if not professoras_opcoes:
+        st.info("Nenhuma professora de eletiva encontrada para o turno selecionado.")
+        st.stop()
 
     st.markdown("---")
-    professora_sel = st.selectbox("Selecione a Professora", sorted(ELETIVAS.keys()))
+    professora_sel = st.selectbox("Selecione a Professora", professoras_opcoes)
     alunos_raw = ELETIVAS.get(professora_sel, [])
 
     st.markdown("---")
@@ -12664,6 +13664,9 @@ elif menu == "🎨 Eletiva":
                 base_busca["turma"] = ""
             base_busca["turma"] = base_busca["turma"].astype(str)
             termo_busca = st.text_input("Buscar aluno por nome", key="eletiva_busca_nome")
+            filtro_turno_busca = st.radio("Turno da busca", ["Todos", "Turno 1", "Turno 2"], horizontal=True, key="eletiva_busca_turno")
+            if filtro_turno_busca != "Todos":
+                base_busca = base_busca[base_busca["turma"].apply(classificar_turno_tutoria) == filtro_turno_busca]
             if termo_busca:
                 base_busca = base_busca[base_busca["nome"].str.contains(termo_busca, case=False, na=False)]
             base_busca = base_busca.sort_values(["nome", "turma"], kind="stable")
@@ -13451,6 +14454,8 @@ elif menu == "🫂 Tutoria":
     TUTORIA = normalizar_base_tutoria(st.session_state.get("TUTORIA", {}))
     st.session_state.TUTORIA = TUTORIA
     nomes_tutoria = sorted(TUTORIA.keys())
+    if st.session_state.get("tutoria_responsaveis_sync_warning"):
+        st.warning(st.session_state.get("tutoria_responsaveis_sync_warning"))
 
     with st.expander("📘 Caderno de Tutoria Online 2026", expanded=False):
         render_caderno_tutoria_online(TUTORIA, st.session_state.get("df_alunos", pd.DataFrame()))
@@ -13460,6 +14465,10 @@ elif menu == "🫂 Tutoria":
         st.session_state.TUTORIA = normalizar_base_tutoria(TUTORIA)
         salvar_tutoria_local(st.session_state.TUTORIA)
         st.session_state.FONTE_TUTORIA = fonte
+        if SUPABASE_VALID:
+            ok_resp, msg_resp = sincronizar_tutoria_responsaveis_supabase(st.session_state.TUTORIA)
+            if not ok_resp:
+                st.session_state["tutoria_responsaveis_sync_warning"] = msg_resp
 
     def _carregar_campos_edicao_tutoria(nome_responsavel: str):
         dados = obter_registro_tutoria(TUTORIA, nome_responsavel)
@@ -14394,10 +15403,14 @@ elif menu == "🫂 Tutoria":
                 opcoes,
                 key="tutoria_busca_cadastro_selecionados"
             )
+            if selecionados:
+                qtd_auto = _adicionar_na_lista_temp([mapa_opcoes[item] for item in selecionados if item in mapa_opcoes])
+                if qtd_auto:
+                    st.success(f"{qtd_auto} estudante(s) adicionados automaticamente à lista temporária.")
 
             col_add1, col_add2 = st.columns([1, 2])
             with col_add1:
-                if st.button("➕ Adicionar selecionados", key="tutoria_btn_temp_add_busca", type="primary", use_container_width=True):
+                if st.button("➕ Reprocessar selecionados", key="tutoria_btn_temp_add_busca", type="primary", use_container_width=True):
                     qtd_add = _adicionar_na_lista_temp([mapa_opcoes[item] for item in selecionados])
                     if qtd_add:
                         st.success(f"{qtd_add} estudante(s) adicionados à lista temporária.")
