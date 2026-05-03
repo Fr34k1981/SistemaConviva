@@ -2324,6 +2324,74 @@ section[data-testid="stSidebar"][aria-expanded="false"] + div .main .block-conta
     padding-left: 1rem !important;
 }
 
+/* Camada final dos cards do Dashboard: usa classe exclusiva para não herdar
+   estilos transparentes de métricas, cards genéricos ou tema do Streamlit. */
+.conviva-solid-stat-card {
+    min-height: 156px !important;
+    border-radius: 14px !important;
+    padding: 1.1rem 1rem !important;
+    color: #ffffff !important;
+    background: var(--solid-card-bg, #2563eb) !important;
+    background-image: var(--solid-card-bg, linear-gradient(135deg,#2563eb,#1d4ed8)) !important;
+    opacity: 1 !important;
+    filter: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
+    border: 1px solid rgba(255,255,255,0.30) !important;
+    box-shadow: 0 16px 30px rgba(15,23,42,0.18) !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+.conviva-solid-stat-card::after {
+    content: "" !important;
+    position: absolute !important;
+    right: -30px !important;
+    bottom: -34px !important;
+    width: 120px !important;
+    height: 120px !important;
+    border-radius: 999px !important;
+    background: rgba(255,255,255,0.17) !important;
+}
+.conviva-solid-stat-card * {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    opacity: 1 !important;
+    position: relative !important;
+    z-index: 1 !important;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.22) !important;
+}
+.conviva-solid-stat-icon {
+    width: 46px !important;
+    height: 46px !important;
+    display: grid !important;
+    place-items: center !important;
+    border-radius: 12px !important;
+    background: rgba(255,255,255,0.22) !important;
+    border: 1px solid rgba(255,255,255,0.28) !important;
+    font-size: 1.45rem !important;
+    margin-bottom: 0.72rem !important;
+}
+.conviva-solid-stat-value {
+    font-family: 'Nunito', sans-serif !important;
+    font-size: 2.35rem !important;
+    line-height: 1 !important;
+    font-weight: 950 !important;
+}
+.conviva-solid-stat-label {
+    margin-top: 0.55rem !important;
+    font-size: 0.75rem !important;
+    font-weight: 900 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0 !important;
+}
+.conviva-solid-stat-sub {
+    margin-top: 0.35rem !important;
+    font-size: 0.72rem !important;
+    font-weight: 750 !important;
+}
+
 </style>
 """, unsafe_allow_html=True)
 # ======================================================
@@ -9684,8 +9752,18 @@ def _carregar_prova_paulista_local() -> pd.DataFrame:
     return df.reset_index(drop=True)
 
 
-def _salvar_prova_paulista_local(df: pd.DataFrame, tentar_supabase: bool = True) -> tuple[bool, str]:
+def _salvar_prova_paulista_local(
+    df: pd.DataFrame,
+    tentar_supabase: bool = True,
+    mesclar_com_existente: bool = False,
+) -> tuple[bool, str]:
     df = _normalizar_dataframe_prova_paulista(df)
+    if mesclar_com_existente:
+        existente = _carregar_prova_paulista_local()
+        if isinstance(existente, pd.DataFrame) and not existente.empty:
+            df = pd.concat([existente, df], ignore_index=True)
+            df = _normalizar_dataframe_prova_paulista(df)
+            df = df.drop_duplicates(subset=["Ano letivo", "Bimestre", "Turma", "RA", "Estudante"], keep="last")
     st.session_state["df_prova_paulista"] = df
     st.session_state["prova_paulista_df"] = df
     try:
@@ -9722,6 +9800,11 @@ def _render_pagina_prova_paulista():
     tab_base, tab_editor, tab_top10 = st.tabs(["📥 Carregar dados", "🧾 Dados da Prova Paulista", "🏅 Top 10"])
 
     with tab_base:
+        st.markdown("""
+        <div class="info-box" style="margin-top:0;">
+            <b>Fluxo correto:</b> selecione Turma, Bimestre e Ano letivo, envie a planilha, confira a prévia ampliada e só então clique em <b>Salvar Prova Paulista no Supabase</b>.
+        </div>
+        """, unsafe_allow_html=True)
         st.markdown("### Carregar resultados da turma")
         opcoes_turma = [""] + _opcoes_turmas_sistema()
         col_m1, col_m2, col_m3, col_m4 = st.columns([1.2, 1, 0.8, 1])
@@ -9737,6 +9820,9 @@ def _render_pagina_prova_paulista():
         with col_m4:
             st.markdown("**Ciclo/Turno**")
             st.caption(f"{meta['ciclo']} · {meta['turno']}" if turma_final else "Selecione uma turma")
+
+        if not turma_final:
+            st.warning("Selecione ou digite a turma antes de salvar. A planilha da Prova Paulista não informa a turma de forma confiável.")
 
         arquivo = st.file_uploader("Enviar planilha da Prova Paulista (.xlsx, .xls ou .csv)", type=["xlsx", "xls", "csv"], key="upload_prova_paulista_restaurada")
         if arquivo is not None:
@@ -9759,7 +9845,7 @@ def _render_pagina_prova_paulista():
                     st.warning("Selecione ou digite a turma antes de salvar.")
                 else:
                     preview = _normalizar_dataframe_prova_paulista(preview, turma_final, bimestre_final, ano_final, str(preview.get("Arquivo origem", pd.Series([""])).iloc[0] or ""))
-                    ok, msg = _salvar_prova_paulista_local(preview, tentar_supabase=True)
+                    ok, msg = _salvar_prova_paulista_local(preview, tentar_supabase=True, mesclar_com_existente=True)
                     st.success(msg) if ok else st.warning(msg)
                     st.session_state.pop("prova_paulista_preview", None)
                     st.rerun()
@@ -9770,6 +9856,32 @@ def _render_pagina_prova_paulista():
 
     with tab_editor:
         st.markdown("### Conferir e editar dados salvos")
+        if not df_pp.empty:
+            sem_turma = df_pp["Turma"].astype(str).str.strip().eq("")
+            if sem_turma.any():
+                with st.expander("⚠️ Corrigir dados antigos sem turma", expanded=True):
+                    st.warning(f"{int(sem_turma.sum())} registro(s) estão sem turma. Escolha a turma correta para regularizar e permitir consulta por sala.")
+                    c_fix1, c_fix2, c_fix3 = st.columns([1.2, 1, 0.8])
+                    with c_fix1:
+                        turma_fix = st.selectbox("Turma dos registros sem turma", [""] + _opcoes_turmas_sistema(), key="pp_fix_turma")
+                    with c_fix2:
+                        bim_fix = st.selectbox("Bimestre desses registros", ["1º Bimestre", "2º Bimestre", "3º Bimestre", "4º Bimestre"], key="pp_fix_bim")
+                    with c_fix3:
+                        ano_fix = st.text_input("Ano letivo", value=str(datetime.now().year), key="pp_fix_ano")
+                    if st.button("✅ Aplicar turma aos registros sem turma", type="primary", use_container_width=True, key="pp_fix_aplicar"):
+                        if not turma_fix:
+                            st.warning("Selecione a turma para aplicar.")
+                        else:
+                            corrigido = df_pp.copy()
+                            meta_fix = classificar_turma_sistema(turma_fix)
+                            corrigido.loc[sem_turma, "Turma"] = meta_fix["turma"]
+                            corrigido.loc[sem_turma, "Ciclo"] = meta_fix["ciclo"]
+                            corrigido.loc[sem_turma, "Turno"] = meta_fix["turno"]
+                            corrigido.loc[sem_turma, "Bimestre"] = bim_fix
+                            corrigido.loc[sem_turma, "Ano letivo"] = str(ano_fix)
+                            ok, msg = _salvar_prova_paulista_local(corrigido, tentar_supabase=True)
+                            st.success(msg) if ok else st.warning(msg)
+                            st.rerun()
         if df_pp.empty:
             df_pp = pd.DataFrame([{c: "" for c in COLUNAS_PROVA_PAULISTA_PADRAO}])
         editado = st.data_editor(
@@ -10020,8 +10132,18 @@ def _carregar_mapao_local() -> pd.DataFrame:
     return _normalizar_dataframe_mapao(pd.concat(fontes, ignore_index=True))
 
 
-def _salvar_mapao_local(df: pd.DataFrame, tentar_supabase: bool = True) -> tuple[bool, str]:
+def _salvar_mapao_local(
+    df: pd.DataFrame,
+    tentar_supabase: bool = True,
+    mesclar_com_existente: bool = False,
+) -> tuple[bool, str]:
     df = _normalizar_dataframe_mapao(df)
+    if mesclar_com_existente:
+        existente = _carregar_mapao_local()
+        if isinstance(existente, pd.DataFrame) and not existente.empty:
+            df = pd.concat([existente, df], ignore_index=True)
+            df = _normalizar_dataframe_mapao(df)
+            df = df.drop_duplicates(subset=["Ano letivo", "Bimestre", "Turma", "Estudante"], keep="last")
     st.session_state["df_mapao"] = df
     st.session_state["mapao_df"] = df
     try:
@@ -10090,7 +10212,7 @@ def _render_pagina_mapao():
                 if not turma_final and not preview["Turma"].astype(str).str.strip().any():
                     st.warning("Selecione ou digite a turma antes de salvar.")
                 else:
-                    ok, msg = _salvar_mapao_local(preview, tentar_supabase=True)
+                    ok, msg = _salvar_mapao_local(preview, tentar_supabase=True, mesclar_com_existente=True)
                     st.success(msg) if ok else st.warning(msg)
                     st.session_state.pop("mapao_preview", None)
                     st.rerun()
@@ -10306,17 +10428,17 @@ if menu == "🏠 Dashboard":
     for col, grad, icon, value, label, sub, delay in cards_data:
         with col:
             st.markdown(f"""
-            <div class="dashboard-stat-card animate-fade-in" style="
-                --card-bg: {grad};
+            <div class="conviva-solid-stat-card animate-fade-in" style="
+                --solid-card-bg: {grad};
                 background: {grad} !important;
                 background-image: {grad} !important;
                 opacity: 1 !important;
                 animation-delay: {delay};
             ">
-                <div class="dashboard-stat-icon">{icon}</div>
-                <div class="dashboard-stat-value">{value}</div>
-                <div class="dashboard-stat-label">{label}</div>
-                <div class="dashboard-stat-sub">{sub}</div>
+                <div class="conviva-solid-stat-icon">{icon}</div>
+                <div class="conviva-solid-stat-value">{value}</div>
+                <div class="conviva-solid-stat-label">{label}</div>
+                <div class="conviva-solid-stat-sub">{sub}</div>
             </div>
             """, unsafe_allow_html=True)
 
