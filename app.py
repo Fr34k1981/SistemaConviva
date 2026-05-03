@@ -9603,12 +9603,53 @@ def _normalizar_dataframe_prova_paulista(
 
     base = df.copy()
     base.columns = [str(c).strip() for c in base.columns]
+
+    # Remove linhas vazias e linhas finais informativas da SED, como:
+    # Total / Filtros aplicados / NM_DIRETORIA / NM_SERIE / DS_MODALIDADE etc.
+    base = base.dropna(how="all").copy()
+    if not base.empty:
+        texto_linha = base.astype(str).fillna("").agg(" ".join, axis=1).map(normalizar_texto)
+        marcadores_ignorar = [
+            "FILTROS APLICADOS",
+            "NM_DIRETORIA",
+            "NM_SERIE",
+            "DS_MODALIDADE",
+            "NM_ESCOLA",
+            "CD_DIRETORIA",
+            "CD_ESCOLA",
+        ]
+        base = base[
+            ~texto_linha.apply(
+                lambda t: t.strip() in {"TOTAL", "FILTROS APLICADOS"}
+                or any(m in t for m in marcadores_ignorar)
+            )
+        ].copy()
+
+    # Ignora colunas administrativas quando vierem como colunas da planilha.
+    colunas_administrativas = {
+        "NM_DIRETORIA",
+        "NM_SERIE",
+        "DS_MODALIDADE",
+        "NM_ESCOLA",
+        "CD_DIRETORIA",
+        "CD_ESCOLA",
+        "TP_PROVA",
+        "NM_REDE_ENSINO",
+        "CD_REDE_ENSINO",
+    }
+    base = base[
+        [
+            c for c in base.columns
+            if normalizar_texto(c) not in {normalizar_texto(x) for x in colunas_administrativas}
+        ]
+    ].copy()
+
     mapa = {}
     for c in base.columns:
         n = normalizar_texto(c)
-        if n in ["NR RA", "RA", "REGISTRO ALUNO", "REGISTRO_ALUNO"]:
+        if n in ["NR RA", "RA", "REGISTRO ALUNO", "REGISTRO_ALUNO", "CD ALUNO", "CD_ALUNO"]:
             mapa[c] = "RA"
-        elif n in ["ESTUDANTE", "ALUNO", "NOME", "NOME DO ALUNO", "NOME DO ESTUDANTE", "NM ALUNO", "NM_ALUNO", "ESTUDANTE"]:
+        elif n in ["ESTUDANTE", "ALUNO", "NOME", "NOME DO ALUNO", "NOME DO ESTUDANTE", "NM ALUNO", "NM_ALUNO"]:
             mapa[c] = "Estudante"
         elif n in ["TURMA", "SERIE", "SÉRIE", "ANO SERIE", "ANO/SERIE", "NM TURMA", "NM_TURMA"]:
             mapa[c] = "Turma"
@@ -9618,11 +9659,12 @@ def _normalizar_dataframe_prova_paulista(
             mapa[c] = "Ano letivo"
         elif "PART" in n:
             mapa[c] = "Participação"
-        elif "ACERT" in n:
+        elif "ACERT" in n or n in ["PROVA PAULISTA", "PP", "ACERTOS PP"]:
             mapa[c] = "Acertos"
         elif n in [normalizar_texto(comp) for comp in PROVA_COMPONENTES_COLUNAS]:
             comp_real = next((comp for comp in PROVA_COMPONENTES_COLUNAS if normalizar_texto(comp) == n), c)
             mapa[c] = comp_real
+
     if mapa:
         base = base.rename(columns=mapa)
     base = base.loc[:, ~base.columns.duplicated()].copy()
@@ -9643,6 +9685,8 @@ def _normalizar_dataframe_prova_paulista(
         if c not in base.columns:
             base[c] = ""
 
+    # A turma escolhida na tela manda nos dados enviados.
+    # Isso resolve o caso em que a planilha traz apenas filtros administrativos da escola.
     if turma:
         meta_turma = classificar_turma_sistema(turma)
         base["Turma"] = meta_turma["turma"]
@@ -9662,12 +9706,25 @@ def _normalizar_dataframe_prova_paulista(
 
     base["RA"] = base["RA"].astype(str).str.replace(r"\D", "", regex=True)
     base["Estudante"] = base["Estudante"].astype(str).str.strip()
+
+    # Remove resíduos que não são alunos/resultados.
     base = base[base["Estudante"].str.len() > 0].copy()
-    base = base[~base["Estudante"].apply(lambda v: normalizar_texto(v) in {"TOTAL", "FILTROS APLICADOS", "NOME"})]
+    base = base[
+        ~base["Estudante"].apply(
+            lambda v: normalizar_texto(v) in {
+                "TOTAL", "FILTROS APLICADOS", "NOME", "ESTUDANTE", "ALUNO"
+            }
+            or any(m in normalizar_texto(v) for m in [
+                "NM_DIRETORIA", "NM_SERIE", "DS_MODALIDADE", "NM_ESCOLA", "CD_DIRETORIA", "CD_ESCOLA"
+            ])
+        )
+    ].copy()
+
     base["Participação"] = base["Participação"].apply(_normalizar_percentual)
     base["Acertos"] = base["Acertos"].apply(_normalizar_percentual)
     for comp in PROVA_COMPONENTES_COLUNAS:
         base[comp] = base[comp].apply(_normalizar_percentual)
+
     return base[COLUNAS_PROVA_PAULISTA_PADRAO].reset_index(drop=True)
 
 
@@ -9802,33 +9859,49 @@ def _render_pagina_prova_paulista():
     with tab_base:
         st.markdown("""
         <div class="info-box" style="margin-top:0;">
-            <b>Fluxo correto:</b> selecione Turma, Bimestre e Ano letivo, envie a planilha, confira a prévia ampliada e só então clique em <b>Salvar Prova Paulista no Supabase</b>.
+            <b>Fluxo correto:</b> selecione a turma que receberá os dados, escolha o bimestre e o ano letivo, envie a planilha, confira a prévia e só então clique em <b>Salvar Prova Paulista no Supabase</b>.
         </div>
         """, unsafe_allow_html=True)
         st.markdown("### Carregar resultados da turma")
+
         opcoes_turma = [""] + _opcoes_turmas_sistema()
         col_m1, col_m2, col_m3, col_m4 = st.columns([1.2, 1, 0.8, 1])
+
         with col_m1:
-            turma_sel = st.selectbox("Turma para salvar", opcoes_turma, key="pp_turma_select")
+            turma_sel = st.selectbox("Turma que receberá os dados", opcoes_turma, key="pp_turma_select")
             turma_manual = st.text_input("Ou digite a turma", value="", key="pp_turma_manual", placeholder="Ex: 6º A")
             turma_final = turma_manual.strip() or turma_sel
+
         with col_m2:
             bimestre_final = st.selectbox("Bimestre", ["1º Bimestre", "2º Bimestre", "3º Bimestre", "4º Bimestre"], key="pp_bimestre")
+
         with col_m3:
             ano_final = st.text_input("Ano letivo", value=str(datetime.now().year), key="pp_ano")
+
         meta = classificar_turma_sistema(turma_final)
         with col_m4:
             st.markdown("**Ciclo/Turno**")
             st.caption(f"{meta['ciclo']} · {meta['turno']}" if turma_final else "Selecione uma turma")
 
         if not turma_final:
-            st.warning("Selecione ou digite a turma antes de salvar. A planilha da Prova Paulista não informa a turma de forma confiável.")
+            st.warning("Selecione ou digite a turma antes de salvar. A planilha da Prova Paulista não informa a turma de forma confiável para o sistema.")
 
-        arquivo = st.file_uploader("Enviar planilha da Prova Paulista (.xlsx, .xls ou .csv)", type=["xlsx", "xls", "csv"], key="upload_prova_paulista_restaurada")
+        arquivo = st.file_uploader(
+            "Enviar planilha da Prova Paulista (.xlsx, .xls ou .csv)",
+            type=["xlsx", "xls", "csv"],
+            key="upload_prova_paulista_restaurada",
+        )
+
         if arquivo is not None:
             try:
                 novo_df = _ler_planilha_upload_ou_caminho(arquivo, arquivo.name)
-                preview = _normalizar_dataframe_prova_paulista(novo_df, turma_final, bimestre_final, ano_final, arquivo.name)
+                preview = _normalizar_dataframe_prova_paulista(
+                    novo_df,
+                    turma=turma_final,
+                    bimestre=bimestre_final,
+                    ano_letivo=ano_final,
+                    arquivo_origem=arquivo.name,
+                )
                 st.session_state["prova_paulista_preview"] = preview
             except Exception as e:
                 st.error(f"Não foi possível ler o arquivo: {e}")
@@ -9838,17 +9911,32 @@ def _render_pagina_prova_paulista():
             c1, c2, c3 = st.columns(3)
             c1.metric("Registros na prévia", len(preview))
             c2.metric("Estudantes", preview["Estudante"].nunique())
-            c3.metric("Turma", preview["Turma"].dropna().astype(str).replace("", pd.NA).dropna().iloc[0] if preview["Turma"].astype(str).str.strip().any() else "não definida")
+            c3.metric("Turma selecionada", turma_final if turma_final else "não definida")
+
             st.dataframe(preview, use_container_width=True, hide_index=True, height=520)
+
             if st.button("💾 Salvar Prova Paulista no Supabase", type="primary", use_container_width=True, key="pp_salvar_supabase"):
                 if not turma_final:
                     st.warning("Selecione ou digite a turma antes de salvar.")
                 else:
-                    preview = _normalizar_dataframe_prova_paulista(preview, turma_final, bimestre_final, ano_final, str(preview.get("Arquivo origem", pd.Series([""])).iloc[0] or ""))
+                    arquivo_origem_final = ""
+                    try:
+                        arquivo_origem_final = str(preview.get("Arquivo origem", pd.Series([""])).iloc[0] or "")
+                    except Exception:
+                        arquivo_origem_final = arquivo.name if arquivo is not None else ""
+
+                    preview = _normalizar_dataframe_prova_paulista(
+                        preview,
+                        turma=turma_final,
+                        bimestre=bimestre_final,
+                        ano_letivo=ano_final,
+                        arquivo_origem=arquivo_origem_final,
+                    )
                     ok, msg = _salvar_prova_paulista_local(preview, tentar_supabase=True, mesclar_com_existente=True)
                     st.success(msg) if ok else st.warning(msg)
                     st.session_state.pop("prova_paulista_preview", None)
                     st.rerun()
+
         elif df_pp.empty:
             st.warning("Nenhum dado da Prova Paulista salvo ainda.")
         else:
@@ -9882,8 +9970,10 @@ def _render_pagina_prova_paulista():
                             ok, msg = _salvar_prova_paulista_local(corrigido, tentar_supabase=True)
                             st.success(msg) if ok else st.warning(msg)
                             st.rerun()
+
         if df_pp.empty:
             df_pp = pd.DataFrame([{c: "" for c in COLUNAS_PROVA_PAULISTA_PADRAO}])
+
         editado = st.data_editor(
             _normalizar_dataframe_prova_paulista(df_pp),
             use_container_width=True,
