@@ -9371,9 +9371,8 @@ def _top10_prova_paulista(df: pd.DataFrame) -> pd.DataFrame:
     return base[["Posição", "Estudante", "Turma", "Resultado"]]
 
 
-# A primeira definição antiga de _render_pagina_prova_paulista foi removida.
-# A versão ativa e corrigida fica na seção ESTABILIZAÇÃO, antes do menu.
-
+# Função antiga duplicada de Prova Paulista removida.
+# A versão ativa está na seção ESTABILIZAÇÃO — PROVA PAULISTA, MAPÃO E SUPABASE.
 
 # ======================================================
 # MAPÃO — DADOS ONLINE SEPARADOS DO MAPA DA SALA
@@ -9840,8 +9839,23 @@ def _render_pagina_prova_paulista():
         </div>
         """, unsafe_allow_html=True)
 
+        st.success("✅ CORREÇÃO ATIVA: escolha a turma antes de enviar a planilha.")
         st.markdown("### 1) Escolha a turma que receberá os dados")
-        opcoes_turma = [""] + _opcoes_turmas_sistema()
+
+        turmas_padrao_pp = [
+            "6º Ano A", "6º Ano B", "6º Ano C", "6º Ano D",
+            "7º Ano A", "7º Ano B", "7º Ano C", "7º Ano D",
+            "8º Ano A", "8º Ano B", "8º Ano C", "8º Ano D",
+            "9º Ano A", "9º Ano B", "9º Ano C", "9º Ano D",
+            "1º Ano A", "1º Ano B", "1º Ano C", "1º Ano D",
+            "2º Ano A", "2º Ano B", "2º Ano C", "2º Ano D",
+            "3º Ano A", "3º Ano B", "3º Ano C", "3º Ano D",
+        ]
+        try:
+            turmas_sistema_pp = _opcoes_turmas_sistema()
+        except Exception:
+            turmas_sistema_pp = []
+        opcoes_turma = [""] + sorted(set(turmas_sistema_pp + turmas_padrao_pp), key=ordenar_turma_tutoria)
         col_m1, col_m2, col_m3, col_m4 = st.columns([1.35, 1.05, 0.8, 1])
 
         with col_m1:
