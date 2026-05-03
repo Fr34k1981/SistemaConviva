@@ -9150,282 +9150,357 @@ def render_caderno_tutoria_online(TUTORIA: dict, df_alunos: pd.DataFrame | None 
                 st.success(f"Sincronização concluída: {ok} caderno(s) enviados/atualizados.")
 
 
-# ======================================================
-# PROVA PAULISTA — DADOS, PÁGINA E TOP 10
-# ======================================================
-PROVA_PAULISTA_LOCAL = DATA_DIR / "prova_paulista_online.json"
-COLUNAS_PROVA_PAULISTA_PADRAO = [
-    "Estudante", "Turma", "Componente", "Bimestre", "Participação", "Acertos", "Total de Questões", "Percentual"
-]
-
-def _coluna_excel_para_indice(ref: str) -> int:
-    letras = "".join(ch for ch in str(ref or "") if ch.isalpha()).upper()
-    indice = 0
-    for ch in letras:
-        indice = indice * 26 + (ord(ch) - ord("A") + 1)
-    return max(indice - 1, 0)
-
-
-def _ler_xlsx_sem_openpyxl(arquivo_ou_caminho) -> pd.DataFrame:
-    """Le a primeira aba de um XLSX diretamente do XML, sem depender de openpyxl."""
-    ns = {
-        "a": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
-        "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
-    }
-    with zipfile.ZipFile(arquivo_ou_caminho) as z:
-        shared_strings = []
-        if "xl/sharedStrings.xml" in z.namelist():
-            root = ET.fromstring(z.read("xl/sharedStrings.xml"))
-            for si in root.findall("a:si", ns):
-                textos = [t.text or "" for t in si.iterfind(".//a:t", ns)]
-                shared_strings.append("".join(textos))
-
-        sheet_path = "xl/worksheets/sheet1.xml"
-        try:
-            workbook = ET.fromstring(z.read("xl/workbook.xml"))
-            rels = ET.fromstring(z.read("xl/_rels/workbook.xml.rels"))
-            rel_map = {rel.attrib.get("Id", ""): rel.attrib.get("Target", "") for rel in rels}
-            primeira = workbook.find("a:sheets/a:sheet", ns)
-            if primeira is not None:
-                rel_id = primeira.attrib.get("{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id", "")
-                target = rel_map.get(rel_id, "")
-                if target:
-                    sheet_path = target.replace("\\", "/")
-                    if not sheet_path.startswith("xl/"):
-                        sheet_path = f"xl/{sheet_path}"
-        except Exception:
-            pass
-
-        root_sheet = ET.fromstring(z.read(sheet_path))
-        rows = []
-        max_col = 0
-        for row in root_sheet.findall(".//a:sheetData/a:row", ns):
-            valores = {}
-            for cell in row.findall("a:c", ns):
-                idx = _coluna_excel_para_indice(cell.attrib.get("r", ""))
-                max_col = max(max_col, idx)
-                tipo = cell.attrib.get("t", "")
-                valor = ""
-                if tipo == "inlineStr":
-                    valor = "".join(t.text or "" for t in cell.iterfind(".//a:t", ns))
-                else:
-                    v = cell.find("a:v", ns)
-                    if v is not None and v.text is not None:
-                        valor = v.text
-                    if tipo == "s" and str(valor).isdigit():
-                        pos = int(valor)
-                        valor = shared_strings[pos] if pos < len(shared_strings) else valor
-                valores[idx] = str(valor).strip()
-            if valores:
-                rows.append([valores.get(i, "") for i in range(max_col + 1)])
-
-    if not rows:
-        return pd.DataFrame()
-    largura = max(len(r) for r in rows)
-    rows = [r + [""] * (largura - len(r)) for r in rows]
-    header_idx = 0
-    for i, row in enumerate(rows[:30]):
-        linha_norm = " ".join(normalizar_texto(v) for v in row)
-        if any(t in linha_norm for t in ["ALUNO", "ESTUDANTE", "NM_ALUNO", "NM TURMA", "ACERT"]):
-            header_idx = i
-            break
-    header = [str(v).strip() or f"Coluna {i+1}" for i, v in enumerate(rows[header_idx])]
-    dados = rows[header_idx + 1:]
-    return pd.DataFrame(dados, columns=header)
-
-
-def _ler_planilha_upload_ou_caminho(arquivo_ou_caminho, nome: str = "") -> pd.DataFrame:
-    nome_final = str(nome or getattr(arquivo_ou_caminho, "name", "") or arquivo_ou_caminho).lower()
-    if nome_final.endswith(".csv"):
-        return pd.read_csv(arquivo_ou_caminho)
-    try:
-        return pd.read_excel(arquivo_ou_caminho)
-    except Exception:
-        try:
-            if hasattr(arquivo_ou_caminho, "seek"):
-                arquivo_ou_caminho.seek(0)
-            return _ler_xlsx_sem_openpyxl(arquivo_ou_caminho)
-        finally:
-            if hasattr(arquivo_ou_caminho, "seek"):
-                arquivo_ou_caminho.seek(0)
-
-
-def _normalizar_dataframe_prova_paulista(df: pd.DataFrame) -> pd.DataFrame:
-    if df is None or df.empty:
-        return pd.DataFrame(columns=COLUNAS_PROVA_PAULISTA_PADRAO)
-    base = df.copy()
-    base.columns = [str(c).strip() for c in base.columns]
-    mapa = {}
-    for c in base.columns:
-        n = normalizar_texto(c)
-        if n in ["ESTUDANTE", "ALUNO", "NOME", "NOME DO ALUNO", "NOME DO ESTUDANTE", "NM ALUNO", "NM_ALUNO"]:
-            mapa[c] = "Estudante"
-        elif n in ["TURMA", "SERIE", "SÉRIE", "ANO", "ANO SERIE", "ANO/SERIE", "NM TURMA", "NM_TURMA"]:
-            mapa[c] = "Turma"
-        elif n in ["COMPONENTE", "COMPONENTE CURRICULAR", "DISCIPLINA", "MATERIA", "MATÉRIA"]:
-            mapa[c] = "Componente"
-        elif "BIM" in n:
-            mapa[c] = "Bimestre"
-        elif "PART" in n or "PARTICIP" in n:
-            mapa[c] = "Participação"
-        elif "TOTAL" in n and ("QUEST" in n or "ITENS" in n):
-            mapa[c] = "Total de Questões"
-        elif ("PERCENT" in n or "PORCENT" in n or n in ["%", "PERCENTUAL", "PORCENTAGEM"]) and "ACERT" not in n and "PART" not in n:
-            mapa[c] = "Percentual"
-        elif "ACERT" in n or "PROVA PAULISTA" in n or n in ["PP", "ACERTOS PP"]:
-            mapa[c] = "Acertos"
-    if mapa:
-        base = base.rename(columns=mapa)
-    # Evita colunas duplicadas após renomear
-    base = base.loc[:, ~base.columns.duplicated()].copy()
-    for c in COLUNAS_PROVA_PAULISTA_PADRAO:
-        if c not in base.columns:
-            base[c] = ""
-    # tenta calcular percentual quando houver acertos/total
-    acertos = pd.to_numeric(base["Acertos"].astype(str).str.replace("%", "", regex=False).str.replace(",", ".", regex=False), errors="coerce")
-    total = pd.to_numeric(base["Total de Questões"].astype(str).str.replace(",", ".", regex=False), errors="coerce")
-    pct_atual = base["Percentual"].astype(str).str.strip()
-    pct_calc = ((acertos / total) * 100).round(1)
-    mask_calc = pct_atual.eq("") & acertos.notna() & total.notna() & (total > 0)
-    base.loc[mask_calc, "Percentual"] = pct_calc[mask_calc].astype(str)
-    return base[COLUNAS_PROVA_PAULISTA_PADRAO + [c for c in base.columns if c not in COLUNAS_PROVA_PAULISTA_PADRAO]]
-
-
-def _carregar_prova_paulista_local() -> pd.DataFrame:
-    fontes = []
-    for chave in ["df_prova_paulista", "prova_paulista_df", "df_prova_paulista_online"]:
-        obj = st.session_state.get(chave)
-        if isinstance(obj, pd.DataFrame) and not obj.empty:
-            fontes.append(obj)
-    try:
-        obj = st.session_state.get("df_conselho", pd.DataFrame())
-        if isinstance(obj, pd.DataFrame) and not obj.empty:
-            fontes.append(_mapear_colunas_conselho(obj))
-    except Exception:
-        pass
-    try:
-        if PROVA_PAULISTA_LOCAL.exists():
-            fontes.append(pd.read_json(PROVA_PAULISTA_LOCAL, orient="records"))
-    except Exception:
-        pass
-    if SUPABASE_VALID:
-        for tabela in ["prova_paulista", "prova_paulista_dados", "resultados_prova_paulista"]:
-            try:
-                df_sup = _supabase_get_dataframe(f"{tabela}?select=*&limit=5000", f"carregar {tabela}")
-                if isinstance(df_sup, pd.DataFrame) and not df_sup.empty:
-                    fontes.append(df_sup)
-                    break
-            except Exception:
-                continue
-    try:
-        downloads_dir = Path.home() / "Downloads"
-        candidatos_xlsx = sorted(
-            glob.glob(str(downloads_dir / "RESULTADOS DA TURMA*.xlsx")),
-            key=lambda p: os.path.getmtime(p),
-            reverse=True,
-        )
-        for caminho_pp in candidatos_xlsx[:3]:
-            try:
-                fontes.append(_ler_planilha_upload_ou_caminho(caminho_pp))
-                break
-            except Exception:
-                continue
-    except Exception:
-        pass
-    if not fontes:
-        return pd.DataFrame(columns=COLUNAS_PROVA_PAULISTA_PADRAO)
-    df = pd.concat([_normalizar_dataframe_prova_paulista(f) for f in fontes], ignore_index=True)
-    df = df.dropna(how="all")
-    if "Estudante" in df.columns:
-        df["Estudante"] = df["Estudante"].astype(str).str.strip()
-        df = df[df["Estudante"].str.len() > 0]
-    return df
-
-
-def _salvar_prova_paulista_local(df: pd.DataFrame) -> None:
-    df = _normalizar_dataframe_prova_paulista(df)
-    st.session_state["df_prova_paulista"] = df
-    st.session_state["prova_paulista_df"] = df
-    try:
-        PROVA_PAULISTA_LOCAL.parent.mkdir(parents=True, exist_ok=True)
-        df.to_json(PROVA_PAULISTA_LOCAL, orient="records", force_ascii=False, indent=2)
-    except Exception:
-        pass
-
-
-def _top10_prova_paulista(df: pd.DataFrame) -> pd.DataFrame:
-    df = _normalizar_dataframe_prova_paulista(df)
-    if df.empty:
-        return pd.DataFrame(columns=["Posição", "Estudante", "Turma", "Resultado"])
-    base = df.copy()
-    pont = pd.to_numeric(base["Percentual"].astype(str).str.replace("%", "", regex=False).str.replace(",", ".", regex=False), errors="coerce")
-    acertos = pd.to_numeric(base["Acertos"].astype(str).str.replace("%", "", regex=False).str.replace(",", ".", regex=False), errors="coerce")
-    base["_resultado"] = pont.fillna(acertos)
-    base.loc[base["_resultado"].between(0, 1, inclusive="both"), "_resultado"] = base["_resultado"] * 100
-    base = base.dropna(subset=["_resultado"])
-    if base.empty:
-        return pd.DataFrame(columns=["Posição", "Estudante", "Turma", "Resultado"])
-    base = base.sort_values("_resultado", ascending=False).drop_duplicates("Estudante", keep="first").head(10).reset_index(drop=True)
-    base["Posição"] = [f"{i+1}º" for i in range(len(base))]
-    base["Resultado"] = base["_resultado"].map(lambda x: f"{x:.1f}".replace(".0", ""))
-    return base[["Posição", "Estudante", "Turma", "Resultado"]]
-
-
 def _render_pagina_prova_paulista():
-    page_header("🏆 Prova Paulista", "Importação, conferência e ranking dos resultados já carregados", "#2563eb")
-    st.info("Esta página foi restaurada para manter os dados da Prova Paulista separados do Conselho e do Dashboard.")
+    page_header("🏆 Prova Paulista", "Importação e acompanhamento dos resultados", "#2563eb")
+    
+    st.markdown("""
+    <div style="
+        background:linear-gradient(135deg,#eff6ff,#dbeafe);
+        border:1.5px solid #93c5fd; border-left:5px solid #2563eb;
+        border-radius:16px; padding:1.1rem 1.5rem; margin-bottom:1.25rem;
+        box-shadow:0 4px 12px rgba(37,99,235,0.08);
+    ">
+        <div style="display:flex;align-items:center;gap:0.5rem;">
+            <span>📋</span>
+            <span style="color:#1e40af;font-size:0.875rem;">
+                <b>Importante:</b> Selecione a turma ANTES de enviar a planilha para garantir que os dados sejam vinculados corretamente.
+            </span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Carregar dados existentes
     df_pp = _carregar_prova_paulista_local()
-    tab_base, tab_editor, tab_top10 = st.tabs(["📥 Carregar dados", "🧾 Dados da Prova Paulista", "🏅 Top 10"])
-
-    with tab_base:
-        st.markdown("### Carregar ou atualizar resultados")
-        arquivo = st.file_uploader("Enviar planilha da Prova Paulista (.xlsx, .xls ou .csv)", type=["xlsx", "xls", "csv"], key="upload_prova_paulista_restaurada")
+    
+    tab_upload, tab_dados, tab_top10 = st.tabs([
+        "📥 Importar Dados", 
+        "📊 Dados Registrados", 
+        "🏅 Top 10"
+    ])
+    
+    with tab_upload:
+        st.subheader("1️⃣ Selecione a Turma")
+        
+        # Obter turmas disponíveis do sistema
+        if df_alunos.empty:
+            st.error("❌ Nenhuma turma cadastrada no sistema. Cadastre alunos primeiro.")
+            return
+        
+        turmas_disponiveis = sorted(
+            df_alunos["turma"].dropna().astype(str).str.strip().unique().tolist()
+        )
+        
+        if not turmas_disponiveis:
+            st.error("❌ Nenhuma turma encontrada.")
+            return
+        
+        turma_selecionada = st.selectbox(
+            "🏫 Turma que receberá os dados:",
+            turmas_disponiveis,
+            key="pp_turma_select",
+            help="Selecione a turma correspondente aos dados da planilha"
+        )
+        
+        # Mostrar info da turma
+        alunos_turma = df_alunos[df_alunos["turma"] == turma_selecionada]
+        st.info(f"📊 Esta turma possui **{len(alunos_turma)}** alunos cadastrados")
+        
+        st.markdown("---")
+        st.subheader("2️⃣ Envie a Planilha")
+        
+        arquivo = st.file_uploader(
+            "📁 Selecione o arquivo Excel (.xlsx) ou CSV",
+            type=["xlsx", "xls", "csv"],
+            key="upload_prova_paulista",
+            help="Arquivo exportado do sistema da Prova Paulista"
+        )
+        
         if arquivo is not None:
             try:
-                novo_df = _ler_planilha_upload_ou_caminho(arquivo, arquivo.name)
-                novo_df = _normalizar_dataframe_prova_paulista(novo_df)
-                _salvar_prova_paulista_local(novo_df)
-                st.success("Dados da Prova Paulista carregados e preservados no sistema.")
-                df_pp = novo_df
+                # Ler arquivo
+                if arquivo.name.endswith('.csv'):
+                    df_import = pd.read_csv(arquivo, sep=';', encoding='utf-8-sig')
+                else:
+                    df_import = pd.read_excel(arquivo)
+                
+                st.success("✅ Arquivo lido com sucesso!")
+                
+                # Pré-visualização
+                with st.expander("👀 Pré-visualizar dados", expanded=True):
+                    st.dataframe(df_import.head(10), use_container_width=True)
+                
+                # Processar dados
+                st.markdown("---")
+                st.subheader("3️⃣ Processar e Salvar Dados")
+                
+                if st.button("💾 Processar e Salvar Dados", type="primary", use_container_width=True):
+                    # Limpar dados - remover linhas de filtro e total
+                    df_limpo = _processar_planilha_prova_paulista(df_import)
+                    
+                    if df_limpo.empty:
+                        st.error("❌ Nenhum dado válido encontrado na planilha.")
+                        return
+                    
+                    # Vincular à turma selecionada
+                    df_limpo["Turma"] = turma_selecionada
+                    
+                    # Validar alunos
+                    alunos_existentes = set(
+                        df_alunos[df_alunos["turma"] == turma_selecionada]["ra"].astype(str).str.strip()
+                    )
+                    
+                    registros_validos = []
+                    registros_invalidos = []
+                    
+                    for _, row in df_limpo.iterrows():
+                        ra = str(row.get("NR RA", "")).strip()
+                        if ra in alunos_existentes:
+                            registros_validos.append(row.to_dict())
+                        else:
+                            registros_invalidos.append({
+                                "ra": ra,
+                                "nome": row.get("Nome", ""),
+                                "motivo": "RA não encontrado na turma selecionada"
+                            })
+                    
+                    if not registros_validos:
+                        st.error("❌ Nenhum aluno da planilha foi encontrado na turma selecionada.")
+                        if registros_invalidos:
+                            st.warning("Alunos não encontrados:")
+                            st.dataframe(pd.DataFrame(registros_invalidos[:10]))
+                        return
+                    
+                    # Salvar dados
+                    df_novos = pd.DataFrame(registros_validos)
+                    
+                    # Mesclar com dados existentes
+                    if not df_pp.empty:
+                        # Remover dados antigos da mesma turma
+                        df_pp = df_pp[df_pp["Turma"] != turma_selecionada]
+                    
+                    df_final = pd.concat([df_pp, df_novos], ignore_index=True)
+                    
+                    # Salvar
+                    _salvar_prova_paulista_local(df_final)
+                    
+                    # Mensagens de sucesso
+                    st.success(f"✅ {len(registros_validos)} registro(s) salvo(s) com sucesso!")
+                    
+                    if registros_invalidos:
+                        st.warning(f"⚠️ {len(registros_invalidos)} aluno(s) não foram encontrados na turma.")
+                        with st.expander("Ver alunos não encontrados"):
+                            st.dataframe(pd.DataFrame(registros_invalidos))
+                    
+                    st.balloons()
+                    st.rerun()
+                    
             except Exception as e:
-                st.error(f"Não foi possível ler o arquivo: {e}")
+                st.error(f"❌ Erro ao processar arquivo: {str(e)}")
+                logger.error(f"Erro importação Prova Paulista: {e}")
+    
+    with tab_dados:
+        st.subheader("📊 Dados Registrados da Prova Paulista")
+        
         if df_pp.empty:
-            st.warning("Nenhum dado da Prova Paulista encontrado ainda. Envie a planilha ou preencha manualmente na aba de dados.")
+            st.info("📭 Nenhum dado registrado ainda. Use a aba 'Importar Dados' para carregar.")
         else:
+            # Filtros
+            col1, col2 = st.columns(2)
+            with col1:
+                turma_filtro = st.selectbox(
+                    "Filtrar por turma:",
+                    ["Todas"] + sorted(df_pp["Turma"].dropna().unique().tolist()),
+                    key="pp_filtro_turma"
+                )
+            
+            df_exibir = df_pp.copy()
+            if turma_filtro != "Todas":
+                df_exibir = df_exibir[df_exibir["Turma"] == turma_filtro]
+            
+            # Métricas
             col1, col2, col3 = st.columns(3)
-            col1.metric("Registros", len(df_pp))
-            col2.metric("Estudantes", df_pp["Estudante"].astype(str).str.strip().replace("", pd.NA).dropna().nunique())
-            col3.metric("Turmas", df_pp["Turma"].astype(str).str.strip().replace("", pd.NA).dropna().nunique())
-            st.dataframe(df_pp.head(50), use_container_width=True, hide_index=True)
-
-    with tab_editor:
-        st.markdown("### Conferir e editar dados")
-        if df_pp.empty:
-            df_pp = pd.DataFrame([{c: "" for c in COLUNAS_PROVA_PAULISTA_PADRAO}])
-        editado = st.data_editor(
-            _normalizar_dataframe_prova_paulista(df_pp),
-            use_container_width=True,
-            hide_index=True,
-            num_rows="dynamic",
-            key="editor_prova_paulista_restaurado",
-        )
-        c1, c2 = st.columns([1, 1])
-        with c1:
-            if st.button("💾 Salvar dados da Prova Paulista", type="primary", use_container_width=True):
-                _salvar_prova_paulista_local(editado)
-                st.success("Dados salvos. O Dashboard também passa a usar estes dados para o Top 10.")
-                st.rerun()
-        with c2:
-            csv = _normalizar_dataframe_prova_paulista(editado).to_csv(index=False).encode("utf-8-sig")
-            st.download_button("⬇️ Baixar CSV", data=csv, file_name="prova_paulista.csv", mime="text/csv", use_container_width=True)
-
+            with col1:
+                st.metric("Total de Registros", len(df_exibir))
+            with col2:
+                st.metric("Estudantes", df_exibir["Estudante"].nunique())
+            with col3:
+                st.metric("Turmas", df_exibir["Turma"].nunique())
+            
+            st.markdown("---")
+            st.dataframe(df_exibir, use_container_width=True, hide_index=True)
+            
+            # Exportar
+            csv = df_exibir.to_csv(index=False, encoding='utf-8-sig')
+            st.download_button(
+                "📥 Exportar CSV",
+                data=csv,
+                file_name=f"prova_paulista_{datetime.now().strftime('%Y%m%d')}.csv",
+                mime="text/csv"
+            )
+    
     with tab_top10:
-        st.markdown("### 🏅 Top 10 da Prova Paulista")
-        ranking = _top10_prova_paulista(df_pp)
-        if ranking.empty:
-            st.info("Preencha as colunas Acertos ou Percentual para montar o ranking.")
+        st.subheader("🏅 Top 10 - Melhores Desempenhos")
+        
+        if df_pp.empty:
+            st.info("📭 Nenhum dado registrado para exibir o ranking.")
         else:
-            st.dataframe(ranking, use_container_width=True, hide_index=True)
+            # Calcular ranking
+            df_ranking = df_pp.copy()
+            
+            # Converter percentual para numérico
+            df_ranking["Percentual_Num"] = pd.to_numeric(
+                df_ranking["Percentual"].astype(str).str.replace("%", "").str.replace(",", "."),
+                errors="coerce"
+            )
+            
+            # Agrupar por estudante e calcular média
+            df_media = df_ranking.groupby(["Estudante", "Turma"]).agg({
+                "Percentual_Num": "mean",
+                "NR RA": "first"
+            }).reset_index()
+            
+            df_media = df_media.sort_values("Percentual_Num", ascending=False).head(10)
+            
+            # Exibir
+            for idx, row in df_media.iterrows():
+                medalha = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"][idx]
+                st.markdown(f"""
+                <div style="
+                    display:flex; align-items:center; gap:1rem;
+                    background:white; border-radius:12px;
+                    border:1.5px solid #e2e8f0; padding:0.75rem 1rem;
+                    margin-bottom:0.4rem;
+                    box-shadow:0 1px 4px rgba(15,23,42,0.05);
+                ">
+                    <div style="font-size:1.3rem; width:28px;">{medalha}</div>
+                    <div style="flex:1;">
+                        <div style="font-weight:600; color:#0f172a;">{row['Estudante']}</div>
+                        <div style="font-size:0.85rem; color:#64748b;">{row['Turma']}</div>
+                    </div>
+                    <div style="
+                        background:linear-gradient(135deg,#2563eb,#3b82f6);
+                        color:white; border-radius:8px;
+                        padding:0.4rem 0.8rem; font-weight:700;
+                    ">
+                        {row['Percentual_Num']:.1f}%
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+
+def _processar_planilha_prova_paulista(df_raw: pd.DataFrame) -> pd.DataFrame:
+    """
+    Processa a planilha da Prova Paulista:
+    - Remove linhas de metadados/filtros
+    - Remove linha Total
+    - Normaliza colunas
+    - Converte percentuais
+    """
+    if df_raw.empty:
+        return pd.DataFrame()
+    
+    df = df_raw.copy()
+    
+    # Identificar e remover linhas de metadados
+    # Linhas que contêm "Filtros aplicados" ou começam com texto descritivo
+    linhas_validas = []
+    
+    for idx, row in df.iterrows():
+        # Verificar se é uma linha de dados válida
+        # Deve ter RA (número) e Nome
+        ra_valido = False
+        tem_nome = False
+        
+        for col in df.columns:
+            valor = str(row[col]).strip()
+            # RA geralmente é numérico e longo
+            if valor.isdigit() and len(valor) >= 10:
+                ra_valido = True
+            # Nome deve conter letras
+            if any(c.isalpha() for c in valor) and len(valor) > 5:
+                tem_nome = True
+        
+        # Ignorar linhas Total e metadados
+        if ra_valido and tem_nome:
+            # Verificar se não é linha Total
+            primeira_col = str(row.iloc[0]).strip()
+            if primeira_col.lower() not in ['total', 'export']:
+                linhas_validas.append(idx)
+    
+    if not linhas_validas:
+        st.warning("⚠️ Nenhuma linha de dados válida encontrada. Verifique o formato da planilha.")
+        return pd.DataFrame()
+    
+    df = df.iloc[linhas_validas].reset_index(drop=True)
+    
+    # Mapear colunas
+    colunas_mapeadas = {}
+    
+    for col in df.columns:
+        col_upper = str(col).upper().strip()
+        
+        if 'NR RA' in col_upper or 'RA' == col_upper:
+            colunas_mapeadas[col] = 'NR RA'
+        elif 'NOME' == col_upper:
+            colunas_mapeadas[col] = 'Nome'
+        elif 'PARTICIPA' in col_upper:
+            colunas_mapeadas[col] = 'Participação'
+        elif 'ACERTOS' in col_upper or '% DE ACERTOS' in col_upper:
+            colunas_mapeadas[col] = 'Acertos'
+        elif col_upper in ['MAT', 'PORT', 'ING', 'HIST', 'GEO', 'CIE', 'FILO', 'SOC', 'BIO', 'FÍS', 'FIS', 'QUI', 'FIN', 'TEC']:
+            colunas_mapeadas[col] = col_upper
+    
+    df = df.rename(columns=colunas_mapeadas)
+    
+    # Verificar colunas obrigatórias
+    cols_obrigatorias = ['NR RA', 'Nome']
+    for col in cols_obrigatorias:
+        if col not in df.columns:
+            st.error(f"❌ Coluna obrigatória '{col}' não encontrada na planilha.")
+            return pd.DataFrame()
+    
+    # Converter percentuais
+    def converter_percentual(valor):
+        if pd.isna(valor):
+            return None
+        valor_str = str(valor).strip().replace('%', '').replace(',', '.')
+        try:
+            return float(valor_str) / 100.0 if float(valor_str) > 1 else float(valor_str)
+        except:
+            return None
+    
+    # Aplicar conversões
+    for col in ['Participação', 'Acertos']:
+        if col in df.columns:
+            df[col] = df[col].apply(converter_percentual)
+    
+    # Componentes curriculares
+    componentes = ['MAT', 'PORT', 'ING', 'HIST', 'GEO', 'CIE', 'FILO', 'SOC', 'BIO', 'FÍS', 'FIS', 'QUI', 'FIN', 'TEC']
+    for comp in componentes:
+        if comp in df.columns:
+            df[comp] = df[comp].apply(converter_percentual)
+    
+    # Calcular percentual geral se não existir
+    if 'Acertos' not in df.columns and 'MAT' in df.columns:
+        # Calcular média dos componentes disponíveis
+        comps_disponiveis = [c for c in componentes if c in df.columns]
+        if comps_disponiveis:
+            df['Acertos'] = df[comps_disponiveis].mean(axis=1)
+    
+    # Selecionar colunas finais
+    cols_finais = ['NR RA', 'Nome', 'Participação', 'Acertos'] + componentes
+    cols_finais = [c for c in cols_finais if c in df.columns]
+    
+    df = df[cols_finais].copy()
+    
+    # Limpar dados
+    df['NR RA'] = df['NR RA'].astype(str).str.strip()
+    df['Nome'] = df['Nome'].astype(str).str.strip()
+    
+    # Remover linhas sem RA ou Nome
+    df = df[(df['NR RA'] != '') & (df['NR RA'] != 'nan') & (df['Nome'] != '')]
+    
+    return df
 
 
 # ======================================================
