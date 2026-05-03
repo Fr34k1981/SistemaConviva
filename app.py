@@ -3460,6 +3460,12 @@ def _parse_numero_br(valor) -> float | None:
 
 
 def _opcoes_turmas_sistema() -> list[str]:
+    """Retorna turmas cadastradas e, se não houver base carregada, oferece turmas padrão.
+
+    Esta função alimenta os selects da Prova Paulista/Mapão. Antes, quando a base
+    de alunos ainda não estava carregada na sessão, o select ficava vazio. Agora
+    ele busca em mais fontes e mantém uma lista padrão para permitir o upload.
+    """
     fontes = []
     try:
         obj = st.session_state.get("df_alunos")
@@ -3472,14 +3478,37 @@ def _opcoes_turmas_sistema() -> list[str]:
             fontes.append(df_alunos)
     except Exception:
         pass
+    try:
+        cfg = carregar_config_turmas()
+        if isinstance(cfg, pd.DataFrame) and not cfg.empty:
+            fontes.append(cfg)
+    except Exception:
+        pass
+
     turmas = set()
     for fonte in fontes:
-        if "turma" not in fonte.columns:
-            continue
-        for turma in fonte["turma"].dropna().astype(str):
-            turma_fmt = formatar_turma_eletiva(turma)
-            if turma_fmt:
-                turmas.add(turma_fmt)
+        for coluna in ["turma", "Turma", "NM_TURMA", "Série", "Serie", "serie"]:
+            if coluna not in fonte.columns:
+                continue
+            for turma in fonte[coluna].dropna().astype(str):
+                turma_fmt = formatar_turma_eletiva(turma)
+                if turma_fmt:
+                    turmas.add(turma_fmt)
+
+    # Fallback fixo: garante que o usuário consiga escolher a turma mesmo
+    # antes de importar alunos ou quando o Supabase ainda não retornou dados.
+    turmas_padrao = [
+        "6º Ano A", "6º Ano B", "6º Ano C", "6º Ano D",
+        "7º Ano A", "7º Ano B", "7º Ano C", "7º Ano D",
+        "8º Ano A", "8º Ano B", "8º Ano C", "8º Ano D",
+        "9º Ano A", "9º Ano B", "9º Ano C", "9º Ano D",
+        "1º Ano A", "1º Ano B", "1º Ano C", "1º Ano D",
+        "2º Ano A", "2º Ano B", "2º Ano C", "2º Ano D",
+        "3º Ano A", "3º Ano B", "3º Ano C", "3º Ano D",
+    ]
+    for turma in turmas_padrao:
+        turmas.add(formatar_turma_eletiva(turma))
+
     return sorted(turmas, key=ordenar_turma_tutoria)
 
 def estudante_ativo(linha) -> bool:
@@ -9858,38 +9887,61 @@ def _render_pagina_prova_paulista():
 
     with tab_base:
         st.markdown("""
-        <div class="info-box" style="margin-top:0;">
-            <b>Fluxo correto:</b> selecione a turma que receberá os dados, escolha o bimestre e o ano letivo, envie a planilha, confira a prévia e só então clique em <b>Salvar Prova Paulista no Supabase</b>.
+        <div class="info-box" style="margin-top:0; border-left:6px solid #2563eb;">
+            <b>Primeiro escolha a turma.</b><br>
+            A planilha da Prova Paulista não traz a turma de forma segura para o sistema. Por isso, todos os registros importados serão salvos na turma selecionada abaixo.
         </div>
         """, unsafe_allow_html=True)
-        st.markdown("### Carregar resultados da turma")
 
+        st.markdown("### 1) Escolha a turma que receberá os dados")
         opcoes_turma = [""] + _opcoes_turmas_sistema()
-        col_m1, col_m2, col_m3, col_m4 = st.columns([1.2, 1, 0.8, 1])
+        col_m1, col_m2, col_m3, col_m4 = st.columns([1.35, 1.05, 0.8, 1])
 
         with col_m1:
-            turma_sel = st.selectbox("Turma que receberá os dados", opcoes_turma, key="pp_turma_select")
-            turma_manual = st.text_input("Ou digite a turma", value="", key="pp_turma_manual", placeholder="Ex: 6º A")
+            turma_sel = st.selectbox(
+                "Turma que receberá os dados",
+                opcoes_turma,
+                key="pp_turma_select",
+                help="Escolha a sala antes de fazer o upload da planilha."
+            )
+            turma_manual = st.text_input(
+                "Ou digite a turma manualmente",
+                value="",
+                key="pp_turma_manual",
+                placeholder="Ex: 6º Ano A, 7º Ano B, 8º Ano C"
+            )
             turma_final = turma_manual.strip() or turma_sel
 
         with col_m2:
-            bimestre_final = st.selectbox("Bimestre", ["1º Bimestre", "2º Bimestre", "3º Bimestre", "4º Bimestre"], key="pp_bimestre")
+            bimestre_final = st.selectbox(
+                "Bimestre",
+                ["1º Bimestre", "2º Bimestre", "3º Bimestre", "4º Bimestre"],
+                key="pp_bimestre"
+            )
 
         with col_m3:
-            ano_final = st.text_input("Ano letivo", value=str(datetime.now().year), key="pp_ano")
+            ano_final = st.text_input(
+                "Ano letivo",
+                value=str(datetime.now().year),
+                key="pp_ano"
+            )
 
         meta = classificar_turma_sistema(turma_final)
         with col_m4:
-            st.markdown("**Ciclo/Turno**")
-            st.caption(f"{meta['ciclo']} · {meta['turno']}" if turma_final else "Selecione uma turma")
+            st.markdown("**Turma selecionada**")
+            if turma_final:
+                st.success(f"{meta['turma']} · {meta['ciclo']} · {meta['turno']}")
+            else:
+                st.warning("Selecione a turma")
 
+        st.markdown("### 2) Envie a planilha da Prova Paulista")
         if not turma_final:
-            st.warning("Selecione ou digite a turma antes de salvar. A planilha da Prova Paulista não informa a turma de forma confiável para o sistema.")
+            st.warning("Selecione ou digite a turma antes de salvar. Você até pode enviar a planilha para prévia, mas o salvamento será bloqueado sem turma.")
 
         arquivo = st.file_uploader(
             "Enviar planilha da Prova Paulista (.xlsx, .xls ou .csv)",
             type=["xlsx", "xls", "csv"],
-            key="upload_prova_paulista_restaurada",
+            key="upload_prova_paulista_restaurada"
         )
 
         if arquivo is not None:
@@ -9908,10 +9960,21 @@ def _render_pagina_prova_paulista():
 
         preview = st.session_state.get("prova_paulista_preview", pd.DataFrame())
         if isinstance(preview, pd.DataFrame) and not preview.empty:
+            st.markdown("### 3) Confira a prévia antes de salvar")
             c1, c2, c3 = st.columns(3)
             c1.metric("Registros na prévia", len(preview))
-            c2.metric("Estudantes", preview["Estudante"].nunique())
-            c3.metric("Turma selecionada", turma_final if turma_final else "não definida")
+            c2.metric("Estudantes", preview["Estudante"].astype(str).str.strip().replace("", pd.NA).dropna().nunique())
+            c3.metric("Turma que será gravada", turma_final if turma_final else "não definida")
+
+            if turma_final:
+                meta_turma = classificar_turma_sistema(turma_final)
+                preview = preview.copy()
+                preview["Turma"] = meta_turma["turma"]
+                preview["Ciclo"] = meta_turma["ciclo"]
+                preview["Turno"] = meta_turma["turno"]
+                preview["Bimestre"] = bimestre_final
+                preview["Ano letivo"] = str(ano_final)
+                st.session_state["prova_paulista_preview"] = preview
 
             st.dataframe(preview, use_container_width=True, hide_index=True, height=520)
 
@@ -9919,24 +9982,22 @@ def _render_pagina_prova_paulista():
                 if not turma_final:
                     st.warning("Selecione ou digite a turma antes de salvar.")
                 else:
-                    arquivo_origem_final = ""
+                    origem = ""
                     try:
-                        arquivo_origem_final = str(preview.get("Arquivo origem", pd.Series([""])).iloc[0] or "")
+                        origem = str(preview.get("Arquivo origem", pd.Series([""])).iloc[0] or "")
                     except Exception:
-                        arquivo_origem_final = arquivo.name if arquivo is not None else ""
-
-                    preview = _normalizar_dataframe_prova_paulista(
+                        origem = arquivo.name if arquivo is not None else ""
+                    preview_final = _normalizar_dataframe_prova_paulista(
                         preview,
                         turma=turma_final,
                         bimestre=bimestre_final,
                         ano_letivo=ano_final,
-                        arquivo_origem=arquivo_origem_final,
+                        arquivo_origem=origem,
                     )
-                    ok, msg = _salvar_prova_paulista_local(preview, tentar_supabase=True, mesclar_com_existente=True)
+                    ok, msg = _salvar_prova_paulista_local(preview_final, tentar_supabase=True, mesclar_com_existente=True)
                     st.success(msg) if ok else st.warning(msg)
                     st.session_state.pop("prova_paulista_preview", None)
                     st.rerun()
-
         elif df_pp.empty:
             st.warning("Nenhum dado da Prova Paulista salvo ainda.")
         else:
@@ -9973,7 +10034,6 @@ def _render_pagina_prova_paulista():
 
         if df_pp.empty:
             df_pp = pd.DataFrame([{c: "" for c in COLUNAS_PROVA_PAULISTA_PADRAO}])
-
         editado = st.data_editor(
             _normalizar_dataframe_prova_paulista(df_pp),
             use_container_width=True,
