@@ -9150,357 +9150,147 @@ def render_caderno_tutoria_online(TUTORIA: dict, df_alunos: pd.DataFrame | None 
                 st.success(f"Sincronização concluída: {ok} caderno(s) enviados/atualizados.")
 
 
-def _render_pagina_prova_paulista():
-    page_header("🏆 Prova Paulista", "Importação e acompanhamento dos resultados", "#2563eb")
-    
-    st.markdown("""
-    <div style="
-        background:linear-gradient(135deg,#eff6ff,#dbeafe);
-        border:1.5px solid #93c5fd; border-left:5px solid #2563eb;
-        border-radius:16px; padding:1.1rem 1.5rem; margin-bottom:1.25rem;
-        box-shadow:0 4px 12px rgba(37,99,235,0.08);
-    ">
-        <div style="display:flex;align-items:center;gap:0.5rem;">
-            <span>📋</span>
-            <span style="color:#1e40af;font-size:0.875rem;">
-                <b>Importante:</b> Selecione a turma ANTES de enviar a planilha para garantir que os dados sejam vinculados corretamente.
-            </span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Carregar dados existentes
-    df_pp = _carregar_prova_paulista_local()
-    
-    tab_upload, tab_dados, tab_top10 = st.tabs([
-        "📥 Importar Dados", 
-        "📊 Dados Registrados", 
-        "🏅 Top 10"
-    ])
-    
-    with tab_upload:
-        st.subheader("1️⃣ Selecione a Turma")
-        
-        # Obter turmas disponíveis do sistema
-        if df_alunos.empty:
-            st.error("❌ Nenhuma turma cadastrada no sistema. Cadastre alunos primeiro.")
-            return
-        
-        turmas_disponiveis = sorted(
-            df_alunos["turma"].dropna().astype(str).str.strip().unique().tolist()
-        )
-        
-        if not turmas_disponiveis:
-            st.error("❌ Nenhuma turma encontrada.")
-            return
-        
-        turma_selecionada = st.selectbox(
-            "🏫 Turma que receberá os dados:",
-            turmas_disponiveis,
-            key="pp_turma_select",
-            help="Selecione a turma correspondente aos dados da planilha"
-        )
-        
-        # Mostrar info da turma
-        alunos_turma = df_alunos[df_alunos["turma"] == turma_selecionada]
-        st.info(f"📊 Esta turma possui **{len(alunos_turma)}** alunos cadastrados")
-        
-        st.markdown("---")
-        st.subheader("2️⃣ Envie a Planilha")
-        
-        arquivo = st.file_uploader(
-            "📁 Selecione o arquivo Excel (.xlsx) ou CSV",
-            type=["xlsx", "xls", "csv"],
-            key="upload_prova_paulista",
-            help="Arquivo exportado do sistema da Prova Paulista"
-        )
-        
-        if arquivo is not None:
-            try:
-                # Ler arquivo
-                if arquivo.name.endswith('.csv'):
-                    df_import = pd.read_csv(arquivo, sep=';', encoding='utf-8-sig')
-                else:
-                    df_import = pd.read_excel(arquivo)
-                
-                st.success("✅ Arquivo lido com sucesso!")
-                
-                # Pré-visualização
-                with st.expander("👀 Pré-visualizar dados", expanded=True):
-                    st.dataframe(df_import.head(10), use_container_width=True)
-                
-                # Processar dados
-                st.markdown("---")
-                st.subheader("3️⃣ Processar e Salvar Dados")
-                
-                if st.button("💾 Processar e Salvar Dados", type="primary", use_container_width=True):
-                    # Limpar dados - remover linhas de filtro e total
-                    df_limpo = _processar_planilha_prova_paulista(df_import)
-                    
-                    if df_limpo.empty:
-                        st.error("❌ Nenhum dado válido encontrado na planilha.")
-                        return
-                    
-                    # Vincular à turma selecionada
-                    df_limpo["Turma"] = turma_selecionada
-                    
-                    # Validar alunos
-                    alunos_existentes = set(
-                        df_alunos[df_alunos["turma"] == turma_selecionada]["ra"].astype(str).str.strip()
+# ======================================================
+# PROVA PAULISTA — DADOS, PÁGINA E TOP 10
+# ======================================================
+with tab_base:
+    st.markdown("### Carregar ou atualizar resultados")
+
+    st.info(
+        "Antes de enviar a planilha, selecione a turma que receberá esses dados. "
+        "A turma escolhida será aplicada a todos os estudantes importados."
+    )
+
+    turmas_padrao = [
+        "6º Ano A", "6º Ano B", "6º Ano C", "6º Ano D",
+        "7º Ano A", "7º Ano B", "7º Ano C", "7º Ano D",
+        "8º Ano A", "8º Ano B", "8º Ano C", "8º Ano D",
+        "9º Ano A", "9º Ano B", "9º Ano C", "9º Ano D",
+        "1º Ano A", "1º Ano B", "1º Ano C", "1º Ano D",
+        "2º Ano A", "2º Ano B", "2º Ano C", "2º Ano D",
+        "3º Ano A", "3º Ano B", "3º Ano C", "3º Ano D",
+    ]
+
+    turmas_cadastradas = []
+
+    try:
+        df_turmas = st.session_state.get("df_turmas", pd.DataFrame())
+        if isinstance(df_turmas, pd.DataFrame) and not df_turmas.empty:
+            for col in ["Turma", "Nome da Turma", "Nome", "turma", "nome_turma"]:
+                if col in df_turmas.columns:
+                    turmas_cadastradas = (
+                        df_turmas[col]
+                        .astype(str)
+                        .str.strip()
+                        .replace("", pd.NA)
+                        .dropna()
+                        .unique()
+                        .tolist()
                     )
-                    
-                    registros_validos = []
-                    registros_invalidos = []
-                    
-                    for _, row in df_limpo.iterrows():
-                        ra = str(row.get("NR RA", "")).strip()
-                        if ra in alunos_existentes:
-                            registros_validos.append(row.to_dict())
-                        else:
-                            registros_invalidos.append({
-                                "ra": ra,
-                                "nome": row.get("Nome", ""),
-                                "motivo": "RA não encontrado na turma selecionada"
-                            })
-                    
-                    if not registros_validos:
-                        st.error("❌ Nenhum aluno da planilha foi encontrado na turma selecionada.")
-                        if registros_invalidos:
-                            st.warning("Alunos não encontrados:")
-                            st.dataframe(pd.DataFrame(registros_invalidos[:10]))
-                        return
-                    
-                    # Salvar dados
-                    df_novos = pd.DataFrame(registros_validos)
-                    
-                    # Mesclar com dados existentes
-                    if not df_pp.empty:
-                        # Remover dados antigos da mesma turma
-                        df_pp = df_pp[df_pp["Turma"] != turma_selecionada]
-                    
-                    df_final = pd.concat([df_pp, df_novos], ignore_index=True)
-                    
-                    # Salvar
-                    _salvar_prova_paulista_local(df_final)
-                    
-                    # Mensagens de sucesso
-                    st.success(f"✅ {len(registros_validos)} registro(s) salvo(s) com sucesso!")
-                    
-                    if registros_invalidos:
-                        st.warning(f"⚠️ {len(registros_invalidos)} aluno(s) não foram encontrados na turma.")
-                        with st.expander("Ver alunos não encontrados"):
-                            st.dataframe(pd.DataFrame(registros_invalidos))
-                    
-                    st.balloons()
-                    st.rerun()
-                    
+                    break
+    except Exception:
+        turmas_cadastradas = []
+
+    opcoes_turmas = sorted(set(turmas_cadastradas + turmas_padrao))
+
+    col_turma, col_manual = st.columns([1, 1])
+
+    with col_turma:
+        turma_selecionada = st.selectbox(
+            "Turma que receberá os dados",
+            [""] + opcoes_turmas,
+            key="prova_paulista_turma_destino"
+        )
+
+    with col_manual:
+        turma_digitada = st.text_input(
+            "Ou digite a turma manualmente",
+            placeholder="Ex: 6º Ano A",
+            key="prova_paulista_turma_manual"
+        )
+
+    turma_destino = turma_digitada.strip() or turma_selecionada.strip()
+
+    col_bim, col_ano = st.columns([1, 1])
+
+    with col_bim:
+        bimestre_destino = st.selectbox(
+            "Bimestre",
+            ["", "1º Bimestre", "2º Bimestre", "3º Bimestre", "4º Bimestre"],
+            key="prova_paulista_bimestre_destino"
+        )
+
+    with col_ano:
+        ano_letivo_destino = st.text_input(
+            "Ano letivo",
+            value=str(datetime.now().year),
+            key="prova_paulista_ano_letivo_destino"
+        )
+
+    if turma_destino:
+        st.success(f"Turma selecionada para receber os dados: {turma_destino}")
+    else:
+        st.warning("Selecione ou digite a turma antes de importar a planilha.")
+
+    arquivo = st.file_uploader(
+        "Enviar planilha da Prova Paulista (.xlsx, .xls ou .csv)",
+        type=["xlsx", "xls", "csv"],
+        key="upload_prova_paulista_restaurada"
+    )
+
+    if arquivo is not None:
+        if not turma_destino:
+            st.error("Escolha a turma antes de salvar os dados da planilha.")
+        else:
+            try:
+                novo_df = _ler_planilha_upload_ou_caminho(arquivo, arquivo.name)
+                novo_df = _normalizar_dataframe_prova_paulista(novo_df)
+
+                # Força todos os registros importados a receberem a turma escolhida
+                novo_df["Turma"] = turma_destino
+
+                if bimestre_destino:
+                    novo_df["Bimestre"] = bimestre_destino
+
+                if ano_letivo_destino:
+                    novo_df["Ano letivo"] = ano_letivo_destino
+
+                _salvar_prova_paulista_local(novo_df)
+
+                st.success("Dados da Prova Paulista carregados e vinculados à turma selecionada.")
+                df_pp = novo_df
+
             except Exception as e:
-                st.error(f"❌ Erro ao processar arquivo: {str(e)}")
-                logger.error(f"Erro importação Prova Paulista: {e}")
-    
-    with tab_dados:
-        st.subheader("📊 Dados Registrados da Prova Paulista")
-        
-        if df_pp.empty:
-            st.info("📭 Nenhum dado registrado ainda. Use a aba 'Importar Dados' para carregar.")
-        else:
-            # Filtros
-            col1, col2 = st.columns(2)
-            with col1:
-                turma_filtro = st.selectbox(
-                    "Filtrar por turma:",
-                    ["Todas"] + sorted(df_pp["Turma"].dropna().unique().tolist()),
-                    key="pp_filtro_turma"
-                )
-            
-            df_exibir = df_pp.copy()
-            if turma_filtro != "Todas":
-                df_exibir = df_exibir[df_exibir["Turma"] == turma_filtro]
-            
-            # Métricas
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("Total de Registros", len(df_exibir))
-            with col2:
-                st.metric("Estudantes", df_exibir["Estudante"].nunique())
-            with col3:
-                st.metric("Turmas", df_exibir["Turma"].nunique())
-            
-            st.markdown("---")
-            st.dataframe(df_exibir, use_container_width=True, hide_index=True)
-            
-            # Exportar
-            csv = df_exibir.to_csv(index=False, encoding='utf-8-sig')
-            st.download_button(
-                "📥 Exportar CSV",
-                data=csv,
-                file_name=f"prova_paulista_{datetime.now().strftime('%Y%m%d')}.csv",
-                mime="text/csv"
-            )
-    
-    with tab_top10:
-        st.subheader("🏅 Top 10 - Melhores Desempenhos")
-        
-        if df_pp.empty:
-            st.info("📭 Nenhum dado registrado para exibir o ranking.")
-        else:
-            # Calcular ranking
-            df_ranking = df_pp.copy()
-            
-            # Converter percentual para numérico
-            df_ranking["Percentual_Num"] = pd.to_numeric(
-                df_ranking["Percentual"].astype(str).str.replace("%", "").str.replace(",", "."),
-                errors="coerce"
-            )
-            
-            # Agrupar por estudante e calcular média
-            df_media = df_ranking.groupby(["Estudante", "Turma"]).agg({
-                "Percentual_Num": "mean",
-                "NR RA": "first"
-            }).reset_index()
-            
-            df_media = df_media.sort_values("Percentual_Num", ascending=False).head(10)
-            
-            # Exibir
-            for idx, row in df_media.iterrows():
-                medalha = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"][idx]
-                st.markdown(f"""
-                <div style="
-                    display:flex; align-items:center; gap:1rem;
-                    background:white; border-radius:12px;
-                    border:1.5px solid #e2e8f0; padding:0.75rem 1rem;
-                    margin-bottom:0.4rem;
-                    box-shadow:0 1px 4px rgba(15,23,42,0.05);
-                ">
-                    <div style="font-size:1.3rem; width:28px;">{medalha}</div>
-                    <div style="flex:1;">
-                        <div style="font-weight:600; color:#0f172a;">{row['Estudante']}</div>
-                        <div style="font-size:0.85rem; color:#64748b;">{row['Turma']}</div>
-                    </div>
-                    <div style="
-                        background:linear-gradient(135deg,#2563eb,#3b82f6);
-                        color:white; border-radius:8px;
-                        padding:0.4rem 0.8rem; font-weight:700;
-                    ">
-                        {row['Percentual_Num']:.1f}%
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+                st.error(f"Não foi possível ler o arquivo: {e}")
 
+    if df_pp.empty:
+        st.warning("Nenhum dado da Prova Paulista encontrado ainda. Envie a planilha ou preencha manualmente na aba de dados.")
+    else:
+        col1, col2, col3 = st.columns(3)
 
-def _processar_planilha_prova_paulista(df_raw: pd.DataFrame) -> pd.DataFrame:
-    """
-    Processa a planilha da Prova Paulista:
-    - Remove linhas de metadados/filtros
-    - Remove linha Total
-    - Normaliza colunas
-    - Converte percentuais
-    """
-    if df_raw.empty:
-        return pd.DataFrame()
-    
-    df = df_raw.copy()
-    
-    # Identificar e remover linhas de metadados
-    # Linhas que contêm "Filtros aplicados" ou começam com texto descritivo
-    linhas_validas = []
-    
-    for idx, row in df.iterrows():
-        # Verificar se é uma linha de dados válida
-        # Deve ter RA (número) e Nome
-        ra_valido = False
-        tem_nome = False
-        
-        for col in df.columns:
-            valor = str(row[col]).strip()
-            # RA geralmente é numérico e longo
-            if valor.isdigit() and len(valor) >= 10:
-                ra_valido = True
-            # Nome deve conter letras
-            if any(c.isalpha() for c in valor) and len(valor) > 5:
-                tem_nome = True
-        
-        # Ignorar linhas Total e metadados
-        if ra_valido and tem_nome:
-            # Verificar se não é linha Total
-            primeira_col = str(row.iloc[0]).strip()
-            if primeira_col.lower() not in ['total', 'export']:
-                linhas_validas.append(idx)
-    
-    if not linhas_validas:
-        st.warning("⚠️ Nenhuma linha de dados válida encontrada. Verifique o formato da planilha.")
-        return pd.DataFrame()
-    
-    df = df.iloc[linhas_validas].reset_index(drop=True)
-    
-    # Mapear colunas
-    colunas_mapeadas = {}
-    
-    for col in df.columns:
-        col_upper = str(col).upper().strip()
-        
-        if 'NR RA' in col_upper or 'RA' == col_upper:
-            colunas_mapeadas[col] = 'NR RA'
-        elif 'NOME' == col_upper:
-            colunas_mapeadas[col] = 'Nome'
-        elif 'PARTICIPA' in col_upper:
-            colunas_mapeadas[col] = 'Participação'
-        elif 'ACERTOS' in col_upper or '% DE ACERTOS' in col_upper:
-            colunas_mapeadas[col] = 'Acertos'
-        elif col_upper in ['MAT', 'PORT', 'ING', 'HIST', 'GEO', 'CIE', 'FILO', 'SOC', 'BIO', 'FÍS', 'FIS', 'QUI', 'FIN', 'TEC']:
-            colunas_mapeadas[col] = col_upper
-    
-    df = df.rename(columns=colunas_mapeadas)
-    
-    # Verificar colunas obrigatórias
-    cols_obrigatorias = ['NR RA', 'Nome']
-    for col in cols_obrigatorias:
-        if col not in df.columns:
-            st.error(f"❌ Coluna obrigatória '{col}' não encontrada na planilha.")
-            return pd.DataFrame()
-    
-    # Converter percentuais
-    def converter_percentual(valor):
-        if pd.isna(valor):
-            return None
-        valor_str = str(valor).strip().replace('%', '').replace(',', '.')
-        try:
-            return float(valor_str) / 100.0 if float(valor_str) > 1 else float(valor_str)
-        except:
-            return None
-    
-    # Aplicar conversões
-    for col in ['Participação', 'Acertos']:
-        if col in df.columns:
-            df[col] = df[col].apply(converter_percentual)
-    
-    # Componentes curriculares
-    componentes = ['MAT', 'PORT', 'ING', 'HIST', 'GEO', 'CIE', 'FILO', 'SOC', 'BIO', 'FÍS', 'FIS', 'QUI', 'FIN', 'TEC']
-    for comp in componentes:
-        if comp in df.columns:
-            df[comp] = df[comp].apply(converter_percentual)
-    
-    # Calcular percentual geral se não existir
-    if 'Acertos' not in df.columns and 'MAT' in df.columns:
-        # Calcular média dos componentes disponíveis
-        comps_disponiveis = [c for c in componentes if c in df.columns]
-        if comps_disponiveis:
-            df['Acertos'] = df[comps_disponiveis].mean(axis=1)
-    
-    # Selecionar colunas finais
-    cols_finais = ['NR RA', 'Nome', 'Participação', 'Acertos'] + componentes
-    cols_finais = [c for c in cols_finais if c in df.columns]
-    
-    df = df[cols_finais].copy()
-    
-    # Limpar dados
-    df['NR RA'] = df['NR RA'].astype(str).str.strip()
-    df['Nome'] = df['Nome'].astype(str).str.strip()
-    
-    # Remover linhas sem RA ou Nome
-    df = df[(df['NR RA'] != '') & (df['NR RA'] != 'nan') & (df['Nome'] != '')]
-    
-    return df
+        col1.metric("Registros", len(df_pp))
+
+        col2.metric(
+            "Estudantes",
+            df_pp["Estudante"]
+            .astype(str)
+            .str.strip()
+            .replace("", pd.NA)
+            .dropna()
+            .nunique()
+        )
+
+        col3.metric(
+            "Turmas",
+            df_pp["Turma"]
+            .astype(str)
+            .str.strip()
+            .replace("", pd.NA)
+            .dropna()
+            .nunique()
+        )
+
+        st.dataframe(df_pp.head(50), use_container_width=True, hide_index=True)
 
 
 # ======================================================
