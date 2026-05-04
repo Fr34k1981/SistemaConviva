@@ -7548,7 +7548,24 @@ def render_pagina_conselho():
     st.markdown('<div class="conselho-parametros">', unsafe_allow_html=True)
     col_a, col_b, col_c, col_d = st.columns([1.2, 1, 1, 1])
     with col_a:
-        turma = st.text_input("Turma", value=st.session_state.get("conselho_turma", "7º Ano C"), key="conselho_turma")
+        opcoes_conselho_turma = _opcoes_turmas_sistema()
+
+        turma_atual = str(st.session_state.get("conselho_turma", "7º Ano C") or "").strip()
+        turma_atual = formatar_turma_eletiva(turma_atual) if turma_atual else "7º Ano C"
+
+        if turma_atual and turma_atual not in opcoes_conselho_turma:
+            opcoes_conselho_turma = [turma_atual] + opcoes_conselho_turma
+
+        lista_conselho_turma = [""] + opcoes_conselho_turma
+        indice_turma = lista_conselho_turma.index(turma_atual) if turma_atual in lista_conselho_turma else 0
+
+        turma = st.selectbox(
+            "Turma",
+            lista_conselho_turma,
+            index=indice_turma,
+            key="conselho_turma",
+            help="Selecione uma turma cadastrada ou padrão do sistema."
+        )
     with col_b:
         bimestre = st.selectbox("Bimestre", ["1º Bimestre", "2º Bimestre", "3º Bimestre", "4º Bimestre"], key="conselho_bimestre")
     with col_c:
