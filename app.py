@@ -155,7 +155,7 @@ GEMINI_MODEL = _obter_config_secreta("GEMINI_MODEL", "gemini-2.5-flash")
 # CONFIGURAÇÃO STREAMLIT
 # ======================================================
 st.set_page_config(
-    page_title="Sistema Conviva 179 - ELIANE APARECIDA DANTAS DA SILVA PROFESSORA - PEI",
+    page_title="Sistema Conviva 179 - ELIANE AP. DANTAS DA SILVA PROFESSORA - PEI",
     layout="wide",
     page_icon="🏫",
     initial_sidebar_state="expanded"
@@ -9698,21 +9698,43 @@ def _normalizar_dataframe_prova_paulista(
         base = base.rename(columns=mapa)
     base = base.loc[:, ~base.columns.duplicated()].copy()
 
-    if "componentes" in base.columns and not any(comp in base.columns for comp in PROVA_COMPONENTES_COLUNAS):
+    # IMPORTANTE:
+    # Quando os dados voltam do Supabase, o pandas pode criar colunas como
+    # string[pyarrow]. Esse tipo não aceita receber número diretamente com
+    # base.at[idx, col]. Por isso, antes de abrir o JSON de componentes,
+    # forçamos as colunas de componentes para object.
+    if "componentes" in base.columns:
         for comp in PROVA_COMPONENTES_COLUNAS:
-            base[comp] = ""
+            if comp not in base.columns:
+                base[comp] = None
+            base[comp] = base[comp].astype("object")
+
         for idx, valor in base["componentes"].items():
             try:
-                dados = valor if isinstance(valor, dict) else json.loads(str(valor or "{}"))
+                if isinstance(valor, dict):
+                    dados = valor
+                elif pd.isna(valor) or str(valor).strip() in {"", "None", "nan", "NaN"}:
+                    dados = {}
+                else:
+                    dados = json.loads(str(valor))
             except Exception:
                 dados = {}
+
+            if not isinstance(dados, dict):
+                continue
+
             for comp in PROVA_COMPONENTES_COLUNAS:
-                if comp in dados:
-                    base.at[idx, comp] = dados.get(comp)
+                if comp in dados and dados.get(comp) not in [None, ""]:
+                    base.loc[idx, comp] = dados.get(comp)
 
     for c in COLUNAS_PROVA_PAULISTA_PADRAO:
         if c not in base.columns:
             base[c] = ""
+
+    # Evita conflitos de dtype em dados misturados de planilha + Supabase.
+    for c in set(COLUNAS_PROVA_PAULISTA_PADRAO + PROVA_COMPONENTES_COLUNAS):
+        if c in base.columns:
+            base[c] = base[c].astype("object")
 
     # A turma escolhida na tela manda nos dados enviados.
     # Isso resolve o caso em que a planilha traz apenas filtros administrativos da escola.
