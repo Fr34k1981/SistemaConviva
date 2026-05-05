@@ -5640,6 +5640,43 @@ def sincronizar_tutoria_responsaveis_supabase(tutoria_dict: dict) -> tuple[bool,
     except Exception as e:
         return False, mensagem_erro_tutoria_supabase(e)
 
+
+
+def sincronizar_tutoria_listas_supabase(tutoria_dict: dict) -> tuple[bool, str]:
+    """Salva em lote todas as listas de tutoria no Supabase.
+
+    Remove primeiro os vínculos de cada responsável presente no dicionário e grava
+    novamente a lista atual. Isso evita duplicidades e reduz travamentos causados
+    por salvar estudante por estudante.
+    """
+    if not SUPABASE_VALID:
+        return False, "Supabase não configurado."
+
+    base = normalizar_base_tutoria(tutoria_dict)
+    registros = converter_tutoria_para_registros(base, origem="app_lote")
+
+    try:
+        for tutor in sorted(base.keys()):
+            tutor_q = requests.utils.quote(str(tutor or ""), safe="")
+            if tutor_q:
+                _supabase_mutation("DELETE", f"tutoria?professora=eq.{tutor_q}", None, "limpar lista anterior da tutoria")
+
+        if registros:
+            tamanho_lote = 500
+            for inicio in range(0, len(registros), tamanho_lote):
+                _supabase_request("POST", "tutoria", json=registros[inicio:inicio + tamanho_lote])
+
+        ok_resp, msg_resp = sincronizar_tutoria_responsaveis_supabase(base)
+        try:
+            _supabase_get_dataframe.clear()
+        except Exception:
+            pass
+        complemento = f" Responsáveis: {msg_resp}" if msg_resp else ""
+        return True, f"{len(registros)} vínculo(s) de tutoria salvos em lote no Supabase." + complemento
+    except Exception as e:
+        return False, mensagem_erro_tutoria_supabase(e)
+
+
 def converter_tutoria_supabase_para_dict(df_tutoria: pd.DataFrame) -> dict:
     if df_tutoria.empty:
         return {}
@@ -9712,9 +9749,16 @@ def _normalizar_dataframe_prova_paulista(
         )
     ].copy()
 
+    # Blindagem contra planilhas/consultas antigas sem todas as colunas esperadas.
+    for col_padrao in COLUNAS_PROVA_PAULISTA_PADRAO:
+        if col_padrao not in base.columns:
+            base[col_padrao] = ""
+
     base["Participação"] = base["Participação"].apply(_normalizar_percentual)
     base["Acertos"] = base["Acertos"].apply(_normalizar_percentual)
     for comp in PROVA_COMPONENTES_COLUNAS:
+        if comp not in base.columns:
+            base[comp] = ""
         base[comp] = base[comp].apply(_normalizar_percentual)
 
     return base[COLUNAS_PROVA_PAULISTA_PADRAO].reset_index(drop=True)
@@ -14901,6 +14945,14 @@ elif menu == "🫂 Tutoria":
                 else:
                     st.caption("Supabase indisponível nesta instalação.")
 
+            st.markdown("---")
+            if st.button("☁️ Salvar TODAS as listas da Tutoria no Supabase", key="tutoria_sync_lote_supabase", type="primary", use_container_width=True):
+                ok_lote, msg_lote = sincronizar_tutoria_listas_supabase(TUTORIA)
+                if ok_lote:
+                    st.success(msg_lote)
+                else:
+                    st.warning(msg_lote)
+
     st.markdown("---")
     st.subheader("👩‍🏫 Cadastro de Responsáveis e Espaços")
     tab_novo_tutor, tab_editar_tutor = st.tabs(["➕ Novo cadastro", "⚙️ Editar cadastro"])
@@ -15269,14 +15321,11 @@ elif menu == "🫂 Tutoria":
         registro = TUTORIA.setdefault(tutor_destino, estrutura_tutoria_vazia(nome=tutor_destino))
         existentes = registro.get("alunos", [])
 
-        # Recarrega a base de alunos antes de validar para evitar cache antigo ou base vazia.
+        # Usa primeiro a base já carregada na sessão. Recarregar o Supabase em toda ação
+        # deixava a página de Tutoria lenta em buscas, exclusões e salvamentos.
         df_alunos_validacao = df_alunos
         try:
-            if SUPABASE_VALID:
-                try:
-                    carregar_alunos.clear()
-                except Exception:
-                    pass
+            if (not isinstance(df_alunos_validacao, pd.DataFrame) or df_alunos_validacao.empty) and SUPABASE_VALID:
                 df_alunos_validacao = carregar_alunos()
         except Exception as e:
             logger.warning(f"Nao foi possivel recarregar alunos para validacao da tutoria: {e}")
@@ -15724,11 +15773,14 @@ elif menu == "🫂 Tutoria":
         with col_remover:
             itens_remover = st.multiselect("Selecionar estudantes para remover da lista temporária", remover_opcoes, key="tutoria_temp_remover")
             if st.button("➖ Remover selecionados", key="tutoria_btn_temp_remover", use_container_width=True):
-                indices = sorted([remover_mapa[item] for item in itens_remover], reverse=True)
-                for idx in indices:
-                    if 0 <= idx < len(st.session_state[chave_lista_temp]):
-                        st.session_state[chave_lista_temp].pop(idx)
-                st.rerun()
+                if not itens_remover:
+                    st.info("Selecione pelo menos um estudante para remover.")
+                else:
+                    indices = sorted([remover_mapa[item] for item in itens_remover], reverse=True)
+                    for idx in indices:
+                        if 0 <= idx < len(st.session_state[chave_lista_temp]):
+                            st.session_state[chave_lista_temp].pop(idx)
+                    st.rerun()
         with col_limpar:
             st.write("")
             st.write("")
@@ -15757,6 +15809,12 @@ elif menu == "🫂 Tutoria":
                     st.info("Nenhum estudante novo foi salvo. Eles podem já estar na lista do responsável.")
             except Exception as e:
                 st.error(f"Erro ao salvar lista na tutoria: {e}")
+
+    with st.expander("☁️ Salvamento em lote das listas", expanded=False):
+        st.caption("Use este botão para reenviar todas as listas atuais da Tutoria ao Supabase, evitando salvar responsável por responsável.")
+        if st.button("☁️ Salvar todas as listas no Supabase agora", key="tutoria_salvar_lote_area_principal", type="primary", use_container_width=True):
+            ok_lote, msg_lote = sincronizar_tutoria_listas_supabase(TUTORIA)
+            st.success(msg_lote) if ok_lote else st.warning(msg_lote)
 
     df_tutoria = montar_dataframe_tutoria(tutor_sel, df_alunos, TUTORIA)
     total = len(df_tutoria)
@@ -15796,6 +15854,35 @@ elif menu == "🫂 Tutoria":
 
     st.markdown("---")
     st.subheader("🖨️ Imprimir Lista da Tutoria")
+
+    with st.expander("📦 Exportar impressões em lote", expanded=False):
+        st.caption("Gera um arquivo ZIP com PDFs separados. Use para imprimir todos os responsáveis ou todas as turmas de uma vez.")
+        col_lote_pdf1, col_lote_pdf2 = st.columns(2)
+        with col_lote_pdf1:
+            if st.button("📦 Gerar ZIP por Professor(a)", key="tutoria_zip_professores", use_container_width=True):
+                st.session_state["tutoria_zip_professores_bytes"] = gerar_zip_tutoria_por_professores(TUTORIA, df_alunos).getvalue()
+            if st.session_state.get("tutoria_zip_professores_bytes"):
+                st.download_button(
+                    "⬇️ Baixar ZIP por Professor(a)",
+                    data=st.session_state["tutoria_zip_professores_bytes"],
+                    file_name=f"Tutoria_Professores_Lote_{datetime.now().strftime('%Y%m%d_%H%M')}.zip",
+                    mime="application/zip",
+                    key="download_zip_tutoria_professores",
+                    use_container_width=True,
+                )
+        with col_lote_pdf2:
+            if st.button("📦 Gerar ZIP por Turma", key="tutoria_zip_turmas", use_container_width=True):
+                st.session_state["tutoria_zip_turmas_bytes"] = gerar_zip_tutoria_por_turmas(TUTORIA, df_alunos).getvalue()
+            if st.session_state.get("tutoria_zip_turmas_bytes"):
+                st.download_button(
+                    "⬇️ Baixar ZIP por Turma",
+                    data=st.session_state["tutoria_zip_turmas_bytes"],
+                    file_name=f"Tutoria_Turmas_Lote_{datetime.now().strftime('%Y%m%d_%H%M')}.zip",
+                    mime="application/zip",
+                    key="download_zip_tutoria_turmas",
+                    use_container_width=True,
+                )
+
     modo_impressao = st.radio("Tipo de impressão", ["Por Professor(a)", "Por Turma"], horizontal=True, key="tutoria_modo_impressao")
 
     if modo_impressao == "Por Professor(a)":
