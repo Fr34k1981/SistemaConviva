@@ -155,7 +155,7 @@ GEMINI_MODEL = _obter_config_secreta("GEMINI_MODEL", "gemini-2.5-flash")
 # CONFIGURAÇÃO STREAMLIT
 # ======================================================
 st.set_page_config(
-    page_title="Sistema Conviva 179 - ELIANE AP. DANTAS DA SILVA PROFESSORA - PEI",
+    page_title="Sistema Conviva 179 - ELIANE APARECIDA DANTAS DA SILVA PROFESSORA - PEI",
     layout="wide",
     page_icon="🏫",
     initial_sidebar_state="expanded"
@@ -2702,6 +2702,18 @@ def normalizar_base_tutoria(tutoria_raw: dict | None) -> dict:
             registro["alunos"] = normalizar_alunos_tutoria(dados)
         base[nome_tutor] = registro
     return base
+
+def total_estudantes_tutoria(tutoria_dict: dict | None) -> int:
+    """Conta vínculos de estudantes na Tutoria sem depender da tela.
+    Usado como proteção para não sobrescrever uma base com estudantes
+    por uma base apenas de responsáveis/metadados.
+    """
+    try:
+        base = normalizar_base_tutoria(tutoria_dict or {})
+        return int(sum(len(dados.get("alunos", []) or []) for dados in base.values()))
+    except Exception:
+        return 0
+
 
 def obter_registro_tutoria(tutoria_dict: dict, tutor: str) -> dict:
     nome_tutor = str(tutor or "").strip()
@@ -5655,6 +5667,15 @@ def sincronizar_tutoria_listas_supabase(tutoria_dict: dict) -> tuple[bool, str]:
     base = normalizar_base_tutoria(tutoria_dict)
     registros = converter_tutoria_para_registros(base, origem="app_lote")
 
+    # Segurança: não apaga a tabela online quando a tela carregou apenas
+    # responsáveis/metadados e nenhum estudante. Isso evita sumir com os
+    # tutorados por causa de uma sessão vazia ou cache incompleto.
+    if not registros:
+        fonte_segura = mesclar_multiplas_fontes_tutoria(TUTORIA_LOCAL if "TUTORIA_LOCAL" in globals() else {}, TUTORIA_EXCEL if "TUTORIA_EXCEL" in globals() else {})
+        if total_estudantes_tutoria(fonte_segura) > 0:
+            return False, "Salvamento bloqueado: a tela está sem estudantes, mas existe uma base local/planilha com tutorados. Use 'Restaurar da Planilha/Arquivo' antes de salvar em lote."
+        return False, "Não há estudantes vinculados para salvar em lote. Nenhum dado foi apagado do Supabase."
+
     try:
         for tutor in sorted(base.keys()):
             tutor_q = requests.utils.quote(str(tutor or ""), safe="")
@@ -6766,12 +6787,22 @@ TUTORIA_LOCAL = carregar_tutoria_local()
 TUTORIA_PROFESSORES_META = converter_metadados_professores_para_tutoria(df_professores)
 TUTORIA_REFERENCIA_META = mesclar_multiplas_fontes_tutoria(TUTORIA_LOCAL, TUTORIA_EXCEL, TUTORIA_PROFESSORES_META)
 
+TUTORIA_REFERENCIA_COM_ALUNOS = mesclar_multiplas_fontes_tutoria(TUTORIA_LOCAL, TUTORIA_EXCEL)
+
 if st.session_state.TUTORIA is None:
     if SUPABASE_VALID and not df_tutoria_supabase.empty:
         base_supabase = converter_tutoria_supabase_para_dict(df_tutoria_supabase)
-        st.session_state.TUTORIA = mesclar_tutoria_com_metadados(base_supabase, TUTORIA_REFERENCIA_META)
-        st.session_state.FONTE_TUTORIA = "supabase"
-    elif TUTORIA_LOCAL:
+        # Se o Supabase trouxer apenas responsáveis/metadados sem vínculos,
+        # não usamos isso para esconder os tutorados que ainda existem no
+        # arquivo local/planilha.
+        if total_estudantes_tutoria(base_supabase) == 0 and total_estudantes_tutoria(TUTORIA_REFERENCIA_COM_ALUNOS) > 0:
+            st.session_state.TUTORIA = mesclar_tutoria_com_metadados(TUTORIA_REFERENCIA_COM_ALUNOS, TUTORIA_REFERENCIA_META)
+            st.session_state.FONTE_TUTORIA = "local/excel"
+            st.session_state["tutoria_responsaveis_sync_warning"] = "O Supabase retornou responsáveis sem estudantes; a Tutoria foi restaurada da base local/planilha para não ocultar tutorados."
+        else:
+            st.session_state.TUTORIA = mesclar_tutoria_com_metadados(base_supabase, TUTORIA_REFERENCIA_META)
+            st.session_state.FONTE_TUTORIA = "supabase"
+    elif total_estudantes_tutoria(TUTORIA_LOCAL) > 0:
         st.session_state.TUTORIA = mesclar_tutoria_com_metadados(TUTORIA_LOCAL, TUTORIA_REFERENCIA_META)
         st.session_state.FONTE_TUTORIA = "local"
     else:
@@ -6780,19 +6811,28 @@ if st.session_state.TUTORIA is None:
         st.session_state.FONTE_TUTORIA = "excel" if TUTORIA_EXCEL else "indisponivel"
 else:
     st.session_state.TUTORIA = normalizar_base_tutoria(st.session_state.TUTORIA)
-    st.session_state.TUTORIA = mesclar_tutoria_com_metadados(st.session_state.TUTORIA, TUTORIA_REFERENCIA_META)
-    if SUPABASE_VALID and not df_tutoria_supabase.empty:
-        st.session_state.FONTE_TUTORIA = "supabase"
-    elif TUTORIA_LOCAL:
-        st.session_state.FONTE_TUTORIA = "local"
-    elif TUTORIA_EXCEL:
-        st.session_state.FONTE_TUTORIA = "excel"
+    # Se a sessão ficou só com responsáveis, mas ainda existe uma fonte com
+    # estudantes, recupera a lista em vez de gravar vazio por cima.
+    if total_estudantes_tutoria(st.session_state.TUTORIA) == 0 and total_estudantes_tutoria(TUTORIA_REFERENCIA_COM_ALUNOS) > 0:
+        st.session_state.TUTORIA = mesclar_tutoria_com_metadados(TUTORIA_REFERENCIA_COM_ALUNOS, TUTORIA_REFERENCIA_META)
+        st.session_state.FONTE_TUTORIA = "local/excel"
+        st.session_state["tutoria_responsaveis_sync_warning"] = "A sessão da Tutoria estava sem estudantes; os vínculos foram restaurados da base local/planilha."
     else:
-        st.session_state.FONTE_TUTORIA = "indisponivel"
+        st.session_state.TUTORIA = mesclar_tutoria_com_metadados(st.session_state.TUTORIA, TUTORIA_REFERENCIA_META)
+        if SUPABASE_VALID and not df_tutoria_supabase.empty:
+            st.session_state.FONTE_TUTORIA = "supabase"
+        elif TUTORIA_LOCAL:
+            st.session_state.FONTE_TUTORIA = "local"
+        elif TUTORIA_EXCEL:
+            st.session_state.FONTE_TUTORIA = "excel"
+        else:
+            st.session_state.FONTE_TUTORIA = "indisponivel"
 
 st.session_state.TUTORIA = aplicar_config_tutoria_oficial(st.session_state.TUTORIA)
 try:
-    salvar_tutoria_local(st.session_state.TUTORIA)
+    # Não grava uma base vazia por cima de uma base local/planilha que ainda tem estudantes.
+    if total_estudantes_tutoria(st.session_state.TUTORIA) > 0 or total_estudantes_tutoria(TUTORIA_REFERENCIA_COM_ALUNOS) == 0:
+        salvar_tutoria_local(st.session_state.TUTORIA)
 except Exception:
     pass
 TUTORIA = normalizar_base_tutoria(st.session_state.TUTORIA)
@@ -14773,12 +14813,26 @@ elif menu == "🫂 Tutoria":
     if st.session_state.get("tutoria_responsaveis_sync_warning"):
         st.warning(st.session_state.get("tutoria_responsaveis_sync_warning"))
 
+    if total_estudantes_tutoria(TUTORIA) == 0 and total_estudantes_tutoria(TUTORIA_REFERENCIA_COM_ALUNOS if "TUTORIA_REFERENCIA_COM_ALUNOS" in globals() else {}) > 0:
+        st.error("Os responsáveis foram carregados, mas os estudantes não apareceram nesta sessão. Use o botão abaixo para restaurar os vínculos da base local/planilha.")
+        if st.button("🔄 Restaurar estudantes da Tutoria agora", key="restaurar_estudantes_tutoria_topo", type="primary"):
+            st.session_state.TUTORIA = mesclar_tutoria_com_metadados(TUTORIA_REFERENCIA_COM_ALUNOS, TUTORIA_REFERENCIA_META)
+            salvar_tutoria_local(st.session_state.TUTORIA)
+            st.session_state.FONTE_TUTORIA = "local/excel"
+            st.rerun()
+
     with st.expander("📘 Caderno de Tutoria Online 2026", expanded=False):
         render_caderno_tutoria_online(TUTORIA, st.session_state.get("df_alunos", pd.DataFrame()))
 
 
     def _salvar_estado_tutoria(fonte: str = "local"):
         st.session_state.TUTORIA = normalizar_base_tutoria(TUTORIA)
+        if total_estudantes_tutoria(st.session_state.TUTORIA) == 0:
+            fonte_segura = mesclar_multiplas_fontes_tutoria(TUTORIA_LOCAL if "TUTORIA_LOCAL" in globals() else {}, TUTORIA_EXCEL if "TUTORIA_EXCEL" in globals() else {})
+            if total_estudantes_tutoria(fonte_segura) > 0:
+                st.session_state["tutoria_responsaveis_sync_warning"] = "Proteção ativada: a tela estava sem estudantes e não foi gravada por cima da base com tutorados."
+                st.session_state.FONTE_TUTORIA = fonte
+                return
         salvar_tutoria_local(st.session_state.TUTORIA)
         st.session_state.FONTE_TUTORIA = fonte
         if SUPABASE_VALID:
@@ -14958,9 +15012,12 @@ elif menu == "🫂 Tutoria":
                         try:
                             df_refresh = _supabase_get_dataframe("tutoria?select=*", "recarregar tutoria")
                             base_supabase = converter_tutoria_supabase_para_dict(df_refresh) if not df_refresh.empty else {}
-                            st.session_state.TUTORIA = mesclar_tutoria_com_metadados(base_supabase, TUTORIA)
-                            _salvar_estado_tutoria("local")
-                            st.success("✅ Estudantes importados do Supabase e metadados locais preservados.")
+                            if total_estudantes_tutoria(base_supabase) == 0 and total_estudantes_tutoria(TUTORIA) > 0:
+                                st.warning("O Supabase retornou zero estudantes; mantive a lista atual para evitar perda de vínculos.")
+                            else:
+                                st.session_state.TUTORIA = mesclar_tutoria_com_metadados(base_supabase, TUTORIA)
+                                _salvar_estado_tutoria("local")
+                                st.success("✅ Estudantes importados do Supabase e metadados locais preservados.")
                             st.rerun()
                         except Exception as e:
                             st.warning(mensagem_erro_tutoria_supabase(e))
