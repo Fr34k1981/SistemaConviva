@@ -4664,7 +4664,7 @@ def exibir_assistente_sidebar():
 # ======================================================
 
 def _supabase_request(method: str, path: str, **kwargs):
-    """Função central de request para o Supabase"""
+    """Função central de request para o Supabase."""
     if not SUPABASE_VALID:
         raise ErroConexaoDB("Supabase não configurado. Verifique SUPABASE_URL e SUPABASE_KEY.")
     url = f"{SUPABASE_URL}/rest/v1/{path}"
@@ -4677,19 +4677,114 @@ def _supabase_request(method: str, path: str, **kwargs):
         response.raise_for_status()
     return response
 
-@st.cache_data(ttl=600, show_spinner=False)
-def _supabase_get_dataframe(path: str, acao: str) -> pd.DataFrame:
-    """Retorna DataFrame a partir de endpoint Supabase. Cache reduz lentidão nas transições de página."""
+# ======================================================
+# CACHE HÍBRIDO PARA REDUZIR EGRESS DO SUPABASE
+# ======================================================
+# Problema identificado: o limite crítico do Free não é o banco cheio, mas Egress.
+# Portanto, a prioridade é evitar GET repetido de tabela inteira a cada rerun/clique.
+# Este cache usa duas camadas:
+# 1) st.cache_data: rápido, em memória do processo do Streamlit.
+# 2) arquivo local compactado: fica no servidor do app (/tmp no Cloud), não no PC do usuário
+#    e não no Supabase. É temporário, mas reduz novas leituras enquanto a instância está ativa.
+import hashlib
+import gzip
+import time
+
+CACHE_LOCAL_ATIVO = os.getenv("CONVIVA_CACHE_LOCAL", "1") != "0"
+CACHE_LOCAL_TTL_SEGUNDOS = int(os.getenv("CONVIVA_CACHE_LOCAL_TTL", "1800"))  # 30 minutos
+CACHE_LOCAL_DIR = Path(os.getenv("CONVIVA_CACHE_DIR", "/tmp/conviva_supabase_cache"))
+try:
+    CACHE_LOCAL_DIR.mkdir(parents=True, exist_ok=True)
+except Exception:
+    CACHE_LOCAL_ATIVO = False
+
+def _cache_key_supabase(path: str) -> str:
+    return hashlib.sha256(str(path).encode("utf-8")).hexdigest()
+
+def _cache_path_supabase(path: str) -> Path:
+    return CACHE_LOCAL_DIR / f"{_cache_key_supabase(path)}.json.gz"
+
+def _ler_cache_local_supabase(path: str, permitir_expirado: bool = False):
+    if not CACHE_LOCAL_ATIVO:
+        return None
     try:
+        arq = _cache_path_supabase(path)
+        if not arq.exists():
+            return None
+        idade = time.time() - arq.stat().st_mtime
+        if idade > CACHE_LOCAL_TTL_SEGUNDOS and not permitir_expirado:
+            return None
+        with gzip.open(arq, "rt", encoding="utf-8") as f:
+            payload = json.load(f)
+        if not isinstance(payload, list):
+            return None
+        return payload
+    except Exception as e:
+        logger.warning(f"Falha ao ler cache local Supabase: {e}")
+        return None
+
+def _gravar_cache_local_supabase(path: str, payload):
+    if not CACHE_LOCAL_ATIVO:
+        return
+    try:
+        if not isinstance(payload, list):
+            return
+        arq = _cache_path_supabase(path)
+        tmp = arq.with_suffix(".tmp")
+        with gzip.open(tmp, "wt", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False)
+        os.replace(tmp, arq)
+    except Exception as e:
+        logger.warning(f"Falha ao gravar cache local Supabase: {e}")
+
+def _limpar_cache_local_supabase():
+    try:
+        if CACHE_LOCAL_DIR.exists():
+            for arq in CACHE_LOCAL_DIR.glob("*.json.gz"):
+                try:
+                    arq.unlink()
+                except Exception:
+                    pass
+    except Exception as e:
+        logger.warning(f"Falha ao limpar cache local Supabase: {e}")
+
+def _limpar_cache_supabase_completo():
+    """Limpa cache de memória e cache local após qualquer gravação/exclusão."""
+    try:
+        _supabase_get_dataframe.clear()
+    except Exception:
+        pass
+    _limpar_cache_local_supabase()
+
+@st.cache_data(ttl=120, show_spinner=False)
+def _supabase_get_dataframe(path: str, acao: str) -> pd.DataFrame:
+    """Retorna DataFrame do Supabase com cache híbrido para reduzir egress.
+
+    Regras:
+    - Primeiro tenta arquivo local recente no servidor.
+    - Se não existir, consulta Supabase e salva cópia compactada.
+    - Se o Supabase falhar, usa cache local expirado como fallback somente leitura.
+    """
+    try:
+        payload_cache = _ler_cache_local_supabase(path)
+        if payload_cache is not None:
+            return pd.DataFrame(payload_cache)
+
         response = _supabase_request("GET", path)
-        return pd.DataFrame(response.json())
+        payload = response.json()
+        _gravar_cache_local_supabase(path, payload)
+        return pd.DataFrame(payload)
     except ErroConexaoDB:
         raise
     except Exception as e:
+        payload_stale = _ler_cache_local_supabase(path, permitir_expirado=True)
+        if payload_stale is not None:
+            logger.warning(f"Usando cache local expirado para {acao}: {e}")
+            return pd.DataFrame(payload_stale)
         raise ErroCarregamentoDados(acao, str(e))
 
 def _supabase_mutation(method: str, path: str, data, acao: str) -> bool:
-    """POST / PATCH / DELETE genérico"""
+    """POST / PATCH / DELETE genérico. Toda mutação invalida os caches de leitura."""
     try:
         kwargs = {}
         if data is not None:
@@ -4697,10 +4792,7 @@ def _supabase_mutation(method: str, path: str, data, acao: str) -> bool:
         response = _supabase_request(method, path, **kwargs)
         sucesso = response.status_code in (200, 201, 204)
         if sucesso:
-            try:
-                _supabase_get_dataframe.clear()
-            except Exception:
-                pass
+            _limpar_cache_supabase_completo()
         return sucesso
     except ErroConexaoDB:
         raise
@@ -4714,7 +4806,7 @@ def _supabase_mutation(method: str, path: str, data, acao: str) -> bool:
 @com_tratamento_erro
 @com_retry(tentativas=2)
 def carregar_alunos() -> pd.DataFrame:
-    return _supabase_get_dataframe("alunos?select=*", "carregar alunos")
+    return _supabase_get_dataframe("alunos?select=id,nome,ra,turma&order=turma.asc,nome.asc", "carregar alunos")
 
 @com_tratamento_erro
 def salvar_aluno(aluno: dict) -> bool:
@@ -4769,7 +4861,7 @@ def editar_nome_turma(turma_antiga: str, turma_nova: str) -> bool:
 @com_tratamento_erro
 @com_retry(tentativas=2)
 def carregar_professores() -> pd.DataFrame:
-    return _supabase_get_dataframe("professores?select=*", "carregar professores")
+    return _supabase_get_dataframe("professores?select=id,nome,email,cargo&order=nome.asc", "carregar professores")
 
 @com_tratamento_erro
 def salvar_professor(professor: dict) -> bool:
@@ -4847,7 +4939,7 @@ def excluir_responsavel(id_resp: int) -> bool:
 @com_tratamento_erro
 @com_retry(tentativas=2)
 def carregar_ocorrencias() -> pd.DataFrame:
-    return _supabase_get_dataframe("ocorrencias?select=*&order=id.desc", "carregar ocorrências")
+    return _supabase_get_dataframe("ocorrencias?select=id,data,turma,aluno,ra,categoria,gravidade,encaminhamento,descricao,professor,created_at&order=id.desc", "carregar ocorrências")
 
 @com_tratamento_erro
 def salvar_ocorrencia(ocorrencia: dict) -> bool:
@@ -5739,7 +5831,7 @@ def sincronizar_tutoria_listas_supabase(tutoria_dict: dict) -> tuple[bool, str]:
 
         ok_resp, msg_resp = sincronizar_tutoria_responsaveis_supabase(base)
         try:
-            _supabase_get_dataframe.clear()
+            _limpar_cache_supabase_completo()
         except Exception:
             pass
         complemento = f" Responsáveis: {msg_resp}" if msg_resp else ""
@@ -10041,7 +10133,7 @@ def _salvar_prova_paulista_supabase(df: pd.DataFrame) -> tuple[bool, str]:
             headers={"Prefer": "resolution=merge-duplicates,return=representation"},
         )
         try:
-            _supabase_get_dataframe.clear()
+            _limpar_cache_supabase_completo()
         except Exception:
             pass
         return True, f"{len(payload)} resultado(s) salvos no Supabase."
@@ -10498,7 +10590,7 @@ def _salvar_mapao_supabase(df: pd.DataFrame) -> tuple[bool, str]:
             headers={"Prefer": "resolution=merge-duplicates,return=representation"},
         )
         try:
-            _supabase_get_dataframe.clear()
+            _limpar_cache_supabase_completo()
         except Exception:
             pass
         return True, f"{len(payload)} registro(s) do Mapão salvos no Supabase."
