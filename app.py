@@ -19,6 +19,7 @@ import zipfile
 import pytz
 import unicodedata
 import glob
+import shutil
 from pathlib import Path
 import streamlit.components.v1 as components
 
@@ -2817,10 +2818,41 @@ def carregar_tutoria_local(fallback: dict | None = None) -> dict:
     return normalizar_base_tutoria(fallback or {})
 
 def salvar_tutoria_local(tutoria_dict: dict):
+    """Salva a Tutoria localmente com backup automático antes de sobrescrever.
+
+    Proteção importante: nunca grava uma versão vazia por cima de um arquivo
+    local que ainda tenha estudantes. Antes de qualquer substituição, cria uma
+    cópia em data/tutoria_backups/.
+    """
     try:
+        base_nova = normalizar_base_tutoria(tutoria_dict)
         os.makedirs(os.path.dirname(TUTORIA_CACHE_ARQUIVO), exist_ok=True)
+
+        base_antiga = {}
+        if os.path.exists(TUTORIA_CACHE_ARQUIVO):
+            try:
+                with open(TUTORIA_CACHE_ARQUIVO, "r", encoding="utf-8") as f:
+                    base_antiga = normalizar_base_tutoria(json.load(f))
+            except Exception:
+                base_antiga = {}
+
+        total_antigo = total_estudantes_tutoria(base_antiga)
+        total_novo = total_estudantes_tutoria(base_nova)
+        if total_antigo > 0 and total_novo == 0:
+            logger.warning("Protecao Tutoria: bloqueado salvar cache vazio por cima de cache com estudantes.")
+            return
+
+        if os.path.exists(TUTORIA_CACHE_ARQUIVO):
+            try:
+                backup_dir = DATA_DIR / "tutoria_backups"
+                backup_dir.mkdir(parents=True, exist_ok=True)
+                stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                shutil.copy2(TUTORIA_CACHE_ARQUIVO, backup_dir / f"tutoria_backup_{stamp}.json")
+            except Exception as e:
+                logger.warning(f"Nao foi possivel criar backup local da tutoria: {e}")
+
         with open(TUTORIA_CACHE_ARQUIVO, "w", encoding="utf-8") as f:
-            json.dump(normalizar_base_tutoria(tutoria_dict), f, ensure_ascii=False, indent=2)
+            json.dump(base_nova, f, ensure_ascii=False, indent=2)
     except Exception as e:
         logger.error(f"Erro ao salvar cache local da tutoria: {e}")
 
@@ -5654,38 +5686,56 @@ def sincronizar_tutoria_responsaveis_supabase(tutoria_dict: dict) -> tuple[bool,
 
 
 
-def sincronizar_tutoria_listas_supabase(tutoria_dict: dict) -> tuple[bool, str]:
-    """Salva em lote todas as listas de tutoria no Supabase.
+def _chave_registro_tutoria_supabase(reg: dict) -> tuple:
+    return (
+        normalizar_texto(reg.get("professora", "")),
+        normalizar_texto(reg.get("nome_aluno", "")),
+        turma_para_comparacao(reg.get("serie", "")),
+        "".join(ch for ch in str(reg.get("ra", "")) if ch.isdigit()),
+    )
 
-    Remove primeiro os vínculos de cada responsável presente no dicionário e grava
-    novamente a lista atual. Isso evita duplicidades e reduz travamentos causados
-    por salvar estudante por estudante.
+
+def sincronizar_tutoria_listas_supabase(tutoria_dict: dict) -> tuple[bool, str]:
+    """Salva em lote as listas de tutoria SEM apagar vínculos existentes.
+
+    Regra de segurança: esta rotina é aditiva/mesclada. Ela nunca executa
+    DELETE em lote. Se um estudante foi removido da tela, ele permanece no
+    Supabase até uma rotina de arquivamento seguro existir.
     """
     if not SUPABASE_VALID:
         return False, "Supabase não configurado."
 
     base = normalizar_base_tutoria(tutoria_dict)
-    registros = converter_tutoria_para_registros(base, origem="app_lote")
+    registros = converter_tutoria_para_registros(base, origem="app_lote_seguro")
 
-    # Segurança: não apaga a tabela online quando a tela carregou apenas
-    # responsáveis/metadados e nenhum estudante. Isso evita sumir com os
-    # tutorados por causa de uma sessão vazia ou cache incompleto.
     if not registros:
-        fonte_segura = mesclar_multiplas_fontes_tutoria(TUTORIA_LOCAL if "TUTORIA_LOCAL" in globals() else {}, TUTORIA_EXCEL if "TUTORIA_EXCEL" in globals() else {})
-        if total_estudantes_tutoria(fonte_segura) > 0:
-            return False, "Salvamento bloqueado: a tela está sem estudantes, mas existe uma base local/planilha com tutorados. Use 'Restaurar da Planilha/Arquivo' antes de salvar em lote."
-        return False, "Não há estudantes vinculados para salvar em lote. Nenhum dado foi apagado do Supabase."
+        return False, "Não há estudantes vinculados para salvar. Nada foi apagado do Supabase."
 
     try:
-        for tutor in sorted(base.keys()):
-            tutor_q = requests.utils.quote(str(tutor or ""), safe="")
-            if tutor_q:
-                _supabase_mutation("DELETE", f"tutoria?professora=eq.{tutor_q}", None, "limpar lista anterior da tutoria")
+        registros_online = []
+        try:
+            df_online = _supabase_get_dataframe("tutoria?select=professora,nome_aluno,serie,ra&limit=50000", "carregar vínculos de tutoria")
+            if isinstance(df_online, pd.DataFrame) and not df_online.empty:
+                registros_online = df_online.to_dict("records")
+        except Exception:
+            registros_online = []
 
-        if registros:
+        chaves_online = {_chave_registro_tutoria_supabase(r) for r in registros_online}
+        novos = []
+        vistos_lote = set()
+        for reg in registros:
+            chave = _chave_registro_tutoria_supabase(reg)
+            if not chave[0] or not chave[1]:
+                continue
+            if chave in chaves_online or chave in vistos_lote:
+                continue
+            novos.append(reg)
+            vistos_lote.add(chave)
+
+        if novos:
             tamanho_lote = 500
-            for inicio in range(0, len(registros), tamanho_lote):
-                _supabase_request("POST", "tutoria", json=registros[inicio:inicio + tamanho_lote])
+            for inicio in range(0, len(novos), tamanho_lote):
+                _supabase_request("POST", "tutoria", json=novos[inicio:inicio + tamanho_lote])
 
         ok_resp, msg_resp = sincronizar_tutoria_responsaveis_supabase(base)
         try:
@@ -5693,10 +5743,9 @@ def sincronizar_tutoria_listas_supabase(tutoria_dict: dict) -> tuple[bool, str]:
         except Exception:
             pass
         complemento = f" Responsáveis: {msg_resp}" if msg_resp else ""
-        return True, f"{len(registros)} vínculo(s) de tutoria salvos em lote no Supabase." + complemento
+        return True, f"{len(novos)} vínculo(s) novo(s) salvos; {len(registros) - len(novos)} já existiam e foram preservados. Nenhum vínculo foi apagado." + complemento
     except Exception as e:
         return False, mensagem_erro_tutoria_supabase(e)
-
 
 def converter_tutoria_supabase_para_dict(df_tutoria: pd.DataFrame) -> dict:
     if df_tutoria.empty:
@@ -6787,11 +6836,21 @@ TUTORIA_LOCAL = carregar_tutoria_local()
 TUTORIA_PROFESSORES_META = converter_metadados_professores_para_tutoria(df_professores)
 TUTORIA_REFERENCIA_META = mesclar_multiplas_fontes_tutoria(TUTORIA_LOCAL, TUTORIA_EXCEL, TUTORIA_PROFESSORES_META)
 
-TUTORIA_REFERENCIA_COM_ALUNOS = mesclar_multiplas_fontes_tutoria(TUTORIA_LOCAL, TUTORIA_EXCEL)
+TUTORIA_SUPABASE_BASE = {}
+if SUPABASE_VALID and isinstance(df_tutoria_supabase, pd.DataFrame) and not df_tutoria_supabase.empty:
+    try:
+        TUTORIA_SUPABASE_BASE = converter_tutoria_supabase_para_dict(df_tutoria_supabase)
+    except Exception as e:
+        logger.warning(f"Nao foi possivel converter tutoria do Supabase: {e}")
+        TUTORIA_SUPABASE_BASE = {}
+
+# Fonte segura para vínculos: une Supabase + cache local + planilha.
+# O Supabase passa a ser fonte principal, mas nunca descarta o que ainda existir em backup local.
+TUTORIA_REFERENCIA_COM_ALUNOS = mesclar_multiplas_fontes_tutoria(TUTORIA_SUPABASE_BASE, TUTORIA_LOCAL, TUTORIA_EXCEL)
 
 if st.session_state.TUTORIA is None:
     if SUPABASE_VALID and not df_tutoria_supabase.empty:
-        base_supabase = converter_tutoria_supabase_para_dict(df_tutoria_supabase)
+        base_supabase = TUTORIA_SUPABASE_BASE
         # Se o Supabase trouxer apenas responsáveis/metadados sem vínculos,
         # não usamos isso para esconder os tutorados que ainda existem no
         # arquivo local/planilha.
@@ -6813,10 +6872,13 @@ else:
     st.session_state.TUTORIA = normalizar_base_tutoria(st.session_state.TUTORIA)
     # Se a sessão ficou só com responsáveis, mas ainda existe uma fonte com
     # estudantes, recupera a lista em vez de gravar vazio por cima.
-    if total_estudantes_tutoria(st.session_state.TUTORIA) == 0 and total_estudantes_tutoria(TUTORIA_REFERENCIA_COM_ALUNOS) > 0:
-        st.session_state.TUTORIA = mesclar_tutoria_com_metadados(TUTORIA_REFERENCIA_COM_ALUNOS, TUTORIA_REFERENCIA_META)
-        st.session_state.FONTE_TUTORIA = "local/excel"
-        st.session_state["tutoria_responsaveis_sync_warning"] = "A sessão da Tutoria estava sem estudantes; os vínculos foram restaurados da base local/planilha."
+    total_sessao = total_estudantes_tutoria(st.session_state.TUTORIA)
+    total_seguro = total_estudantes_tutoria(TUTORIA_REFERENCIA_COM_ALUNOS)
+    if total_seguro > 0 and total_sessao < total_seguro:
+        st.session_state.TUTORIA = mesclar_multiplas_fontes_tutoria(st.session_state.TUTORIA, TUTORIA_REFERENCIA_COM_ALUNOS)
+        st.session_state.TUTORIA = mesclar_tutoria_com_metadados(st.session_state.TUTORIA, TUTORIA_REFERENCIA_META)
+        st.session_state.FONTE_TUTORIA = "supabase/local/excel"
+        st.session_state["tutoria_responsaveis_sync_warning"] = "Proteção ativa: a Tutoria foi mesclada com Supabase/cache/planilha para não perder tutorados."
     else:
         st.session_state.TUTORIA = mesclar_tutoria_com_metadados(st.session_state.TUTORIA, TUTORIA_REFERENCIA_META)
         if SUPABASE_VALID and not df_tutoria_supabase.empty:
@@ -9328,8 +9390,125 @@ def _ler_xlsx_sem_openpyxl(arquivo_ou_caminho) -> pd.DataFrame:
     return pd.DataFrame(dados, columns=header)
 
 
+
+def _extrair_texto_pdf_upload(arquivo_ou_caminho) -> str:
+    """Extrai texto de PDF para permitir importação inicial.
+
+    Funciona melhor quando o PDF veio de uma planilha/sistema digital. Se o PDF
+    for escaneado como imagem, será necessário gerar OCR antes de importar.
+    """
+    dados = None
+    try:
+        if hasattr(arquivo_ou_caminho, "seek"):
+            arquivo_ou_caminho.seek(0)
+            dados = arquivo_ou_caminho.read()
+            arquivo_ou_caminho.seek(0)
+        else:
+            with open(arquivo_ou_caminho, "rb") as f:
+                dados = f.read()
+    except Exception:
+        dados = None
+
+    if not dados:
+        return ""
+
+    # Tentativa 1: pypdf
+    try:
+        from pypdf import PdfReader
+        leitor = PdfReader(BytesIO(dados))
+        partes = []
+        for pagina in leitor.pages:
+            partes.append(pagina.extract_text() or "")
+        texto = "\n".join(partes).strip()
+        if texto:
+            return texto
+    except Exception:
+        pass
+
+    # Tentativa 2: PyPDF2
+    try:
+        from PyPDF2 import PdfReader
+        leitor = PdfReader(BytesIO(dados))
+        partes = []
+        for pagina in leitor.pages:
+            partes.append(pagina.extract_text() or "")
+        texto = "\n".join(partes).strip()
+        if texto:
+            return texto
+    except Exception:
+        pass
+
+    # Tentativa 3: pdfminer.six, quando disponível
+    try:
+        from pdfminer.high_level import extract_text
+        texto = extract_text(BytesIO(dados)) or ""
+        return texto.strip()
+    except Exception:
+        return ""
+
+
+def _pdf_texto_para_dataframe(texto: str) -> pd.DataFrame:
+    """Converte texto extraído de PDF em DataFrame tabular aproximado.
+
+    O objetivo é abrir a prévia e deixar o usuário confirmar antes de salvar.
+    A normalização específica de Prova Paulista/Mapão continua sendo aplicada
+    depois desta etapa.
+    """
+    linhas = [re.sub(r"\s+", " ", ln.strip()) for ln in str(texto or "").splitlines() if ln.strip()]
+    if not linhas:
+        return pd.DataFrame()
+
+    linhas_split = []
+    for ln in str(texto or "").splitlines():
+        bruto = ln.strip()
+        if not bruto:
+            continue
+        partes = [p.strip() for p in re.split(r"\s{2,}|\t+", bruto) if p.strip()]
+        if len(partes) < 2:
+            partes = [p.strip() for p in re.split(r";|,", bruto) if p.strip()]
+        if len(partes) < 2:
+            partes = [re.sub(r"\s+", " ", bruto)]
+        linhas_split.append(partes)
+
+    header_idx = None
+    for i, partes in enumerate(linhas_split[:80]):
+        combinado = normalizar_texto(" ".join(partes))
+        if any(tok in combinado for tok in ["NR RA", "RA", "ESTUDANTE", "NOME", "PARTICIP", "ACERT", "SITUACAO", "SITUAÇÃO"]):
+            if len(partes) >= 2:
+                header_idx = i
+                break
+
+    if header_idx is None:
+        return pd.DataFrame({"Texto PDF": linhas})
+
+    header = [str(c).strip() or f"Coluna {idx+1}" for idx, c in enumerate(linhas_split[header_idx])]
+    dados = []
+    largura = len(header)
+    for partes in linhas_split[header_idx + 1:]:
+        if not partes:
+            continue
+        # Ajusta linhas maiores/menores sem descartar conteúdo.
+        if len(partes) > largura:
+            partes = partes[:largura-1] + [" ".join(partes[largura-1:])]
+        elif len(partes) < largura:
+            partes = partes + [""] * (largura - len(partes))
+        dados.append(partes)
+
+    if not dados:
+        return pd.DataFrame(columns=header)
+    return pd.DataFrame(dados, columns=header)
+
+
+def _ler_pdf_upload_para_dataframe(arquivo_ou_caminho) -> pd.DataFrame:
+    texto = _extrair_texto_pdf_upload(arquivo_ou_caminho)
+    if not texto:
+        raise ValueError("Não foi possível extrair texto do PDF. Se o PDF for imagem/escaneado, converta com OCR ou envie Excel/CSV.")
+    return _pdf_texto_para_dataframe(texto)
+
 def _ler_planilha_upload_ou_caminho(arquivo_ou_caminho, nome: str = "") -> pd.DataFrame:
     nome_final = str(nome or getattr(arquivo_ou_caminho, "name", "") or arquivo_ou_caminho).lower()
+    if nome_final.endswith(".pdf"):
+        return _ler_pdf_upload_para_dataframe(arquivo_ou_caminho)
     if nome_final.endswith(".csv"):
         return pd.read_csv(arquivo_ou_caminho)
     try:
@@ -9548,7 +9727,7 @@ def _render_pagina_mapao():
     df_mapao = _carregar_mapao_local()
     aba_upload, aba_dados = st.tabs(["📥 Importar Mapão", "🧾 Dados arquivados"])
     with aba_upload:
-        arquivo = st.file_uploader("Enviar planilha do Mapão (.xlsx, .xls ou .csv)", type=["xlsx", "xls", "csv"], key="upload_mapao_online")
+        arquivo = st.file_uploader("Enviar planilha/PDF do Mapão (.xlsx, .xls, .csv ou .pdf)", type=["xlsx", "xls", "csv", "pdf"], key="upload_mapao_online")
         if arquivo is not None:
             try:
                 if arquivo.name.lower().endswith(".csv"):
@@ -10023,8 +10202,8 @@ def _render_pagina_prova_paulista():
             st.warning("Selecione ou digite a turma antes de salvar. Você até pode enviar a planilha para prévia, mas o salvamento será bloqueado sem turma.")
 
         arquivo = st.file_uploader(
-            "Enviar planilha da Prova Paulista (.xlsx, .xls ou .csv)",
-            type=["xlsx", "xls", "csv"],
+            "Enviar planilha/PDF da Prova Paulista (.xlsx, .xls, .csv ou .pdf)",
+            type=["xlsx", "xls", "csv", "pdf"],
             key="upload_prova_paulista_restaurada"
         )
 
@@ -10414,11 +10593,11 @@ def _render_pagina_mapao():
             st.markdown("**Ciclo/Turno**")
             st.caption(f"{meta['ciclo']} · {meta['turno']}" if turma_final else "Selecione uma turma")
 
-        arquivo = st.file_uploader("Enviar planilha do Mapão (.xlsx, .xls ou .csv)", type=["xlsx", "xls", "csv"], key="upload_mapao_online")
+        arquivo = st.file_uploader("Enviar planilha/PDF do Mapão (.xlsx, .xls, .csv ou .pdf)", type=["xlsx", "xls", "csv", "pdf"], key="upload_mapao_online")
         if arquivo is not None:
             try:
-                if arquivo.name.lower().endswith(".csv"):
-                    bruto = pd.read_csv(arquivo)
+                if arquivo.name.lower().endswith((".csv", ".pdf")):
+                    bruto = _ler_planilha_upload_ou_caminho(arquivo, arquivo.name)
                     preview = _normalizar_dataframe_mapao(bruto)
                     if turma_final:
                         meta_turma = classificar_turma_sistema(turma_final)
@@ -14827,12 +15006,20 @@ elif menu == "🫂 Tutoria":
 
     def _salvar_estado_tutoria(fonte: str = "local"):
         st.session_state.TUTORIA = normalizar_base_tutoria(TUTORIA)
-        if total_estudantes_tutoria(st.session_state.TUTORIA) == 0:
-            fonte_segura = mesclar_multiplas_fontes_tutoria(TUTORIA_LOCAL if "TUTORIA_LOCAL" in globals() else {}, TUTORIA_EXCEL if "TUTORIA_EXCEL" in globals() else {})
-            if total_estudantes_tutoria(fonte_segura) > 0:
-                st.session_state["tutoria_responsaveis_sync_warning"] = "Proteção ativada: a tela estava sem estudantes e não foi gravada por cima da base com tutorados."
-                st.session_state.FONTE_TUTORIA = fonte
-                return
+        fonte_segura = mesclar_multiplas_fontes_tutoria(
+            TUTORIA_SUPABASE_BASE if "TUTORIA_SUPABASE_BASE" in globals() else {},
+            TUTORIA_LOCAL if "TUTORIA_LOCAL" in globals() else {},
+            TUTORIA_EXCEL if "TUTORIA_EXCEL" in globals() else {},
+        )
+        total_atual = total_estudantes_tutoria(st.session_state.TUTORIA)
+        total_seguro = total_estudantes_tutoria(fonte_segura)
+        if total_seguro > 0 and total_atual == 0:
+            st.session_state.TUTORIA = mesclar_multiplas_fontes_tutoria(st.session_state.TUTORIA, fonte_segura)
+            st.session_state["tutoria_responsaveis_sync_warning"] = "Proteção ativada: a tela estava sem estudantes e foi mesclada com Supabase/cache/planilha antes de salvar."
+        elif total_seguro >= 10 and total_atual < int(total_seguro * 0.70):
+            st.session_state["tutoria_responsaveis_sync_warning"] = f"Proteção ativada: tentativa de salvar {total_atual} vínculos sobre uma base segura com {total_seguro}. Salvamento bloqueado para evitar perda em massa."
+            st.session_state.FONTE_TUTORIA = fonte
+            return
         salvar_tutoria_local(st.session_state.TUTORIA)
         st.session_state.FONTE_TUTORIA = fonte
         if SUPABASE_VALID:
@@ -15358,20 +15545,16 @@ elif menu == "🫂 Tutoria":
     # do responsavel selecionado.
 
     def _apagar_registro_supabase_tutoria(tutor_nome: str, nome_aluno: str = "", serie: str = "") -> bool:
-        """Remove um estudante da tabela tutoria no Supabase, quando a conexao estiver ativa."""
-        if not SUPABASE_VALID:
-            return False
-        tutor_q = requests.utils.quote(str(tutor_nome or ""), safe="")
-        filtro = f"tutoria?professora=eq.{tutor_q}"
-        nome_aluno = str(nome_aluno or "").strip()
-        serie = str(serie or "").strip()
-        if nome_aluno:
-            nome_q = requests.utils.quote(nome_aluno, safe="")
-            filtro += f"&nome_aluno=eq.{nome_q}"
-        if serie:
-            serie_q = requests.utils.quote(serie, safe="")
-            filtro += f"&serie=eq.{serie_q}"
-        return _supabase_mutation("DELETE", filtro, None, "excluir estudante da tutoria")
+        """Proteção: não faz DELETE direto no Supabase.
+
+        A remoção na tela continua local, mas o vínculo online fica preservado
+        até existir um fluxo de arquivamento com confirmação explícita.
+        """
+        st.session_state["tutoria_responsaveis_sync_warning"] = (
+            "Proteção ativa: a remoção não apagou o vínculo do Supabase. "
+            "Os dados online foram preservados para evitar perda definitiva."
+        )
+        return False
 
     st.markdown("---")
     st.subheader("📋 Estudantes da lista selecionada")
