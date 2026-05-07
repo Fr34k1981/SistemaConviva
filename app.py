@@ -9158,30 +9158,69 @@ def _extrair_primeiro_numero_texto(valor):
         return None
 
 
-def _pontos_por_media_global(media):
-    """Converte média global em pontuação: abaixo de 5 perde 10; acima de 5 ganha até 50."""
+def _pontuar_mapao_media(media, peso_disponivel: float = 40.0, qtd_notas_baixas: int = 0) -> dict:
+    """Pontua as notas gerais do Mapão, com teto de 40 pontos.
+
+    Regra gamificada atual:
+    - notas gerais valem até 40 pontos;
+    - média 0 a 10 vira 0 a 40 pontos;
+    - cada componente/nota abaixo de 5 reduz 10 pontos;
+    - se não houver dado, não pontua e não penaliza.
+    """
     if media is None:
-        return 0.0
+        return {"bruto": 0.0, "penalidade": 0.0, "liquido": 0.0, "tem_dado": False, "notas_baixas": 0}
     try:
         media = float(media)
     except Exception:
-        return 0.0
-    if media < 5:
-        return -10.0
-    return round(max(0.0, min(50.0, (media - 5.0) * 10.0)), 1)
+        return {"bruto": 0.0, "penalidade": 0.0, "liquido": 0.0, "tem_dado": False, "notas_baixas": 0}
+    media = max(0.0, min(10.0, media))
+    bruto = round((media / 10.0) * float(peso_disponivel), 1)
+    try:
+        qtd_notas_baixas = int(qtd_notas_baixas or 0)
+    except Exception:
+        qtd_notas_baixas = 0
+    penalidade = float(max(0, qtd_notas_baixas) * 10)
+    liquido = round(max(0.0, min(float(peso_disponivel), bruto - penalidade)), 1)
+    return {"bruto": bruto, "penalidade": penalidade, "liquido": liquido, "tem_dado": True, "notas_baixas": qtd_notas_baixas}
 
 
-def _pontos_por_percentual_prova(percentual):
-    """Acima de 50% ganha até 50 pontos; abaixo de 50% perde 10."""
+def _pontuar_prova_percentual(percentual, peso_disponivel: float = 40.0) -> dict:
+    """Pontua a Prova Paulista, com teto de 40 pontos.
+
+    Regra gamificada atual:
+    - Prova Paulista vale até 40 pontos;
+    - percentual 0 a 100 vira 0 a 40 pontos;
+    - abaixo de 50% reduz 10 pontos;
+    - se não houver dado, não pontua e não penaliza.
+    """
     if percentual is None:
-        return 0.0
+        return {"bruto": 0.0, "penalidade": 0.0, "liquido": 0.0, "tem_dado": False}
     try:
         percentual = float(percentual)
     except Exception:
-        return 0.0
-    if percentual < 50:
-        return -10.0
-    return round(max(0.0, min(50.0, percentual - 50.0)), 1)
+        return {"bruto": 0.0, "penalidade": 0.0, "liquido": 0.0, "tem_dado": False}
+    percentual = max(0.0, min(100.0, percentual))
+    bruto = round((percentual / 100.0) * float(peso_disponivel), 1)
+    penalidade = 10.0 if percentual < 50 else 0.0
+    liquido = round(max(0.0, min(float(peso_disponivel), bruto - penalidade)), 1)
+    return {"bruto": bruto, "penalidade": penalidade, "liquido": liquido, "tem_dado": True}
+
+
+def _status_direitos_pontuacao(pontos) -> str:
+    try:
+        pontos = float(pontos)
+    except Exception:
+        return "Sem pontuação"
+    return "Direitos mantidos" if pontos >= 70 else "Perde direitos"
+
+
+# Compatibilidade com versões anteriores do código.
+def _pontos_por_media_global(media):
+    return _pontuar_mapao_media(media, 40.0).get("liquido", 0.0)
+
+
+def _pontos_por_percentual_prova(percentual):
+    return _pontuar_prova_percentual(percentual, 40.0).get("liquido", 0.0)
 
 
 def _media_global_mapao_de_df(df_mapao: pd.DataFrame) -> dict:
@@ -9208,9 +9247,11 @@ def _media_global_mapao_de_df(df_mapao: pd.DataFrame) -> dict:
     if not notas:
         return {}
     media = round(sum(notas) / len(notas), 2)
+    notas_baixas = sum(1 for n in notas if float(n) < 5)
     return {
         "media": media,
         "quantidade_componentes": len(notas),
+        "notas_baixas": notas_baixas,
         "bimestre": str(row.get("Bimestre", "") or "").strip(),
         "detalhes": detalhes,
     }
@@ -9231,6 +9272,14 @@ def _percentual_global_prova_de_df(df_pp: pd.DataFrame):
 
 
 def _calcular_pontuacao_estudante_em_bases(nome: str, ra: str = "", turma: str = "", df_mapao=None, df_pp=None, df_oc=None) -> dict:
+    """Calcula a pontuação gamificada do estudante, limitada a 100 pontos.
+
+    Regra atual:
+    - Prova Paulista: até 40 pontos; abaixo de 50% perde 10 pontos dentro desse bloco.
+    - Notas gerais do Mapão: até 40 pontos; cada nota/componente abaixo de 5 perde 10 pontos dentro desse bloco.
+    - Convivência: até 20 pontos por não ter ocorrência; cada ocorrência reduz 10 pontos desse bloco.
+    - Pontuação final fica sempre entre 0 e 100. Abaixo de 70 perde direitos.
+    """
     if df_mapao is None:
         df_mapao = _resumo_mapao_aluno(nome, ra, turma)
     if df_pp is None:
@@ -9240,28 +9289,40 @@ def _calcular_pontuacao_estudante_em_bases(nome: str, ra: str = "", turma: str =
 
     info_mapao = _media_global_mapao_de_df(df_mapao)
     media_mapao = info_mapao.get("media")
-    pontos_mapao = _pontos_por_media_global(media_mapao)
-
+    notas_baixas = int(info_mapao.get("notas_baixas", 0) or 0)
     percentual_pp = _percentual_global_prova_de_df(df_pp)
-    pontos_pp = _pontos_por_percentual_prova(percentual_pp)
+
+    mapao_pts = _pontuar_mapao_media(media_mapao, 40.0, notas_baixas)
+    pp_pts = _pontuar_prova_percentual(percentual_pp, 40.0)
 
     ocorrencias_total = 0 if df_oc is None or df_oc.empty else int(len(df_oc))
+    pontos_convivencia_bruto = 20.0
     desconto_ocorrencias = float(ocorrencias_total * 10)
+    pontos_convivencia = round(max(0.0, pontos_convivencia_bruto - desconto_ocorrencias), 1)
 
-    base_inicial = 100.0
-    pontuacao_final = round(max(0.0, base_inicial - desconto_ocorrencias + pontos_mapao + pontos_pp), 1)
+    pontuacao_final = round(max(0.0, min(100.0, mapao_pts.get("liquido", 0.0) + pp_pts.get("liquido", 0.0) + pontos_convivencia)), 1)
 
     return {
-        "base_inicial": base_inicial,
+        "base_inicial": 100.0,
+        "fontes_disponiveis": int(media_mapao is not None) + int(percentual_pp is not None),
         "ocorrencias_total": ocorrencias_total,
         "desconto_ocorrencias": desconto_ocorrencias,
+        "pontos_convivencia": pontos_convivencia,
         "media_global_mapao": media_mapao,
-        "pontos_mapao": pontos_mapao,
+        "peso_mapao": 40.0,
+        "pontos_mapao": mapao_pts.get("liquido", 0.0),
+        "pontos_brutos_mapao": mapao_pts.get("bruto", 0.0),
+        "penalidade_mapao": mapao_pts.get("penalidade", 0.0),
+        "notas_baixas_mapao": notas_baixas,
         "bimestre_mapao": info_mapao.get("bimestre", ""),
         "quantidade_componentes_mapao": info_mapao.get("quantidade_componentes", 0),
         "percentual_prova_paulista": percentual_pp,
-        "pontos_prova_paulista": pontos_pp,
+        "peso_prova_paulista": 40.0,
+        "pontos_prova_paulista": pp_pts.get("liquido", 0.0),
+        "pontos_brutos_prova_paulista": pp_pts.get("bruto", 0.0),
+        "penalidade_prova_paulista": pp_pts.get("penalidade", 0.0),
         "pontuacao_final": pontuacao_final,
+        "status_direitos": _status_direitos_pontuacao(pontuacao_final),
     }
 
 
@@ -9289,18 +9350,75 @@ def _ranking_pontuacao_turma(df_alunos_turma: pd.DataFrame) -> pd.DataFrame:
             "RA": ra,
             "Turma": turma,
             "Pontuação": pont.get("pontuacao_final", 0),
+            "Status": pont.get("status_direitos", _status_direitos_pontuacao(pont.get("pontuacao_final", 0))),
+            "PP pts": pont.get("pontos_prova_paulista", 0),
+            "Notas pts": pont.get("pontos_mapao", 0),
+            "Convivência pts": pont.get("pontos_convivencia", 0),
             "Ocorrências": pont.get("ocorrencias_total", 0),
+            "Notas abaixo de 5": pont.get("notas_baixas_mapao", 0),
             "Média global Mapão": pont.get("media_global_mapao"),
             "Prova Paulista (%)": pont.get("percentual_prova_paulista"),
         })
     ranking = pd.DataFrame(linhas)
     if ranking.empty:
         return ranking
-    for col in ["Pontuação", "Ocorrências", "Média global Mapão", "Prova Paulista (%)"]:
-        ranking[col] = pd.to_numeric(ranking[col], errors="coerce")
+    for col in ["Pontuação", "PP pts", "Notas pts", "Convivência pts", "Ocorrências", "Notas abaixo de 5", "Média global Mapão", "Prova Paulista (%)"]:
+        if col in ranking.columns:
+            ranking[col] = pd.to_numeric(ranking[col], errors="coerce")
     ranking = ranking.sort_values(["Pontuação", "Média global Mapão", "Prova Paulista (%)", "Estudante"], ascending=[False, False, False, True]).reset_index(drop=True)
     ranking.insert(0, "Posição", range(1, len(ranking) + 1))
     return ranking
+
+
+def _ranking_pontuacao_geral(df_alunos_base: pd.DataFrame | None = None) -> pd.DataFrame:
+    """Ranking gamificado de todos os estudantes, limitado a 100 pontos."""
+    if df_alunos_base is None:
+        df_alunos_base = globals().get("df_alunos", pd.DataFrame())
+    if df_alunos_base is None or df_alunos_base.empty:
+        return pd.DataFrame()
+    return _ranking_pontuacao_turma(df_alunos_base)
+
+
+def _ranking_pontuacao_turmas(df_alunos_base: pd.DataFrame | None = None) -> pd.DataFrame:
+    """Ranking justo das salas: usa média da pontuação dos estudantes, não soma bruta."""
+    ranking = _ranking_pontuacao_geral(df_alunos_base)
+    if ranking.empty or "Turma" not in ranking.columns:
+        return pd.DataFrame()
+    base = ranking.copy()
+    base["Pontuação"] = pd.to_numeric(base["Pontuação"], errors="coerce")
+    base["Abaixo de 70"] = base["Pontuação"] < 70
+    agrupado = base.groupby("Turma", dropna=False).agg(
+        **{
+            "Média da sala": ("Pontuação", "mean"),
+            "Estudantes avaliados": ("Estudante", "count"),
+            "Estudantes abaixo de 70": ("Abaixo de 70", "sum"),
+            "Maior pontuação": ("Pontuação", "max"),
+            "Menor pontuação": ("Pontuação", "min"),
+        }
+    ).reset_index()
+    agrupado["% abaixo de 70"] = agrupado.apply(
+        lambda r: round((float(r["Estudantes abaixo de 70"]) / float(r["Estudantes avaliados"]) * 100), 1)
+        if float(r["Estudantes avaliados"] or 0) > 0 else 0.0,
+        axis=1,
+    )
+    agrupado["Média da sala"] = agrupado["Média da sala"].round(1)
+    agrupado["Maior pontuação"] = agrupado["Maior pontuação"].round(1)
+    agrupado["Menor pontuação"] = agrupado["Menor pontuação"].round(1)
+    agrupado = agrupado.sort_values(["Média da sala", "Estudantes avaliados", "Turma"], ascending=[False, False, True]).reset_index(drop=True)
+    agrupado.insert(0, "Posição", range(1, len(agrupado) + 1))
+    agrupado["Premiação semanal"] = agrupado["Posição"].apply(lambda p: "🏆 Sala da semana" if int(p) == 1 else "")
+    agrupado["Premiação mensal"] = agrupado["Posição"].apply(lambda p: "🏆 Sala do mês" if int(p) == 1 else "")
+    return agrupado
+
+
+def _formatar_ranking_pontuacao_para_exibir(df: pd.DataFrame) -> pd.DataFrame:
+    if df is None or df.empty:
+        return pd.DataFrame()
+    saida = df.copy()
+    for col in ["Pontuação", "Média global Mapão", "Prova Paulista (%)", "Média da sala", "Maior pontuação", "Menor pontuação", "% abaixo de 70"]:
+        if col in saida.columns:
+            saida[col] = saida[col].apply(lambda v: _formatar_numero_pedagogico(v) if pd.notna(v) else "")
+    return saida
 
 
 def _dados_integrados_estudante(nome: str, ra: str = "", turma: str = "") -> dict:
@@ -9355,20 +9473,17 @@ def _render_painel_integrado_estudante(nome: str, ra: str, turma: str, dados: di
 
     pontuacao = dados.get("pontuacao", {}) or {}
     if pontuacao:
-        st.markdown("### 🏅 Pontuação pedagógica automática")
+        st.markdown("### 🏅 Pontuação gamificada automática")
         pc1, pc2, pc3, pc4, pc5 = st.columns(5)
-        pc1.metric("Pontuação total", _formatar_numero_pedagogico(pontuacao.get("pontuacao_final")) or "0")
-        pc2.metric("Base inicial", _formatar_numero_pedagogico(pontuacao.get("base_inicial")) or "100")
+        pontos_total_txt = _formatar_numero_pedagogico(pontuacao.get("pontuacao_final")) or "0"
+        pc1.metric("Pontuação total", f"{pontos_total_txt}/100")
+        pc2.metric("Direitos", pontuacao.get("status_direitos", _status_direitos_pontuacao(pontuacao.get("pontuacao_final", 0))))
         pc3.metric("Ocorrências", pontuacao.get("ocorrencias_total", 0), delta=f"-{_formatar_numero_pedagogico(pontuacao.get('desconto_ocorrencias')) or '0'} pts")
-        delta_mapao = pontuacao.get("pontos_mapao", 0)
-        delta_mapao_txt = f"{delta_mapao:+.1f} pts".replace(".0", "")
         media_mapao_txt = _formatar_numero_pedagogico(pontuacao.get("media_global_mapao")) or "-"
-        pc4.metric("Média global Mapão", media_mapao_txt, delta=delta_mapao_txt)
-        delta_pp = pontuacao.get("pontos_prova_paulista", 0)
-        delta_pp_txt = f"{delta_pp:+.1f} pts".replace(".0", "")
+        pc4.metric("Mapão", media_mapao_txt, delta=f"{_formatar_numero_pedagogico(pontuacao.get('pontos_mapao')) or '0'} pts")
         pp_txt = _formatar_numero_pedagogico(pontuacao.get("percentual_prova_paulista"))
-        pc5.metric("Prova Paulista", f"{pp_txt}%" if pp_txt else "-", delta=delta_pp_txt)
-        st.caption("Regra aplicada: começa com 100 pontos; cada ocorrência reduz 10 pontos; média global do Mapão abaixo de 5 reduz 10 pontos e acima de 5 pode somar até 50 pontos; Prova Paulista abaixo de 50% reduz 10 pontos e acima de 50% pode somar até 50 pontos.")
+        pc5.metric("Prova Paulista", f"{pp_txt}%" if pp_txt else "-", delta=f"{_formatar_numero_pedagogico(pontuacao.get('pontos_prova_paulista')) or '0'} pts")
+        st.caption("Regra aplicada: pontuação máxima 100. Mapão e Prova Paulista dividem o peso de forma justa conforme os dados disponíveis; ocorrências reduzem 10 pontos cada; abaixo de 70 perde direitos.")
 
     with st.expander("Ver dados integrados deste estudante", expanded=False):
         tab1, tab2, tab3, tab4 = st.tabs(["📊 Prova Paulista", "🗺️ Mapão", "📋 Ocorrências", "📚 Rendimento automático"])
@@ -11798,17 +11913,29 @@ if menu == "🏠 Dashboard":
     </div>
     """, unsafe_allow_html=True)
 
-    top10_pp_dashboard = _top10_prova_paulista(_carregar_prova_paulista_local())
+    ranking_game_dashboard = _ranking_pontuacao_geral(df_alunos)
+    ranking_salas_dashboard = _ranking_pontuacao_turmas(df_alunos)
     st.markdown("""
     <div style="display:flex; align-items:center; gap:0.5rem; margin:1.15rem 0 0.75rem 0;">
         <div style="width:4px; height:22px; background:linear-gradient(180deg,#22c55e,#0ea5e9); border-radius:4px;"></div>
-        <h3 style="margin:0; font-family:'Nunito',sans-serif; font-size:1.1rem; color:#0f172a;">🏅 Top 10 — Prova Paulista</h3>
+        <h3 style="margin:0; font-family:'Nunito',sans-serif; font-size:1.1rem; color:#0f172a;">🏅 Ranking gamificado — Estudantes e Salas</h3>
     </div>
     """, unsafe_allow_html=True)
-    if top10_pp_dashboard.empty:
-        st.info("Assim que uma planilha da Prova Paulista for carregada, o ranking por acertos aparece aqui.")
+    if ranking_game_dashboard.empty:
+        st.info("Assim que houver Mapão, Prova Paulista ou ocorrências, o ranking gamificado aparece aqui.")
     else:
-        st.dataframe(top10_pp_dashboard, use_container_width=True, hide_index=True)
+        col_rank_alunos, col_rank_salas = st.columns([1.35, 1])
+        with col_rank_alunos:
+            st.markdown("**🏆 Melhores estudantes mais pontuados**")
+            cols_alunos = [c for c in ["Posição", "Estudante", "Turma", "Pontuação", "Status", "PP pts", "Notas pts", "Convivência pts", "Ocorrências"] if c in ranking_game_dashboard.columns]
+            st.dataframe(_formatar_ranking_pontuacao_para_exibir(ranking_game_dashboard[cols_alunos].head(10)), use_container_width=True, hide_index=True)
+        with col_rank_salas:
+            st.markdown("**🏫 Premiação por sala**")
+            if ranking_salas_dashboard.empty:
+                st.caption("Sem salas avaliadas ainda.")
+            else:
+                cols_salas = [c for c in ["Posição", "Turma", "Média da sala", "Estudantes avaliados", "Estudantes abaixo de 70", "% abaixo de 70", "Premiação semanal", "Premiação mensal"] if c in ranking_salas_dashboard.columns]
+                st.dataframe(_formatar_ranking_pontuacao_para_exibir(ranking_salas_dashboard[cols_salas].head(10)), use_container_width=True, hide_index=True)
 
     # ── Gráficos e Top 10 no Dashboard ───────────────────────
     if not df_ocorrencias.empty:
@@ -12734,10 +12861,7 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
     ranking_turma = _ranking_pontuacao_turma(alunos_turma)
     if not ranking_turma.empty:
         st.markdown("### 🏆 Ranking pedagógico da turma")
-        ranking_exibir = ranking_turma.copy()
-        for col in ["Pontuação", "Média global Mapão", "Prova Paulista (%)"]:
-            if col in ranking_exibir.columns:
-                ranking_exibir[col] = ranking_exibir[col].apply(lambda v: _formatar_numero_pedagogico(v) if pd.notna(v) else "")
+        ranking_exibir = _formatar_ranking_pontuacao_para_exibir(ranking_turma.copy())
         registro_aluno = ranking_turma[
             ranking_turma["RA"].astype(str).apply(_normalizar_ra_estudante) == _normalizar_ra_estudante(aluno_ra)
         ]
@@ -12749,8 +12873,8 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
             linha_sel = registro_aluno.iloc[0]
             rc1, rc2, rc3, rc4 = st.columns(4)
             rc1.metric("Posição na turma", int(linha_sel.get("Posição", 0) or 0))
-            rc2.metric("Pontuação", _formatar_numero_pedagogico(linha_sel.get("Pontuação")) or "0")
-            rc3.metric("Média global Mapão", _formatar_numero_pedagogico(linha_sel.get("Média global Mapão")) or "-")
+            rc2.metric("Pontuação", f"{_formatar_numero_pedagogico(linha_sel.get('Pontuação')) or '0'}/100")
+            rc3.metric("Direitos", linha_sel.get("Status", _status_direitos_pontuacao(linha_sel.get("Pontuação", 0))))
             pp_linha = _formatar_numero_pedagogico(linha_sel.get("Prova Paulista (%)"))
             rc4.metric("Prova Paulista", f"{pp_linha}%" if pp_linha else "-")
         st.dataframe(ranking_exibir.head(10), use_container_width=True, hide_index=True, height=360)
