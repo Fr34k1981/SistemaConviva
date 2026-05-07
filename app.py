@@ -10879,72 +10879,187 @@ COLUNAS_MAPAO_PADRAO = [
 ]
 
 
+def _limpar_nome_componente_mapao(valor: str) -> str:
+    """Limpa o nome do componente curricular no cabeçalho do Mapão da SED."""
+    texto = str(valor or "").replace("\n", " ").strip()
+    texto = re.sub(r"\s+", " ", texto)
+    # Remove códigos finais da SED, preservando o nome do componente.
+    texto = re.sub(r"\s+\d{2,}$", "", texto).strip()
+    # Padronizações visuais sem mudar o sentido pedagógico.
+    return texto.upper()
+
+
+def _bimestre_mapao_para_texto(valor: str, padrao: str = "") -> str:
+    texto = str(valor or "").strip()
+    if not texto:
+        return padrao
+    n = normalizar_texto(texto)
+    if "PRIMEIRO" in n or "1" in n:
+        return "1º Bimestre"
+    if "SEGUNDO" in n or "2" in n:
+        return "2º Bimestre"
+    if "TERCEIRO" in n or "3" in n:
+        return "3º Bimestre"
+    if "QUARTO" in n or "4" in n:
+        return "4º Bimestre"
+    return texto.replace("Conselho", "").strip() or padrao
+
+
+def _extrair_turma_mapao(valor: str) -> str:
+    """Extrai a turma pedagógica de descrições como '4050 - ADMINISTRAÇAO - 3ª SERIE A INTEGRAL 7H T1 ANUAL'."""
+    texto = str(valor or "").strip()
+    if not texto:
+        return ""
+    # Remove prefixos administrativos e mantém a parte da série/turma.
+    # Ex.: 4050 - ADMINISTRAÇAO - 3ª SERIE A INTEGRAL 7H T1 ANUAL -> 3ª SERIE A
+    padroes = [
+        r"(\d+\s*[ºª]\s*ANO\s*[A-Z])",
+        r"(\d+\s*[ºª]\s*S[ÉE]RIE\s*[A-Z])",
+        r"(\d+\s*[ºª]\s*S[ÉE]R\.?\s*[A-Z])",
+    ]
+    for pat in padroes:
+        m = re.search(pat, texto, flags=re.IGNORECASE)
+        if m:
+            return formatar_turma_eletiva(m.group(1))
+    return formatar_turma_eletiva(texto)
+
+
 def _extrair_mapao_de_linhas(rows: list[list[str]], turma: str = "", bimestre: str = "", ano_letivo: str = "", arquivo_origem: str = "") -> pd.DataFrame:
+    """Extrai o Mapão da SED como relatório pedagógico completo.
+
+    O Mapão não é uma nota única. Ele contém, por estudante e por componente:
+    - M = menção/nota;
+    - F = faltas;
+    - AC = ausências compensadas;
+    - situação do estudante;
+    - total de aulas dadas da turma.
+
+    A função ignora cabeçalhos administrativos e preserva essas informações no JSON
+    da coluna Componentes para alimentar Relatório dos Estudantes, Conselho e Tutoria.
+    """
     meta = {"ano": ano_letivo, "turma": turma, "bimestre": bimestre, "total_aulas": ""}
-    for row in rows[:20]:
+
+    for row in rows[:30]:
         if not row:
             continue
-        chave = normalizar_texto(row[0]).replace(":", "")
+        chave = normalizar_texto(row[0]).replace(":", "") if len(row) > 0 else ""
         valor = str(row[1]).strip() if len(row) > 1 else ""
         if chave == "ANO LETIVO" and not meta["ano"]:
             meta["ano"] = valor
         elif chave == "TURMA" and not meta["turma"]:
-            meta["turma"] = formatar_turma_eletiva(valor)
+            meta["turma"] = _extrair_turma_mapao(valor)
         elif chave == "TIPO FECHAMENTO" and not meta["bimestre"]:
-            meta["bimestre"] = valor.replace("Conselho ", "").strip() or bimestre
+            meta["bimestre"] = _bimestre_mapao_para_texto(valor, bimestre)
         elif chave == "TOTAL DE AULAS DADAS":
             meta["total_aulas"] = valor
 
-    turma_final = turma or meta["turma"]
-    bimestre_final = bimestre or meta["bimestre"]
+    turma_final = _extrair_turma_mapao(turma or meta["turma"])
+    bimestre_final = _bimestre_mapao_para_texto(bimestre or meta["bimestre"], bimestre)
     ano_final = str(ano_letivo or meta["ano"] or datetime.now().year)
     classificacao = classificar_turma_sistema(turma_final)
     total_aulas = _parse_numero_br(meta["total_aulas"])
 
+    # Localiza o cabeçalho principal: ALUNO | SITUAÇÃO | COMPONENTES...
     header_idx = None
     for i, row in enumerate(rows):
-        linha = " ".join(normalizar_texto(v) for v in row[:5])
-        if "ALUNO" in linha and "SITUAC" in linha:
+        linha_norm = " ".join(normalizar_texto(v) for v in row[:8])
+        if "ALUNO" in linha_norm and "SITUAC" in linha_norm:
             header_idx = i
             break
     if header_idx is None or header_idx + 1 >= len(rows):
         return pd.DataFrame(columns=COLUNAS_MAPAO_PADRAO)
 
-    componentes_inicio = []
-    header = rows[header_idx]
-    for idx, valor in enumerate(header):
-        nome = str(valor or "").strip()
-        if idx >= 2 and nome:
-            comp = re.sub(r"\s+\d+$", "", nome.replace("\n", " ")).strip()
-            if comp:
-                componentes_inicio.append((idx, comp))
+    header_componentes = rows[header_idx]
+    header_sub = rows[header_idx + 1]
+
+    componentes = []
+    for idx in range(2, len(header_componentes)):
+        nome_bruto = str(header_componentes[idx] or "").strip()
+        if not nome_bruto:
+            continue
+        comp = _limpar_nome_componente_mapao(nome_bruto)
+        if not comp or normalizar_texto(comp) in {"N", "NO", "M", "F", "AC"}:
+            continue
+
+        # Identifica as colunas do bloco pelo subcabeçalho. O padrão é: Nº, M, F, AC.
+        bloco = {"inicio": idx, "componente": comp, "numero": None, "mencao": None, "faltas": None, "ac": None}
+        for j in range(idx, min(idx + 4, len(header_sub))):
+            lab = normalizar_texto(header_sub[j]).replace("º", "").replace("°", "").strip()
+            if lab in {"N", "NO", "NUM", "NUMERO", "NR"}:
+                bloco["numero"] = j
+            elif lab == "M":
+                bloco["mencao"] = j
+            elif lab == "F":
+                bloco["faltas"] = j
+            elif lab == "AC":
+                bloco["ac"] = j
+
+        # Fallback para arquivos com células mescladas sem subcabeçalho legível.
+        bloco["numero"] = bloco["numero"] if bloco["numero"] is not None else idx
+        bloco["mencao"] = bloco["mencao"] if bloco["mencao"] is not None else idx + 1
+        bloco["faltas"] = bloco["faltas"] if bloco["faltas"] is not None else idx + 2
+        bloco["ac"] = bloco["ac"] if bloco["ac"] is not None else idx + 3
+        componentes.append(bloco)
 
     registros = []
     for row in rows[header_idx + 2:]:
         estudante = str(row[0]).strip() if len(row) > 0 else ""
         situacao = str(row[1]).strip() if len(row) > 1 else ""
-        if not estudante or normalizar_texto(estudante) in {"ALUNO", "TOTAL"}:
+        n_estudante = normalizar_texto(estudante)
+        if not estudante or n_estudante in {"ALUNO", "TOTAL", "LEGENDA", "OBSERVACAO", "OBSERVAÇÕES"}:
             continue
-        componentes = {}
+        if "AULAS DADAS" in n_estudante or "DIRETOR" in n_estudante or "GOE" in n_estudante:
+            continue
+
+        componentes_json = {}
         notas_baixas = []
         faltas_total = 0.0
-        for start, comp in componentes_inicio:
-            mencao = row[start + 1] if len(row) > start + 1 else ""
-            faltas = _parse_numero_br(row[start + 2] if len(row) > start + 2 else "")
-            ac = _parse_numero_br(row[start + 3] if len(row) > start + 3 else "")
-            mencao_num = _parse_numero_br(mencao)
+        ac_total = 0.0
+        tem_dado_pedagogico = False
+
+        for bloco in componentes:
+            comp = bloco["componente"]
+            idx_m = bloco["mencao"]
+            idx_f = bloco["faltas"]
+            idx_ac = bloco["ac"]
+
+            mencao_raw = row[idx_m] if idx_m is not None and idx_m < len(row) else ""
+            faltas_raw = row[idx_f] if idx_f is not None and idx_f < len(row) else ""
+            ac_raw = row[idx_ac] if idx_ac is not None and idx_ac < len(row) else ""
+
+            mencao_txt = str(mencao_raw or "").strip()
+            faltas = _parse_numero_br(faltas_raw)
+            ac = _parse_numero_br(ac_raw)
+            mencao_num = _parse_numero_br(mencao_txt)
+
+            # '-' indica que não há menção naquele componente, mas faltas/AC ainda podem existir.
+            mencao_para_salvar = "" if mencao_txt in {"-", "--"} else mencao_txt
+            if mencao_para_salvar or faltas is not None or ac is not None:
+                tem_dado_pedagogico = True
+
             if faltas is not None:
                 faltas_total += faltas
-            componentes[comp] = {
-                "mencao": mencao if str(mencao).strip() else None,
+            if ac is not None:
+                ac_total += ac
+
+            componentes_json[comp] = {
+                "mencao": mencao_para_salvar,
                 "faltas": faltas,
                 "ausencias_compensadas": ac,
+                "aulas_dadas": total_aulas,
             }
             if mencao_num is not None and mencao_num < 5:
                 notas_baixas.append({"componente": comp, "mencao": mencao_num})
+
+        if not tem_dado_pedagogico:
+            continue
+
         frequencia = None
         if total_aulas and total_aulas > 0:
-            frequencia = round(max(0, 100 - (faltas_total / total_aulas * 100)), 1)
+            # Frequência geral estimada a partir do total de faltas do estudante no Mapão.
+            # Mantém o total da SED como referência, sem tentar transformar o Mapão em uma nota única.
+            frequencia = round(max(0, min(100, 100 - (faltas_total / total_aulas * 100))), 1)
+
         registros.append({
             "Estudante": estudante,
             "Turma": classificacao["turma"],
@@ -10956,12 +11071,23 @@ def _extrair_mapao_de_linhas(rows: list[list[str]], turma: str = "", bimestre: s
             "Frequência (%)": frequencia,
             "Faltas": faltas_total,
             "Faltas anuais": faltas_total,
-            "Notas abaixo de cinco": ", ".join([f"{n['componente']} ({n['mencao']})" for n in notas_baixas]),
-            "Componentes": json.dumps(componentes, ensure_ascii=False),
+            "Notas abaixo de cinco": ", ".join([f"{n['componente']} ({_valor_numerico_ou_texto(n['mencao'])})" for n in notas_baixas]),
+            "Componentes": json.dumps(componentes_json, ensure_ascii=False),
             "Total de Aulas": total_aulas,
             "Arquivo origem": arquivo_origem,
         })
-    return pd.DataFrame(registros, columns=COLUNAS_MAPAO_PADRAO)
+
+    if not registros:
+        return pd.DataFrame(columns=COLUNAS_MAPAO_PADRAO)
+
+    base = pd.DataFrame(registros, columns=COLUNAS_MAPAO_PADRAO)
+    # Quando o mesmo estudante aparece mais de uma vez, mantém a linha mais completa.
+    # Não apaga transferidos da base; apenas evita duplicidade idêntica na prévia.
+    base["_score_dados"] = base["Componentes"].astype(str).str.len()
+    base["_situacao_rank"] = base["Situação"].astype(str).map(lambda s: 2 if "ATIVO" in normalizar_texto(s) else 1)
+    base = base.sort_values(["Estudante", "_situacao_rank", "_score_dados"], ascending=[True, False, False])
+    base = base.drop_duplicates(subset=["Estudante", "Turma", "Bimestre", "Ano letivo"], keep="first")
+    return base.drop(columns=["_score_dados", "_situacao_rank"], errors="ignore").reset_index(drop=True)
 
 
 def _normalizar_dataframe_mapao(df: pd.DataFrame) -> pd.DataFrame:
