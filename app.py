@@ -8828,6 +8828,277 @@ def _atualizar_caderno(cadernos: dict, chave: str, caderno: dict):
     sincronizar_caderno_tabelas_estruturadas(chave, caderno)
 
 
+# ======================================================
+# INTEGRAÇÃO SEGURA — RELATÓRIO, PROVA PAULISTA, MAPÃO,
+# OCORRÊNCIAS E CADERNO DE TUTORIA
+# ======================================================
+
+def _normalizar_chave_estudante(valor: str) -> str:
+    texto = unicodedata.normalize("NFKD", str(valor or "")).encode("ASCII", "ignore").decode("ASCII")
+    texto = re.sub(r"[^A-Z0-9]+", " ", texto.upper()).strip()
+    return re.sub(r"\s+", " ", texto)
+
+
+def _normalizar_ra_estudante(valor) -> str:
+    return re.sub(r"\D", "", str(valor or ""))
+
+
+def _bimestre_para_coluna_caderno(valor: str) -> str:
+    n = normalizar_texto(valor)
+    if "1" in n:
+        return "1º BIM"
+    if "2" in n:
+        return "2º BIM"
+    if "3" in n:
+        return "3º BIM"
+    if "4" in n:
+        return "4º BIM"
+    return "1º BIM"
+
+
+def _componente_para_disciplina_caderno(comp: str) -> str:
+    n = normalizar_texto(comp)
+    n = n.replace("LINGUA", "LÍNGUA")
+    mapa = {
+        "MAT": "MATEMÁTICA",
+        "MATEMATICA": "MATEMÁTICA",
+        "PORT": "LÍNGUA PORTUGUESA",
+        "LP": "LÍNGUA PORTUGUESA",
+        "LINGUA PORTUGUESA": "LÍNGUA PORTUGUESA",
+        "LÍNGUA PORTUGUESA": "LÍNGUA PORTUGUESA",
+        "ING": "LÍNGUA INGLESA",
+        "INGLES": "LÍNGUA INGLESA",
+        "LÍNGUA INGLESA": "LÍNGUA INGLESA",
+        "HIST": "HISTÓRIA",
+        "HISTORIA": "HISTÓRIA",
+        "GEO": "GEOGRAFIA",
+        "GEOGRAFIA": "GEOGRAFIA",
+        "CIE": "CIÊNCIA",
+        "CIENCIAS": "CIÊNCIA",
+        "CIENCIA": "CIÊNCIA",
+        "ARTE": "ARTE",
+        "ED FISICA": "EDUCAÇÃO FÍSICA",
+        "EDUCACAO FISICA": "EDUCAÇÃO FÍSICA",
+        "EDUCAÇÃO FÍSICA": "EDUCAÇÃO FÍSICA",
+        "FIN": "EDUCAÇÃO FINANCEIRA",
+        "EDUCACAO FINANCEIRA": "EDUCAÇÃO FINANCEIRA",
+        "EDUCAÇÃO FINANCEIRA": "EDUCAÇÃO FINANCEIRA",
+        "TEC": "TECNOLOGIA E INOVAÇÃO",
+        "TECNOLOGIA": "TECNOLOGIA E INOVAÇÃO",
+        "TECNOLOGIA E INOVACAO": "TECNOLOGIA E INOVAÇÃO",
+        "PROJETO DE VIDA": "PROJETO DE VIDA",
+        "PV": "PROJETO DE VIDA",
+        "ELETIVA": "ELETIVA",
+    }
+    if n in mapa:
+        return mapa[n]
+    for chave, valor in mapa.items():
+        if chave in n or n in chave:
+            return valor
+    return str(comp or "").strip().upper()
+
+
+def _dataframe_seguro_carregador(nome: str) -> pd.DataFrame:
+    try:
+        if nome == "prova_paulista":
+            return _carregar_prova_paulista_local()
+        if nome == "mapao":
+            return _carregar_mapao_local()
+        if nome == "ocorrencias":
+            try:
+                return carregar_ocorrencias()
+            except Exception:
+                return globals().get("df_ocorrencias", pd.DataFrame())
+    except Exception:
+        return pd.DataFrame()
+    return pd.DataFrame()
+
+
+def _filtrar_aluno_df(df: pd.DataFrame, nome: str, ra: str = "", turma: str = "") -> pd.DataFrame:
+    if df is None or df.empty:
+        return pd.DataFrame()
+    base = df.copy()
+    ra_norm = _normalizar_ra_estudante(ra)
+    nome_norm = _normalizar_chave_estudante(nome)
+    turma_norm = normalizar_texto(turma)
+    mask = pd.Series(False, index=base.index)
+    for col in ["RA", "ra", "NR RA", "nr_ra"]:
+        if col in base.columns and ra_norm:
+            mask = mask | (base[col].astype(str).apply(_normalizar_ra_estudante) == ra_norm)
+    for col in ["Estudante", "estudante", "aluno", "Aluno", "nome", "Nome"]:
+        if col in base.columns and nome_norm:
+            mask = mask | (base[col].astype(str).apply(_normalizar_chave_estudante) == nome_norm)
+    filtrado = base[mask].copy()
+    if turma_norm and not filtrado.empty:
+        for col in ["Turma", "turma"]:
+            if col in filtrado.columns:
+                filtrado_turma = filtrado[filtrado[col].astype(str).apply(normalizar_texto) == turma_norm].copy()
+                if not filtrado_turma.empty:
+                    return filtrado_turma
+    return filtrado
+
+
+def _resumo_prova_paulista_aluno(nome: str, ra: str = "", turma: str = "") -> pd.DataFrame:
+    df_pp = _dataframe_seguro_carregador("prova_paulista")
+    return _filtrar_aluno_df(df_pp, nome, ra, turma)
+
+
+def _resumo_mapao_aluno(nome: str, ra: str = "", turma: str = "") -> pd.DataFrame:
+    df_mapao = _dataframe_seguro_carregador("mapao")
+    return _filtrar_aluno_df(df_mapao, nome, ra, turma)
+
+
+def _resumo_ocorrencias_aluno(nome: str, ra: str = "", turma: str = "") -> pd.DataFrame:
+    df_oc = _dataframe_seguro_carregador("ocorrencias")
+    return _filtrar_aluno_df(df_oc, nome, ra, turma)
+
+
+def _formatar_numero_pedagogico(valor) -> str:
+    if valor in (None, "", "None"):
+        return ""
+    try:
+        num = float(str(valor).replace(",", "."))
+        if pd.isna(num):
+            return ""
+        if abs(num - round(num)) < 0.001:
+            return str(int(round(num)))
+        return f"{num:.1f}".replace(".", ",")
+    except Exception:
+        return str(valor or "")
+
+
+def _rendimento_automatico_aluno(nome: str, ra: str = "", turma: str = "") -> dict:
+    """Monta rendimento por componente a partir do Mapão e da Prova Paulista, sem apagar dados manuais."""
+    rendimento = {disc: {"1º BIM": "", "2º BIM": "", "3º BIM": "", "4º BIM": "", "RESULTADO FINAL": ""} for disc in DISCIPLINAS_CADERNO_TUTORIA}
+
+    df_mapao = _resumo_mapao_aluno(nome, ra, turma)
+    for _, row in df_mapao.iterrows():
+        bim = _bimestre_para_coluna_caderno(row.get("Bimestre", ""))
+        componentes_raw = row.get("Componentes", {})
+        try:
+            componentes = json.loads(componentes_raw) if isinstance(componentes_raw, str) else (componentes_raw or {})
+        except Exception:
+            componentes = {}
+        if isinstance(componentes, dict):
+            for comp, dados in componentes.items():
+                disc = _componente_para_disciplina_caderno(comp)
+                if disc not in rendimento:
+                    continue
+                mencao = ""
+                if isinstance(dados, dict):
+                    mencao = _formatar_numero_pedagogico(dados.get("mencao", ""))
+                else:
+                    mencao = _formatar_numero_pedagogico(dados)
+                if mencao:
+                    rendimento[disc][bim] = f"Mapão: {mencao}"
+
+    df_pp = _resumo_prova_paulista_aluno(nome, ra, turma)
+    componentes_pp = globals().get("PROVA_COMPONENTES_COLUNAS", [])
+    for _, row in df_pp.iterrows():
+        bim = _bimestre_para_coluna_caderno(row.get("Bimestre", ""))
+        for comp in componentes_pp:
+            if comp not in row.index:
+                continue
+            valor = _formatar_numero_pedagogico(row.get(comp, ""))
+            if not valor:
+                continue
+            disc = _componente_para_disciplina_caderno(comp)
+            if disc not in rendimento:
+                continue
+            atual = str(rendimento[disc].get(bim, "") or "").strip()
+            pp_txt = f"PP: {valor}%"
+            rendimento[disc][bim] = f"{atual} | {pp_txt}" if atual else pp_txt
+
+    for disc, dados in rendimento.items():
+        valores = [str(dados.get(b, "") or "").strip() for b in ["1º BIM", "2º BIM", "3º BIM", "4º BIM"]]
+        preenchidos = [v for v in valores if v]
+        if preenchidos:
+            dados["RESULTADO FINAL"] = preenchidos[-1]
+    return rendimento
+
+
+def _mesclar_rendimento_sem_perder_manual(rendimento_atual: dict, rendimento_auto: dict) -> dict:
+    mesclado = json.loads(json.dumps(rendimento_atual or {}, ensure_ascii=False)) if isinstance(rendimento_atual, dict) else {}
+    for disc in DISCIPLINAS_CADERNO_TUTORIA:
+        mesclado.setdefault(disc, {"1º BIM": "", "2º BIM": "", "3º BIM": "", "4º BIM": "", "RESULTADO FINAL": ""})
+        auto = (rendimento_auto or {}).get(disc, {}) or {}
+        for campo in ["1º BIM", "2º BIM", "3º BIM", "4º BIM", "RESULTADO FINAL"]:
+            if not str(mesclado[disc].get(campo, "") or "").strip() and str(auto.get(campo, "") or "").strip():
+                mesclado[disc][campo] = auto.get(campo, "")
+    return mesclado
+
+
+def _dados_integrados_estudante(nome: str, ra: str = "", turma: str = "") -> dict:
+    df_pp = _resumo_prova_paulista_aluno(nome, ra, turma)
+    df_mapao = _resumo_mapao_aluno(nome, ra, turma)
+    df_oc = _resumo_ocorrencias_aluno(nome, ra, turma)
+    frequencia = None
+    if not df_mapao.empty and "Frequência (%)" in df_mapao.columns:
+        serie_freq = pd.to_numeric(df_mapao["Frequência (%)"].astype(str).str.replace(",", "."), errors="coerce").dropna()
+        if not serie_freq.empty:
+            frequencia = float(serie_freq.iloc[-1])
+    acertos_pp = None
+    if not df_pp.empty and "Acertos" in df_pp.columns:
+        serie_acc = pd.to_numeric(df_pp["Acertos"].astype(str).str.replace(",", "."), errors="coerce").dropna()
+        if not serie_acc.empty:
+            acertos_pp = float(serie_acc.iloc[-1])
+    ocorr_graves = 0
+    if not df_oc.empty and "gravidade" in df_oc.columns:
+        ocorr_graves = int(df_oc["gravidade"].astype(str).apply(lambda v: normalizar_texto(v) in {"GRAVE", "GRAVISSIMA", "GRAVÍSSIMA"}).sum())
+    return {
+        "prova_paulista": df_pp,
+        "mapao": df_mapao,
+        "ocorrencias": df_oc,
+        "frequencia_mapao": frequencia,
+        "acertos_pp": acertos_pp,
+        "ocorrencias_graves": ocorr_graves,
+        "rendimento_auto": _rendimento_automatico_aluno(nome, ra, turma),
+    }
+
+
+def _render_painel_integrado_estudante(nome: str, ra: str, turma: str, dados: dict):
+    df_pp = dados.get("prova_paulista", pd.DataFrame())
+    df_mapao = dados.get("mapao", pd.DataFrame())
+    df_oc = dados.get("ocorrencias", pd.DataFrame())
+    freq = dados.get("frequencia_mapao")
+    acc = dados.get("acertos_pp")
+    st.markdown("### 🔗 Dados integrados do estudante")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Prova Paulista", len(df_pp))
+    c2.metric("Mapão", len(df_mapao))
+    c3.metric("Ocorrências", len(df_oc))
+    c4.metric("Ocorrências graves", dados.get("ocorrencias_graves", 0))
+    resumo = []
+    if freq is not None:
+        resumo.append(f"Frequência mais recente no Mapão: **{_formatar_numero_pedagogico(freq)}%**")
+    if acc is not None:
+        resumo.append(f"Acertos mais recentes na Prova Paulista: **{_formatar_numero_pedagogico(acc)}%**")
+    if resumo:
+        st.info(" · ".join(resumo))
+    with st.expander("Ver dados integrados deste estudante", expanded=False):
+        tab1, tab2, tab3, tab4 = st.tabs(["📊 Prova Paulista", "🗺️ Mapão", "📋 Ocorrências", "📚 Rendimento automático"])
+        with tab1:
+            if df_pp.empty:
+                st.caption("Nenhum dado da Prova Paulista localizado para este estudante.")
+            else:
+                st.dataframe(df_pp, use_container_width=True, hide_index=True, height=260)
+        with tab2:
+            if df_mapao.empty:
+                st.caption("Nenhum dado do Mapão localizado para este estudante.")
+            else:
+                st.dataframe(df_mapao, use_container_width=True, hide_index=True, height=260)
+        with tab3:
+            if df_oc.empty:
+                st.caption("Nenhuma ocorrência localizada para este estudante.")
+            else:
+                cols = [c for c in ["data", "turma", "categoria", "gravidade", "relato", "descricao", "encaminhamento", "professor"] if c in df_oc.columns]
+                st.dataframe(df_oc[cols] if cols else df_oc, use_container_width=True, hide_index=True, height=260)
+        with tab4:
+            rend = dados.get("rendimento_auto", {}) or {}
+            linhas = [{"COMPONENTE CURRICULAR": d, **rend.get(d, {})} for d in DISCIPLINAS_CADERNO_TUTORIA]
+            st.dataframe(pd.DataFrame(linhas), use_container_width=True, hide_index=True, height=320)
+
+
 # ---------- Indicadores e histórico ----------
 def _metricas_caderno_tutoria(cadernos: dict, professor: str, estudantes: list[dict]) -> dict:
     chaves = []
@@ -9262,6 +9533,26 @@ def render_caderno_tutoria_online(TUTORIA: dict, df_alunos: pd.DataFrame | None 
 
     with tab_rend:
         st.markdown("### Rendimento Bimestral")
+        st.caption("O rendimento pode ser preenchido manualmente ou carregado automaticamente a partir do Mapão e da Prova Paulista já salvos.")
+        rendimento = caderno.get("rendimento_bimestral", {})
+        rendimento_auto = _rendimento_automatico_aluno(aluno.get("nome", ""), aluno.get("ra", ""), aluno.get("turma", ""))
+        tem_auto = any(
+            str((rendimento_auto.get(disc, {}) or {}).get(campo, "") or "").strip()
+            for disc in DISCIPLINAS_CADERNO_TUTORIA
+            for campo in ["1º BIM", "2º BIM", "3º BIM", "4º BIM", "RESULTADO FINAL"]
+        )
+        col_auto_1, col_auto_2 = st.columns([1.3, 2])
+        with col_auto_1:
+            if st.button("🔄 Carregar Mapão/Prova no rendimento", use_container_width=True, key=f"carregar_rendimento_auto_{chave}"):
+                caderno["rendimento_bimestral"] = _mesclar_rendimento_sem_perder_manual(rendimento, rendimento_auto)
+                _atualizar_caderno(cadernos, chave, caderno)
+                st.success("Rendimento atualizado com dados integrados, sem apagar campos manuais já preenchidos.")
+                st.rerun()
+        with col_auto_2:
+            if tem_auto:
+                st.info("Há dados de Mapão/Prova Paulista disponíveis para este estudante. O botão ao lado preenche apenas campos vazios.")
+            else:
+                st.warning("Ainda não encontrei Mapão ou Prova Paulista salvos para este estudante.")
         rendimento = caderno.get("rendimento_bimestral", {})
         df_rend = pd.DataFrame([{"COMPONENTE CURRICULAR": disc, **(rendimento.get(disc) or {})} for disc in DISCIPLINAS_CADERNO_TUTORIA])
         df_edit = st.data_editor(df_rend, use_container_width=True, hide_index=True, num_rows="fixed", key=f"editor_rendimento_prof_{chave}")
@@ -11912,6 +12203,9 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
     eletiva_auto = obter_eletiva_do_aluno(
         aluno_nome, turma_sel, aluno_ra, ELETIVAS
     )
+
+    dados_integrados_relatorio = _dados_integrados_estudante(aluno_nome, aluno_ra, turma_sel)
+    frequencia_integrada = dados_integrados_relatorio.get("frequencia_mapao")
  
     col_info1, col_info2 = st.columns(2)
     with col_info1:
@@ -11954,6 +12248,8 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
             </div>
             """, unsafe_allow_html=True)
  
+    _render_painel_integrado_estudante(aluno_nome, aluno_ra, turma_sel, dados_integrados_relatorio)
+
     def _parse_data_relatorio(valor, padrao):
         try:
             data_convertida = pd.to_datetime(valor, errors="coerce")
@@ -12010,9 +12306,14 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
             editor_manual = ""
         data_inicio = st.date_input("📅 Data inicial", value=data_inicio_padrao,
                                      key="relatorio_data_inicio", format="DD/MM/YYYY")
+        frequencia_padrao = registro_relatorio.get("frequencia_percentual", None)
+        if frequencia_padrao in (None, "", "None") and frequencia_integrada is not None:
+            frequencia_padrao = frequencia_integrada
+        if frequencia_padrao in (None, "", "None"):
+            frequencia_padrao = 100
         frequencia = st.number_input(
             "📊 Frequência (%)", min_value=0.0, max_value=100.0,
-            value=float(registro_relatorio.get("frequencia_percentual", 100) or 100),
+            value=float(frequencia_padrao or 100),
             step=1.0, key="relatorio_frequencia"
         )
     with col_form_2:
@@ -12054,6 +12355,10 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
     pontos_automaticos = gerar_pontos_atencao_automaticos(
         df_ocorrencias, turma_sel, aluno_ra, aluno_nome, data_inicio, data_fim
     )
+    if dados_integrados_relatorio.get("frequencia_mapao") is not None and float(dados_integrados_relatorio.get("frequencia_mapao")) < 85:
+        pontos_automaticos.append(f"Frequência no Mapão abaixo de 85%: {_formatar_numero_pedagogico(dados_integrados_relatorio.get('frequencia_mapao'))}%.")
+    if dados_integrados_relatorio.get("acertos_pp") is not None and float(dados_integrados_relatorio.get("acertos_pp")) < 60:
+        pontos_automaticos.append(f"Acertos na Prova Paulista abaixo de 60%: {_formatar_numero_pedagogico(dados_integrados_relatorio.get('acertos_pp'))}%.")
     if pontos_automaticos:
         st.markdown("""
         <div style="background:linear-gradient(135deg,#fff7ed,#fffbeb);border:1.5px solid #fdba74;
