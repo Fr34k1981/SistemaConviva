@@ -8967,30 +8967,131 @@ def _formatar_numero_pedagogico(valor) -> str:
         return str(valor or "")
 
 
+def _mapao_componentes_objeto(valor):
+    """Converte o campo Componentes do Mapão para dict, aceitando JSON, dict ou lista."""
+    if isinstance(valor, dict):
+        return valor
+    if isinstance(valor, list):
+        convertido = {}
+        for item in valor:
+            if isinstance(item, dict):
+                nome = item.get("componente") or item.get("disciplina") or item.get("nome")
+                if nome:
+                    convertido[str(nome)] = item
+        return convertido
+    texto = str(valor or "").strip()
+    if not texto or texto.lower() in {"nan", "none", "null"}:
+        return {}
+    try:
+        obj = json.loads(texto)
+        if isinstance(obj, dict):
+            return obj
+        if isinstance(obj, list):
+            return _mapao_componentes_objeto(obj)
+    except Exception:
+        pass
+    return {}
+
+
+def _valor_numerico_ou_texto(valor):
+    """Formata menção/frequência mantendo texto quando não for número."""
+    if valor in (None, "", "None"):
+        return ""
+    try:
+        num = _parse_numero_br(valor)
+        if num is None or pd.isna(num):
+            return str(valor or "").strip()
+        if abs(num - round(num)) < 0.001:
+            return str(int(round(num)))
+        return f"{num:.1f}".replace(".", ",")
+    except Exception:
+        return str(valor or "").strip()
+
+
+def _resumo_mapao_tutoria_aluno(nome: str, ra: str = "", turma: str = "") -> dict:
+    """Busca situação, frequência, faltas e notas do Mapão para exibir no Caderno de Tutoria."""
+    df_mapao = _resumo_mapao_aluno(nome, ra, turma)
+    if df_mapao is None or df_mapao.empty:
+        return {}
+    base = df_mapao.copy()
+
+    # Usa a última linha salva/importada para o estudante. Se houver mais de um bimestre,
+    # a tabela de rendimento abaixo continua preenchendo cada bimestre componente a componente.
+    row = base.iloc[-1]
+
+    frequencia = None
+    for col in ["Frequência (%)", "frequencia_percentual", "frequencia", "Frequência"]:
+        if col in row.index:
+            frequencia = _parse_numero_br(row.get(col))
+            if frequencia is not None:
+                break
+
+    faltas = None
+    for col in ["Faltas", "faltas"]:
+        if col in row.index:
+            faltas = _parse_numero_br(row.get(col))
+            if faltas is not None:
+                break
+
+    total_aulas = None
+    for col in ["Total de Aulas", "total_aulas"]:
+        if col in row.index:
+            total_aulas = _parse_numero_br(row.get(col))
+            if total_aulas is not None:
+                break
+
+    # Se por algum motivo a frequência não veio do Supabase, tenta recalcular por faltas/total de aulas.
+    if frequencia is None and faltas is not None and total_aulas and total_aulas > 0:
+        frequencia = round(max(0, 100 - (faltas / total_aulas * 100)), 1)
+
+    notas_baixas = str(row.get("Notas abaixo de cinco", "") or row.get("notas_abaixo_cinco", "") or "").strip()
+    if notas_baixas.startswith("[") or notas_baixas.startswith("{"):
+        try:
+            obj = json.loads(notas_baixas)
+            if isinstance(obj, list):
+                notas_baixas = ", ".join(
+                    f"{str(i.get('componente','')).strip()} ({_valor_numerico_ou_texto(i.get('mencao',''))})"
+                    for i in obj if isinstance(i, dict)
+                )
+        except Exception:
+            pass
+
+    return {
+        "situacao": str(row.get("Situação", "") or row.get("situacao", "") or "").strip(),
+        "frequencia": frequencia,
+        "faltas": faltas,
+        "faltas_anuais": _parse_numero_br(row.get("Faltas anuais", row.get("faltas_anuais", ""))) if ("Faltas anuais" in row.index or "faltas_anuais" in row.index) else faltas,
+        "total_aulas": total_aulas,
+        "notas_abaixo_de_cinco": notas_baixas,
+        "bimestre": str(row.get("Bimestre", "") or "").strip(),
+    }
+
+
 def _rendimento_automatico_aluno(nome: str, ra: str = "", turma: str = "") -> dict:
-    """Monta rendimento por componente a partir do Mapão e da Prova Paulista, sem apagar dados manuais."""
+    """Monta rendimento por componente a partir do Mapão e da Prova Paulista, sem apagar dados manuais.
+
+    Prioridade:
+    1. Mapão: preenche a menção do componente no bimestre correspondente, em formato limpo (ex.: 8, 7,5).
+    2. Prova Paulista: entra como complemento apenas quando existir dado de componente.
+    """
     rendimento = {disc: {"1º BIM": "", "2º BIM": "", "3º BIM": "", "4º BIM": "", "RESULTADO FINAL": ""} for disc in DISCIPLINAS_CADERNO_TUTORIA}
 
     df_mapao = _resumo_mapao_aluno(nome, ra, turma)
     for _, row in df_mapao.iterrows():
         bim = _bimestre_para_coluna_caderno(row.get("Bimestre", ""))
-        componentes_raw = row.get("Componentes", {})
-        try:
-            componentes = json.loads(componentes_raw) if isinstance(componentes_raw, str) else (componentes_raw or {})
-        except Exception:
-            componentes = {}
+        componentes = _mapao_componentes_objeto(row.get("Componentes", {}))
         if isinstance(componentes, dict):
             for comp, dados in componentes.items():
                 disc = _componente_para_disciplina_caderno(comp)
                 if disc not in rendimento:
                     continue
-                mencao = ""
                 if isinstance(dados, dict):
-                    mencao = _formatar_numero_pedagogico(dados.get("mencao", ""))
+                    mencao = _valor_numerico_ou_texto(dados.get("mencao", ""))
                 else:
-                    mencao = _formatar_numero_pedagogico(dados)
+                    mencao = _valor_numerico_ou_texto(dados)
                 if mencao:
-                    rendimento[disc][bim] = f"Mapão: {mencao}"
+                    # Grava a menção como aparece no Mapão, sem prefixo, para facilitar leitura/impressão.
+                    rendimento[disc][bim] = mencao
 
     df_pp = _resumo_prova_paulista_aluno(nome, ra, turma)
     componentes_pp = globals().get("PROVA_COMPONENTES_COLUNAS", [])
@@ -9007,7 +9108,8 @@ def _rendimento_automatico_aluno(nome: str, ra: str = "", turma: str = "") -> di
                 continue
             atual = str(rendimento[disc].get(bim, "") or "").strip()
             pp_txt = f"PP: {valor}%"
-            rendimento[disc][bim] = f"{atual} | {pp_txt}" if atual else pp_txt
+            # Se já há menção do Mapão, mantém a menção e acrescenta PP sem apagar.
+            rendimento[disc][bim] = f"{atual} | {pp_txt}" if atual and pp_txt not in atual else (atual or pp_txt)
 
     for disc, dados in rendimento.items():
         valores = [str(dados.get(b, "") or "").strip() for b in ["1º BIM", "2º BIM", "3º BIM", "4º BIM"]]
@@ -9015,7 +9117,6 @@ def _rendimento_automatico_aluno(nome: str, ra: str = "", turma: str = "") -> di
         if preenchidos:
             dados["RESULTADO FINAL"] = preenchidos[-1]
     return rendimento
-
 
 def _mesclar_rendimento_sem_perder_manual(rendimento_atual: dict, rendimento_auto: dict) -> dict:
     mesclado = json.loads(json.dumps(rendimento_atual or {}, ensure_ascii=False)) if isinstance(rendimento_atual, dict) else {}
@@ -9536,6 +9637,7 @@ def render_caderno_tutoria_online(TUTORIA: dict, df_alunos: pd.DataFrame | None 
         st.caption("O rendimento pode ser preenchido manualmente ou carregado automaticamente a partir do Mapão e da Prova Paulista já salvos.")
         rendimento = caderno.get("rendimento_bimestral", {})
         rendimento_auto = _rendimento_automatico_aluno(aluno.get("nome", ""), aluno.get("ra", ""), aluno.get("turma", ""))
+        resumo_mapao_auto = _resumo_mapao_tutoria_aluno(aluno.get("nome", ""), aluno.get("ra", ""), aluno.get("turma", ""))
         tem_auto = any(
             str((rendimento_auto.get(disc, {}) or {}).get(campo, "") or "").strip()
             for disc in DISCIPLINAS_CADERNO_TUTORIA
@@ -9545,14 +9647,32 @@ def render_caderno_tutoria_online(TUTORIA: dict, df_alunos: pd.DataFrame | None 
         with col_auto_1:
             if st.button("🔄 Carregar Mapão/Prova no rendimento", use_container_width=True, key=f"carregar_rendimento_auto_{chave}"):
                 caderno["rendimento_bimestral"] = _mesclar_rendimento_sem_perder_manual(rendimento, rendimento_auto)
+                if resumo_mapao_auto:
+                    caderno["resumo_mapao_tutoria"] = resumo_mapao_auto
                 _atualizar_caderno(cadernos, chave, caderno)
-                st.success("Rendimento atualizado com dados integrados, sem apagar campos manuais já preenchidos.")
+                st.success("Rendimento, menções e frequência do Mapão foram atualizados sem apagar campos manuais já preenchidos.")
                 st.rerun()
         with col_auto_2:
-            if tem_auto:
+            if tem_auto or resumo_mapao_auto:
                 st.info("Há dados de Mapão/Prova Paulista disponíveis para este estudante. O botão ao lado preenche apenas campos vazios.")
             else:
                 st.warning("Ainda não encontrei Mapão ou Prova Paulista salvos para este estudante.")
+
+        resumo_mapao_salvo = caderno.get("resumo_mapao_tutoria", {}) or {}
+        resumo_para_exibir = resumo_mapao_auto or resumo_mapao_salvo
+        if resumo_para_exibir:
+            freq_txt = _formatar_numero_pedagogico(resumo_para_exibir.get("frequencia"))
+            faltas_txt = _formatar_numero_pedagogico(resumo_para_exibir.get("faltas"))
+            faltas_anuais_txt = _formatar_numero_pedagogico(resumo_para_exibir.get("faltas_anuais"))
+            total_aulas_txt = _formatar_numero_pedagogico(resumo_para_exibir.get("total_aulas"))
+            st.markdown("#### Resumo automático do Mapão")
+            c_freq, c_sit, c_faltas, c_notas = st.columns([1, 1, 1, 1.4])
+            c_freq.metric("Frequência", f"{freq_txt}%" if freq_txt else "-")
+            c_sit.metric("Situação", str(resumo_para_exibir.get("situacao", "") or "-"))
+            c_faltas.metric("Faltas", faltas_txt or "-")
+            c_notas.metric("Notas abaixo de 5", str(resumo_para_exibir.get("notas_abaixo_de_cinco", "") or "Nenhuma"))
+            st.caption(f"Faltas anuais: {faltas_anuais_txt or '-'} · Total de aulas: {total_aulas_txt or '-'} · Bimestre: {resumo_para_exibir.get('bimestre', '') or '-'}")
+
         rendimento = caderno.get("rendimento_bimestral", {})
         df_rend = pd.DataFrame([{"COMPONENTE CURRICULAR": disc, **(rendimento.get(disc) or {})} for disc in DISCIPLINAS_CADERNO_TUTORIA])
         df_edit = st.data_editor(df_rend, use_container_width=True, hide_index=True, num_rows="fixed", key=f"editor_rendimento_prof_{chave}")
@@ -10954,8 +11074,10 @@ def _carregar_mapao_local() -> pd.DataFrame:
                     "ano_letivo": "Ano letivo",
                     "situacao": "Situação",
                     "frequencia_percentual": "Frequência (%)",
+                    "frequencia": "Frequência (%)",
                     "faltas": "Faltas",
                     "faltas_anuais": "Faltas anuais",
+                    "notas_abaixo_cinco": "Notas abaixo de cinco",
                     "componentes": "Componentes",
                     "total_aulas": "Total de Aulas",
                     "arquivo_origem": "Arquivo origem",
