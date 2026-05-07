@@ -13,6 +13,7 @@ from difflib import SequenceMatcher
 from xml.etree import ElementTree as ET
 import requests
 import os
+import io
 import re
 import json
 import zipfile
@@ -4898,10 +4899,24 @@ def _ler_csv_lista_seduc(arquivo) -> pd.DataFrame:
             break
 
     if idx_cabecalho is None:
-        # Fallback para arquivos sem linha extra.
+        # Fallback para arquivos sem linha extra. Tenta separadores comuns.
+        for sep in [";", ",", "\t"]:
+            try:
+                teste = pd.read_csv(io.BytesIO(bruto), sep=sep, encoding="utf-8-sig", dtype=str).fillna("")
+                if len(teste.columns) >= 3:
+                    return teste
+            except Exception:
+                continue
         return pd.read_csv(io.BytesIO(bruto), sep=";", encoding="utf-8-sig", dtype=str).fillna("")
 
     csv_limpo = "\n".join(linhas[idx_cabecalho:])
+    for sep in [";", ",", "\t"]:
+        try:
+            teste = pd.read_csv(io.StringIO(csv_limpo), sep=sep, dtype=str).fillna("")
+            if len(teste.columns) >= 3:
+                return teste
+        except Exception:
+            continue
     return pd.read_csv(io.StringIO(csv_limpo), sep=";", dtype=str).fillna("")
 
 
