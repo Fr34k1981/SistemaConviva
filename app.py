@@ -8882,9 +8882,27 @@ def _componente_para_disciplina_caderno(comp: str) -> str:
         "PROJETO DE VIDA": "PROJETO DE VIDA",
         "PV": "PROJETO DE VIDA",
         "ELETIVA": "ELETIVA",
+        "REDAÇÃO E LEITURA": "REDAÇÃO E LEITURA",
+        "REDACAO E LEITURA": "REDAÇÃO E LEITURA",
+        "ORIENTACAO DE ESTUDOS LINGUA PORTUGUESA": "ORIENTAÇÃO DE ESTUDOS LÍNGUA PORTUGUESA",
+        "ORIENTAÇÃO DE ESTUDOS LÍNGUA PORTUGUESA": "ORIENTAÇÃO DE ESTUDOS LÍNGUA PORTUGUESA",
+        "ORIENTACAO DE ESTUDO LINGUA PORTUGUESA": "ORIENTAÇÃO DE ESTUDOS LÍNGUA PORTUGUESA",
+        "ORIENTAÇÃO DE ESTUDO LÍNGUA PORTUGUESA": "ORIENTAÇÃO DE ESTUDOS LÍNGUA PORTUGUESA",
+        "OE LP": "ORIENTAÇÃO DE ESTUDOS LÍNGUA PORTUGUESA",
+        "ORIENTACAO DE ESTUDOS MATEMATICA": "ORIENTAÇÃO DE ESTUDOS MATEMÁTICA",
+        "ORIENTAÇÃO DE ESTUDOS MATEMÁTICA": "ORIENTAÇÃO DE ESTUDOS MATEMÁTICA",
+        "ORIENTACAO DE ESTUDO MATEMATICA": "ORIENTAÇÃO DE ESTUDOS MATEMÁTICA",
+        "ORIENTAÇÃO DE ESTUDO MATEMÁTICA": "ORIENTAÇÃO DE ESTUDOS MATEMÁTICA",
+        "OE MAT": "ORIENTAÇÃO DE ESTUDOS MATEMÁTICA",
     }
     if n in mapa:
         return mapa[n]
+    if "ORIENT" in n and "PORT" in n:
+        return "ORIENTAÇÃO DE ESTUDOS LÍNGUA PORTUGUESA"
+    if "ORIENT" in n and "MAT" in n:
+        return "ORIENTAÇÃO DE ESTUDOS MATEMÁTICA"
+    if "REDAC" in n or ("LEIT" in n and "RED" in n):
+        return "REDAÇÃO E LEITURA"
     for chave, valor in mapa.items():
         if chave in n or n in chave:
             return valor
@@ -9122,6 +9140,169 @@ def _mesclar_rendimento_sem_perder_manual(rendimento_atual: dict, rendimento_aut
     return mesclado
 
 
+def _extrair_primeiro_numero_texto(valor):
+    """Extrai o primeiro número de um texto como '8 | PP: 70%' ou 'Mapão: 7'."""
+    if valor in (None, "", "None"):
+        return None
+    if isinstance(valor, (int, float)) and not pd.isna(valor):
+        return float(valor)
+    texto = str(valor).strip()
+    if not texto:
+        return None
+    match = re.search(r"-?\d+(?:[\.,]\d+)?", texto)
+    if not match:
+        return None
+    try:
+        return float(match.group(0).replace(",", "."))
+    except Exception:
+        return None
+
+
+def _pontos_por_media_global(media):
+    """Converte média global em pontuação: abaixo de 5 perde 10; acima de 5 ganha até 50."""
+    if media is None:
+        return 0.0
+    try:
+        media = float(media)
+    except Exception:
+        return 0.0
+    if media < 5:
+        return -10.0
+    return round(max(0.0, min(50.0, (media - 5.0) * 10.0)), 1)
+
+
+def _pontos_por_percentual_prova(percentual):
+    """Acima de 50% ganha até 50 pontos; abaixo de 50% perde 10."""
+    if percentual is None:
+        return 0.0
+    try:
+        percentual = float(percentual)
+    except Exception:
+        return 0.0
+    if percentual < 50:
+        return -10.0
+    return round(max(0.0, min(50.0, percentual - 50.0)), 1)
+
+
+def _media_global_mapao_de_df(df_mapao: pd.DataFrame) -> dict:
+    if df_mapao is None or df_mapao.empty:
+        return {}
+    base = df_mapao.copy()
+    row = base.iloc[-1]
+    componentes = _mapao_componentes_objeto(row.get("Componentes", {}))
+    notas = []
+    detalhes = []
+    if isinstance(componentes, dict):
+        for comp, dados in componentes.items():
+            mencao_bruta = (dados or {}).get("mencao", "") if isinstance(dados, dict) else dados
+            nota = _parse_numero_br(mencao_bruta)
+            if nota is None:
+                nota = _extrair_primeiro_numero_texto(mencao_bruta)
+            if nota is None:
+                continue
+            notas.append(float(nota))
+            detalhes.append({
+                "componente": _componente_para_disciplina_caderno(comp),
+                "nota": float(nota),
+            })
+    if not notas:
+        return {}
+    media = round(sum(notas) / len(notas), 2)
+    return {
+        "media": media,
+        "quantidade_componentes": len(notas),
+        "bimestre": str(row.get("Bimestre", "") or "").strip(),
+        "detalhes": detalhes,
+    }
+
+
+def _percentual_global_prova_de_df(df_pp: pd.DataFrame):
+    if df_pp is None or df_pp.empty:
+        return None
+    for col in ["Acertos", "Percentual", "acertos_percentual"]:
+        if col in df_pp.columns:
+            serie = pd.to_numeric(
+                df_pp[col].astype(str).str.replace("%", "", regex=False).str.replace(",", ".", regex=False),
+                errors="coerce"
+            ).dropna()
+            if not serie.empty:
+                return float(serie.iloc[-1])
+    return None
+
+
+def _calcular_pontuacao_estudante_em_bases(nome: str, ra: str = "", turma: str = "", df_mapao=None, df_pp=None, df_oc=None) -> dict:
+    if df_mapao is None:
+        df_mapao = _resumo_mapao_aluno(nome, ra, turma)
+    if df_pp is None:
+        df_pp = _resumo_prova_paulista_aluno(nome, ra, turma)
+    if df_oc is None:
+        df_oc = _resumo_ocorrencias_aluno(nome, ra, turma)
+
+    info_mapao = _media_global_mapao_de_df(df_mapao)
+    media_mapao = info_mapao.get("media")
+    pontos_mapao = _pontos_por_media_global(media_mapao)
+
+    percentual_pp = _percentual_global_prova_de_df(df_pp)
+    pontos_pp = _pontos_por_percentual_prova(percentual_pp)
+
+    ocorrencias_total = 0 if df_oc is None or df_oc.empty else int(len(df_oc))
+    desconto_ocorrencias = float(ocorrencias_total * 10)
+
+    base_inicial = 100.0
+    pontuacao_final = round(max(0.0, base_inicial - desconto_ocorrencias + pontos_mapao + pontos_pp), 1)
+
+    return {
+        "base_inicial": base_inicial,
+        "ocorrencias_total": ocorrencias_total,
+        "desconto_ocorrencias": desconto_ocorrencias,
+        "media_global_mapao": media_mapao,
+        "pontos_mapao": pontos_mapao,
+        "bimestre_mapao": info_mapao.get("bimestre", ""),
+        "quantidade_componentes_mapao": info_mapao.get("quantidade_componentes", 0),
+        "percentual_prova_paulista": percentual_pp,
+        "pontos_prova_paulista": pontos_pp,
+        "pontuacao_final": pontuacao_final,
+    }
+
+
+def _ranking_pontuacao_turma(df_alunos_turma: pd.DataFrame) -> pd.DataFrame:
+    if df_alunos_turma is None or df_alunos_turma.empty:
+        return pd.DataFrame()
+    df_mapao_base = _dataframe_seguro_carregador("mapao")
+    df_pp_base = _dataframe_seguro_carregador("prova_paulista")
+    df_oc_base = _dataframe_seguro_carregador("ocorrencias")
+    linhas = []
+    for _, aluno in df_alunos_turma.iterrows():
+        nome = str(aluno.get("nome", "") or "").strip()
+        ra = str(aluno.get("ra", "") or "").strip()
+        turma = str(aluno.get("turma", "") or "").strip()
+        pont = _calcular_pontuacao_estudante_em_bases(
+            nome,
+            ra,
+            turma,
+            _filtrar_aluno_df(df_mapao_base, nome, ra, turma),
+            _filtrar_aluno_df(df_pp_base, nome, ra, turma),
+            _filtrar_aluno_df(df_oc_base, nome, ra, turma),
+        )
+        linhas.append({
+            "Estudante": nome,
+            "RA": ra,
+            "Turma": turma,
+            "Pontuação": pont.get("pontuacao_final", 0),
+            "Ocorrências": pont.get("ocorrencias_total", 0),
+            "Média global Mapão": pont.get("media_global_mapao"),
+            "Prova Paulista (%)": pont.get("percentual_prova_paulista"),
+        })
+    ranking = pd.DataFrame(linhas)
+    if ranking.empty:
+        return ranking
+    for col in ["Pontuação", "Ocorrências", "Média global Mapão", "Prova Paulista (%)"]:
+        ranking[col] = pd.to_numeric(ranking[col], errors="coerce")
+    ranking = ranking.sort_values(["Pontuação", "Média global Mapão", "Prova Paulista (%)", "Estudante"], ascending=[False, False, False, True]).reset_index(drop=True)
+    ranking.insert(0, "Posição", range(1, len(ranking) + 1))
+    return ranking
+
+
 def _dados_integrados_estudante(nome: str, ra: str = "", turma: str = "") -> dict:
     df_pp = _resumo_prova_paulista_aluno(nome, ra, turma)
     df_mapao = _resumo_mapao_aluno(nome, ra, turma)
@@ -9139,6 +9320,7 @@ def _dados_integrados_estudante(nome: str, ra: str = "", turma: str = "") -> dic
     ocorr_graves = 0
     if not df_oc.empty and "gravidade" in df_oc.columns:
         ocorr_graves = int(df_oc["gravidade"].astype(str).apply(lambda v: normalizar_texto(v) in {"GRAVE", "GRAVISSIMA", "GRAVÍSSIMA"}).sum())
+    pontuacao = _calcular_pontuacao_estudante_em_bases(nome, ra, turma, df_mapao, df_pp, df_oc)
     return {
         "prova_paulista": df_pp,
         "mapao": df_mapao,
@@ -9147,6 +9329,7 @@ def _dados_integrados_estudante(nome: str, ra: str = "", turma: str = "") -> dic
         "acertos_pp": acertos_pp,
         "ocorrencias_graves": ocorr_graves,
         "rendimento_auto": _rendimento_automatico_aluno(nome, ra, turma),
+        "pontuacao": pontuacao,
     }
 
 
@@ -9169,6 +9352,24 @@ def _render_painel_integrado_estudante(nome: str, ra: str, turma: str, dados: di
         resumo.append(f"Acertos mais recentes na Prova Paulista: **{_formatar_numero_pedagogico(acc)}%**")
     if resumo:
         st.info(" · ".join(resumo))
+
+    pontuacao = dados.get("pontuacao", {}) or {}
+    if pontuacao:
+        st.markdown("### 🏅 Pontuação pedagógica automática")
+        pc1, pc2, pc3, pc4, pc5 = st.columns(5)
+        pc1.metric("Pontuação total", _formatar_numero_pedagogico(pontuacao.get("pontuacao_final")) or "0")
+        pc2.metric("Base inicial", _formatar_numero_pedagogico(pontuacao.get("base_inicial")) or "100")
+        pc3.metric("Ocorrências", pontuacao.get("ocorrencias_total", 0), delta=f"-{_formatar_numero_pedagogico(pontuacao.get('desconto_ocorrencias')) or '0'} pts")
+        delta_mapao = pontuacao.get("pontos_mapao", 0)
+        delta_mapao_txt = f"{delta_mapao:+.1f} pts".replace(".0", "")
+        media_mapao_txt = _formatar_numero_pedagogico(pontuacao.get("media_global_mapao")) or "-"
+        pc4.metric("Média global Mapão", media_mapao_txt, delta=delta_mapao_txt)
+        delta_pp = pontuacao.get("pontos_prova_paulista", 0)
+        delta_pp_txt = f"{delta_pp:+.1f} pts".replace(".0", "")
+        pp_txt = _formatar_numero_pedagogico(pontuacao.get("percentual_prova_paulista"))
+        pc5.metric("Prova Paulista", f"{pp_txt}%" if pp_txt else "-", delta=delta_pp_txt)
+        st.caption("Regra aplicada: começa com 100 pontos; cada ocorrência reduz 10 pontos; média global do Mapão abaixo de 5 reduz 10 pontos e acima de 5 pode somar até 50 pontos; Prova Paulista abaixo de 50% reduz 10 pontos e acima de 50% pode somar até 50 pontos.")
+
     with st.expander("Ver dados integrados deste estudante", expanded=False):
         tab1, tab2, tab3, tab4 = st.tabs(["📊 Prova Paulista", "🗺️ Mapão", "📋 Ocorrências", "📚 Rendimento automático"])
         with tab1:
@@ -9667,7 +9868,8 @@ def render_caderno_tutoria_online(TUTORIA: dict, df_alunos: pd.DataFrame | None 
             st.caption(f"Faltas anuais: {faltas_anuais_txt or '-'} · Total de aulas: {total_aulas_txt or '-'} · Bimestre: {resumo_para_exibir.get('bimestre', '') or '-'}")
 
         rendimento = caderno.get("rendimento_bimestral", {})
-        df_rend = pd.DataFrame([{"COMPONENTE CURRICULAR": disc, **(rendimento.get(disc) or {})} for disc in DISCIPLINAS_CADERNO_TUTORIA])
+        rendimento_para_exibicao = _mesclar_rendimento_sem_perder_manual(rendimento, rendimento_auto)
+        df_rend = pd.DataFrame([{"COMPONENTE CURRICULAR": disc, **(rendimento_para_exibicao.get(disc) or {})} for disc in DISCIPLINAS_CADERNO_TUTORIA])
         df_edit = st.data_editor(df_rend, use_container_width=True, hide_index=True, num_rows="fixed", key=f"editor_rendimento_prof_{chave}")
         novo_rendimento = {}
         for _, row in df_edit.iterrows():
@@ -12528,6 +12730,30 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
             """, unsafe_allow_html=True)
  
     _render_painel_integrado_estudante(aluno_nome, aluno_ra, turma_sel, dados_integrados_relatorio)
+
+    ranking_turma = _ranking_pontuacao_turma(alunos_turma)
+    if not ranking_turma.empty:
+        st.markdown("### 🏆 Ranking pedagógico da turma")
+        ranking_exibir = ranking_turma.copy()
+        for col in ["Pontuação", "Média global Mapão", "Prova Paulista (%)"]:
+            if col in ranking_exibir.columns:
+                ranking_exibir[col] = ranking_exibir[col].apply(lambda v: _formatar_numero_pedagogico(v) if pd.notna(v) else "")
+        registro_aluno = ranking_turma[
+            ranking_turma["RA"].astype(str).apply(_normalizar_ra_estudante) == _normalizar_ra_estudante(aluno_ra)
+        ]
+        if registro_aluno.empty:
+            registro_aluno = ranking_turma[
+                ranking_turma["Estudante"].astype(str).apply(_normalizar_chave_estudante) == _normalizar_chave_estudante(aluno_nome)
+            ]
+        if not registro_aluno.empty:
+            linha_sel = registro_aluno.iloc[0]
+            rc1, rc2, rc3, rc4 = st.columns(4)
+            rc1.metric("Posição na turma", int(linha_sel.get("Posição", 0) or 0))
+            rc2.metric("Pontuação", _formatar_numero_pedagogico(linha_sel.get("Pontuação")) or "0")
+            rc3.metric("Média global Mapão", _formatar_numero_pedagogico(linha_sel.get("Média global Mapão")) or "-")
+            pp_linha = _formatar_numero_pedagogico(linha_sel.get("Prova Paulista (%)"))
+            rc4.metric("Prova Paulista", f"{pp_linha}%" if pp_linha else "-")
+        st.dataframe(ranking_exibir.head(10), use_container_width=True, hide_index=True, height=360)
 
     def _parse_data_relatorio(valor, padrao):
         try:
