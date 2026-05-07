@@ -4799,7 +4799,24 @@ def _supabase_mutation(method: str, path: str, data, acao: str) -> bool:
 @com_tratamento_erro
 @com_retry(tentativas=2)
 def carregar_alunos() -> pd.DataFrame:
-    return _supabase_get_dataframe("alunos?select=id,nome,ra,turma&order=turma.asc,nome.asc", "carregar alunos")
+    """Carrega a base oficial de estudantes com nome, RA, turma e situação.
+
+    A função usa fallback para evitar que uma coluna ausente derrube todas as páginas.
+    A situação é essencial para Lista de Alunos, Tutoria, Relatórios, Conselho, Mapão
+    e gamificação.
+    """
+    try:
+        df = _supabase_get_dataframe("alunos?select=id,nome,ra,turma,situacao&order=turma.asc,nome.asc", "carregar alunos")
+    except Exception as e:
+        logger.warning(f"Fallback de alunos sem coluna situacao ativado: {e}")
+        df = _supabase_get_dataframe("alunos?select=id,nome,ra,turma&order=turma.asc,nome.asc", "carregar alunos")
+    if "situacao" not in df.columns:
+        df["situacao"] = "Ativo"
+    for col in ["nome", "ra", "turma", "situacao"]:
+        if col not in df.columns:
+            df[col] = ""
+        df[col] = df[col].astype(str).fillna("").str.strip()
+    return df
 
 @com_tratamento_erro
 def salvar_aluno(aluno: dict) -> bool:
@@ -4828,6 +4845,287 @@ def excluir_alunos_por_turma(turma: str) -> bool:
     if sucesso:
         carregar_alunos.clear()
     return sucesso
+
+
+def _ler_csv_lista_seduc(arquivo) -> pd.DataFrame:
+    """Lê a lista da SEDUC mesmo quando o CSV vem com título/data antes do cabeçalho.
+
+    O arquivo costuma vir assim:
+    Linha 1: Lista de Alunos;07/05/2026 20:01
+    Linha 2: em branco
+    Linha 3: Nº de chamada;Nome do Aluno;RA;Dig. RA;UF RA;Data de Nascimento;Situação do Aluno
+    """
+    if arquivo is None:
+        return pd.DataFrame()
+
+    try:
+        pos = arquivo.tell()
+    except Exception:
+        pos = None
+
+    try:
+        conteudo = arquivo.getvalue()
+    except Exception:
+        conteudo = arquivo.read()
+
+    if pos is not None:
+        try:
+            arquivo.seek(pos)
+        except Exception:
+            pass
+
+    if isinstance(conteudo, str):
+        bruto = conteudo.encode("utf-8", errors="ignore")
+    else:
+        bruto = conteudo or b""
+
+    texto = None
+    for enc in ["utf-8-sig", "utf-8", "cp1252", "latin1"]:
+        try:
+            texto = bruto.decode(enc)
+            break
+        except Exception:
+            continue
+    if texto is None:
+        texto = bruto.decode("utf-8", errors="ignore")
+
+    linhas = texto.splitlines()
+    idx_cabecalho = None
+    for i, linha in enumerate(linhas):
+        norm = normalizar_texto(linha)
+        if "NOME" in norm and "ALUNO" in norm and "RA" in norm:
+            idx_cabecalho = i
+            break
+
+    if idx_cabecalho is None:
+        # Fallback para arquivos sem linha extra.
+        return pd.read_csv(io.BytesIO(bruto), sep=";", encoding="utf-8-sig", dtype=str).fillna("")
+
+    csv_limpo = "\n".join(linhas[idx_cabecalho:])
+    return pd.read_csv(io.StringIO(csv_limpo), sep=";", dtype=str).fillna("")
+
+
+def _normalizar_colunas_lista_seduc(df_import: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
+    """Identifica e devolve somente os campos essenciais da lista oficial: Nome, RA e Situação."""
+    if df_import is None or df_import.empty:
+        return pd.DataFrame(columns=["nome", "ra", "situacao"]), {}
+
+    df = df_import.copy()
+    df.columns = [str(c).replace("\ufeff", "").strip() for c in df.columns]
+    colunas = df.columns.tolist()
+
+    def norm_col(c):
+        return normalizar_texto(c).replace("Ã", "A")
+
+    col_nome = None
+    col_ra = None
+    col_situacao = None
+
+    for c in colunas:
+        n = norm_col(c)
+        if col_nome is None and (("NOME" in n and "ALUNO" in n) or n == "NOME"):
+            col_nome = c
+        if col_ra is None and "RA" in n and "DIG" not in n and "UF" not in n:
+            col_ra = c
+        if col_situacao is None and ("SITUACAO" in n or "SITUA" in n or "STATUS" in n):
+            col_situacao = c
+
+    # Fallback por conteúdo se algum cabeçalho veio estranho.
+    if col_ra is None:
+        for c in colunas:
+            if "DIG" in norm_col(c) or "UF" in norm_col(c):
+                continue
+            amostra = df[c].dropna().astype(str).head(20)
+            if sum(len("".join(ch for ch in v if ch.isdigit())) >= 7 for v in amostra) >= 3:
+                col_ra = c
+                break
+
+    if col_nome is None:
+        melhor = None
+        pontos = -1
+        for c in colunas:
+            n = norm_col(c)
+            if "RA" in n or "DATA" in n or "SITU" in n:
+                continue
+            score = 0
+            for v in df[c].dropna().astype(str).head(20):
+                v = v.strip()
+                if len(v) >= 6 and any(ch.isalpha() for ch in v) and " " in v:
+                    score += 1
+            if score > pontos:
+                melhor, pontos = c, score
+        if pontos >= 3:
+            col_nome = melhor
+
+    if col_situacao is None:
+        valores_sit = {"ATIVO", "TRANSFERIDO", "REMANEJAMENTO", "REMANEJADO", "INATIVO", "BAIXADO"}
+        for c in colunas:
+            amostra = {normalizar_texto(v) for v in df[c].dropna().astype(str).head(30)}
+            if len(amostra.intersection(valores_sit)) >= 1:
+                col_situacao = c
+                break
+
+    if col_nome is None or col_ra is None:
+        return pd.DataFrame(columns=["nome", "ra", "situacao"]), {
+            "col_nome": col_nome,
+            "col_ra": col_ra,
+            "col_situacao": col_situacao,
+        }
+
+    registros = []
+    for _, row in df.iterrows():
+        nome = str(row.get(col_nome, "") or "").strip()
+        ra = "".join(ch for ch in str(row.get(col_ra, "") or "") if ch.isdigit())
+        if not nome or normalizar_texto(nome) in {"NAN", "NONE", "NOME DO ALUNO", "LISTA DE ALUNOS"}:
+            continue
+        if not ra or len(ra) < 5:
+            continue
+
+        situacao = "Ativo"
+        if col_situacao:
+            sit = str(row.get(col_situacao, "") or "").strip()
+            sit_norm = normalizar_texto(sit)
+            if "TRANSFER" in sit_norm:
+                situacao = "Transferido"
+            elif "REMANEJ" in sit_norm:
+                situacao = "Remanejamento"
+            elif "BAIX" in sit_norm:
+                situacao = "Baixado"
+            elif "INATIV" in sit_norm:
+                situacao = "Inativo"
+            elif "ATIV" in sit_norm:
+                situacao = "Ativo"
+            elif sit:
+                situacao = sit
+
+        registros.append({"nome": nome, "ra": ra, "situacao": situacao})
+
+    base = pd.DataFrame(registros).drop_duplicates(subset=["ra"], keep="last") if registros else pd.DataFrame(columns=["nome", "ra", "situacao"])
+    return base, {"col_nome": col_nome, "col_ra": col_ra, "col_situacao": col_situacao}
+
+
+def _backup_local_turma_antes_substituicao(turma: str, df_alunos_base: pd.DataFrame, novos: pd.DataFrame) -> str:
+    """Cria backup local antes de atualizar a lista oficial da turma."""
+    pasta = os.path.join(os.getcwd(), "data", "backups_listas_turmas")
+    os.makedirs(pasta, exist_ok=True)
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    nome_arquivo = f"backup_lista_{turma_para_comparacao(turma) or 'turma'}_{ts}.json".replace("/", "_")
+    caminho = os.path.join(pasta, nome_arquivo)
+    atual = pd.DataFrame()
+    if df_alunos_base is not None and not df_alunos_base.empty and "turma" in df_alunos_base.columns:
+        atual = df_alunos_base[df_alunos_base["turma"].astype(str).apply(turma_para_comparacao) == turma_para_comparacao(turma)].copy()
+    payload = {
+        "turma": turma,
+        "data_backup": datetime.now().isoformat(),
+        "alunos_anteriores": atual.to_dict(orient="records"),
+        "novos_alunos": novos.to_dict(orient="records") if novos is not None else [],
+    }
+    with open(caminho, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+    return caminho
+
+
+def _formatar_data_curta(valor) -> str:
+    if not valor or str(valor).strip().lower() in {"nan", "none", "nat"}:
+        return "não registrada"
+    try:
+        data = pd.to_datetime(valor)
+        if pd.isna(data):
+            return "não registrada"
+        return data.strftime("%d/%m/%Y %H:%M")
+    except Exception:
+        return str(valor)[:16] or "não registrada"
+
+
+def _registrar_data_substituicao_turma(turma: str, df_config_turmas_atual: pd.DataFrame | None = None):
+    """Guarda a última data de substituição usando updated_at da configuração da turma.
+    Não exige coluna nova no Supabase.
+    """
+    coordenador = ""
+    try:
+        if df_config_turmas_atual is not None and not df_config_turmas_atual.empty and "turma" in df_config_turmas_atual.columns:
+            linha = df_config_turmas_atual[df_config_turmas_atual["turma"].astype(str) == str(turma)]
+            if not linha.empty:
+                coordenador = str(linha.iloc[0].get("coordenador_sala", "") or "").strip()
+        salvar_config_turma(turma, coordenador)
+    except Exception as e:
+        logger.warning(f"Não foi possível registrar data de substituição da turma {turma}: {e}")
+
+
+def _substituir_lista_oficial_turma_com_segurança(turma: str, novos_df: pd.DataFrame, df_alunos_base: pd.DataFrame) -> dict:
+    """Atualiza a lista oficial da turma preservando dados de outras páginas.\n\n    Estratégia segura:\n    1. Faz backup local da turma atual.\n    2. Atualiza/insere todos os alunos do arquivo novo.\n    3. Só remove da tabela alunos os RAs antigos da turma que não vieram no arquivo se a etapa 2 não tiver erro.\n    4. Sincroniza Eletiva/Tutoria sem apagar os vínculos salvos.\n    """
+    if novos_df is None or novos_df.empty:
+        raise ErroValidacao("arquivo", "Nenhum estudante válido foi identificado no arquivo.")
+
+    novos_df = novos_df.copy()
+    novos_df["turma"] = turma
+    backup = _backup_local_turma_antes_substituicao(turma, df_alunos_base, novos_df)
+
+    existentes = df_alunos_base.copy() if df_alunos_base is not None else pd.DataFrame()
+    existentes_ra = set(existentes["ra"].astype(str).str.replace(r"\D", "", regex=True)) if not existentes.empty and "ra" in existentes.columns else set()
+    atuais_turma = pd.DataFrame()
+    if not existentes.empty and "turma" in existentes.columns:
+        atuais_turma = existentes[existentes["turma"].astype(str).apply(turma_para_comparacao) == turma_para_comparacao(turma)]
+    atuais_ra = set(atuais_turma["ra"].astype(str).str.replace(r"\D", "", regex=True)) if not atuais_turma.empty and "ra" in atuais_turma.columns else set()
+    novos_ra = set(novos_df["ra"].astype(str).str.replace(r"\D", "", regex=True))
+
+    inseridos = atualizados = erros = removidos = 0
+    for _, row in novos_df.iterrows():
+        payload = {
+            "ra": str(row.get("ra", "") or "").strip(),
+            "nome": str(row.get("nome", "") or "").strip(),
+            "turma": turma,
+            "situacao": str(row.get("situacao", "Ativo") or "Ativo").strip(),
+        }
+        if not payload["ra"] or not payload["nome"]:
+            erros += 1
+            continue
+        try:
+            if payload["ra"] in existentes_ra:
+                if atualizar_aluno(payload["ra"], payload):
+                    atualizados += 1
+                else:
+                    erros += 1
+            else:
+                if salvar_aluno(payload):
+                    inseridos += 1
+                else:
+                    erros += 1
+        except Exception as e:
+            logger.error(f"Erro ao salvar aluno {payload.get('ra')} na substituição da turma {turma}: {e}")
+            erros += 1
+
+    if erros == 0:
+        for ra_antigo in sorted(atuais_ra - novos_ra):
+            try:
+                if _supabase_mutation("DELETE", f"alunos?ra=eq.{requests.utils.quote(ra_antigo, safe='')}", None, "remover aluno ausente da nova lista"):
+                    removidos += 1
+            except Exception as e:
+                logger.warning(f"Não foi possível remover RA antigo {ra_antigo} da turma {turma}: {e}")
+    else:
+        logger.warning(f"Remoção de ausentes bloqueada na turma {turma}; houve {erros} erro(s) ao salvar novos alunos.")
+
+    try:
+        carregar_alunos.clear()
+    except Exception:
+        pass
+
+    df_atualizado = carregar_alunos()
+    sync_stats = sincronizar_turmas_listas_com_base(df_atualizado, origem="substituicao_lista_oficial")
+    try:
+        _registrar_data_substituicao_turma(turma, carregar_config_turmas())
+    except Exception:
+        pass
+
+    return {
+        "inseridos": inseridos,
+        "atualizados": atualizados,
+        "removidos": removidos,
+        "erros": erros,
+        "backup": backup,
+        "sync": sync_stats,
+    }
+
 
 @com_tratamento_erro
 def editar_nome_turma(turma_antiga: str, turma_nova: str) -> bool:
@@ -6091,7 +6389,8 @@ def _indice_alunos_para_atualizar_turmas(df_alunos: pd.DataFrame) -> tuple[dict,
         nome = str(aluno.get("nome", "")).strip()
         turma = formatar_turma_eletiva(str(aluno.get("turma", "")).strip())
         ra = "".join(ch for ch in str(aluno.get("ra", "")) if ch.isdigit())
-        registro = {"nome": nome, "serie": turma, "ra": ra}
+        situacao = str(aluno.get("situacao", "Ativo") or "Ativo").strip()
+        registro = {"nome": nome, "serie": turma, "ra": ra, "situacao": situacao}
         if ra:
             por_ra[ra] = registro
         nome_norm = normalizar_texto(nome)
@@ -6122,6 +6421,9 @@ def _atualizar_item_lista_com_base(item: dict, por_ra: dict, por_nome: dict) -> 
         mudou = True
     if aluno_base.get("nome") and normalizar_texto(item.get("nome", "")) == nome_norm and str(item.get("nome", "")).strip() != aluno_base.get("nome"):
         item["nome"] = aluno_base.get("nome")
+        mudou = True
+    if aluno_base.get("situacao") and str(item.get("situacao", "") or "").strip() != aluno_base.get("situacao"):
+        item["situacao"] = aluno_base.get("situacao")
         mudou = True
     return mudou
 
@@ -14128,11 +14430,13 @@ elif "GERENCIAR TURMAS" in normalizar_texto(menu):
             st.success(sync_msg_turma)
         df_config_turmas = carregar_config_turmas()
         mapa_coord_turma = {}
+        mapa_updated_turma = {}
         if not df_config_turmas.empty and "turma" in df_config_turmas.columns:
             for _, cfg in df_config_turmas.iterrows():
                 turma_cfg = str(cfg.get("turma", "")).strip()
                 if turma_cfg:
                     mapa_coord_turma[turma_cfg] = str(cfg.get("coordenador_sala", "")).strip()
+                    mapa_updated_turma[turma_cfg] = str(cfg.get("updated_at", "")).strip()
         coordenadores_disponiveis = []
         if not df_professores.empty and "cargo" in df_professores.columns:
             coordenadores_disponiveis = sorted([
@@ -14168,6 +14472,7 @@ elif "GERENCIAR TURMAS" in normalizar_texto(menu):
                             <div style="font-family:'Nunito',sans-serif;font-weight:700;font-size:1rem;color:#0f172a;">{row['turma']}</div>
                             <div style="font-size:0.78rem;color:#64748b;font-weight:500;">{row['total_alunos']} alunos cadastrados</div>
                             <div style="font-size:0.76rem;color:#0f766e;font-weight:600;margin-top:0.15rem;">Coordenador(a): {mapa_coord_turma.get(row['turma'], 'Não vinculado')}</div>
+                            <div style="font-size:0.72rem;color:#64748b;font-weight:600;margin-top:0.12rem;">Última atualização da lista: {_formatar_data_curta(mapa_updated_turma.get(row['turma'], ''))}</div>
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
@@ -14258,89 +14563,62 @@ elif "GERENCIAR TURMAS" in normalizar_texto(menu):
 
             if arquivo is not None:
                 try:
-                    df_import = pd.read_csv(arquivo, sep=";", encoding="utf-8-sig", dtype=str)
+                    df_import_raw = _ler_csv_lista_seduc(arquivo)
+                    df_lista_essencial, cols_detectadas = _normalizar_colunas_lista_seduc(df_import_raw)
+
                     st.success("✅ Arquivo carregado com sucesso.")
-                    st.dataframe(df_import.head())
+                    st.caption(
+                        "O sistema usará somente os campos essenciais: Nome do Aluno, RA e Situação do Aluno. "
+                        "As demais colunas serão ignoradas."
+                    )
 
-                    colunas = df_import.columns.tolist()
-                    col_ra = None
-                    col_nome = None
-                    col_situacao = None
+                    with st.expander("🔍 Colunas identificadas", expanded=False):
+                        st.write(f"**Nome:** {cols_detectadas.get('col_nome') or 'não identificado'}")
+                        st.write(f"**RA:** {cols_detectadas.get('col_ra') or 'não identificado'}")
+                        st.write(f"**Situação:** {cols_detectadas.get('col_situacao') or 'não identificada'}")
 
-                    for col in colunas:
-                        col_lower = col.lower()
-                        if "ra" in col_lower and "dig" not in col_lower:
-                            col_ra = col
-                        if "nome" in col_lower:
-                            col_nome = col
-                        if "situa" in col_lower:
-                            col_situacao = col
+                    if df_lista_essencial.empty:
+                        st.error("❌ Não foi possível identificar Nome do Aluno, RA e Situação na lista. A turma atual NÃO será alterada.")
+                        st.dataframe(df_import_raw.head(10), use_container_width=True)
+                    else:
+                        previa = df_lista_essencial.copy()
+                        previa.insert(0, "turma", turma)
+                        st.write("### 👀 Pré-visualização que será usada")
+                        st.dataframe(previa.head(30), use_container_width=True, hide_index=True)
 
-                    if col_ra is None or col_nome is None:
-                        st.warning("⚠️ Selecione as colunas manualmente:")
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            col_ra = st.selectbox("Coluna do RA:", colunas)
-                            col_nome = st.selectbox("Coluna do Nome:", colunas)
-                        with col2:
-                            col_situacao = st.selectbox("Coluna da Situação:", ["Não usar"] + colunas)
-                            if col_situacao == "Não usar":
-                                col_situacao = None
+                        c1, c2, c3 = st.columns(3)
+                        c1.metric("Estudantes válidos", len(df_lista_essencial))
+                        c2.metric("Ativos", int((df_lista_essencial["situacao"].astype(str).str.upper() == "ATIVO").sum()))
+                        c3.metric("Transferidos/Outros", int((df_lista_essencial["situacao"].astype(str).str.upper() != "ATIVO").sum()))
 
-                    if st.button("🔄 Confirmar Substituição", type="primary"):
-                        # Segurança: primeiro prepara e valida os registros.
-                        # A turma antiga só é apagada depois que houver alunos válidos para importar.
-                        registros_importacao = []
-                        for _, row in df_import.iterrows():
-                            ra = "".join(c for c in str(row[col_ra]) if c.isdigit())
-                            nome = str(row[col_nome]).strip()
-                            if not ra or not nome or nome.lower() in {"nan", "none", "nome do aluno"}:
-                                continue
+                        if st.button("🔄 Confirmar Substituição", type="primary"):
+                            df_alunos_existente = carregar_alunos()
+                            resultado = _substituir_lista_oficial_turma_com_segurança(turma, df_lista_essencial, df_alunos_existente)
 
-                            situacao = "Ativo"
-                            if col_situacao:
-                                sit_valor = str(row[col_situacao]).strip()
-                                sit_norm = normalizar_texto(sit_valor)
-                                if "TRANSFER" in sit_norm:
-                                    situacao = "Transferido"
-                                elif "REMANEJ" in sit_norm or "REALOC" in sit_norm or "RELOC" in sit_norm:
-                                    situacao = "Remanejamento"
-                                elif "ATIVO" in sit_norm:
-                                    situacao = "Ativo"
-                                elif sit_valor and sit_valor.lower() not in {"nan", "none", "null"}:
-                                    situacao = sit_valor
-
-                            registros_importacao.append({"ra": ra, "nome": nome, "turma": turma, "situacao": situacao})
-
-                        if not registros_importacao:
-                            st.error("❌ Nenhum aluno válido foi identificado no arquivo. A turma atual NÃO foi apagada.")
-                            st.stop()
-
-                        excluir_ok = excluir_alunos_por_turma(turma)
-                        if not excluir_ok:
-                            st.error("❌ Não foi possível limpar a turma atual. A substituição foi cancelada para evitar perda de dados.")
-                            st.stop()
-
-                        inseridos = 0
-                        for aluno in registros_importacao:
-                            if salvar_aluno(aluno):
-                                inseridos += 1
-
-                        st.success(f"✅ Turma substituída com segurança! {inseridos} aluno(s) importado(s).")
-                        st.session_state.turma_para_substituir = None
-                        carregar_alunos.clear()
-                        try:
-                            df_alunos_atualizado = carregar_alunos()
-                            sync_stats = sincronizar_turmas_listas_com_base(df_alunos_atualizado, origem="substituicao_turma")
-                            total_sync = sync_stats.get("eletivas", 0) + sync_stats.get("tutoria", 0)
-                            if total_sync:
-                                st.session_state["turma_sync_listas_msg"] = (
-                                    f"Listas atualizadas: {sync_stats.get('eletivas', 0)} vínculo(s) de eletiva "
-                                    f"e {sync_stats.get('tutoria', 0)} vínculo(s) de tutoria tiveram a turma ajustada."
+                            if resultado.get("erros", 0):
+                                st.warning(
+                                    f"Lista atualizada parcialmente: {resultado.get('inseridos', 0)} novo(s), "
+                                    f"{resultado.get('atualizados', 0)} atualizado(s), {resultado.get('erros', 0)} erro(s). "
+                                    "Por segurança, alunos antigos não encontrados no arquivo novo não foram removidos."
                                 )
-                        except Exception as e:
-                            logger.warning(f"Não foi possível sincronizar turmas nas listas após substituição: {e}")
-                        st.rerun()
+                            else:
+                                st.success(
+                                    f"✅ Lista oficial da turma {turma} substituída com segurança: "
+                                    f"{resultado.get('inseridos', 0)} novo(s), "
+                                    f"{resultado.get('atualizados', 0)} atualizado(s), "
+                                    f"{resultado.get('removidos', 0)} removido(s)."
+                                )
+
+                            sync_stats = resultado.get("sync", {}) or {}
+                            total_sync = sync_stats.get("eletivas", 0) + sync_stats.get("tutoria", 0)
+                            st.session_state["turma_sync_listas_msg"] = (
+                                f"Última substituição da turma {turma}: {datetime.now().strftime('%d/%m/%Y %H:%M')}. "
+                                f"Listas compartilhadas atualizadas: {sync_stats.get('eletivas', 0)} vínculo(s) de eletiva "
+                                f"e {sync_stats.get('tutoria', 0)} vínculo(s) de tutoria. "
+                                f"Backup local criado antes da alteração."
+                            )
+                            st.session_state.turma_para_substituir = None
+                            st.rerun()
 
                 except Exception as e:
                     st.error(f"❌ Erro ao processar o arquivo: {e}")
