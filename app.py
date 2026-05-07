@@ -9765,8 +9765,15 @@ def _ler_xlsx_sem_openpyxl(arquivo_ou_caminho) -> pd.DataFrame:
                 rel_id = primeira.attrib.get("{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id", "")
                 target = rel_map.get(rel_id, "")
                 if target:
-                    sheet_path = target.replace("\\", "/")
-                    if not sheet_path.startswith("xl/"):
+                    sheet_path = target.replace("\\", "/").lstrip("/")
+                    # Alguns arquivos gerados pela SED/Google gravam o Target como
+                    # /xl/worksheets/sheet1.xml. Sem lstrip, o código gerava
+                    # xl//xl/worksheets/sheet1.xml ou xl/xl/worksheets/sheet1.xml.
+                    if sheet_path.startswith("xl/"):
+                        sheet_path = sheet_path
+                    elif sheet_path.startswith("worksheets/"):
+                        sheet_path = f"xl/{sheet_path}"
+                    else:
                         sheet_path = f"xl/{sheet_path}"
         except Exception:
             pass
@@ -10213,8 +10220,15 @@ def _linhas_xlsx_sem_openpyxl(arquivo_ou_caminho) -> list[list[str]]:
                     rel_id = primeira.attrib.get("{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id", "")
                     target = rel_map.get(rel_id, "")
                     if target:
-                        sheet_path = target.replace("\\", "/")
-                        if not sheet_path.startswith("xl/"):
+                        sheet_path = target.replace("\\", "/").lstrip("/")
+                        # Alguns arquivos gerados pela SED/Google gravam o Target como
+                        # /xl/worksheets/sheet1.xml. Sem lstrip, o código gerava
+                        # xl//xl/worksheets/sheet1.xml ou xl/xl/worksheets/sheet1.xml.
+                        if sheet_path.startswith("xl/"):
+                            sheet_path = sheet_path
+                        elif sheet_path.startswith("worksheets/"):
+                            sheet_path = f"xl/{sheet_path}"
+                        else:
                             sheet_path = f"xl/{sheet_path}"
             except Exception:
                 pass
