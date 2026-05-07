@@ -5910,6 +5910,62 @@ def converter_tutoria_supabase_para_dict(df_tutoria: pd.DataFrame) -> dict:
             tutoria[tutor]["turno"] = turno
     return normalizar_base_tutoria(tutoria)
 
+def carregar_tutoria_supabase_segura(motivo: str = "carregar tutoria") -> pd.DataFrame:
+    """Carrega vínculos da Tutoria sem deixar a tela zerar por erro de coluna.
+
+    Algumas versões da tabela public.tutoria não possuem todas as colunas
+    usadas pelo app (por exemplo origem, tipo, espaço, horário). Quando o
+    select pede uma coluna inexistente, o Supabase retorna 400 e o app acabava
+    tratando como tabela vazia. Esta função tenta consultas em cascata e só
+    devolve vazio quando realmente não conseguiu carregar nenhum formato.
+    """
+    if not SUPABASE_VALID:
+        return pd.DataFrame()
+    consultas = [
+        "tutoria?select=professora,nome_aluno,serie,ra,tipo,espaco,horario,dia,turno,origem&limit=50000",
+        "tutoria?select=professora,nome_aluno,serie,ra,tipo,espaco,horario,dia,turno&limit=50000",
+        "tutoria?select=professora,nome_aluno,serie,ra&limit=50000",
+        "tutoria?select=*&limit=50000",
+    ]
+    ultimo_erro = None
+    for consulta in consultas:
+        try:
+            df = _supabase_get_dataframe(consulta, motivo)
+            if isinstance(df, pd.DataFrame):
+                if not df.empty:
+                    return df
+                # guarda o vazio, mas continua tentando select=* caso o formato
+                # anterior tenha sido válido e a tabela realmente esteja vazia.
+                ultimo_vazio = df
+        except Exception as e:
+            ultimo_erro = e
+            logger.warning(f"Falha ao carregar tutoria com consulta {consulta}: {e}")
+    if ultimo_erro is not None:
+        st.session_state["tutoria_responsaveis_sync_warning"] = (
+            "Não consegui carregar os vínculos da Tutoria no primeiro formato. "
+            "Usei as proteções de cache/backup para não apagar estudantes."
+        )
+    return pd.DataFrame()
+
+
+def carregar_tutoria_referencias_supabase_segura() -> dict:
+    """Carrega metadados de responsáveis se a tabela existir; nunca apaga vínculos."""
+    if not SUPABASE_VALID:
+        return {}
+    consultas = [
+        "tutoria_responsaveis?select=responsavel,perfil,espaco,horario,dia,turno&limit=50000",
+        "tutoria_responsaveis?select=*&limit=50000",
+    ]
+    for consulta in consultas:
+        try:
+            df = _supabase_get_dataframe(consulta, "carregar responsáveis da tutoria")
+            if isinstance(df, pd.DataFrame) and not df.empty:
+                return converter_tutoria_supabase_para_dict(df)
+        except Exception as e:
+            logger.warning(f"Falha ao carregar responsáveis da tutoria: {e}")
+    return {}
+
+
 def montar_dataframe_eletiva(nome_professora: str, df_alunos: pd.DataFrame, eletivas_dict: dict) -> pd.DataFrame:
     registros = []
     alunos_db = df_alunos.copy()
@@ -6928,10 +6984,9 @@ if SUPABASE_VALID:
         df_eletivas_supabase = pd.DataFrame()
 
 if SUPABASE_VALID:
-    try:
-        df_tutoria_supabase = _supabase_get_dataframe("tutoria?select=professora,nome_aluno,serie,ra,tipo,espaco,horario,dia,turno,origem&limit=50000", "carregar tutoria")
-    except Exception:
-        df_tutoria_supabase = pd.DataFrame()
+    df_tutoria_supabase = carregar_tutoria_supabase_segura("carregar tutoria")
+else:
+    df_tutoria_supabase = pd.DataFrame()
 
 if st.session_state.ELETIVAS is None:
     if SUPABASE_VALID:
@@ -6955,7 +7010,8 @@ FONTE_ELETIVAS = st.session_state.FONTE_ELETIVAS
 
 TUTORIA_LOCAL = carregar_tutoria_local()
 TUTORIA_PROFESSORES_META = converter_metadados_professores_para_tutoria(df_professores)
-TUTORIA_REFERENCIA_META = mesclar_multiplas_fontes_tutoria(TUTORIA_LOCAL, TUTORIA_EXCEL, TUTORIA_PROFESSORES_META)
+TUTORIA_RESPONSAVEIS_META = carregar_tutoria_referencias_supabase_segura()
+TUTORIA_REFERENCIA_META = mesclar_multiplas_fontes_tutoria(TUTORIA_LOCAL, TUTORIA_EXCEL, TUTORIA_RESPONSAVEIS_META, TUTORIA_PROFESSORES_META)
 
 TUTORIA_SUPABASE_BASE = {}
 if SUPABASE_VALID and isinstance(df_tutoria_supabase, pd.DataFrame) and not df_tutoria_supabase.empty:
@@ -9483,7 +9539,7 @@ def _render_painel_integrado_estudante(nome: str, ra: str, turma: str, dados: di
         pc4.metric("Mapão", media_mapao_txt, delta=f"{_formatar_numero_pedagogico(pontuacao.get('pontos_mapao')) or '0'} pts")
         pp_txt = _formatar_numero_pedagogico(pontuacao.get("percentual_prova_paulista"))
         pc5.metric("Prova Paulista", f"{pp_txt}%" if pp_txt else "-", delta=f"{_formatar_numero_pedagogico(pontuacao.get('pontos_prova_paulista')) or '0'} pts")
-        st.caption("Regra aplicada: pontuação máxima 100. Mapão e Prova Paulista dividem o peso de forma justa conforme os dados disponíveis; ocorrências reduzem 10 pontos cada; abaixo de 70 perde direitos.")
+        st.caption("Regra aplicada: pontuação máxima 100. Prova Paulista vale até 40 pontos, notas gerais/Mapão até 40 pontos e convivência até 20 pontos. Cada ocorrência reduz 10 pontos; cada nota abaixo de 5 reduz 10 pontos; Prova Paulista abaixo de 50% reduz 10 pontos; abaixo de 70 perde direitos.")
 
     with st.expander("Ver dados integrados deste estudante", expanded=False):
         tab1, tab2, tab3, tab4 = st.tabs(["📊 Prova Paulista", "🗺️ Mapão", "📋 Ocorrências", "📚 Rendimento automático"])
@@ -11657,6 +11713,206 @@ def _render_pagina_mapao():
             st.success(msg) if ok else st.warning(msg)
             st.rerun()
 
+
+
+# ======================================================
+# CORREÇÃO FINAL - GAMIFICAÇÃO E LEITURA DO MAPÃO ONLINE
+# ======================================================
+# Este bloco fica imediatamente antes do roteamento das páginas para sobrescrever
+# definições antigas que existiam duplicadas no arquivo e impediam a leitura do
+# Mapão salvo no Supabase durante o Dashboard/Relatórios.
+
+def _carregar_mapao_local() -> pd.DataFrame:
+    """Carrega Mapão de forma robusta: Supabase + sessão + arquivo local.
+
+    A versão antiga duplicada carregava apenas sessão/arquivo local. No Streamlit
+    Cloud, depois do redeploy, isso fazia o ranking ficar zerado porque o arquivo
+    temporário local pode não existir, mesmo com os dados salvos no Supabase.
+    """
+    fontes = []
+    if SUPABASE_VALID:
+        try:
+            df_sup = _supabase_get_dataframe(
+                "mapao_resultados?select=ano_letivo,bimestre,turma,ciclo,turno,estudante,ra,situacao,frequencia_percentual,frequencia,faltas,faltas_anuais,notas_abaixo_cinco,componentes,total_aulas,arquivo_origem,created_at&limit=10000",
+                "carregar mapão",
+            )
+            if isinstance(df_sup, pd.DataFrame) and not df_sup.empty:
+                df_sup = df_sup.rename(columns={
+                    "estudante": "Estudante",
+                    "ra": "RA",
+                    "turma": "Turma",
+                    "ciclo": "Ciclo",
+                    "turno": "Turno",
+                    "bimestre": "Bimestre",
+                    "ano_letivo": "Ano letivo",
+                    "situacao": "Situação",
+                    "frequencia_percentual": "Frequência (%)",
+                    "frequencia": "Frequência (%)",
+                    "faltas": "Faltas",
+                    "faltas_anuais": "Faltas anuais",
+                    "notas_abaixo_cinco": "Notas abaixo de cinco",
+                    "componentes": "Componentes",
+                    "total_aulas": "Total de Aulas",
+                    "arquivo_origem": "Arquivo origem",
+                })
+                if "Componentes" in df_sup.columns:
+                    df_sup["Componentes"] = df_sup["Componentes"].apply(
+                        lambda v: json.dumps(v, ensure_ascii=False) if isinstance(v, (dict, list)) else v
+                    )
+                fontes.append(df_sup)
+        except Exception as e:
+            try:
+                st.session_state["erro_carregar_mapao_ranking"] = str(e)
+            except Exception:
+                pass
+
+    for chave in ["df_mapao", "mapao_df", "df_mapao_online"]:
+        obj = st.session_state.get(chave)
+        if isinstance(obj, pd.DataFrame) and not obj.empty:
+            fontes.append(obj)
+
+    try:
+        if MAPAO_LOCAL.exists():
+            fontes.append(pd.read_json(MAPAO_LOCAL, orient="records"))
+    except Exception:
+        pass
+
+    if not fontes:
+        return pd.DataFrame(columns=COLUNAS_MAPAO_PADRAO)
+
+    df = pd.concat(fontes, ignore_index=True)
+    df = _normalizar_dataframe_mapao(df)
+    try:
+        df = df.drop_duplicates(subset=["Ano letivo", "Bimestre", "Turma", "Estudante"], keep="last")
+    except Exception:
+        pass
+    return df.reset_index(drop=True)
+
+
+def _salvar_mapao_local(df: pd.DataFrame, tentar_supabase: bool = True, mesclar_com_existente: bool = False) -> tuple[bool, str]:
+    """Salva Mapão mantendo Supabase como fonte oficial e preservando local/sessão."""
+    df = _normalizar_dataframe_mapao(df)
+    if mesclar_com_existente:
+        existente = _carregar_mapao_local()
+        if isinstance(existente, pd.DataFrame) and not existente.empty:
+            df = pd.concat([existente, df], ignore_index=True)
+            df = _normalizar_dataframe_mapao(df)
+            try:
+                df = df.drop_duplicates(subset=["Ano letivo", "Bimestre", "Turma", "Estudante"], keep="last")
+            except Exception:
+                pass
+
+    st.session_state["df_mapao"] = df
+    st.session_state["mapao_df"] = df
+    try:
+        MAPAO_LOCAL.parent.mkdir(parents=True, exist_ok=True)
+        df.to_json(MAPAO_LOCAL, orient="records", force_ascii=False, indent=2)
+    except Exception:
+        pass
+
+    if tentar_supabase:
+        ok, msg = _salvar_mapao_supabase(df)
+        if ok:
+            try:
+                _limpar_cache_supabase_completo()
+            except Exception:
+                pass
+            return True, msg
+        return False, f"Salvo localmente. {msg}"
+    return True, "Mapão salvo localmente."
+
+
+def _filtrar_aluno_df(df: pd.DataFrame, nome: str, ra: str = "", turma: str = "") -> pd.DataFrame:
+    """Filtra aluno com RA quando houver e com nome normalizado/flexível quando não houver RA."""
+    if df is None or df.empty:
+        return pd.DataFrame()
+    base = df.copy()
+    ra_norm = _normalizar_ra_estudante(ra)
+    nome_norm = _normalizar_chave_estudante(nome)
+    turma_norm = normalizar_texto(turma)
+
+    mask = pd.Series(False, index=base.index)
+    if ra_norm:
+        for col in ["RA", "ra", "NR RA", "nr_ra"]:
+            if col in base.columns:
+                mask = mask | (base[col].astype(str).apply(_normalizar_ra_estudante) == ra_norm)
+
+    if nome_norm:
+        for col in ["Estudante", "estudante", "aluno", "Aluno", "nome", "Nome"]:
+            if col in base.columns:
+                nomes_col = base[col].astype(str).apply(_normalizar_chave_estudante)
+                mask = mask | (nomes_col == nome_norm)
+                # Fallback para pequenas diferenças de acento, ordem ou espaços.
+                mask = mask | nomes_col.apply(lambda x: bool(x and nome_norm and (x in nome_norm or nome_norm in x)))
+
+    filtrado = base[mask].copy()
+    if turma_norm and not filtrado.empty:
+        for col in ["Turma", "turma"]:
+            if col in filtrado.columns:
+                turma_col = filtrado[col].astype(str).apply(normalizar_texto)
+                filtrado_turma = filtrado[turma_col == turma_norm].copy()
+                if not filtrado_turma.empty:
+                    return filtrado_turma
+    return filtrado
+
+
+def _ranking_pontuacao_geral(df_alunos_base: pd.DataFrame | None = None) -> pd.DataFrame:
+    """Ranking gamificado geral com base nos alunos cadastrados e nas fontes já salvas.
+
+    Inclui estudantes que aparecem no Mapão/Prova Paulista mesmo quando a lista de
+    alunos tem diferença de escrita, evitando ranking vazio ou zerado.
+    """
+    bases = []
+    if df_alunos_base is None:
+        df_alunos_base = globals().get("df_alunos", pd.DataFrame())
+    if isinstance(df_alunos_base, pd.DataFrame) and not df_alunos_base.empty:
+        base_alunos = df_alunos_base.copy()
+        ren = {}
+        if "nome" in base_alunos.columns:
+            ren["nome"] = "Estudante"
+        if "ra" in base_alunos.columns:
+            ren["ra"] = "RA"
+        if "turma" in base_alunos.columns:
+            ren["turma"] = "Turma"
+        base_alunos = base_alunos.rename(columns=ren)
+        for col in ["Estudante", "RA", "Turma"]:
+            if col not in base_alunos.columns:
+                base_alunos[col] = ""
+        bases.append(base_alunos[["Estudante", "RA", "Turma"]])
+
+    for carregador in ["prova_paulista", "mapao"]:
+        df_src = _dataframe_seguro_carregador(carregador)
+        if isinstance(df_src, pd.DataFrame) and not df_src.empty:
+            src = df_src.copy()
+            for col in ["Estudante", "RA", "Turma"]:
+                if col not in src.columns:
+                    src[col] = ""
+            bases.append(src[["Estudante", "RA", "Turma"]])
+
+    if not bases:
+        return pd.DataFrame()
+
+    base = pd.concat(bases, ignore_index=True)
+    base["Estudante"] = base["Estudante"].astype(str).str.strip()
+    base = base[base["Estudante"].str.len() > 0].copy()
+    if base.empty:
+        return pd.DataFrame()
+    base["_chave_nome"] = base["Estudante"].astype(str).apply(_normalizar_chave_estudante)
+    base["_chave_ra"] = base["RA"].astype(str).apply(_normalizar_ra_estudante)
+    base["_chave_turma"] = base["Turma"].astype(str).apply(normalizar_texto)
+    base = base.drop_duplicates(subset=["_chave_ra", "_chave_nome", "_chave_turma"], keep="last")
+    base = base.drop(columns=["_chave_nome", "_chave_ra", "_chave_turma"], errors="ignore")
+
+    ranking = _ranking_pontuacao_turma(base.rename(columns={"Estudante": "nome", "RA": "ra", "Turma": "turma"}))
+    if ranking.empty:
+        return ranking
+    # Não deixa estudantes sem nenhum dado pedagógico dominarem o ranking apenas com os 20 pontos de convivência.
+    if "PP pts" in ranking.columns and "Notas pts" in ranking.columns:
+        ranking["Tem dados pedagógicos"] = (pd.to_numeric(ranking["PP pts"], errors="coerce").fillna(0) > 0) | (pd.to_numeric(ranking["Notas pts"], errors="coerce").fillna(0) > 0)
+        ranking = ranking.sort_values(["Tem dados pedagógicos", "Pontuação", "Média global Mapão", "Prova Paulista (%)", "Estudante"], ascending=[False, False, False, False, True]).reset_index(drop=True)
+        ranking["Posição"] = range(1, len(ranking) + 1)
+    return ranking
+
 if menu == "🏠 Dashboard":
     # ── Header no modelo SED, mantendo identidade do sistema ──
     st.markdown(f"""
@@ -11924,11 +12180,18 @@ if menu == "🏠 Dashboard":
     if ranking_game_dashboard.empty:
         st.info("Assim que houver Mapão, Prova Paulista ou ocorrências, o ranking gamificado aparece aqui.")
     else:
+        try:
+            st.caption(f"Fontes carregadas para a gamificação: Prova Paulista {_dataframe_seguro_carregador('prova_paulista').shape[0]} registro(s) · Mapão {_dataframe_seguro_carregador('mapao').shape[0]} registro(s) · Ocorrências {_dataframe_seguro_carregador('ocorrencias').shape[0]} registro(s).")
+        except Exception:
+            pass
         col_rank_alunos, col_rank_salas = st.columns([1.35, 1])
         with col_rank_alunos:
             st.markdown("**🏆 Melhores estudantes mais pontuados**")
-            cols_alunos = [c for c in ["Posição", "Estudante", "Turma", "Pontuação", "Status", "PP pts", "Notas pts", "Convivência pts", "Ocorrências"] if c in ranking_game_dashboard.columns]
-            st.dataframe(_formatar_ranking_pontuacao_para_exibir(ranking_game_dashboard[cols_alunos].head(10)), use_container_width=True, hide_index=True)
+            cols_alunos = [c for c in ["Posição", "Estudante", "Turma", "Pontuação", "Status"] if c in ranking_game_dashboard.columns]
+            st.dataframe(_formatar_ranking_pontuacao_para_exibir(ranking_game_dashboard[cols_alunos].head(10)), use_container_width=True, hide_index=True, height=390)
+            with st.expander("Ver composição da pontuação", expanded=False):
+                cols_detalhe = [c for c in ["Posição", "Estudante", "PP pts", "Notas pts", "Convivência pts", "Ocorrências", "Notas abaixo de 5", "Prova Paulista (%)", "Média global Mapão"] if c in ranking_game_dashboard.columns]
+                st.dataframe(_formatar_ranking_pontuacao_para_exibir(ranking_game_dashboard[cols_detalhe].head(30)), use_container_width=True, hide_index=True, height=360)
         with col_rank_salas:
             st.markdown("**🏫 Premiação por sala**")
             if ranking_salas_dashboard.empty:
@@ -16054,13 +16317,17 @@ elif menu == "🫂 Tutoria":
     if st.session_state.get("tutoria_responsaveis_sync_warning"):
         st.warning(st.session_state.get("tutoria_responsaveis_sync_warning"))
 
-    if total_estudantes_tutoria(TUTORIA) == 0 and total_estudantes_tutoria(TUTORIA_REFERENCIA_COM_ALUNOS if "TUTORIA_REFERENCIA_COM_ALUNOS" in globals() else {}) > 0:
-        st.error("Os responsáveis foram carregados, mas os estudantes não apareceram nesta sessão. Use o botão abaixo para restaurar os vínculos da base local/planilha.")
-        if st.button("🔄 Restaurar estudantes da Tutoria agora", key="restaurar_estudantes_tutoria_topo", type="primary"):
-            st.session_state.TUTORIA = mesclar_tutoria_com_metadados(TUTORIA_REFERENCIA_COM_ALUNOS, TUTORIA_REFERENCIA_META)
-            salvar_tutoria_local(st.session_state.TUTORIA)
-            st.session_state.FONTE_TUTORIA = "local/excel"
-            st.rerun()
+    if total_estudantes_tutoria(TUTORIA) == 0:
+        referencia_alunos = TUTORIA_REFERENCIA_COM_ALUNOS if "TUTORIA_REFERENCIA_COM_ALUNOS" in globals() else {}
+        if total_estudantes_tutoria(referencia_alunos) > 0:
+            st.error("Os responsáveis foram carregados, mas os estudantes não apareceram nesta sessão. Use o botão abaixo para restaurar os vínculos sem apagar nada.")
+            if st.button("🔄 Restaurar estudantes da Tutoria agora", key="restaurar_estudantes_tutoria_topo", type="primary"):
+                st.session_state.TUTORIA = mesclar_tutoria_com_metadados(referencia_alunos, TUTORIA_REFERENCIA_META)
+                salvar_tutoria_local(st.session_state.TUTORIA)
+                st.session_state.FONTE_TUTORIA = "supabase/cache/backup"
+                st.rerun()
+        else:
+            st.warning("A tela carregou responsáveis, mas nenhum vínculo de estudante foi encontrado no Supabase/cache local. Nada será salvo por cima da Tutoria enquanto estiver assim.")
 
     with st.expander("📘 Caderno de Tutoria Online 2026", expanded=False):
         render_caderno_tutoria_online(TUTORIA, st.session_state.get("df_alunos", pd.DataFrame()))
@@ -16078,6 +16345,10 @@ elif menu == "🫂 Tutoria":
         if total_seguro > 0 and total_atual == 0:
             st.session_state.TUTORIA = mesclar_multiplas_fontes_tutoria(st.session_state.TUTORIA, fonte_segura)
             st.session_state["tutoria_responsaveis_sync_warning"] = "Proteção ativada: a tela estava sem estudantes e foi mesclada com Supabase/cache/planilha antes de salvar."
+        elif total_seguro == 0 and total_atual == 0:
+            st.session_state["tutoria_responsaveis_sync_warning"] = "Salvamento bloqueado: a tela não carregou estudantes da Tutoria. Recarregue do Supabase ou restaure backup antes de salvar."
+            st.session_state.FONTE_TUTORIA = fonte
+            return
         elif total_seguro >= 10 and total_atual < int(total_seguro * 0.70):
             st.session_state["tutoria_responsaveis_sync_warning"] = f"Proteção ativada: tentativa de salvar {total_atual} vínculos sobre uma base segura com {total_seguro}. Salvamento bloqueado para evitar perda em massa."
             st.session_state.FONTE_TUTORIA = fonte
@@ -16247,6 +16518,7 @@ elif menu == "🫂 Tutoria":
             else:
                 st.warning("⚠️ Tutoria sem fonte oficial disponível no momento.")
 
+            st.caption(f"Diagnóstico: {len(TUTORIA)} responsável(is) na tela · {total_estudantes_tutoria(TUTORIA)} estudante(s) na tela · {total_estudantes_tutoria(TUTORIA_SUPABASE_BASE if 'TUTORIA_SUPABASE_BASE' in globals() else {})} estudante(s) lido(s) da tabela tutoria.")
             col_sync1, col_sync2 = st.columns(2)
             with col_sync1:
                 if st.button("🔄 Restaurar da Planilha/Arquivo", key="reload_tutoria_local", use_container_width=True):
@@ -16259,7 +16531,7 @@ elif menu == "🫂 Tutoria":
                 if SUPABASE_VALID:
                     if st.button("☁️ Importar Estudantes do Supabase", key="importar_tutoria_supabase", use_container_width=True):
                         try:
-                            df_refresh = _supabase_get_dataframe("tutoria?select=professora,nome_aluno,serie,ra,tipo,espaco,horario,dia,turno,origem&limit=50000", "recarregar tutoria")
+                            df_refresh = carregar_tutoria_supabase_segura("recarregar tutoria")
                             base_supabase = converter_tutoria_supabase_para_dict(df_refresh) if not df_refresh.empty else {}
                             if total_estudantes_tutoria(base_supabase) == 0 and total_estudantes_tutoria(TUTORIA) > 0:
                                 st.warning("O Supabase retornou zero estudantes; mantive a lista atual para evitar perda de vínculos.")
