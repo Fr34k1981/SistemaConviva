@@ -161,16 +161,9 @@ st.set_page_config(
     page_icon="🏫",
     initial_sidebar_state="expanded"
 )
-components.html(
-    """
-    <script>
-    setInterval(() => {
-      try { fetch(window.parent.location.href, {cache: "no-store", mode: "no-cors"}); } catch (e) {}
-    }, 240000);
-    </script>
-    """,
-    height=0,
-)
+# Keep-alive automático removido para reduzir Egress no Supabase.
+# Antes havia um fetch a cada 4 minutos mantendo o app ativo; isso pode aumentar
+# reruns e leituras indiretas. O Streamlit continuará funcionando normalmente sem ele.
 # ======================================================
 # CSS PREMIUM EDUCACIONAL — DESIGN MODERNO E PROFISSIONAL
 # ======================================================
@@ -4691,7 +4684,7 @@ import gzip
 import time
 
 CACHE_LOCAL_ATIVO = os.getenv("CONVIVA_CACHE_LOCAL", "1") != "0"
-CACHE_LOCAL_TTL_SEGUNDOS = int(os.getenv("CONVIVA_CACHE_LOCAL_TTL", "1800"))  # 30 minutos
+CACHE_LOCAL_TTL_SEGUNDOS = int(os.getenv("CONVIVA_CACHE_LOCAL_TTL", "21600"))  # 6 horas
 CACHE_LOCAL_DIR = Path(os.getenv("CONVIVA_CACHE_DIR", "/tmp/conviva_supabase_cache"))
 try:
     CACHE_LOCAL_DIR.mkdir(parents=True, exist_ok=True)
@@ -4756,7 +4749,7 @@ def _limpar_cache_supabase_completo():
         pass
     _limpar_cache_local_supabase()
 
-@st.cache_data(ttl=120, show_spinner=False)
+@st.cache_data(ttl=3600, show_spinner=False)
 def _supabase_get_dataframe(path: str, acao: str) -> pd.DataFrame:
     """Retorna DataFrame do Supabase com cache híbrido para reduzir egress.
 
@@ -4802,7 +4795,7 @@ def _supabase_mutation(method: str, path: str, data, acao: str) -> bool:
 # ALUNOS
 # ======================================================
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=21600, show_spinner=False)
 @com_tratamento_erro
 @com_retry(tentativas=2)
 def carregar_alunos() -> pd.DataFrame:
@@ -4857,7 +4850,7 @@ def editar_nome_turma(turma_antiga: str, turma_nova: str) -> bool:
 # PROFESSORES
 # ======================================================
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=21600, show_spinner=False)
 @com_tratamento_erro
 @com_retry(tentativas=2)
 def carregar_professores() -> pd.DataFrame:
@@ -4893,11 +4886,11 @@ def excluir_professor(id_prof: int) -> bool:
 # RESPONSÁVEIS / ASSINATURAS
 # ======================================================
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=21600, show_spinner=False)
 @com_tratamento_erro
 @com_retry(tentativas=2)
 def carregar_responsaveis() -> pd.DataFrame:
-    return _supabase_get_dataframe("responsaveis?select=*&ativo=eq.true", "carregar responsáveis")
+    return _supabase_get_dataframe("responsaveis?select=id,nome,cargo,ativo&ativo=eq.true&order=cargo.asc,nome.asc", "carregar responsáveis")
 
 def limpar_cache_responsaveis():
     try:
@@ -4935,7 +4928,7 @@ def excluir_responsavel(id_resp: int) -> bool:
 # OCORRÊNCIAS
 # ======================================================
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=1800, show_spinner=False)
 @com_tratamento_erro
 @com_retry(tentativas=2)
 def carregar_ocorrencias() -> pd.DataFrame:
@@ -5089,11 +5082,11 @@ def _limpar_cache_turmas_config():
     except Exception:
         pass
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=21600, show_spinner=False)
 def carregar_config_turmas() -> pd.DataFrame:
     if SUPABASE_VALID:
         try:
-            return _supabase_get_dataframe("turmas_config?select=*&order=turma.asc", "carregar configuração das turmas")
+            return _supabase_get_dataframe("turmas_config?select=turma,coordenador_sala,updated_at&order=turma.asc", "carregar configuração das turmas")
         except Exception as e:
             logger.warning(f"Fallback local da configuração de turmas ativado: {e}")
     return pd.DataFrame(list(_carregar_turmas_config_local().values()))
@@ -5210,7 +5203,7 @@ def _proximo_id_relatorio_local(registros: list[dict]) -> int:
             continue
     return (max(ids) if ids else 0) + 1
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=1800, show_spinner=False)
 def carregar_relatorios_estudantes() -> pd.DataFrame:
     if SUPABASE_VALID:
         try:
@@ -6930,13 +6923,13 @@ except Exception as e:
 
 if SUPABASE_VALID:
     try:
-        df_eletivas_supabase = _supabase_get_dataframe("eletivas?select=*", "carregar eletivas")
+        df_eletivas_supabase = _supabase_get_dataframe("eletivas?select=professora,nome_aluno,serie&limit=50000", "carregar eletivas")
     except Exception:
         df_eletivas_supabase = pd.DataFrame()
 
 if SUPABASE_VALID:
     try:
-        df_tutoria_supabase = _supabase_get_dataframe("tutoria?select=*", "carregar tutoria")
+        df_tutoria_supabase = _supabase_get_dataframe("tutoria?select=professora,nome_aluno,serie,ra,tipo,espaco,horario,dia,turno,origem&limit=50000", "carregar tutoria")
     except Exception:
         df_tutoria_supabase = pd.DataFrame()
 
@@ -10297,7 +10290,7 @@ def _render_pagina_mapao():
     with aba_dados:
         if df_mapao.empty:
             df_mapao = pd.DataFrame([{c: "" for c in COLUNAS_MAPAO_PADRAO}])
-        editado = st.data_editor(df_mapao, use_container_width=True, hide_index=True, num_rows="dynamic", key="editor_mapao_online")
+        editado = st.data_editor(_preparar_dataframe_para_editor_streamlit(df_mapao), use_container_width=True, hide_index=True, num_rows="dynamic", key="editor_mapao_online")
         if st.button("💾 Salvar Mapão", type="primary", use_container_width=True):
             _salvar_mapao_local(editado)
             st.success("Mapão salvo para consulta nas demais páginas.")
@@ -10606,7 +10599,7 @@ def _carregar_prova_paulista_local() -> pd.DataFrame:
     fontes = []
     if SUPABASE_VALID:
         try:
-            df_sup = _supabase_get_dataframe("prova_paulista_resultados?select=*&limit=10000", "carregar prova paulista")
+            df_sup = _supabase_get_dataframe("prova_paulista_resultados?select=ano_letivo,bimestre,turma,ciclo,turno,ra,estudante,participacao,acertos_percentual,componentes,arquivo_origem,created_at&limit=10000", "carregar prova paulista")
             if not df_sup.empty:
                 df_sup = df_sup.rename(columns={
                     "ra": "RA",
@@ -11189,7 +11182,7 @@ def _carregar_mapao_local() -> pd.DataFrame:
     fontes = []
     if SUPABASE_VALID:
         try:
-            df_sup = _supabase_get_dataframe("mapao_resultados?select=*&limit=10000", "carregar mapão")
+            df_sup = _supabase_get_dataframe("mapao_resultados?select=ano_letivo,bimestre,turma,ciclo,turno,estudante,ra,situacao,frequencia_percentual,frequencia,faltas,faltas_anuais,notas_abaixo_cinco,componentes,total_aulas,arquivo_origem,created_at&limit=10000", "carregar mapão")
             if not df_sup.empty:
                 df_sup = df_sup.rename(columns={
                     "estudante": "Estudante",
@@ -11252,6 +11245,30 @@ def _salvar_mapao_local(
         return False, f"Salvo localmente. {msg}"
     return True, "Mapão salvo localmente."
 
+
+
+def _preparar_dataframe_para_editor_streamlit(df: pd.DataFrame) -> pd.DataFrame:
+    """Evita erro pyarrow no st.data_editor ao exibir colunas mistas/JSON.
+
+    O Mapao pode trazer componentes como dict/list, numeros, strings e valores vazios
+    na mesma coluna. O Streamlit converte o DataFrame para Arrow antes de renderizar;
+    quando ha tipos misturados, pode ocorrer ArrowInvalid. Para a aba de revisao,
+    transformamos apenas a copia exibida em valores escalares seguros.
+    """
+    if df is None:
+        return pd.DataFrame()
+
+    seguro = df.copy()
+
+    for col in seguro.columns:
+        seguro[col] = seguro[col].apply(
+            lambda v: json.dumps(v, ensure_ascii=False) if isinstance(v, (dict, list)) else v
+        )
+        seguro[col] = seguro[col].where(pd.notna(seguro[col]), "")
+        seguro[col] = seguro[col].astype(str)
+        seguro[col] = seguro[col].replace({"nan": "", "None": "", "<NA>": "", "NaT": ""})
+
+    return seguro
 
 def _render_pagina_mapao():
     page_header("🗺️ Mapão", "Importe frequência, situação e componentes para Conselho e Tutoria", "#059669")
@@ -11317,7 +11334,7 @@ def _render_pagina_mapao():
     with aba_dados:
         if df_mapao.empty:
             df_mapao = pd.DataFrame([{c: "" for c in COLUNAS_MAPAO_PADRAO}])
-        editado = st.data_editor(df_mapao, use_container_width=True, hide_index=True, height=560, num_rows="dynamic", key="editor_mapao_online")
+        editado = st.data_editor(_preparar_dataframe_para_editor_streamlit(df_mapao), use_container_width=True, hide_index=True, height=560, num_rows="dynamic", key="editor_mapao_online")
         if st.button("💾 Salvar alterações do Mapão", type="primary", use_container_width=True):
             ok, msg = _salvar_mapao_local(editado, tentar_supabase=True)
             st.success(msg) if ok else st.warning(msg)
@@ -14752,7 +14769,7 @@ elif menu == "🎨 Eletiva":
         with col_sync1:
             if st.button("🔄 Recarregar Eletivas do Supabase", key="reload_eletivas_supabase", use_container_width=True):
                 try:
-                    df_refresh = _supabase_get_dataframe("eletivas?select=*", "recarregar eletivas")
+                    df_refresh = _supabase_get_dataframe("eletivas?select=professora,nome_aluno,serie&limit=50000", "recarregar eletivas")
                     st.session_state.ELETIVAS = converter_eletivas_supabase_para_dict(df_refresh) if not df_refresh.empty else {k: [] for k in ELETIVAS.keys()}
                     st.session_state.FONTE_ELETIVAS = "supabase"
                     st.success("✅ Eletivas recarregadas do Supabase.")
@@ -15892,7 +15909,7 @@ elif menu == "🫂 Tutoria":
                 if SUPABASE_VALID:
                     if st.button("☁️ Importar Estudantes do Supabase", key="importar_tutoria_supabase", use_container_width=True):
                         try:
-                            df_refresh = _supabase_get_dataframe("tutoria?select=*", "recarregar tutoria")
+                            df_refresh = _supabase_get_dataframe("tutoria?select=professora,nome_aluno,serie,ra,tipo,espaco,horario,dia,turno,origem&limit=50000", "recarregar tutoria")
                             base_supabase = converter_tutoria_supabase_para_dict(df_refresh) if not df_refresh.empty else {}
                             if total_estudantes_tutoria(base_supabase) == 0 and total_estudantes_tutoria(TUTORIA) > 0:
                                 st.warning("O Supabase retornou zero estudantes; mantive a lista atual para evitar perda de vínculos.")
