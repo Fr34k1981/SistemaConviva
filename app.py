@@ -4939,7 +4939,43 @@ def excluir_responsavel(id_resp: int) -> bool:
 @com_tratamento_erro
 @com_retry(tentativas=2)
 def carregar_ocorrencias() -> pd.DataFrame:
-    return _supabase_get_dataframe("ocorrencias?select=id,data,turma,aluno,ra,categoria,gravidade,encaminhamento,descricao,professor,created_at&order=id.desc", "carregar ocorrências")
+    """Carrega ocorrências sem quebrar quando o banco usa relato ou descricao.
+
+    O sistema salva ocorrências na coluna `relato`. A versão otimizada anterior
+    tentou buscar `descricao`, o que gera 400 Bad Request quando essa coluna
+    não existe no Supabase. Esta versão prioriza `relato`, mantém uma coluna
+    `descricao` compatível para telas antigas e só usa fallback se necessário.
+    """
+    consulta_relato = (
+        "ocorrencias?"
+        "select=id,data,turma,aluno,ra,categoria,gravidade,encaminhamento,relato,professor,created_at"
+        "&order=id.desc"
+    )
+    consulta_descricao = (
+        "ocorrencias?"
+        "select=id,data,turma,aluno,ra,categoria,gravidade,encaminhamento,descricao,professor,created_at"
+        "&order=id.desc"
+    )
+
+    try:
+        df = _supabase_get_dataframe(consulta_relato, "carregar ocorrências")
+    except Exception as erro_relato:
+        # Fallback para bancos antigos que eventualmente tenham `descricao`.
+        try:
+            df = _supabase_get_dataframe(consulta_descricao, "carregar ocorrências")
+        except Exception:
+            raise erro_relato
+
+    if df is None or df.empty:
+        return pd.DataFrame()
+
+    # Compatibilidade: algumas telas usam `relato`; outras podem esperar `descricao`.
+    if "relato" not in df.columns and "descricao" in df.columns:
+        df["relato"] = df["descricao"]
+    if "descricao" not in df.columns and "relato" in df.columns:
+        df["descricao"] = df["relato"]
+
+    return df
 
 @com_tratamento_erro
 def salvar_ocorrencia(ocorrencia: dict) -> bool:
