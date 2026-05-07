@@ -3549,6 +3549,27 @@ def _opcoes_turmas_sistema() -> list[str]:
 
     return sorted(turmas, key=ordenar_turma_tutoria)
 
+
+def _formatar_opcao_turma_select(turma: str) -> str:
+    """Mostra a turma separada por turno e etapa, sem alterar o valor salvo.
+
+    O selectbox exibe, por exemplo:
+    Turno 1 · Ensino Fundamental - Anos Finais · 6º Ano A
+
+    Mas o valor retornado continua sendo apenas:
+    6º Ano A
+    """
+    turma = str(turma or "").strip()
+    if not turma:
+        return "Selecione a turma"
+    info = classificar_turma_sistema(turma)
+    return f"{info['turno']} · {info['ciclo']} · {info['turma']}"
+
+
+def _opcoes_turmas_com_vazio() -> list[str]:
+    """Retorna opções de turma mantendo valor real separado do rótulo exibido."""
+    return [""] + _opcoes_turmas_sistema()
+
 def estudante_ativo(linha) -> bool:
     """Considera ativo todo estudante que nao esteja claramente marcado como inativo."""
     for coluna in ["situacao", "situação", "status", "ativo"]:
@@ -6282,6 +6303,13 @@ def carregar_tutoria_referencias_supabase_segura() -> dict:
 def montar_dataframe_eletiva(nome_professora: str, df_alunos: pd.DataFrame, eletivas_dict: dict) -> pd.DataFrame:
     registros = []
     alunos_db = df_alunos.copy()
+    # Todas as contagens e vinculações de Eletiva/Tutoria devem considerar apenas estudantes ativos.
+    # Isso evita que transferidos/inativos entrem nos cards, impressões e buscas.
+    try:
+        if not alunos_db.empty:
+            alunos_db = alunos_db[alunos_db.apply(estudante_ativo, axis=1)].copy()
+    except Exception:
+        pass
     nome_coluna = None
     for c in alunos_db.columns:
         if c.lower() in ("nome", "nome do aluno", "aluno"):
@@ -8197,7 +8225,8 @@ def render_pagina_conselho():
             lista_conselho_turma,
             index=indice_turma,
             key="conselho_turma",
-            help="Selecione uma turma cadastrada ou padrão do sistema."
+            format_func=_formatar_opcao_turma_select,
+            help="Selecione uma turma cadastrada ou padrão do sistema. A exibição separa por turno e etapa, mas salva apenas o nome da turma."
         )
     with col_b:
         bimestre = st.selectbox("Bimestre", ["1º Bimestre", "2º Bimestre", "3º Bimestre", "4º Bimestre"], key="conselho_bimestre")
@@ -11401,7 +11430,8 @@ def _render_pagina_prova_paulista():
                 "Turma que receberá os dados",
                 opcoes_turma,
                 key="pp_turma_select",
-                help="Escolha a sala antes de fazer o upload da planilha."
+                format_func=_formatar_opcao_turma_select,
+                help="Escolha a sala antes de fazer o upload da planilha. A exibição separa por turno e etapa, mas salva apenas o nome da turma."
             )
             turma_manual = st.text_input(
                 "Ou digite a turma manualmente",
@@ -11511,7 +11541,7 @@ def _render_pagina_prova_paulista():
                     st.warning(f"{int(sem_turma.sum())} registro(s) estão sem turma. Escolha a turma correta para regularizar e permitir consulta por sala.")
                     c_fix1, c_fix2, c_fix3 = st.columns([1.2, 1, 0.8])
                     with c_fix1:
-                        turma_fix = st.selectbox("Turma dos registros sem turma", [""] + _opcoes_turmas_sistema(), key="pp_fix_turma")
+                        turma_fix = st.selectbox("Turma dos registros sem turma", _opcoes_turmas_com_vazio(), key="pp_fix_turma", format_func=_formatar_opcao_turma_select)
                     with c_fix2:
                         bim_fix = st.selectbox("Bimestre desses registros", ["1º Bimestre", "2º Bimestre", "3º Bimestre", "4º Bimestre"], key="pp_fix_bim")
                     with c_fix3:
@@ -11966,10 +11996,10 @@ def _render_pagina_mapao():
     df_mapao = _carregar_mapao_local()
     aba_upload, aba_dados = st.tabs(["📥 Importar Mapão", "🧾 Dados arquivados"])
     with aba_upload:
-        opcoes_turma = [""] + _opcoes_turmas_sistema()
+        opcoes_turma = _opcoes_turmas_com_vazio()
         col_m1, col_m2, col_m3, col_m4 = st.columns([1.2, 1, 0.8, 1])
         with col_m1:
-            turma_sel = st.selectbox("Turma para salvar", opcoes_turma, key="mapao_turma_select")
+            turma_sel = st.selectbox("Turma para salvar", opcoes_turma, key="mapao_turma_select", format_func=_formatar_opcao_turma_select)
             turma_manual = st.text_input("Ou digite a turma", value="", key="mapao_turma_manual", placeholder="Ex: 6º A")
             turma_final = turma_manual.strip() or turma_sel
         with col_m2:
@@ -16013,21 +16043,30 @@ elif menu == "🎨 Eletiva":
 
     df_eletiva = montar_dataframe_eletiva(professora_sel, df_alunos, ELETIVAS)
     
+    # Cards da Eletiva: contar somente estudantes ativos.
     total = len(df_eletiva)
     if not df_eletiva.empty and "Status" in df_eletiva.columns:
         encontrados = len(df_eletiva[df_eletiva["Status"] == "Encontrado"])
         nao_encontrados = len(df_eletiva[df_eletiva["Status"] == "Não encontrado"])
+        com_turno1 = int(((df_eletiva["Status"] == "Encontrado") & (df_eletiva.get("Turno", pd.Series(dtype=str)).astype(str) == "Turno 1")).sum())
+        com_turno2 = int(((df_eletiva["Status"] == "Encontrado") & (df_eletiva.get("Turno", pd.Series(dtype=str)).astype(str) == "Turno 2")).sum())
     else:
         encontrados = 0
         nao_encontrados = 0
+        com_turno1 = 0
+        com_turno2 = 0
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
-        st.metric("Total", total)
+        st.metric("Ativos na lista", total)
     with col2:
-        st.metric("Encontrados", encontrados)
+        st.metric("Ativos encontrados", encontrados)
     with col3:
-        st.metric("Não Encontrados", nao_encontrados)
+        st.metric("Não encontrados", nao_encontrados)
+    with col4:
+        st.metric("Encontrados - Turno 1", com_turno1)
+    with col5:
+        st.metric("Encontrados - Turno 2", com_turno2)
 
     busca_nome = st.text_input("🔍 Buscar estudante na eletiva", placeholder="Digite parte do nome")
     filtro_status = st.selectbox("Filtrar por status", ["Todos", "Encontrado", "Não encontrado"])
@@ -16128,7 +16167,7 @@ elif menu == "🎨 Eletiva":
         if not turmas_eletiva:
             st.info("Nao ha turmas de eletiva para imprimir.")
         else:
-            turma_impressao = st.selectbox("Turma da Eletiva", turmas_eletiva, key="eletiva_turma_impressao")
+            turma_impressao = st.selectbox("Turma da Eletiva", turmas_eletiva, key="eletiva_turma_impressao", format_func=_formatar_opcao_turma_select)
             df_imp = df_geral_eletivas[
                 df_geral_eletivas["Turma"].astype(str).str.strip() == str(turma_impressao).strip()
             ].copy()
@@ -16150,7 +16189,8 @@ elif menu == "🎨 Eletiva":
                 "Selecione as turmas para imprimir",
                 turmas_eletiva,
                 default=[turma_impressao] if turma_impressao else [],
-                key="eletiva_turmas_mult"
+                key="eletiva_turmas_mult",
+                format_func=_formatar_opcao_turma_select
             )
 
             if st.button("Imprimir Turmas Selecionadas", key="btn_zip_eletiva_turma_mult"):
@@ -16191,12 +16231,14 @@ elif menu == "🎨 Eletiva":
     elif "turma" not in df_alunos.columns:
         st.info("A base de alunos não possui coluna de turma para pesquisa.")
     else:
-        turmas_base = sorted([t for t in df_alunos["turma"].dropna().astype(str).str.strip().unique().tolist() if t])
+        base_ativa_eletiva = preparar_base_alunos_ativos_tutoria(df_alunos)
+        turmas_base = sorted([formatar_turma_eletiva(t) for t in base_ativa_eletiva["turma"].dropna().astype(str).str.strip().unique().tolist() if t], key=ordenar_turma_tutoria)
         turmas_pesquisa = st.multiselect(
             "Turmas para pesquisar",
             turmas_base,
             default=turmas_base,
-            key="eletiva_turmas_pesquisa_nao_localizados"
+            key="eletiva_turmas_pesquisa_nao_localizados",
+            format_func=_formatar_opcao_turma_select
         )
         if turmas_pesquisa:
             frames = []
@@ -16219,7 +16261,7 @@ elif menu == "🎨 Eletiva":
                         normalizar_texto(r.get("Turma no Sistema", ""))
                     ))
 
-            base_turmas = df_alunos[df_alunos["turma"].astype(str).isin(turmas_pesquisa)].copy()
+            base_turmas = base_ativa_eletiva[base_ativa_eletiva["turma"].astype(str).isin(turmas_pesquisa)].copy()
             base_turmas["nome_norm"] = base_turmas["nome"].astype(str).apply(normalizar_texto)
             base_turmas["turma_norm"] = base_turmas["turma"].astype(str).apply(normalizar_texto)
 
@@ -17806,7 +17848,7 @@ elif menu == "🫂 Tutoria":
         if not turmas_tutoria:
             st.info("Não há turmas de tutoria para imprimir.")
         else:
-            turma_impressao = st.selectbox("Turma da Tutoria", turmas_tutoria, key="tutoria_turma_impressao")
+            turma_impressao = st.selectbox("Turma da Tutoria", turmas_tutoria, key="tutoria_turma_impressao", format_func=_formatar_opcao_turma_select)
             df_imp = df_geral_tutoria[df_geral_tutoria["Turma"].astype(str).str.strip() == str(turma_impressao).strip()].copy()
             if st.button("Gerar PDF por Turma", type="primary", key="btn_pdf_tutoria_turma"):
                 if df_imp.empty:
@@ -17883,15 +17925,23 @@ elif menu == "🫂 Tutoria":
         total_sem_tutor = len(df_sem_tutor)
         total_com_tutor = max(total_ativos - total_sem_tutor, 0)
 
-        total_turno1 = int((df_sem_tutor["Turno"] == "Turno 1").sum()) if not df_sem_tutor.empty else 0
-        total_turno2 = int((df_sem_tutor["Turno"] == "Turno 2").sum()) if not df_sem_tutor.empty else 0
+        ativos_turno1 = int((base_ativa_tutoria["turma"].apply(classificar_turno_tutoria) == "Turno 1").sum()) if not base_ativa_tutoria.empty else 0
+        ativos_turno2 = int((base_ativa_tutoria["turma"].apply(classificar_turno_tutoria) == "Turno 2").sum()) if not base_ativa_tutoria.empty else 0
+        sem_turno1 = int((df_sem_tutor["Turno"] == "Turno 1").sum()) if not df_sem_tutor.empty else 0
+        sem_turno2 = int((df_sem_tutor["Turno"] == "Turno 2").sum()) if not df_sem_tutor.empty else 0
+        com_turno1 = max(ativos_turno1 - sem_turno1, 0)
+        com_turno2 = max(ativos_turno2 - sem_turno2, 0)
 
-        col_st1, col_st2, col_st3, col_st4, col_st5 = st.columns(5)
+        col_st1, col_st2, col_st3 = st.columns(3)
         col_st1.metric("Ativos no Supabase", total_ativos)
         col_st2.metric("Com tutor", total_com_tutor)
         col_st3.metric("Sem tutor", total_sem_tutor)
-        col_st4.metric("Sem tutor - Turno 1", total_turno1)
-        col_st5.metric("Sem tutor - Turno 2", total_turno2)
+
+        col_st4, col_st5, col_st6, col_st7 = st.columns(4)
+        col_st4.metric("Com tutor - Turno 1", com_turno1)
+        col_st5.metric("Sem tutor - Turno 1", sem_turno1)
+        col_st6.metric("Com tutor - Turno 2", com_turno2)
+        col_st7.metric("Sem tutor - Turno 2", sem_turno2)
 
         aba_geral_sem_tutor, aba_turno_sem_tutor, aba_sala_sem_tutor = st.tabs(["📌 Geral", "🕒 Por turno/etapa", "🏫 Por sala"])
 
@@ -18001,7 +18051,8 @@ elif menu == "🫂 Tutoria":
                 turma_sem_tutor_sel = st.selectbox(
                     "Selecione a sala/turma",
                     options=["Todas"] + turmas_sem_tutor,
-                    key="turma_sem_tutor_select"
+                    key="turma_sem_tutor_select",
+                    format_func=lambda t: "Todas" if t == "Todas" else _formatar_opcao_turma_select(t)
                 )
 
                 resumo_sem_tutor = (
