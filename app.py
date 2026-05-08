@@ -6298,6 +6298,104 @@ def carregar_tutoria_referencias_supabase_segura() -> dict:
     return {}
 
 
+def _extrair_dict_tutoria_de_backup_objeto(obj) -> dict:
+    """Tenta reconhecer uma base de tutoria dentro de backups JSON variados.
+
+    Aceita tanto o formato já normalizado {tutor: {alunos: [...]}} quanto
+    listas de registros vindas da tabela public.tutoria.
+    """
+    try:
+        if obj is None:
+            return {}
+        if isinstance(obj, str):
+            texto = obj.strip()
+            if not texto or texto.lower() in ("none", "null", "nan"):
+                return {}
+            try:
+                obj = json.loads(texto)
+            except Exception:
+                return {}
+        if isinstance(obj, list):
+            if not obj:
+                return {}
+            if all(isinstance(x, dict) for x in obj):
+                return converter_tutoria_supabase_para_dict(pd.DataFrame(obj))
+            return {}
+        if isinstance(obj, dict):
+            # Formato direto: {"Tutor": {"alunos": [...]}}
+            direto = normalizar_base_tutoria(obj)
+            if total_estudantes_tutoria(direto) > 0:
+                return direto
+            # Formatos comuns: {"tutoria": {...}}, {"dados": {...}}, {"backup": {...}}
+            for chave in ["tutoria", "TUTORIA", "dados", "data", "backup", "conteudo", "json", "payload", "registros"]:
+                if chave in obj:
+                    convertido = _extrair_dict_tutoria_de_backup_objeto(obj.get(chave))
+                    if total_estudantes_tutoria(convertido) > 0:
+                        return convertido
+            # Se o dicionário for uma linha de tabela, tenta cada coluna.
+            for valor in obj.values():
+                convertido = _extrair_dict_tutoria_de_backup_objeto(valor)
+                if total_estudantes_tutoria(convertido) > 0:
+                    return convertido
+    except Exception as e:
+        logger.warning(f"Falha ao interpretar backup JSON da tutoria: {e}")
+    return {}
+
+
+def carregar_tutoria_backups_json_supabase_segura() -> dict:
+    """Recupera vínculos da tabela public.tutoria_backups_json, quando existir.
+
+    Essa tabela apareceu no seu projeto e serve como rede de segurança. A rotina
+    é somente leitura e escolhe o backup com maior quantidade de tutorados.
+    """
+    if not SUPABASE_VALID:
+        return {}
+    consultas = [
+        "tutoria_backups_json?select=*&order=created_at.desc&limit=30",
+        "tutoria_backups_json?select=*&order=id.desc&limit=30",
+        "tutoria_backups_json?select=*&limit=30",
+    ]
+    melhor = {}
+    for consulta in consultas:
+        try:
+            df = _supabase_get_dataframe(consulta, "carregar backups JSON da tutoria")
+            if not isinstance(df, pd.DataFrame) or df.empty:
+                continue
+            for _, row in df.iterrows():
+                convertido = _extrair_dict_tutoria_de_backup_objeto(row.to_dict())
+                if total_estudantes_tutoria(convertido) > total_estudantes_tutoria(melhor):
+                    melhor = convertido
+            if total_estudantes_tutoria(melhor) > 0:
+                return melhor
+        except Exception as e:
+            logger.warning(f"Não consegui carregar tutoria_backups_json com {consulta}: {e}")
+    return melhor
+
+
+def salvar_tutoria_backup_json_supabase_seguro(tutoria_dict: dict, origem: str = "app"):
+    """Cria backup JSON no Supabase sem interferir na tabela principal.
+
+    É tolerante a schema: tenta campos comuns e ignora se a tabela não aceitar.
+    """
+    if not SUPABASE_VALID:
+        return
+    base = normalizar_base_tutoria(tutoria_dict or {})
+    if total_estudantes_tutoria(base) == 0:
+        return
+    payloads = [
+        {"origem": origem, "dados": base},
+        {"origem": origem, "tutoria": base},
+        {"conteudo": json.dumps(base, ensure_ascii=False), "origem": origem},
+        {"json": base},
+    ]
+    for payload in payloads:
+        try:
+            _supabase_request("POST", "tutoria_backups_json", json=payload)
+            return
+        except Exception:
+            continue
+
+
 def montar_dataframe_eletiva(nome_professora: str, df_alunos: pd.DataFrame, eletivas_dict: dict) -> pd.DataFrame:
     registros = []
     alunos_db = df_alunos.copy()
@@ -6503,11 +6601,14 @@ def sincronizar_turmas_listas_com_base(df_alunos_atualizado: pd.DataFrame, orige
                     _supabase_request("POST", "eletivas", json=registros_eletivas)
                 st.session_state.FONTE_ELETIVAS = "supabase"
             if stats["tutoria"]:
-                registros_tutoria = converter_tutoria_para_registros(st.session_state.TUTORIA, origem=f"{origem}_turma_atualizada")
-                _supabase_request("DELETE", "tutoria?id=not.is.null")
-                if registros_tutoria:
-                    _supabase_request("POST", "tutoria", json=registros_tutoria)
-                st.session_state.FONTE_TUTORIA = "supabase"
+                # Nunca apagar todos os vínculos da tutoria para regravar.
+                # Essa rotina apenas acrescenta/mescla vínculos, preservando o que já existe.
+                salvar_tutoria_backup_json_supabase_seguro(st.session_state.TUTORIA, origem=f"{origem}_antes_sync_turmas")
+                ok_tut, msg_tut = sincronizar_tutoria_listas_supabase(st.session_state.TUTORIA)
+                if ok_tut:
+                    st.session_state.FONTE_TUTORIA = "supabase"
+                else:
+                    logger.warning(f"Sincronização segura da tutoria não concluída: {msg_tut}")
         except Exception as e:
             logger.warning(f"Não foi possível persistir a atualização de turmas das listas: {e}")
 
@@ -7354,7 +7455,8 @@ FONTE_ELETIVAS = st.session_state.FONTE_ELETIVAS
 TUTORIA_LOCAL = carregar_tutoria_local()
 TUTORIA_PROFESSORES_META = converter_metadados_professores_para_tutoria(df_professores)
 TUTORIA_RESPONSAVEIS_META = carregar_tutoria_referencias_supabase_segura()
-TUTORIA_REFERENCIA_META = mesclar_multiplas_fontes_tutoria(TUTORIA_LOCAL, TUTORIA_EXCEL, TUTORIA_RESPONSAVEIS_META, TUTORIA_PROFESSORES_META)
+TUTORIA_BACKUP_JSON = carregar_tutoria_backups_json_supabase_segura()
+TUTORIA_REFERENCIA_META = mesclar_multiplas_fontes_tutoria(TUTORIA_LOCAL, TUTORIA_EXCEL, TUTORIA_RESPONSAVEIS_META, TUTORIA_PROFESSORES_META, TUTORIA_BACKUP_JSON)
 
 TUTORIA_SUPABASE_BASE = {}
 if SUPABASE_VALID and isinstance(df_tutoria_supabase, pd.DataFrame) and not df_tutoria_supabase.empty:
@@ -7364,20 +7466,21 @@ if SUPABASE_VALID and isinstance(df_tutoria_supabase, pd.DataFrame) and not df_t
         logger.warning(f"Nao foi possivel converter tutoria do Supabase: {e}")
         TUTORIA_SUPABASE_BASE = {}
 
-# Fonte segura para vínculos: une Supabase + cache local + planilha.
-# O Supabase passa a ser fonte principal, mas nunca descarta o que ainda existir em backup local.
-TUTORIA_REFERENCIA_COM_ALUNOS = mesclar_multiplas_fontes_tutoria(TUTORIA_SUPABASE_BASE, TUTORIA_LOCAL, TUTORIA_EXCEL)
+# Fonte segura para vínculos: une Supabase + backup JSON + cache local + planilha.
+# Regra: nunca deixar uma fonte menor esconder uma fonte maior com tutorados.
+TUTORIA_REFERENCIA_COM_ALUNOS = mesclar_multiplas_fontes_tutoria(TUTORIA_SUPABASE_BASE, TUTORIA_BACKUP_JSON, TUTORIA_LOCAL, TUTORIA_EXCEL)
 
 if st.session_state.TUTORIA is None:
     if SUPABASE_VALID and not df_tutoria_supabase.empty:
         base_supabase = TUTORIA_SUPABASE_BASE
-        # Se o Supabase trouxer apenas responsáveis/metadados sem vínculos,
-        # não usamos isso para esconder os tutorados que ainda existem no
-        # arquivo local/planilha.
-        if total_estudantes_tutoria(base_supabase) == 0 and total_estudantes_tutoria(TUTORIA_REFERENCIA_COM_ALUNOS) > 0:
+        total_supabase = total_estudantes_tutoria(base_supabase)
+        total_seguro = total_estudantes_tutoria(TUTORIA_REFERENCIA_COM_ALUNOS)
+        # Se o Supabase trouxer menos estudantes que backups/cache/planilha,
+        # não usa a fonte menor para ocultar o que já existia.
+        if total_seguro > total_supabase:
             st.session_state.TUTORIA = mesclar_tutoria_com_metadados(TUTORIA_REFERENCIA_COM_ALUNOS, TUTORIA_REFERENCIA_META)
-            st.session_state.FONTE_TUTORIA = "local/excel"
-            st.session_state["tutoria_responsaveis_sync_warning"] = "O Supabase retornou responsáveis sem estudantes; a Tutoria foi restaurada da base local/planilha para não ocultar tutorados."
+            st.session_state.FONTE_TUTORIA = "supabase/backup/cache"
+            st.session_state["tutoria_responsaveis_sync_warning"] = f"Proteção ativa: o Supabase trouxe {total_supabase} vínculo(s), mas havia uma fonte segura com {total_seguro}. Usei a base maior para não ocultar tutorados."
         else:
             st.session_state.TUTORIA = mesclar_tutoria_com_metadados(base_supabase, TUTORIA_REFERENCIA_META)
             st.session_state.FONTE_TUTORIA = "supabase"
@@ -16655,6 +16758,7 @@ elif menu == "🫂 Tutoria":
         st.session_state.TUTORIA = normalizar_base_tutoria(TUTORIA)
         fonte_segura = mesclar_multiplas_fontes_tutoria(
             TUTORIA_SUPABASE_BASE if "TUTORIA_SUPABASE_BASE" in globals() else {},
+            TUTORIA_BACKUP_JSON if "TUTORIA_BACKUP_JSON" in globals() else {},
             TUTORIA_LOCAL if "TUTORIA_LOCAL" in globals() else {},
             TUTORIA_EXCEL if "TUTORIA_EXCEL" in globals() else {},
         )
@@ -16672,6 +16776,7 @@ elif menu == "🫂 Tutoria":
             st.session_state.FONTE_TUTORIA = fonte
             return
         salvar_tutoria_local(st.session_state.TUTORIA)
+        salvar_tutoria_backup_json_supabase_seguro(st.session_state.TUTORIA, origem=f"salvar_estado_{fonte}")
         st.session_state.FONTE_TUTORIA = fonte
         if SUPABASE_VALID:
             ok_resp, msg_resp = sincronizar_tutoria_responsaveis_supabase(st.session_state.TUTORIA)
