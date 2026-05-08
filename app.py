@@ -2442,9 +2442,7 @@ menu_items = [
     {"nome": "Prova Paulista", "icone": "🏆"},
     {"nome": "Histórico de Ocorrências", "icone": "📋"},
     {"nome": "Comunicado aos Pais", "icone": "📄"},
-    {"nome": "Lista de Alunos", "icone": "👥"},
-    {"nome": "Importar Alunos", "icone": "📥"},
-    {"nome": "Gerenciar Turmas", "icone": "📋"},
+    {"nome": "Alunos e Turmas", "icone": "👥"},
     {"nome": "Cadastrar Professores", "icone": "👨‍🏫"},
     {"nome": "Cadastrar Assinaturas", "icone": "👤"},
     {"nome": "Eletiva", "icone": "🎨"},
@@ -4649,7 +4647,7 @@ def assistente_virtual(pergunta: str) -> str:
     """Responde perguntas frequentes sobre o sistema"""
     respostas = {
         "como registrar ocorrência": "Vá em '📝 Registrar Ocorrência', selecione a turma, o aluno e use a busca inteligente para encontrar a infração.",
-        "como importar alunos": "Use '📥 Importar Alunos', selecione o arquivo CSV da SEDUC, escolha a turma e clique em Importar.",
+        "como importar alunos": "Use '👥 Alunos e Turmas > 📥 Importar alunos', selecione o arquivo CSV da SEDUC, escolha a turma e clique em Importar.",
         "como agendar espaço": "Em '📅 Agendamento de Espaços', use '✨ Agendar' para data específica ou '🗓️ Grade Semanal' para horários fixos.",
         "como criar comunicado": "Em '📄 Comunicado aos Pais', selecione o aluno e a ocorrência, marque as medidas e gere o PDF.",
         "como ver gráficos": "Acesse '📊 Gráficos e Indicadores' para análises visuais das ocorrências.",
@@ -7430,9 +7428,7 @@ ROTAS_MENU_SUPORTADAS = {
     normalizar_texto("🏆 Prova Paulista"),
     normalizar_texto("📋 Histórico de Ocorrências"),
     normalizar_texto("📄 Comunicado aos Pais"),
-    normalizar_texto("👥 Lista de Alunos"),
-    normalizar_texto("📥 Importar Alunos"),
-    normalizar_texto("📋 Gerenciar Turmas"),
+    normalizar_texto("👥 Alunos e Turmas"),
     normalizar_texto("👨‍🏫 Cadastrar Professores"),
     normalizar_texto("👤 Cadastrar Assinaturas"),
     normalizar_texto("🎨 Eletiva"),
@@ -12489,7 +12485,7 @@ if menu == "🏠 Dashboard":
             st.rerun()
     with col2:
         if st.button("👥 Ver Alunos", use_container_width=True, key="quick_alunos"):
-            st.session_state.pagina_atual = "👥 Lista de Alunos"
+            st.session_state.pagina_atual = "👥 Alunos e Turmas"
             st.rerun()
     with col3:
         if st.button("📅 Agendar Espaço", use_container_width=True, key="quick_agendamento"):
@@ -14097,812 +14093,799 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
     )
 
 # ======================================================
-# PÁGINA 📥 IMPORTAR ALUNOS
+# ======================================================
+# PÁGINA 👥 ALUNOS E TURMAS
 # ======================================================
 
-elif "IMPORTAR ALUNOS" in normalizar_texto(menu):
-    page_header("📥 Importar Alunos por Turma", "Importe alunos a partir de arquivos CSV da SEDUC", "#0891b2")
+elif "ALUNOS E TURMAS" in normalizar_texto(menu) or "IMPORTAR ALUNOS" in normalizar_texto(menu) or "GERENCIAR TURMAS" in normalizar_texto(menu) or "LISTA DE ALUNOS" in normalizar_texto(menu):
+    page_header("👥 Alunos e Turmas", "Importação, lista oficial e gerenciamento de turmas em um só lugar", "#2563eb")
 
-    st.markdown("""
-    <div style="
-        background:linear-gradient(135deg,#f0fdf4,#dcfce7);
-        border:1.5px solid #86efac; border-left:5px solid #059669;
-        border-radius:16px; padding:1.25rem 1.5rem; margin-bottom:1.5rem;
-        box-shadow:0 4px 12px rgba(5,150,105,0.08);
-    ">
-        <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.6rem;">
-            <span style="font-size:1.1rem;">💡</span>
-            <b style="font-family:'Nunito',sans-serif;font-size:1rem;color:#065f46;">Como importar alunos</b>
+    st.info("Este módulo reúne Importar Alunos, Lista de Alunos e Gerenciar Turmas para evitar funções duplicadas e reduzir risco de perda de dados.")
+
+    aba_importar, aba_lista, aba_turmas, aba_resumo = st.tabs([
+        "📥 Importar alunos",
+        "📋 Lista de alunos",
+        "🏫 Gerenciar turmas",
+        "📊 Resumo por turno/etapa",
+    ])
+
+    with aba_importar:
+        st.subheader("📥 Importar alunos por turma")
+        st.caption("Importe alunos a partir de arquivos CSV da SEDUC.")
+
+        st.markdown("""
+        <div style="
+            background:linear-gradient(135deg,#f0fdf4,#dcfce7);
+            border:1.5px solid #86efac; border-left:5px solid #059669;
+            border-radius:16px; padding:1.25rem 1.5rem; margin-bottom:1.5rem;
+            box-shadow:0 4px 12px rgba(5,150,105,0.08);
+        ">
+            <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.6rem;">
+                <span style="font-size:1.1rem;">💡</span>
+                <b style="font-family:'Nunito',sans-serif;font-size:1rem;color:#065f46;">Como importar alunos</b>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;">
+                <div style="display:flex;align-items:center;gap:0.5rem;color:#14532d;font-size:0.875rem;">
+                    <span style="background:#059669;color:white;border-radius:99px;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;flex-shrink:0;">1</span>
+                    Digite o nome da turma (Ex: 6º Ano A)
+                </div>
+                <div style="display:flex;align-items:center;gap:0.5rem;color:#14532d;font-size:0.875rem;">
+                    <span style="background:#059669;color:white;border-radius:99px;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;flex-shrink:0;">2</span>
+                    Selecione o arquivo CSV da SEDUC
+                </div>
+                <div style="display:flex;align-items:center;gap:0.5rem;color:#14532d;font-size:0.875rem;">
+                    <span style="background:#059669;color:white;border-radius:99px;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;flex-shrink:0;">3</span>
+                    O sistema identifica as colunas automaticamente
+                </div>
+                <div style="display:flex;align-items:center;gap:0.5rem;color:#14532d;font-size:0.875rem;">
+                    <span style="background:#059669;color:white;border-radius:99px;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;flex-shrink:0;">4</span>
+                    Clique em 🚀 Importar Alunos
+                </div>
+            </div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;">
-            <div style="display:flex;align-items:center;gap:0.5rem;color:#14532d;font-size:0.875rem;">
-                <span style="background:#059669;color:white;border-radius:99px;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;flex-shrink:0;">1</span>
-                Digite o nome da turma (Ex: 6º Ano A)
-            </div>
-            <div style="display:flex;align-items:center;gap:0.5rem;color:#14532d;font-size:0.875rem;">
-                <span style="background:#059669;color:white;border-radius:99px;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;flex-shrink:0;">2</span>
-                Selecione o arquivo CSV da SEDUC
-            </div>
-            <div style="display:flex;align-items:center;gap:0.5rem;color:#14532d;font-size:0.875rem;">
-                <span style="background:#059669;color:white;border-radius:99px;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;flex-shrink:0;">3</span>
-                O sistema identifica as colunas automaticamente
-            </div>
-            <div style="display:flex;align-items:center;gap:0.5rem;color:#14532d;font-size:0.875rem;">
-                <span style="background:#059669;color:white;border-radius:99px;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;flex-shrink:0;">4</span>
-                Clique em 🚀 Importar Alunos
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
-    turma_alunos = st.text_input("🏫 Nome da TURMA:", placeholder="Ex: 6º Ano B, 1º Ano D", key="turma_import")
-    arquivo_upload = st.file_uploader("📁 Selecione o arquivo CSV da SEDUC", type=["csv"], key="arquivo_csv")
+        turma_alunos = st.text_input("🏫 Nome da TURMA:", placeholder="Ex: 6º Ano B, 1º Ano D", key="turma_import")
+        arquivo_upload = st.file_uploader("📁 Selecione o arquivo CSV da SEDUC", type=["csv"], key="arquivo_csv")
 
-    if arquivo_upload is not None:
-        try:
-            # =========================================================
-            # IMPORTAÇÃO SEDUC — LEITURA PADRÃO AUTOMÁTICA
-            # =========================================================
-            # O CSV da SEDUC costuma vir com linhas vazias antes do cabeçalho:
-            # ;;; 
-            # ;;;
-            # Nome do Aluno;RA;Dig. RA;Situação do Aluno
-            # Por isso, a leitura é feita sem cabeçalho e o sistema localiza
-            # automaticamente a linha onde estão Nome do Aluno, RA e Situação.
+        if arquivo_upload is not None:
+            try:
+                # =========================================================
+                # IMPORTAÇÃO SEDUC — LEITURA PADRÃO AUTOMÁTICA
+                # =========================================================
+                # O CSV da SEDUC costuma vir com linhas vazias antes do cabeçalho:
+                # ;;; 
+                # ;;;
+                # Nome do Aluno;RA;Dig. RA;Situação do Aluno
+                # Por isso, a leitura é feita sem cabeçalho e o sistema localiza
+                # automaticamente a linha onde estão Nome do Aluno, RA e Situação.
 
-            arquivo_upload.seek(0)
-            df_raw = pd.read_csv(
-                arquivo_upload,
-                sep=";",
-                encoding="utf-8-sig",
-                dtype=str,
-                header=None,
-                keep_default_na=False
-            )
-
-            # Remove linhas/colunas totalmente vazias.
-            df_raw = df_raw.replace(r"^\s*$", "", regex=True)
-            df_raw = df_raw.loc[~df_raw.apply(lambda linha: all(str(v).strip() == "" for v in linha), axis=1)]
-            df_raw = df_raw.loc[:, ~df_raw.apply(lambda col: all(str(v).strip() == "" for v in col), axis=0)]
-            df_raw = df_raw.reset_index(drop=True)
-
-            def _normalizar_coluna_importacao(valor: str) -> str:
-                texto = normalizar_texto(str(valor or ""))
-                texto = texto.replace(".", " ").replace("_", " ").replace("-", " ")
-                return " ".join(texto.split())
-
-            def _linha_parece_cabecalho_seduc(linha) -> bool:
-                valores = [_normalizar_coluna_importacao(v) for v in linha.tolist()]
-                tem_nome = any(("NOME" in v and "ALUNO" in v) or v == "NOME" for v in valores)
-                tem_ra = any((v == "RA" or v.endswith(" RA") or " RA " in f" {v} ") and "DIG" not in v for v in valores)
-                return tem_nome and tem_ra
-
-            header_idx = None
-            for idx_linha, linha in df_raw.head(12).iterrows():
-                if _linha_parece_cabecalho_seduc(linha):
-                    header_idx = idx_linha
-                    break
-
-            if header_idx is not None:
-                novas_colunas = []
-                usados = {}
-                for idx_col, valor in enumerate(df_raw.iloc[header_idx].tolist()):
-                    nome_coluna = str(valor or "").strip()
-                    if not nome_coluna:
-                        nome_coluna = f"Coluna {idx_col + 1}"
-                    if nome_coluna in usados:
-                        usados[nome_coluna] += 1
-                        nome_coluna = f"{nome_coluna} {usados[nome_coluna]}"
-                    else:
-                        usados[nome_coluna] = 1
-                    novas_colunas.append(nome_coluna)
-
-                df_import = df_raw.iloc[header_idx + 1:].copy()
-                df_import.columns = novas_colunas
-            else:
-                # Fallback para CSVs que já venham com cabeçalho correto na primeira linha.
                 arquivo_upload.seek(0)
-                df_import = pd.read_csv(
-                    arquivo_upload,
-                    sep=";",
-                    encoding="utf-8-sig",
-                    dtype=str,
-                    keep_default_na=False
-                )
+                df_import = _ler_csv_lista_seduc(arquivo_upload)
 
-            # Limpeza final dos dados.
-            df_import = df_import.replace(r"^\s*$", "", regex=True)
-            df_import = df_import.loc[~df_import.apply(lambda linha: all(str(v).strip() == "" for v in linha), axis=1)]
-            df_import = df_import.reset_index(drop=True)
+                if df_import is None or df_import.empty:
+                    raise ValueError(
+                        "Não foi possível ler a lista de alunos. Verifique se o arquivo é o CSV oficial da SEDUC."
+                    )
 
-            # Remove eventual repetição do cabeçalho dentro do corpo.
-            if len(df_import) > 0:
-                primeira_coluna = df_import.columns[0]
-                df_import = df_import[
-                    df_import[primeira_coluna].apply(lambda v: "NOME DO ALUNO" not in normalizar_texto(v))
-                ].reset_index(drop=True)
+                def _normalizar_coluna_importacao(valor: str) -> str:
+                    texto = normalizar_texto(str(valor or ""))
+                    texto = texto.replace(".", " ").replace("_", " ").replace("-", " ")
+                    return " ".join(texto.split())
 
-            colunas = df_import.columns.tolist()
+                # Limpeza final dos dados.
+                df_import = df_import.replace(r"^\s*$", "", regex=True)
+                df_import = df_import.loc[~df_import.apply(lambda linha: all(str(v).strip() == "" for v in linha), axis=1)]
+                df_import = df_import.reset_index(drop=True)
 
-            def _detectar_coluna_ra(colunas_df: list[str]) -> str | None:
-                for col in colunas_df:
-                    col_norm = _normalizar_coluna_importacao(col)
-                    if "DIG" in col_norm:
-                        continue
-                    if col_norm == "RA" or col_norm.endswith(" RA") or " RA " in f" {col_norm} ":
-                        return col
+                # Remove eventual repetição do cabeçalho dentro do corpo.
+                if len(df_import) > 0:
+                    primeira_coluna = df_import.columns[0]
+                    df_import = df_import[
+                        df_import[primeira_coluna].apply(lambda v: "NOME DO ALUNO" not in normalizar_texto(v))
+                    ].reset_index(drop=True)
 
-                # Fallback por conteúdo: RA costuma ser numérico e ter 7+ dígitos.
-                for col in colunas_df:
-                    col_norm = _normalizar_coluna_importacao(col)
-                    if "DIG" in col_norm:
-                        continue
-                    amostra = df_import[col].dropna().astype(str).head(12)
-                    qtd_ra = 0
-                    for val in amostra:
-                        digitos = "".join(c for c in str(val) if c.isdigit())
-                        if len(digitos) >= 7:
-                            qtd_ra += 1
-                    if qtd_ra >= 3:
-                        return col
-                return None
+                colunas = df_import.columns.tolist()
 
-            def _detectar_coluna_nome(colunas_df: list[str]) -> str | None:
-                for col in colunas_df:
-                    col_norm = _normalizar_coluna_importacao(col)
-                    if ("NOME" in col_norm and "ALUNO" in col_norm) or col_norm == "NOME":
-                        return col
+                def _detectar_coluna_ra(colunas_df: list[str]) -> str | None:
+                    for col in colunas_df:
+                        col_norm = _normalizar_coluna_importacao(col)
+                        if "DIG" in col_norm:
+                            continue
+                        if col_norm == "RA" or col_norm.endswith(" RA") or " RA " in f" {col_norm} ":
+                            return col
 
-                # Fallback por conteúdo: nomes costumam ter letras e espaços.
-                melhor_col = None
-                melhor_pontos = -1
-                for col in colunas_df:
-                    pontos = 0
-                    for val in df_import[col].dropna().astype(str).head(12):
-                        texto_val = str(val).strip()
-                        if len(texto_val) >= 6 and any(ch.isalpha() for ch in texto_val) and not texto_val.isdigit():
-                            pontos += 1
-                    if pontos > melhor_pontos:
-                        melhor_pontos = pontos
-                        melhor_col = col
-                return melhor_col if melhor_pontos >= 3 else None
+                    # Fallback por conteúdo: RA costuma ser numérico e ter 7+ dígitos.
+                    for col in colunas_df:
+                        col_norm = _normalizar_coluna_importacao(col)
+                        if "DIG" in col_norm:
+                            continue
+                        amostra = df_import[col].dropna().astype(str).head(12)
+                        qtd_ra = 0
+                        for val in amostra:
+                            digitos = "".join(c for c in str(val) if c.isdigit())
+                            if len(digitos) >= 7:
+                                qtd_ra += 1
+                        if qtd_ra >= 3:
+                            return col
+                    return None
 
-            def _detectar_coluna_situacao(colunas_df: list[str]) -> str | None:
-                for col in colunas_df:
-                    col_norm = _normalizar_coluna_importacao(col)
-                    if "SITUACAO" in col_norm or "STATUS" in col_norm:
-                        return col
-                return None
+                def _detectar_coluna_nome(colunas_df: list[str]) -> str | None:
+                    for col in colunas_df:
+                        col_norm = _normalizar_coluna_importacao(col)
+                        if ("NOME" in col_norm and "ALUNO" in col_norm) or col_norm == "NOME":
+                            return col
 
-            col_ra = _detectar_coluna_ra(colunas)
-            col_nome = _detectar_coluna_nome(colunas)
-            col_situacao = _detectar_coluna_situacao(colunas)
+                    # Fallback por conteúdo: nomes costumam ter letras e espaços.
+                    melhor_col = None
+                    melhor_pontos = -1
+                    for col in colunas_df:
+                        pontos = 0
+                        for val in df_import[col].dropna().astype(str).head(12):
+                            texto_val = str(val).strip()
+                            if len(texto_val) >= 6 and any(ch.isalpha() for ch in texto_val) and not texto_val.isdigit():
+                                pontos += 1
+                        if pontos > melhor_pontos:
+                            melhor_pontos = pontos
+                            melhor_col = col
+                    return melhor_col if melhor_pontos >= 3 else None
 
-            st.success(f"✅ Arquivo lido no padrão SEDUC! {len(df_import)} estudantes encontrados.")
-            st.write("### 👀 Pré-visualização dos dados:")
-            st.dataframe(df_import.head(10), use_container_width=True)
+                def _detectar_coluna_situacao(colunas_df: list[str]) -> str | None:
+                    for col in colunas_df:
+                        col_norm = _normalizar_coluna_importacao(col)
+                        if "SITUACAO" in col_norm or "STATUS" in col_norm:
+                            return col
+                    return None
 
-            # Mostra a identificação de colunas de forma discreta.
-            with st.expander("🔍 Colunas identificadas automaticamente", expanded=False):
-                st.write(f"**Nome:** {col_nome or 'não identificado'}")
-                st.write(f"**RA:** {col_ra or 'não identificado'}")
-                st.write(f"**Situação:** {col_situacao or 'não encontrada — será usado Ativo'}")
+                col_ra = _detectar_coluna_ra(colunas)
+                col_nome = _detectar_coluna_nome(colunas)
+                col_situacao = _detectar_coluna_situacao(colunas)
 
-            # Só pede seleção manual se realmente não conseguir identificar.
-            if col_ra is None or col_nome is None:
-                st.warning("⚠️ Não foi possível identificar automaticamente todas as colunas. Selecione manualmente:")
+                st.success(f"✅ Arquivo lido no padrão SEDUC! {len(df_import)} estudantes encontrados.")
+                st.write("### 👀 Pré-visualização dos dados:")
+                st.dataframe(df_import.head(10), use_container_width=True)
+
+                # Mostra a identificação de colunas de forma discreta.
+                with st.expander("🔍 Colunas identificadas automaticamente", expanded=False):
+                    st.write(f"**Nome:** {col_nome or 'não identificado'}")
+                    st.write(f"**RA:** {col_ra or 'não identificado'}")
+                    st.write(f"**Situação:** {col_situacao or 'não encontrada — será usado Ativo'}")
+
+                # Só pede seleção manual se realmente não conseguir identificar.
+                if col_ra is None or col_nome is None:
+                    st.warning("⚠️ Não foi possível identificar automaticamente todas as colunas. Selecione manualmente:")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        col_ra = st.selectbox("Coluna do RA:", colunas)
+                        col_nome = st.selectbox("Coluna do Nome:", colunas)
+                    with col2:
+                        col_situacao = st.selectbox("Coluna da Situação (opcional):", ["Não usar"] + colunas)
+                        if col_situacao == "Não usar":
+                            col_situacao = None
+
+                st.markdown("---")
+
+                df_alunos_existente = carregar_alunos()
+                turma_alunos_padronizada = formatar_turma_eletiva(turma_alunos)
+
+                if turma_alunos_padronizada:
+                    turmas_existentes = df_alunos_existente["turma"].unique().tolist() if not df_alunos_existente.empty and "turma" in df_alunos_existente.columns else []
+                    if turma_alunos_padronizada in turmas_existentes:
+                        st.warning(f"⚠️ A turma **{turma_alunos_padronizada}** já existe. Estudantes com o mesmo RA serão atualizados.")
+
+                if st.button("🚀 IMPORTAR ALUNOS", type="primary", use_container_width=True):
+                    if not turma_alunos_padronizada:
+                        st.error("❌ Digite o nome da turma.")
+                    elif col_ra is None or col_nome is None:
+                        st.error("❌ É necessário identificar as colunas de RA e Nome.")
+                    else:
+                        novos = 0
+                        atualizados = 0
+                        ignorados = 0
+                        erros = 0
+
+                        progress = st.progress(0)
+                        status = st.empty()
+                        total = len(df_import)
+
+                        for i, (_, row) in enumerate(df_import.iterrows()):
+                            try:
+                                ra_valor = row.get(col_ra, "")
+                                ra_str = "".join(c for c in str(ra_valor or "") if c.isdigit())
+
+                                if not ra_str or len(ra_str) < 5:
+                                    erros += 1
+                                    continue
+
+                                nome_valor = row.get(col_nome, "")
+                                nome_str = str(nome_valor or "").strip()
+
+                                if not nome_str or normalizar_texto(nome_str) in ("NAN", "NONE", "NOME DO ALUNO"):
+                                    erros += 1
+                                    continue
+
+                                sit_str = "Ativo"
+                                if col_situacao:
+                                    sit_valor = row.get(col_situacao, "")
+                                    if str(sit_valor or "").strip():
+                                        sit_original = str(sit_valor).strip()
+                                        sit_lower = normalizar_texto(sit_original)
+
+                                        if "TRANSFER" in sit_lower:
+                                            sit_str = "Transferido"
+                                        elif "REMANEJ" in sit_lower:
+                                            sit_str = "Remanejado"
+                                        elif "BAIX" in sit_lower:
+                                            sit_str = "Baixado"
+                                        elif "INATIV" in sit_lower:
+                                            sit_str = "Inativo"
+                                        elif "ATIV" in sit_lower:
+                                            sit_str = "Ativo"
+                                        else:
+                                            sit_str = sit_original
+
+                                aluno = {
+                                    "ra": ra_str,
+                                    "nome": nome_str,
+                                    "turma": turma_alunos_padronizada,
+                                    "situacao": sit_str
+                                }
+
+                                existe = (
+                                    df_alunos_existente[df_alunos_existente["ra"].astype(str) == ra_str]
+                                    if not df_alunos_existente.empty and "ra" in df_alunos_existente.columns
+                                    else pd.DataFrame()
+                                )
+
+                                if not existe.empty:
+                                    if atualizar_aluno(ra_str, aluno):
+                                        atualizados += 1
+                                    else:
+                                        erros += 1
+                                else:
+                                    if salvar_aluno(aluno):
+                                        novos += 1
+                                    else:
+                                        erros += 1
+
+                            except Exception as e:
+                                logger.error(f"Erro ao importar aluno da linha {i}: {e}")
+                                erros += 1
+
+                            if total:
+                                progress.progress((i + 1) / total)
+                            status.text(f"Processando... {i + 1}/{total} | ✅ Novos: {novos} | 🔄 Atualizados: {atualizados}")
+
+                        progress.empty()
+                        status.empty()
+
+                        if novos + atualizados > 0:
+                            st.markdown(f"""
+                            <div style="
+                                background:linear-gradient(135deg,#f0fdf4,#dcfce7);
+                                border:1.5px solid #86efac; border-left:5px solid #059669;
+                                border-radius:16px; padding:1.1rem 1.5rem; margin:0.75rem 0;
+                                box-shadow:0 4px 12px rgba(5,150,105,0.1);
+                            ">
+                                <div style="display:flex;align-items:center;gap:0.5rem;">
+                                    <span style="font-size:1.2rem;">🎉</span>
+                                    <div>
+                                        <div style="font-family:'Nunito',sans-serif;font-weight:800;color:#065f46;font-size:1rem;">Importação concluída com sucesso!</div>
+                                        <div style="color:#15803d;font-size:0.85rem;">{novos} novos · {atualizados} atualizados</div>
+                                    </div>
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            st.balloons()
+
+                        col1, col2, col3, col4 = st.columns(4)
+                        col1.metric("🆕 Novos", novos)
+                        col2.metric("🔄 Atualizados", atualizados)
+                        col3.metric("⚠️ Ignorados", ignorados)
+                        col4.metric("❌ Erros", erros)
+
+                        if novos + atualizados > 0:
+                            carregar_alunos.clear()
+                            try:
+                                df_alunos_atualizado = carregar_alunos()
+                                sync_stats = sincronizar_turmas_listas_com_base(df_alunos_atualizado, origem="importacao_alunos")
+                                total_sync = sync_stats.get("eletivas", 0) + sync_stats.get("tutoria", 0)
+                                if total_sync:
+                                    st.session_state["importacao_sync_listas_msg"] = (
+                                        f"Listas atualizadas: {sync_stats.get('eletivas', 0)} vínculo(s) de eletiva "
+                                        f"e {sync_stats.get('tutoria', 0)} vínculo(s) de tutoria tiveram a turma ajustada."
+                                    )
+                            except Exception as e:
+                                logger.warning(f"Não foi possível sincronizar turmas nas listas após importação: {e}")
+                            st.rerun()
+
+            except Exception as e:
+                st.error(f"❌ Erro ao processar arquivo: {str(e)}")
+        else:
+            st.info("📁 Selecione um arquivo CSV para começar.")
+
+        sync_msg_importacao = st.session_state.pop("importacao_sync_listas_msg", "")
+        if sync_msg_importacao:
+            st.success(sync_msg_importacao)
+
+        st.markdown("---")
+        st.markdown("""
+        <div style="display:flex;align-items:center;gap:0.5rem;margin:1rem 0 0.5rem 0;padding-bottom:0.5rem;border-bottom:2px solid #e2e8f0;position:relative;">
+            <div style="position:absolute;bottom:-2px;left:0;width:45px;height:2px;background:linear-gradient(90deg,#059669,transparent);border-radius:4px;"></div>
+            <span>📊</span>
+            <h3 style="margin:0;font-family:'Nunito',sans-serif;font-size:1rem;color:#0f172a;">Turmas cadastradas no sistema</h3>
+        </div>
+        """, unsafe_allow_html=True)
+        if not df_alunos.empty:
+            resumo = df_alunos.groupby("turma").size().reset_index(name="Total")
+            resumo.columns = ["Turma", "Total de Alunos"]
+            st.dataframe(resumo.sort_values("Turma"), use_container_width=True, hide_index=True)
+        else:
+            st.info("Nenhuma turma cadastrada ainda.")
+
+    # ======================================================
+
+    with aba_lista:
+        st.subheader("👥 Lista de alunos")
+        st.caption("Cadastro, edição, filtros e consulta de estudantes.")
+
+        tab1, tab2, tab3 = st.tabs(["📋 Listar Alunos", "➕ Cadastrar Aluno", "✏️ Editar/Excluir"])
+
+        with tab1:
+            if df_alunos.empty:
+                st.info("📭 Nenhum aluno cadastrado. Use a aba '➕ Cadastrar Aluno' ou '📥 Importar Alunos'.")
+            else:
+                df_alunos_lista = df_alunos.copy()
+                col1, col2, col3 = st.columns(3)
+
+                with col1:
+                    turmas_disp = ["Todas"] + sorted(df_alunos_lista["turma"].dropna().unique().tolist())
+                    filtro_turma = st.selectbox("🏫 Filtrar por Turma", turmas_disp, key="filtro_turma_lista")
+
+                with col2:
+                    if "situacao" in df_alunos_lista.columns:
+                        df_alunos_lista["situacao_norm"] = df_alunos_lista["situacao"].astype(str).str.strip().str.title()
+                        situacoes_unicas = sorted(df_alunos_lista["situacao_norm"].dropna().unique().tolist())
+                    else:
+                        df_alunos_lista["situacao_norm"] = "Ativo"
+                        situacoes_unicas = ["Ativo"]
+
+                    situacoes_disp = ["Ativos", "Todos"] + situacoes_unicas
+                    filtro_situacao = st.selectbox("📊 Situação", situacoes_disp, index=0, key="filtro_situacao_lista")
+
+                with col3:
+                    busca_nome = st.text_input("🔍 Buscar por Nome ou RA", placeholder="Digite nome ou RA", key="busca_lista")
+
+                df_view = df_alunos_lista.copy()
+                if filtro_turma != "Todas":
+                    df_view = df_view[df_view["turma"] == filtro_turma]
+
+                if filtro_situacao == "Ativos":
+                    df_view = df_view[df_view["situacao_norm"] == "Ativo"]
+                elif filtro_situacao != "Todos":
+                    df_view = df_view[df_view["situacao_norm"] == filtro_situacao]
+
+                if busca_nome:
+                    df_view = df_view[
+                        df_view["nome"].astype(str).str.contains(busca_nome, case=False, na=False) |
+                        df_view["ra"].astype(str).str.contains(busca_nome, na=False)
+                    ]
+
+                total_geral = len(df_alunos_lista)
+                total_ativos = len(df_alunos_lista[df_alunos_lista["situacao_norm"] == "Ativo"])
+
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("👥 Total de Alunos", total_geral)
+                with col2:
+                    st.metric("✅ Alunos Ativos", total_ativos)
+                with col3:
+                    st.metric("📋 Exibindo", len(df_view))
+
+                st.markdown("---")
+
+                if df_view.empty:
+                    st.info("📭 Nenhum aluno encontrado com os filtros selecionados.")
+                else:
+                    df_display = df_view.drop(columns=["situacao_norm"], errors="ignore")
+                    colunas_exibir = [col for col in ["ra", "nome", "turma", "situacao"] if col in df_display.columns]
+                    st.dataframe(df_display[colunas_exibir].sort_values(["turma", "nome"]), use_container_width=True, hide_index=True)
+
+                    csv = df_display.to_csv(index=False, encoding="utf-8-sig")
+                    st.download_button(
+                        label="📥 Exportar Lista (CSV)",
+                        data=csv,
+                        file_name=f"alunos_{filtro_situacao.lower()}_{datetime.now().strftime('%Y%m%d')}.csv",
+                        mime="text/csv",
+                        key="btn_exportar_csv_lista",
+                    )
+
+        with tab2:
+            st.subheader("➕ Cadastrar Novo Aluno")
+
+            with st.form("form_cadastrar_aluno"):
                 col1, col2 = st.columns(2)
                 with col1:
-                    col_ra = st.selectbox("Coluna do RA:", colunas)
-                    col_nome = st.selectbox("Coluna do Nome:", colunas)
+                    ra = st.text_input("RA *", placeholder="Ex: 123456")
+                    nome = st.text_input("Nome Completo *", placeholder="Ex: João da Silva")
+                    turma = st.text_input("Turma *", placeholder="Ex: 6º Ano A")
                 with col2:
-                    col_situacao = st.selectbox("Coluna da Situação (opcional):", ["Não usar"] + colunas)
-                    if col_situacao == "Não usar":
-                        col_situacao = None
+                    situacao = st.selectbox("Situação", ["Ativo", "Transferido", "Inativo", "Remanejado"], index=0)
+                    responsavel = st.text_input("Responsável", placeholder="Nome do responsável")
 
-            st.markdown("---")
-
-            df_alunos_existente = carregar_alunos()
-            turma_alunos_padronizada = formatar_turma_eletiva(turma_alunos)
-
-            if turma_alunos_padronizada:
-                turmas_existentes = df_alunos_existente["turma"].unique().tolist() if not df_alunos_existente.empty and "turma" in df_alunos_existente.columns else []
-                if turma_alunos_padronizada in turmas_existentes:
-                    st.warning(f"⚠️ A turma **{turma_alunos_padronizada}** já existe. Estudantes com o mesmo RA serão atualizados.")
-
-            if st.button("🚀 IMPORTAR ALUNOS", type="primary", use_container_width=True):
-                if not turma_alunos_padronizada:
-                    st.error("❌ Digite o nome da turma.")
-                elif col_ra is None or col_nome is None:
-                    st.error("❌ É necessário identificar as colunas de RA e Nome.")
-                else:
-                    novos = 0
-                    atualizados = 0
-                    ignorados = 0
-                    erros = 0
-
-                    progress = st.progress(0)
-                    status = st.empty()
-                    total = len(df_import)
-
-                    for i, (_, row) in enumerate(df_import.iterrows()):
-                        try:
-                            ra_valor = row.get(col_ra, "")
-                            ra_str = "".join(c for c in str(ra_valor or "") if c.isdigit())
-
-                            if not ra_str or len(ra_str) < 5:
-                                erros += 1
-                                continue
-
-                            nome_valor = row.get(col_nome, "")
-                            nome_str = str(nome_valor or "").strip()
-
-                            if not nome_str or normalizar_texto(nome_str) in ("NAN", "NONE", "NOME DO ALUNO"):
-                                erros += 1
-                                continue
-
-                            sit_str = "Ativo"
-                            if col_situacao:
-                                sit_valor = row.get(col_situacao, "")
-                                if str(sit_valor or "").strip():
-                                    sit_original = str(sit_valor).strip()
-                                    sit_lower = normalizar_texto(sit_original)
-
-                                    if "TRANSFER" in sit_lower:
-                                        sit_str = "Transferido"
-                                    elif "REMANEJ" in sit_lower:
-                                        sit_str = "Remanejado"
-                                    elif "BAIX" in sit_lower:
-                                        sit_str = "Baixado"
-                                    elif "INATIV" in sit_lower:
-                                        sit_str = "Inativo"
-                                    elif "ATIV" in sit_lower:
-                                        sit_str = "Ativo"
-                                    else:
-                                        sit_str = sit_original
-
+                if st.form_submit_button("💾 Salvar Aluno", type="primary"):
+                    if not ra or not nome or not turma:
+                        st.error("❌ RA, Nome e Turma são obrigatórios!")
+                    else:
+                        if not df_alunos.empty and ra.strip() in df_alunos["ra"].astype(str).values:
+                            st.error(f"❌ RA {ra} já está cadastrado!")
+                        else:
                             aluno = {
-                                "ra": ra_str,
-                                "nome": nome_str,
-                                "turma": turma_alunos_padronizada,
-                                "situacao": sit_str
+                                "ra": ra.strip(),
+                                "nome": nome.strip(),
+                                "turma": turma.strip(),
+                                "situacao": situacao,
+                                "responsavel": responsavel.strip() if responsavel else None,
                             }
 
-                            existe = (
-                                df_alunos_existente[df_alunos_existente["ra"].astype(str) == ra_str]
-                                if not df_alunos_existente.empty and "ra" in df_alunos_existente.columns
-                                else pd.DataFrame()
-                            )
-
-                            if not existe.empty:
-                                if atualizar_aluno(ra_str, aluno):
-                                    atualizados += 1
-                                else:
-                                    erros += 1
+                            if salvar_aluno(aluno):
+                                st.success(f"✅ Aluno {nome} cadastrado com sucesso!")
+                                carregar_alunos.clear()
+                                st.rerun()
                             else:
-                                if salvar_aluno(aluno):
-                                    novos += 1
-                                else:
-                                    erros += 1
+                                st.error("❌ Erro ao salvar aluno.")
 
-                        except Exception as e:
-                            logger.error(f"Erro ao importar aluno da linha {i}: {e}")
-                            erros += 1
+        with tab3:
+            if df_alunos.empty:
+                st.info("📭 Nenhum aluno cadastrado.")
+            else:
+                st.subheader("✏️ Editar ou Excluir Aluno")
+                df_busca = df_alunos.copy()
+                if "situacao" in df_busca.columns:
+                    df_busca["situacao_norm"] = df_busca["situacao"].astype(str).str.strip().str.title()
+                    ativos = df_busca[df_busca["situacao_norm"] == "Ativo"]
+                    if not ativos.empty:
+                        df_busca = ativos
 
-                        if total:
-                            progress.progress((i + 1) / total)
-                        status.text(f"Processando... {i + 1}/{total} | ✅ Novos: {novos} | 🔄 Atualizados: {atualizados}")
+                df_busca = df_busca.sort_values(["turma", "nome"])
+                opcoes_alunos = []
+                for _, row in df_busca.iterrows():
+                    sit = row.get("situacao", "Ativo")
+                    opcoes_alunos.append(f"{row['nome']} - {row['turma']} (RA: {row['ra']}) [{sit}]")
 
-                    progress.empty()
-                    status.empty()
+                aluno_selecionado = st.selectbox("Selecione o Aluno", opcoes_alunos, key="aluno_editar")
 
-                    if novos + atualizados > 0:
+                if aluno_selecionado:
+                    ra_selecionado = aluno_selecionado.split("(RA: ")[1].split(")")[0].strip()
+                    aluno_info = df_alunos[df_alunos["ra"] == ra_selecionado].iloc[0]
+
+                    st.markdown("---")
+                    st.subheader("📝 Editar Informações")
+
+                    with st.form("form_editar_aluno"):
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            novo_nome = st.text_input("Nome *", value=aluno_info.get("nome", ""))
+                            nova_turma = st.text_input("Turma *", value=aluno_info.get("turma", ""))
+                            sit_atual = aluno_info.get("situacao", "Ativo")
+                            if sit_atual not in ["Ativo", "Transferido", "Inativo", "Remanejado"]:
+                                sit_atual = "Ativo"
+                            nova_situacao = st.selectbox(
+                                "Situação",
+                                ["Ativo", "Transferido", "Inativo", "Remanejado"],
+                                index=["Ativo", "Transferido", "Inativo", "Remanejado"].index(sit_atual),
+                            )
+                        with col2:
+                            novo_responsavel = st.text_input("Responsável", value=str(aluno_info.get("responsavel", "")))
+
+                        st.info(f"**RA:** {aluno_info.get('ra')} (não pode ser alterado)")
+
+                        if st.form_submit_button("💾 Salvar Alterações", type="primary"):
+                            dados_atualizados = {
+                                "nome": novo_nome.strip(),
+                                "turma": nova_turma.strip(),
+                                "situacao": nova_situacao,
+                                "responsavel": novo_responsavel.strip() if novo_responsavel else None,
+                            }
+
+                            if atualizar_aluno(str(aluno_info["ra"]), dados_atualizados):
+                                st.success("✅ Aluno atualizado com sucesso!")
+                                carregar_alunos.clear()
+                                st.rerun()
+                            else:
+                                st.error("❌ Erro ao atualizar aluno.")
+
+                    st.markdown("---")
+                    st.subheader("🗑️ Excluir Aluno")
+                    st.warning(f"⚠️ Esta ação é irreversível! O aluno **{aluno_info['nome']}** (RA: {aluno_info['ra']}) será removido permanentemente.")
+
+                    if st.button("🗑️ Excluir Aluno", type="secondary", key="btn_excluir_aluno_tab3"):
+                        st.session_state.confirmar_exclusao_aluno = aluno_info["ra"]
+                        st.rerun()
+
+                    if st.session_state.get("confirmar_exclusao_aluno"):
+                        ra_excluir = st.session_state.confirmar_exclusao_aluno
+                        aluno_excluir = df_alunos[df_alunos["ra"] == ra_excluir].iloc[0] if not df_alunos[df_alunos["ra"] == ra_excluir].empty else None
+
+                        if aluno_excluir is not None:
+                            st.error(f"⚠️ Confirmar exclusão de **{aluno_excluir['nome']}**?")
+
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                senha = st.text_input("Digite a senha para confirmar:", type="password", key="senha_excluir_aluno_tab3")
+                                if st.button("✅ Confirmar Exclusão", type="primary", key="confirm_excluir_aluno_tab3"):
+                                    if senha == SENHA_EXCLUSAO:
+                                        url = f"{SUPABASE_URL}/rest/v1/alunos?ra=eq.{ra_excluir}"
+                                        r = requests.delete(url, headers=HEADERS, timeout=20)
+                                        if r.status_code in (200, 204):
+                                            st.success(f"✅ Aluno {aluno_excluir['nome']} excluído!")
+                                            carregar_alunos.clear()
+                                            del st.session_state.confirmar_exclusao_aluno
+                                            st.rerun()
+                                        else:
+                                            st.error("❌ Erro ao excluir aluno.")
+                                    else:
+                                        st.error("❌ Senha incorreta!")
+                            with col2:
+                                if st.button("❌ Cancelar", key="cancel_excluir_aluno_tab3"):
+                                    del st.session_state.confirmar_exclusao_aluno
+                                    st.rerun()
+
+    # ======================================================
+
+    with aba_turmas:
+        st.subheader("📋 Gerenciar turmas")
+        st.caption("Visualize, edite, substitua listas e organize coordenadores por turma.")
+
+        if df_alunos.empty:
+            st.info("📭 Nenhuma turma cadastrada. Use '👥 Alunos e Turmas > 📥 Importar alunos' para começar.")
+        else:
+            sync_msg_turma = st.session_state.pop("turma_sync_listas_msg", "")
+            if sync_msg_turma:
+                st.success(sync_msg_turma)
+            df_config_turmas = carregar_config_turmas()
+            mapa_coord_turma = {}
+            mapa_updated_turma = {}
+            if not df_config_turmas.empty and "turma" in df_config_turmas.columns:
+                for _, cfg in df_config_turmas.iterrows():
+                    turma_cfg = str(cfg.get("turma", "")).strip()
+                    if turma_cfg:
+                        mapa_coord_turma[turma_cfg] = str(cfg.get("coordenador_sala", "")).strip()
+                        mapa_updated_turma[turma_cfg] = str(cfg.get("updated_at", "")).strip()
+            coordenadores_disponiveis = []
+            if not df_professores.empty and "cargo" in df_professores.columns:
+                coordenadores_disponiveis = sorted([
+                    str(row.get("nome", "")).strip()
+                    for _, row in df_professores.iterrows()
+                    if "COORDEN" in normalizar_texto(row.get("cargo", ""))
+                    and str(row.get("nome", "")).strip()
+                ])
+
+            st.markdown("""
+            <div style="display:flex;align-items:center;gap:0.5rem;margin:0.5rem 0 0.75rem 0;padding-bottom:0.5rem;border-bottom:2px solid #e2e8f0;position:relative;">
+                <div style="position:absolute;bottom:-2px;left:0;width:45px;height:2px;background:linear-gradient(90deg,#059669,transparent);border-radius:4px;"></div>
+                <span>📊</span>
+                <h3 style="margin:0;font-family:'Nunito',sans-serif;font-size:1rem;color:#0f172a;">Resumo das Turmas</h3>
+            </div>
+            """, unsafe_allow_html=True)
+            turmas_info = df_alunos.groupby("turma").agg(total_alunos=("ra", "count")).reset_index().sort_values("turma")
+
+            for _, row in turmas_info.iterrows():
+                with st.container():
+                    col1, col2, col3, col4, col5 = st.columns([3, 1, 1, 1, 1])
+                    with col1:
                         st.markdown(f"""
                         <div style="
-                            background:linear-gradient(135deg,#f0fdf4,#dcfce7);
-                            border:1.5px solid #86efac; border-left:5px solid #059669;
-                            border-radius:16px; padding:1.1rem 1.5rem; margin:0.75rem 0;
-                            box-shadow:0 4px 12px rgba(5,150,105,0.1);
+                            background:white; border:1.5px solid #e2e8f0;
+                            border-radius:14px; padding:1rem 1.25rem;
+                            box-shadow:0 2px 6px rgba(15,23,42,0.06);
+                            display:flex; align-items:center; gap:0.75rem;
+                            border-left:4px solid #2563eb;
                         ">
-                            <div style="display:flex;align-items:center;gap:0.5rem;">
-                                <span style="font-size:1.2rem;">🎉</span>
-                                <div>
-                                    <div style="font-family:'Nunito',sans-serif;font-weight:800;color:#065f46;font-size:1rem;">Importação concluída com sucesso!</div>
-                                    <div style="color:#15803d;font-size:0.85rem;">{novos} novos · {atualizados} atualizados</div>
-                                </div>
+                            <div style="font-size:1.4rem;">🏫</div>
+                            <div>
+                                <div style="font-family:'Nunito',sans-serif;font-weight:700;font-size:1rem;color:#0f172a;">{row['turma']}</div>
+                                <div style="font-size:0.78rem;color:#64748b;font-weight:500;">{row['total_alunos']} alunos cadastrados</div>
+                                <div style="font-size:0.76rem;color:#0f766e;font-weight:600;margin-top:0.15rem;">Coordenador(a): {mapa_coord_turma.get(row['turma'], 'Não vinculado')}</div>
+                                <div style="font-size:0.72rem;color:#64748b;font-weight:600;margin-top:0.12rem;">Última atualização da lista: {_formatar_data_curta(mapa_updated_turma.get(row['turma'], ''))}</div>
                             </div>
                         </div>
                         """, unsafe_allow_html=True)
-                        st.balloons()
-
-                    col1, col2, col3, col4 = st.columns(4)
-                    col1.metric("🆕 Novos", novos)
-                    col2.metric("🔄 Atualizados", atualizados)
-                    col3.metric("⚠️ Ignorados", ignorados)
-                    col4.metric("❌ Erros", erros)
-
-                    if novos + atualizados > 0:
-                        carregar_alunos.clear()
-                        try:
-                            df_alunos_atualizado = carregar_alunos()
-                            sync_stats = sincronizar_turmas_listas_com_base(df_alunos_atualizado, origem="importacao_alunos")
-                            total_sync = sync_stats.get("eletivas", 0) + sync_stats.get("tutoria", 0)
-                            if total_sync:
-                                st.session_state["importacao_sync_listas_msg"] = (
-                                    f"Listas atualizadas: {sync_stats.get('eletivas', 0)} vínculo(s) de eletiva "
-                                    f"e {sync_stats.get('tutoria', 0)} vínculo(s) de tutoria tiveram a turma ajustada."
-                                )
-                        except Exception as e:
-                            logger.warning(f"Não foi possível sincronizar turmas nas listas após importação: {e}")
-                        st.rerun()
-
-        except Exception as e:
-            st.error(f"❌ Erro ao processar arquivo: {str(e)}")
-    else:
-        st.info("📁 Selecione um arquivo CSV para começar.")
-
-    sync_msg_importacao = st.session_state.pop("importacao_sync_listas_msg", "")
-    if sync_msg_importacao:
-        st.success(sync_msg_importacao)
-
-    st.markdown("---")
-    st.markdown("""
-    <div style="display:flex;align-items:center;gap:0.5rem;margin:1rem 0 0.5rem 0;padding-bottom:0.5rem;border-bottom:2px solid #e2e8f0;position:relative;">
-        <div style="position:absolute;bottom:-2px;left:0;width:45px;height:2px;background:linear-gradient(90deg,#059669,transparent);border-radius:4px;"></div>
-        <span>📊</span>
-        <h3 style="margin:0;font-family:'Nunito',sans-serif;font-size:1rem;color:#0f172a;">Turmas cadastradas no sistema</h3>
-    </div>
-    """, unsafe_allow_html=True)
-    if not df_alunos.empty:
-        resumo = df_alunos.groupby("turma").size().reset_index(name="Total")
-        resumo.columns = ["Turma", "Total de Alunos"]
-        st.dataframe(resumo.sort_values("Turma"), use_container_width=True, hide_index=True)
-    else:
-        st.info("Nenhuma turma cadastrada ainda.")
-
-# ======================================================
-# PÁGINA 📋 GERENCIAR TURMAS
-# ======================================================
-
-elif "GERENCIAR TURMAS" in normalizar_texto(menu):
-    page_header("📋 Gerenciar Turmas", "Visualize, edite e exclua turmas cadastradas", "#059669")
-
-    if df_alunos.empty:
-        st.info("📭 Nenhuma turma cadastrada. Use '📥 Importar Alunos' para começar.")
-    else:
-        sync_msg_turma = st.session_state.pop("turma_sync_listas_msg", "")
-        if sync_msg_turma:
-            st.success(sync_msg_turma)
-        df_config_turmas = carregar_config_turmas()
-        mapa_coord_turma = {}
-        mapa_updated_turma = {}
-        if not df_config_turmas.empty and "turma" in df_config_turmas.columns:
-            for _, cfg in df_config_turmas.iterrows():
-                turma_cfg = str(cfg.get("turma", "")).strip()
-                if turma_cfg:
-                    mapa_coord_turma[turma_cfg] = str(cfg.get("coordenador_sala", "")).strip()
-                    mapa_updated_turma[turma_cfg] = str(cfg.get("updated_at", "")).strip()
-        coordenadores_disponiveis = []
-        if not df_professores.empty and "cargo" in df_professores.columns:
-            coordenadores_disponiveis = sorted([
-                str(row.get("nome", "")).strip()
-                for _, row in df_professores.iterrows()
-                if "COORDEN" in normalizar_texto(row.get("cargo", ""))
-                and str(row.get("nome", "")).strip()
-            ])
-
-        st.markdown("""
-        <div style="display:flex;align-items:center;gap:0.5rem;margin:0.5rem 0 0.75rem 0;padding-bottom:0.5rem;border-bottom:2px solid #e2e8f0;position:relative;">
-            <div style="position:absolute;bottom:-2px;left:0;width:45px;height:2px;background:linear-gradient(90deg,#059669,transparent);border-radius:4px;"></div>
-            <span>📊</span>
-            <h3 style="margin:0;font-family:'Nunito',sans-serif;font-size:1rem;color:#0f172a;">Resumo das Turmas</h3>
-        </div>
-        """, unsafe_allow_html=True)
-        turmas_info = df_alunos.groupby("turma").agg(total_alunos=("ra", "count")).reset_index().sort_values("turma")
-
-        for _, row in turmas_info.iterrows():
-            with st.container():
-                col1, col2, col3, col4, col5 = st.columns([3, 1, 1, 1, 1])
-                with col1:
-                    st.markdown(f"""
-                    <div style="
-                        background:white; border:1.5px solid #e2e8f0;
-                        border-radius:14px; padding:1rem 1.25rem;
-                        box-shadow:0 2px 6px rgba(15,23,42,0.06);
-                        display:flex; align-items:center; gap:0.75rem;
-                        border-left:4px solid #2563eb;
-                    ">
-                        <div style="font-size:1.4rem;">🏫</div>
-                        <div>
-                            <div style="font-family:'Nunito',sans-serif;font-weight:700;font-size:1rem;color:#0f172a;">{row['turma']}</div>
-                            <div style="font-size:0.78rem;color:#64748b;font-weight:500;">{row['total_alunos']} alunos cadastrados</div>
-                            <div style="font-size:0.76rem;color:#0f766e;font-weight:600;margin-top:0.15rem;">Coordenador(a): {mapa_coord_turma.get(row['turma'], 'Não vinculado')}</div>
-                            <div style="font-size:0.72rem;color:#64748b;font-weight:600;margin-top:0.12rem;">Última atualização da lista: {_formatar_data_curta(mapa_updated_turma.get(row['turma'], ''))}</div>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                with col2:
-                    if st.button("👁️ Ver", key=f"ver_turma_{row['turma']}"):
-                        st.session_state.turma_selecionada = row["turma"]
-                        st.rerun()
-                with col3:
-                    if st.button("✏️ Editar", key=f"edit_turma_{row['turma']}"):
-                        st.session_state.turma_para_editar = row["turma"]
-                        st.rerun()
-                with col4:
-                    if st.button("🔄 Substituir", key=f"sub_turma_{row['turma']}"):
-                        st.session_state.turma_para_substituir = row["turma"]
-                        st.rerun()
-                with col5:
-                    if st.button("🗑️ Deletar", key=f"del_turma_{row['turma']}"):
-                        st.session_state.turma_para_deletar = row["turma"]
-                        st.rerun()
-
-        if st.session_state.get("turma_selecionada"):
-            turma = st.session_state.turma_selecionada
-            st.markdown("---")
-            st.subheader(f"👥 Alunos da Turma {turma}")
-            alunos_turma = df_alunos[df_alunos["turma"] == turma]
-            st.dataframe(alunos_turma[["ra", "nome", "situacao"]], use_container_width=True, hide_index=True)
-            if st.button("❌ Fechar Visualização"):
-                st.session_state.turma_selecionada = None
-                st.rerun()
-
-        if st.session_state.get("turma_para_editar"):
-            turma_antiga = st.session_state.turma_para_editar
-            st.markdown("---")
-            st.subheader(f"✏️ Editar Turma: {turma_antiga}")
-            novo_nome = st.text_input("Novo nome da turma", value=turma_antiga)
-            coord_atual = mapa_coord_turma.get(turma_antiga, "")
-            opcoes_coord_turma = coordenadores_disponiveis + (["Digitar manualmente"] if coordenadores_disponiveis else ["Digitar manualmente"])
-            idx_coord_turma = opcoes_coord_turma.index(coord_atual) if coord_atual in opcoes_coord_turma else len(opcoes_coord_turma) - 1
-            coord_sel_turma = st.selectbox("Coordenador(a) da sala", opcoes_coord_turma, index=idx_coord_turma, key="coord_turma_edit")
-            coord_manual_turma = ""
-            if coord_sel_turma == "Digitar manualmente":
-                coord_manual_turma = st.text_input("Nome do coordenador(a)", value=coord_atual if coord_atual not in coordenadores_disponiveis else "", key="coord_turma_manual")
-            coordenador_turma_final = coord_manual_turma.strip() if coord_sel_turma == "Digitar manualmente" else coord_sel_turma
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("💾 Salvar Alterações", type="primary"):
-                    if not novo_nome.strip():
-                        st.error("❌ Nome da turma não pode ser vazio.")
-                    elif not coordenador_turma_final:
-                        st.error("❌ Informe o coordenador(a) da sala.")
-                    elif novo_nome == turma_antiga:
-                        sucesso_cfg, _ = salvar_config_turma(turma_antiga, coordenador_turma_final)
-                        if sucesso_cfg:
-                            st.success("✅ Coordenador(a) da turma atualizado com sucesso!")
-                            st.session_state.turma_para_editar = None
-                            st.rerun()
-                    else:
-                        sucesso = editar_nome_turma(turma_antiga, novo_nome)
-                        if sucesso:
-                            renomear_config_turma(turma_antiga, novo_nome)
-                            salvar_config_turma(novo_nome, coordenador_turma_final)
-                            st.success(f"✅ Turma renomeada para {novo_nome}!")
-                            st.session_state.turma_para_editar = None
-                            st.rerun()
-            with col2:
-                if st.button("❌ Cancelar"):
-                    st.session_state.turma_para_editar = None
-                    st.rerun()
-
-        if st.session_state.get("turma_para_substituir"):
-            turma = st.session_state.turma_para_substituir
-            st.markdown("---")
-            st.subheader(f"🔄 Substituir Turma {turma}")
-
-            st.markdown("""
-            <div style="
-                background:linear-gradient(135deg,#eff6ff,#dbeafe);
-                border:1.5px solid #93c5fd; border-left:5px solid #2563eb;
-                border-radius:14px; padding:1rem 1.25rem; margin-bottom:1rem;
-            ">
-                <div style="color:#1e40af;font-size:0.875rem;">
-                    📁 Envie o arquivo CSV da SEDUC para substituir <b>todos os alunos</b> desta turma. Esta ação não pode ser desfeita.
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-            arquivo = st.file_uploader("Arquivo CSV", type=["csv"], key="substituir_csv")
-
-            if arquivo is not None:
-                try:
-                    df_import_raw = _ler_csv_lista_seduc(arquivo)
-                    df_lista_essencial, cols_detectadas = _normalizar_colunas_lista_seduc(df_import_raw)
-
-                    st.success("✅ Arquivo carregado com sucesso.")
-                    st.caption(
-                        "O sistema usará somente os campos essenciais: Nome do Aluno, RA e Situação do Aluno. "
-                        "As demais colunas serão ignoradas."
-                    )
-
-                    with st.expander("🔍 Colunas identificadas", expanded=False):
-                        st.write(f"**Nome:** {cols_detectadas.get('col_nome') or 'não identificado'}")
-                        st.write(f"**RA:** {cols_detectadas.get('col_ra') or 'não identificado'}")
-                        st.write(f"**Situação:** {cols_detectadas.get('col_situacao') or 'não identificada'}")
-
-                    if df_lista_essencial.empty:
-                        st.error("❌ Não foi possível identificar Nome do Aluno, RA e Situação na lista. A turma atual NÃO será alterada.")
-                        st.dataframe(df_import_raw.head(10), use_container_width=True)
-                    else:
-                        previa = df_lista_essencial.copy()
-                        previa.insert(0, "turma", turma)
-                        st.write("### 👀 Pré-visualização que será usada")
-                        st.dataframe(previa.head(30), use_container_width=True, hide_index=True)
-
-                        c1, c2, c3 = st.columns(3)
-                        c1.metric("Estudantes válidos", len(df_lista_essencial))
-                        c2.metric("Ativos", int((df_lista_essencial["situacao"].astype(str).str.upper() == "ATIVO").sum()))
-                        c3.metric("Transferidos/Outros", int((df_lista_essencial["situacao"].astype(str).str.upper() != "ATIVO").sum()))
-
-                        if st.button("🔄 Confirmar Substituição", type="primary"):
-                            df_alunos_existente = carregar_alunos()
-                            resultado = _substituir_lista_oficial_turma_com_segurança(turma, df_lista_essencial, df_alunos_existente)
-
-                            if resultado.get("erros", 0):
-                                st.warning(
-                                    f"Lista atualizada parcialmente: {resultado.get('inseridos', 0)} novo(s), "
-                                    f"{resultado.get('atualizados', 0)} atualizado(s), {resultado.get('erros', 0)} erro(s). "
-                                    "Por segurança, alunos antigos não encontrados no arquivo novo não foram removidos."
-                                )
-                            else:
-                                st.success(
-                                    f"✅ Lista oficial da turma {turma} substituída com segurança: "
-                                    f"{resultado.get('inseridos', 0)} novo(s), "
-                                    f"{resultado.get('atualizados', 0)} atualizado(s), "
-                                    f"{resultado.get('removidos', 0)} removido(s)."
-                                )
-
-                            sync_stats = resultado.get("sync", {}) or {}
-                            total_sync = sync_stats.get("eletivas", 0) + sync_stats.get("tutoria", 0)
-                            st.session_state["turma_sync_listas_msg"] = (
-                                f"Última substituição da turma {turma}: {datetime.now().strftime('%d/%m/%Y %H:%M')}. "
-                                f"Listas compartilhadas atualizadas: {sync_stats.get('eletivas', 0)} vínculo(s) de eletiva "
-                                f"e {sync_stats.get('tutoria', 0)} vínculo(s) de tutoria. "
-                                f"Backup local criado antes da alteração."
-                            )
-                            st.session_state.turma_para_substituir = None
-                            st.rerun()
-
-                except Exception as e:
-                    st.error(f"❌ Erro ao processar o arquivo: {e}")
-
-            if st.button("❌ Cancelar Substituição"):
-                st.session_state.turma_para_substituir = None
-                st.rerun()
-
-        if st.session_state.get("turma_para_deletar"):
-            turma = st.session_state.turma_para_deletar
-            st.markdown("---")
-            st.error(f"⚠️ Tem certeza que deseja excluir a turma **{turma}**?")
-            st.warning("Todos os alunos desta turma serão removidos permanentemente!")
-
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("✅ Confirmar Exclusão", type="primary"):
-                    sucesso = excluir_alunos_por_turma(turma)
-                    if sucesso:
-                        excluir_config_turma(turma)
-                        st.success(f"✅ Turma {turma} excluída com sucesso!")
-                        st.session_state.turma_para_deletar = None
-                        carregar_alunos.clear()
-                        st.rerun()
-            with col2:
-                if st.button("❌ Cancelar", key="cancelar_exclusao_turma"):
-                    st.session_state.turma_para_deletar = None
-                    st.rerun()
-
-# ======================================================
-# PÁGINA 👥 LISTA DE ALUNOS
-# ======================================================
-
-elif "LISTA DE ALUNOS" in normalizar_texto(menu):
-    page_header("👥 Gerenciar Alunos", "Cadastro, edição e exclusão de estudantes", "#2563eb")
-
-    tab1, tab2, tab3 = st.tabs(["📋 Listar Alunos", "➕ Cadastrar Aluno", "✏️ Editar/Excluir"])
-
-    with tab1:
-        if df_alunos.empty:
-            st.info("📭 Nenhum aluno cadastrado. Use a aba '➕ Cadastrar Aluno' ou '📥 Importar Alunos'.")
-        else:
-            df_alunos_lista = df_alunos.copy()
-            col1, col2, col3 = st.columns(3)
-
-            with col1:
-                turmas_disp = ["Todas"] + sorted(df_alunos_lista["turma"].dropna().unique().tolist())
-                filtro_turma = st.selectbox("🏫 Filtrar por Turma", turmas_disp, key="filtro_turma_lista")
-
-            with col2:
-                if "situacao" in df_alunos_lista.columns:
-                    df_alunos_lista["situacao_norm"] = df_alunos_lista["situacao"].astype(str).str.strip().str.title()
-                    situacoes_unicas = sorted(df_alunos_lista["situacao_norm"].dropna().unique().tolist())
-                else:
-                    df_alunos_lista["situacao_norm"] = "Ativo"
-                    situacoes_unicas = ["Ativo"]
-
-                situacoes_disp = ["Ativos", "Todos"] + situacoes_unicas
-                filtro_situacao = st.selectbox("📊 Situação", situacoes_disp, index=0, key="filtro_situacao_lista")
-
-            with col3:
-                busca_nome = st.text_input("🔍 Buscar por Nome ou RA", placeholder="Digite nome ou RA", key="busca_lista")
-
-            df_view = df_alunos_lista.copy()
-            if filtro_turma != "Todas":
-                df_view = df_view[df_view["turma"] == filtro_turma]
-
-            if filtro_situacao == "Ativos":
-                df_view = df_view[df_view["situacao_norm"] == "Ativo"]
-            elif filtro_situacao != "Todos":
-                df_view = df_view[df_view["situacao_norm"] == filtro_situacao]
-
-            if busca_nome:
-                df_view = df_view[
-                    df_view["nome"].astype(str).str.contains(busca_nome, case=False, na=False) |
-                    df_view["ra"].astype(str).str.contains(busca_nome, na=False)
-                ]
-
-            total_geral = len(df_alunos_lista)
-            total_ativos = len(df_alunos_lista[df_alunos_lista["situacao_norm"] == "Ativo"])
-
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("👥 Total de Alunos", total_geral)
-            with col2:
-                st.metric("✅ Alunos Ativos", total_ativos)
-            with col3:
-                st.metric("📋 Exibindo", len(df_view))
-
-            st.markdown("---")
-
-            if df_view.empty:
-                st.info("📭 Nenhum aluno encontrado com os filtros selecionados.")
-            else:
-                df_display = df_view.drop(columns=["situacao_norm"], errors="ignore")
-                colunas_exibir = [col for col in ["ra", "nome", "turma", "situacao"] if col in df_display.columns]
-                st.dataframe(df_display[colunas_exibir].sort_values(["turma", "nome"]), use_container_width=True, hide_index=True)
-
-                csv = df_display.to_csv(index=False, encoding="utf-8-sig")
-                st.download_button(
-                    label="📥 Exportar Lista (CSV)",
-                    data=csv,
-                    file_name=f"alunos_{filtro_situacao.lower()}_{datetime.now().strftime('%Y%m%d')}.csv",
-                    mime="text/csv",
-                    key="btn_exportar_csv_lista",
-                )
-
-    with tab2:
-        st.subheader("➕ Cadastrar Novo Aluno")
-
-        with st.form("form_cadastrar_aluno"):
-            col1, col2 = st.columns(2)
-            with col1:
-                ra = st.text_input("RA *", placeholder="Ex: 123456")
-                nome = st.text_input("Nome Completo *", placeholder="Ex: João da Silva")
-                turma = st.text_input("Turma *", placeholder="Ex: 6º Ano A")
-            with col2:
-                situacao = st.selectbox("Situação", ["Ativo", "Transferido", "Inativo", "Remanejado"], index=0)
-                responsavel = st.text_input("Responsável", placeholder="Nome do responsável")
-
-            if st.form_submit_button("💾 Salvar Aluno", type="primary"):
-                if not ra or not nome or not turma:
-                    st.error("❌ RA, Nome e Turma são obrigatórios!")
-                else:
-                    if not df_alunos.empty and ra.strip() in df_alunos["ra"].astype(str).values:
-                        st.error(f"❌ RA {ra} já está cadastrado!")
-                    else:
-                        aluno = {
-                            "ra": ra.strip(),
-                            "nome": nome.strip(),
-                            "turma": turma.strip(),
-                            "situacao": situacao,
-                            "responsavel": responsavel.strip() if responsavel else None,
-                        }
-
-                        if salvar_aluno(aluno):
-                            st.success(f"✅ Aluno {nome} cadastrado com sucesso!")
-                            carregar_alunos.clear()
-                            st.rerun()
-                        else:
-                            st.error("❌ Erro ao salvar aluno.")
-
-    with tab3:
-        if df_alunos.empty:
-            st.info("📭 Nenhum aluno cadastrado.")
-        else:
-            st.subheader("✏️ Editar ou Excluir Aluno")
-            df_busca = df_alunos.copy()
-            if "situacao" in df_busca.columns:
-                df_busca["situacao_norm"] = df_busca["situacao"].astype(str).str.strip().str.title()
-                ativos = df_busca[df_busca["situacao_norm"] == "Ativo"]
-                if not ativos.empty:
-                    df_busca = ativos
-
-            df_busca = df_busca.sort_values(["turma", "nome"])
-            opcoes_alunos = []
-            for _, row in df_busca.iterrows():
-                sit = row.get("situacao", "Ativo")
-                opcoes_alunos.append(f"{row['nome']} - {row['turma']} (RA: {row['ra']}) [{sit}]")
-
-            aluno_selecionado = st.selectbox("Selecione o Aluno", opcoes_alunos, key="aluno_editar")
-
-            if aluno_selecionado:
-                ra_selecionado = aluno_selecionado.split("(RA: ")[1].split(")")[0].strip()
-                aluno_info = df_alunos[df_alunos["ra"] == ra_selecionado].iloc[0]
-
-                st.markdown("---")
-                st.subheader("📝 Editar Informações")
-
-                with st.form("form_editar_aluno"):
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        novo_nome = st.text_input("Nome *", value=aluno_info.get("nome", ""))
-                        nova_turma = st.text_input("Turma *", value=aluno_info.get("turma", ""))
-                        sit_atual = aluno_info.get("situacao", "Ativo")
-                        if sit_atual not in ["Ativo", "Transferido", "Inativo", "Remanejado"]:
-                            sit_atual = "Ativo"
-                        nova_situacao = st.selectbox(
-                            "Situação",
-                            ["Ativo", "Transferido", "Inativo", "Remanejado"],
-                            index=["Ativo", "Transferido", "Inativo", "Remanejado"].index(sit_atual),
-                        )
                     with col2:
-                        novo_responsavel = st.text_input("Responsável", value=str(aluno_info.get("responsavel", "")))
-
-                    st.info(f"**RA:** {aluno_info.get('ra')} (não pode ser alterado)")
-
-                    if st.form_submit_button("💾 Salvar Alterações", type="primary"):
-                        dados_atualizados = {
-                            "nome": novo_nome.strip(),
-                            "turma": nova_turma.strip(),
-                            "situacao": nova_situacao,
-                            "responsavel": novo_responsavel.strip() if novo_responsavel else None,
-                        }
-
-                        if atualizar_aluno(str(aluno_info["ra"]), dados_atualizados):
-                            st.success("✅ Aluno atualizado com sucesso!")
-                            carregar_alunos.clear()
+                        if st.button("👁️ Ver", key=f"ver_turma_{row['turma']}"):
+                            st.session_state.turma_selecionada = row["turma"]
                             st.rerun()
-                        else:
-                            st.error("❌ Erro ao atualizar aluno.")
+                    with col3:
+                        if st.button("✏️ Editar", key=f"edit_turma_{row['turma']}"):
+                            st.session_state.turma_para_editar = row["turma"]
+                            st.rerun()
+                    with col4:
+                        if st.button("🔄 Substituir", key=f"sub_turma_{row['turma']}"):
+                            st.session_state.turma_para_substituir = row["turma"]
+                            st.rerun()
+                    with col5:
+                        if st.button("🗑️ Deletar", key=f"del_turma_{row['turma']}"):
+                            st.session_state.turma_para_deletar = row["turma"]
+                            st.rerun()
 
+            if st.session_state.get("turma_selecionada"):
+                turma = st.session_state.turma_selecionada
                 st.markdown("---")
-                st.subheader("🗑️ Excluir Aluno")
-                st.warning(f"⚠️ Esta ação é irreversível! O aluno **{aluno_info['nome']}** (RA: {aluno_info['ra']}) será removido permanentemente.")
-
-                if st.button("🗑️ Excluir Aluno", type="secondary", key="btn_excluir_aluno_tab3"):
-                    st.session_state.confirmar_exclusao_aluno = aluno_info["ra"]
+                st.subheader(f"👥 Alunos da Turma {turma}")
+                alunos_turma = df_alunos[df_alunos["turma"] == turma]
+                st.dataframe(alunos_turma[["ra", "nome", "situacao"]], use_container_width=True, hide_index=True)
+                if st.button("❌ Fechar Visualização"):
+                    st.session_state.turma_selecionada = None
                     st.rerun()
 
-                if st.session_state.get("confirmar_exclusao_aluno"):
-                    ra_excluir = st.session_state.confirmar_exclusao_aluno
-                    aluno_excluir = df_alunos[df_alunos["ra"] == ra_excluir].iloc[0] if not df_alunos[df_alunos["ra"] == ra_excluir].empty else None
+            if st.session_state.get("turma_para_editar"):
+                turma_antiga = st.session_state.turma_para_editar
+                st.markdown("---")
+                st.subheader(f"✏️ Editar Turma: {turma_antiga}")
+                novo_nome = st.text_input("Novo nome da turma", value=turma_antiga)
+                coord_atual = mapa_coord_turma.get(turma_antiga, "")
+                opcoes_coord_turma = coordenadores_disponiveis + (["Digitar manualmente"] if coordenadores_disponiveis else ["Digitar manualmente"])
+                idx_coord_turma = opcoes_coord_turma.index(coord_atual) if coord_atual in opcoes_coord_turma else len(opcoes_coord_turma) - 1
+                coord_sel_turma = st.selectbox("Coordenador(a) da sala", opcoes_coord_turma, index=idx_coord_turma, key="coord_turma_edit")
+                coord_manual_turma = ""
+                if coord_sel_turma == "Digitar manualmente":
+                    coord_manual_turma = st.text_input("Nome do coordenador(a)", value=coord_atual if coord_atual not in coordenadores_disponiveis else "", key="coord_turma_manual")
+                coordenador_turma_final = coord_manual_turma.strip() if coord_sel_turma == "Digitar manualmente" else coord_sel_turma
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("💾 Salvar Alterações", type="primary"):
+                        if not novo_nome.strip():
+                            st.error("❌ Nome da turma não pode ser vazio.")
+                        elif not coordenador_turma_final:
+                            st.error("❌ Informe o coordenador(a) da sala.")
+                        elif novo_nome == turma_antiga:
+                            sucesso_cfg, _ = salvar_config_turma(turma_antiga, coordenador_turma_final)
+                            if sucesso_cfg:
+                                st.success("✅ Coordenador(a) da turma atualizado com sucesso!")
+                                st.session_state.turma_para_editar = None
+                                st.rerun()
+                        else:
+                            sucesso = editar_nome_turma(turma_antiga, novo_nome)
+                            if sucesso:
+                                renomear_config_turma(turma_antiga, novo_nome)
+                                salvar_config_turma(novo_nome, coordenador_turma_final)
+                                st.success(f"✅ Turma renomeada para {novo_nome}!")
+                                st.session_state.turma_para_editar = None
+                                st.rerun()
+                with col2:
+                    if st.button("❌ Cancelar"):
+                        st.session_state.turma_para_editar = None
+                        st.rerun()
 
-                    if aluno_excluir is not None:
-                        st.error(f"⚠️ Confirmar exclusão de **{aluno_excluir['nome']}**?")
+            if st.session_state.get("turma_para_substituir"):
+                turma = st.session_state.turma_para_substituir
+                st.markdown("---")
+                st.subheader(f"🔄 Substituir Turma {turma}")
 
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            senha = st.text_input("Digite a senha para confirmar:", type="password", key="senha_excluir_aluno_tab3")
-                            if st.button("✅ Confirmar Exclusão", type="primary", key="confirm_excluir_aluno_tab3"):
-                                if senha == SENHA_EXCLUSAO:
-                                    url = f"{SUPABASE_URL}/rest/v1/alunos?ra=eq.{ra_excluir}"
-                                    r = requests.delete(url, headers=HEADERS, timeout=20)
-                                    if r.status_code in (200, 204):
-                                        st.success(f"✅ Aluno {aluno_excluir['nome']} excluído!")
-                                        carregar_alunos.clear()
-                                        del st.session_state.confirmar_exclusao_aluno
-                                        st.rerun()
-                                    else:
-                                        st.error("❌ Erro ao excluir aluno.")
+                st.markdown("""
+                <div style="
+                    background:linear-gradient(135deg,#eff6ff,#dbeafe);
+                    border:1.5px solid #93c5fd; border-left:5px solid #2563eb;
+                    border-radius:14px; padding:1rem 1.25rem; margin-bottom:1rem;
+                ">
+                    <div style="color:#1e40af;font-size:0.875rem;">
+                        📁 Envie o arquivo CSV da SEDUC para substituir <b>todos os alunos</b> desta turma. Esta ação não pode ser desfeita.
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                arquivo = st.file_uploader("Arquivo CSV", type=["csv"], key="substituir_csv")
+
+                if arquivo is not None:
+                    try:
+                        df_import_raw = _ler_csv_lista_seduc(arquivo)
+                        df_lista_essencial, cols_detectadas = _normalizar_colunas_lista_seduc(df_import_raw)
+
+                        st.success("✅ Arquivo carregado com sucesso.")
+                        st.caption(
+                            "O sistema usará somente os campos essenciais: Nome do Aluno, RA e Situação do Aluno. "
+                            "As demais colunas serão ignoradas."
+                        )
+
+                        with st.expander("🔍 Colunas identificadas", expanded=False):
+                            st.write(f"**Nome:** {cols_detectadas.get('col_nome') or 'não identificado'}")
+                            st.write(f"**RA:** {cols_detectadas.get('col_ra') or 'não identificado'}")
+                            st.write(f"**Situação:** {cols_detectadas.get('col_situacao') or 'não identificada'}")
+
+                        if df_lista_essencial.empty:
+                            st.error("❌ Não foi possível identificar Nome do Aluno, RA e Situação na lista. A turma atual NÃO será alterada.")
+                            st.dataframe(df_import_raw.head(10), use_container_width=True)
+                        else:
+                            previa = df_lista_essencial.copy()
+                            previa.insert(0, "turma", turma)
+                            st.write("### 👀 Pré-visualização que será usada")
+                            st.dataframe(previa.head(30), use_container_width=True, hide_index=True)
+
+                            c1, c2, c3 = st.columns(3)
+                            c1.metric("Estudantes válidos", len(df_lista_essencial))
+                            c2.metric("Ativos", int((df_lista_essencial["situacao"].astype(str).str.upper() == "ATIVO").sum()))
+                            c3.metric("Transferidos/Outros", int((df_lista_essencial["situacao"].astype(str).str.upper() != "ATIVO").sum()))
+
+                            if st.button("🔄 Confirmar Substituição", type="primary"):
+                                df_alunos_existente = carregar_alunos()
+                                resultado = _substituir_lista_oficial_turma_com_segurança(turma, df_lista_essencial, df_alunos_existente)
+
+                                if resultado.get("erros", 0):
+                                    st.warning(
+                                        f"Lista atualizada parcialmente: {resultado.get('inseridos', 0)} novo(s), "
+                                        f"{resultado.get('atualizados', 0)} atualizado(s), {resultado.get('erros', 0)} erro(s). "
+                                        "Por segurança, alunos antigos não encontrados no arquivo novo não foram removidos."
+                                    )
                                 else:
-                                    st.error("❌ Senha incorreta!")
-                        with col2:
-                            if st.button("❌ Cancelar", key="cancel_excluir_aluno_tab3"):
-                                del st.session_state.confirmar_exclusao_aluno
+                                    st.success(
+                                        f"✅ Lista oficial da turma {turma} substituída com segurança: "
+                                        f"{resultado.get('inseridos', 0)} novo(s), "
+                                        f"{resultado.get('atualizados', 0)} atualizado(s), "
+                                        f"{resultado.get('removidos', 0)} removido(s)."
+                                    )
+
+                                sync_stats = resultado.get("sync", {}) or {}
+                                total_sync = sync_stats.get("eletivas", 0) + sync_stats.get("tutoria", 0)
+                                st.session_state["turma_sync_listas_msg"] = (
+                                    f"Última substituição da turma {turma}: {datetime.now().strftime('%d/%m/%Y %H:%M')}. "
+                                    f"Listas compartilhadas atualizadas: {sync_stats.get('eletivas', 0)} vínculo(s) de eletiva "
+                                    f"e {sync_stats.get('tutoria', 0)} vínculo(s) de tutoria. "
+                                    f"Backup local criado antes da alteração."
+                                )
+                                st.session_state.turma_para_substituir = None
                                 st.rerun()
 
-# ======================================================
+                    except Exception as e:
+                        st.error(f"❌ Erro ao processar o arquivo: {e}")
+
+                if st.button("❌ Cancelar Substituição"):
+                    st.session_state.turma_para_substituir = None
+                    st.rerun()
+
+            if st.session_state.get("turma_para_deletar"):
+                turma = st.session_state.turma_para_deletar
+                st.markdown("---")
+                st.error(f"⚠️ Tem certeza que deseja excluir a turma **{turma}**?")
+                st.warning("Todos os alunos desta turma serão removidos permanentemente!")
+
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("✅ Confirmar Exclusão", type="primary"):
+                        sucesso = excluir_alunos_por_turma(turma)
+                        if sucesso:
+                            excluir_config_turma(turma)
+                            st.success(f"✅ Turma {turma} excluída com sucesso!")
+                            st.session_state.turma_para_deletar = None
+                            carregar_alunos.clear()
+                            st.rerun()
+                with col2:
+                    if st.button("❌ Cancelar", key="cancelar_exclusao_turma"):
+                        st.session_state.turma_para_deletar = None
+                        st.rerun()
+
+    # ======================================================
+
+    with aba_resumo:
+        st.subheader("📊 Resumo por turno e etapa")
+        if df_alunos.empty:
+            st.info("Nenhum aluno cadastrado para resumir.")
+        else:
+            base_resumo = df_alunos.copy()
+            if "situacao" in base_resumo.columns:
+                base_resumo["situacao_norm"] = base_resumo["situacao"].astype(str).apply(normalizar_texto)
+                base_resumo = base_resumo[base_resumo["situacao_norm"].isin(["ATIVO", "ATIVA", ""]) | base_resumo["situacao_norm"].isna()]
+            if "turno" not in base_resumo.columns or base_resumo.get("turno", pd.Series(dtype=str)).astype(str).str.strip().eq("").all():
+                base_resumo["turno"] = base_resumo.get("turma", pd.Series(dtype=str)).astype(str).apply(_inferir_turno_turma) if "turma" in base_resumo.columns else "Não informado"
+            if "etapa" not in base_resumo.columns or base_resumo.get("etapa", pd.Series(dtype=str)).astype(str).str.strip().eq("").all():
+                base_resumo["etapa"] = base_resumo.get("turma", pd.Series(dtype=str)).astype(str).apply(_inferir_etapa_turma) if "turma" in base_resumo.columns else "Não informado"
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Alunos ativos", len(base_resumo))
+            c2.metric("Turmas", base_resumo["turma"].nunique() if "turma" in base_resumo.columns else 0)
+            c3.metric("Etapas", base_resumo["etapa"].nunique() if "etapa" in base_resumo.columns else 0)
+            if "turma" in base_resumo.columns:
+                resumo_turno = base_resumo.groupby(["turno", "etapa", "turma"], dropna=False).size().reset_index(name="Alunos ativos")
+                st.dataframe(resumo_turno.sort_values(["turno", "etapa", "turma"]), use_container_width=True, hide_index=True)
+
 # PÁGINA 📄 COMUNICADO AOS PAIS (COMPLETA)
 # ======================================================
 
