@@ -6091,6 +6091,7 @@ def converter_tutoria_para_registros(tutoria_dict: dict, origem: str = "excel") 
                 "professora": tutor,
                 "nome_aluno": item.get("nome", ""),
                 "serie": serie_fmt,
+                "ra": "".join(ch for ch in str(item.get("ra", "")) if ch.isdigit()),
                 "origem": origem,
                 "tipo": normalizar_perfil_tutoria(dados.get("tipo", "Professor(a)")),
                 "espaco": str(dados.get("espaco", "")).strip(),
@@ -6146,6 +6147,68 @@ def _chave_registro_tutoria_supabase(reg: dict) -> tuple:
         turma_para_comparacao(reg.get("serie", "")),
         "".join(ch for ch in str(reg.get("ra", "")) if ch.isdigit()),
     )
+
+
+def _valor_json_seguro_tutoria(valor):
+    """Converte valores do pandas/Streamlit para JSON aceito pelo Supabase."""
+    try:
+        if pd.isna(valor):
+            return ""
+    except Exception:
+        pass
+    if valor is None:
+        return ""
+    if isinstance(valor, (list, dict, tuple, set)):
+        return json.dumps(valor, ensure_ascii=False)
+    return str(valor).strip()
+
+
+def _filtrar_registros_tutoria(registros: list[dict], colunas: list[str]) -> list[dict]:
+    filtrados = []
+    for reg in registros or []:
+        item = {}
+        for col in colunas:
+            if col in reg:
+                item[col] = _valor_json_seguro_tutoria(reg.get(col))
+        if item.get("professora") and item.get("nome_aluno"):
+            filtrados.append(item)
+    return filtrados
+
+
+def _post_tutoria_lote_com_fallback(registros_lote: list[dict]):
+    """Salva vínculos de Tutoria tolerando diferenças de colunas na tabela do Supabase.
+
+    O erro 400 em /rest/v1/tutoria geralmente acontece quando o payload tem
+    alguma coluna que não existe no banco atual, ou quando há valor não aceito
+    pelo PostgREST. Esta função tenta primeiro o formato completo e depois
+    formatos menores, sem perder os dados essenciais.
+    """
+    tentativas_colunas = [
+        ["professora", "nome_aluno", "serie", "ra", "origem", "tipo", "espaco", "horario", "dia", "turno"],
+        ["professora", "nome_aluno", "serie", "ra", "tipo", "espaco", "horario", "dia"],
+        ["professora", "nome_aluno", "serie", "ra"],
+        ["professora", "nome_aluno", "serie"],
+    ]
+    ultimo_erro = None
+    for colunas in tentativas_colunas:
+        payload = _filtrar_registros_tutoria(registros_lote, colunas)
+        if not payload:
+            continue
+        try:
+            _supabase_request(
+                "POST",
+                "tutoria",
+                json=payload,
+                headers={"Prefer": "return=minimal"},
+            )
+            return True, f"salvo com colunas: {', '.join(colunas)}"
+        except Exception as e:
+            ultimo_erro = e
+            logger.warning(f"Falha ao salvar lote de tutoria com colunas {colunas}: {e}")
+            continue
+    if ultimo_erro:
+        raise ultimo_erro
+    return False, "sem payload válido"
 
 
 def _limpar_cache_tutoria_apos_mutacao():
@@ -6249,10 +6312,13 @@ def sincronizar_tutoria_listas_supabase(tutoria_dict: dict) -> tuple[bool, str]:
             novos.append(reg)
             vistos_lote.add(chave)
 
+        detalhes_salvamento = []
         if novos:
-            tamanho_lote = 500
+            tamanho_lote = 200
             for inicio in range(0, len(novos), tamanho_lote):
-                _supabase_request("POST", "tutoria", json=novos[inicio:inicio + tamanho_lote])
+                ok_lote, detalhe_lote = _post_tutoria_lote_com_fallback(novos[inicio:inicio + tamanho_lote])
+                if detalhe_lote:
+                    detalhes_salvamento.append(detalhe_lote)
 
         ok_resp, msg_resp = sincronizar_tutoria_responsaveis_supabase(base)
         try:
@@ -6260,7 +6326,8 @@ def sincronizar_tutoria_listas_supabase(tutoria_dict: dict) -> tuple[bool, str]:
         except Exception:
             pass
         complemento = f" Responsáveis: {msg_resp}" if msg_resp else ""
-        return True, f"{len(novos)} vínculo(s) novo(s) salvos; {len(registros) - len(novos)} já existiam e foram preservados. Nenhum vínculo foi apagado." + complemento
+        detalhe = f" Formato usado: {' | '.join(detalhes_salvamento)}." if detalhes_salvamento else ""
+        return True, f"{len(novos)} vínculo(s) novo(s) salvos; {len(registros) - len(novos)} já existiam e foram preservados. Nenhum vínculo foi apagado." + detalhe + complemento
     except Exception as e:
         return False, mensagem_erro_tutoria_supabase(e)
 
