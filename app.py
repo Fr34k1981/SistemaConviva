@@ -6148,6 +6148,70 @@ def _chave_registro_tutoria_supabase(reg: dict) -> tuple:
     )
 
 
+def _limpar_cache_tutoria_apos_mutacao():
+    """Limpa caches para a tela refletir inclusões/edições/exclusões imediatamente."""
+    chaves = [
+        "tutoria_validacao_ultimo",
+        "tutoria_bloqueados_ultimo",
+        "tutoria_responsaveis_sync_warning",
+        "df_tutoria_supabase",
+    ]
+    for chave in chaves:
+        try:
+            st.session_state.pop(chave, None)
+        except Exception:
+            pass
+    try:
+        _limpar_cache_pos_mutacao()
+    except Exception:
+        pass
+
+
+def _excluir_registro_tutoria_supabase(tutor_nome: str, nome_aluno: str = "", serie: str = "", ra: str = "") -> tuple[bool, str]:
+    """Exclui vínculo de tutoria no Supabase de forma direcionada."""
+    if not SUPABASE_VALID:
+        return True, "Supabase indisponível; exclusão aplicada apenas na sessão/cache local."
+    tutor = str(tutor_nome or "").strip()
+    nome = str(nome_aluno or "").strip()
+    turma = formatar_turma_eletiva(str(serie or "").strip())
+    ra_limpo = "".join(ch for ch in str(ra or "") if ch.isdigit())
+    if not tutor or (not nome and not ra_limpo):
+        return False, "Informe tutor e estudante para excluir."
+    try:
+        tutor_q = requests.utils.quote(tutor, safe="")
+        if ra_limpo:
+            ra_q = requests.utils.quote(ra_limpo, safe="")
+            try:
+                _supabase_request("DELETE", f"tutoria?professora=eq.{tutor_q}&ra=eq.{ra_q}")
+                _limpar_cache_tutoria_apos_mutacao()
+                return True, "Vínculo excluído no Supabase pelo RA."
+            except Exception as e_ra:
+                logger.warning(f"Falha ao excluir tutoria por RA; tentando por nome/turma: {e_ra}")
+        nome_q = requests.utils.quote(nome, safe="")
+        turma_q = requests.utils.quote(turma, safe="")
+        _supabase_request("DELETE", f"tutoria?professora=eq.{tutor_q}&nome_aluno=eq.{nome_q}&serie=eq.{turma_q}")
+        _limpar_cache_tutoria_apos_mutacao()
+        return True, "Vínculo excluído no Supabase por professor, nome e turma."
+    except Exception as e:
+        return False, mensagem_erro_tutoria_supabase(e)
+
+
+def _excluir_lista_tutoria_supabase(tutor_nome: str) -> tuple[bool, str]:
+    """Exclui todos os vínculos de tutoria de um único responsável, sem mexer nos demais."""
+    if not SUPABASE_VALID:
+        return True, "Supabase indisponível; limpeza aplicada apenas na sessão/cache local."
+    tutor = str(tutor_nome or "").strip()
+    if not tutor:
+        return False, "Informe o responsável para excluir a lista."
+    try:
+        tutor_q = requests.utils.quote(tutor, safe="")
+        _supabase_request("DELETE", f"tutoria?professora=eq.{tutor_q}")
+        _limpar_cache_tutoria_apos_mutacao()
+        return True, "Lista do responsável excluída no Supabase."
+    except Exception as e:
+        return False, mensagem_erro_tutoria_supabase(e)
+
+
 def sincronizar_tutoria_listas_supabase(tutoria_dict: dict) -> tuple[bool, str]:
     """Salva em lote as listas de tutoria SEM apagar vínculos existentes.
 
@@ -7475,12 +7539,13 @@ if st.session_state.TUTORIA is None:
         base_supabase = TUTORIA_SUPABASE_BASE
         total_supabase = total_estudantes_tutoria(base_supabase)
         total_seguro = total_estudantes_tutoria(TUTORIA_REFERENCIA_COM_ALUNOS)
-        # Se o Supabase trouxer menos estudantes que backups/cache/planilha,
-        # não usa a fonte menor para ocultar o que já existia.
-        if total_seguro > total_supabase:
+        # Só usa backup automaticamente quando o Supabase vier drasticamente menor.
+        # Isso restaura perdas acidentais grandes, mas permite exclusões intencionais
+        # de estudantes/professores sem o backup recolocar tudo de volta.
+        if total_seguro > 0 and total_supabase > 0 and total_supabase < int(total_seguro * 0.50):
             st.session_state.TUTORIA = mesclar_tutoria_com_metadados(TUTORIA_REFERENCIA_COM_ALUNOS, TUTORIA_REFERENCIA_META)
             st.session_state.FONTE_TUTORIA = "supabase/backup/cache"
-            st.session_state["tutoria_responsaveis_sync_warning"] = f"Proteção ativa: o Supabase trouxe {total_supabase} vínculo(s), mas havia uma fonte segura com {total_seguro}. Usei a base maior para não ocultar tutorados."
+            st.session_state["tutoria_responsaveis_sync_warning"] = f"Proteção ativa: o Supabase trouxe apenas {total_supabase} vínculo(s), mas havia fonte segura com {total_seguro}. Usei a base maior para recuperar perda provável."
         else:
             st.session_state.TUTORIA = mesclar_tutoria_com_metadados(base_supabase, TUTORIA_REFERENCIA_META)
             st.session_state.FONTE_TUTORIA = "supabase"
@@ -7497,11 +7562,16 @@ else:
     # estudantes, recupera a lista em vez de gravar vazio por cima.
     total_sessao = total_estudantes_tutoria(st.session_state.TUTORIA)
     total_seguro = total_estudantes_tutoria(TUTORIA_REFERENCIA_COM_ALUNOS)
-    if total_seguro > 0 and total_sessao < total_seguro:
+    if total_seguro > 0 and total_sessao == 0:
         st.session_state.TUTORIA = mesclar_multiplas_fontes_tutoria(st.session_state.TUTORIA, TUTORIA_REFERENCIA_COM_ALUNOS)
         st.session_state.TUTORIA = mesclar_tutoria_com_metadados(st.session_state.TUTORIA, TUTORIA_REFERENCIA_META)
         st.session_state.FONTE_TUTORIA = "supabase/local/excel"
-        st.session_state["tutoria_responsaveis_sync_warning"] = "Proteção ativa: a Tutoria foi mesclada com Supabase/cache/planilha para não perder tutorados."
+        st.session_state["tutoria_responsaveis_sync_warning"] = "Proteção ativa: a Tutoria estava zerada na sessão e foi restaurada com Supabase/cache/planilha."
+    elif total_seguro >= 10 and total_sessao > 0 and total_sessao < int(total_seguro * 0.50):
+        st.session_state.TUTORIA = mesclar_multiplas_fontes_tutoria(st.session_state.TUTORIA, TUTORIA_REFERENCIA_COM_ALUNOS)
+        st.session_state.TUTORIA = mesclar_tutoria_com_metadados(st.session_state.TUTORIA, TUTORIA_REFERENCIA_META)
+        st.session_state.FONTE_TUTORIA = "supabase/local/excel"
+        st.session_state["tutoria_responsaveis_sync_warning"] = "Proteção ativa: a Tutoria estava muito menor que a base segura e foi restaurada para evitar perda acidental."
     else:
         st.session_state.TUTORIA = mesclar_tutoria_com_metadados(st.session_state.TUTORIA, TUTORIA_REFERENCIA_META)
         if SUPABASE_VALID and not df_tutoria_supabase.empty:
@@ -16391,6 +16461,7 @@ elif menu == "🎨 Eletiva":
         estudante_sel = alunos_raw[idx_sel]
         nome_antigo = str(estudante_sel.get("nome", "")).strip()
         serie_antiga = str(estudante_sel.get("serie", "")).strip()
+        ra_antigo = "".join(ch for ch in str(estudante_sel.get("ra", "")) if ch.isdigit())
 
         col_ed1, col_ed2 = st.columns(2)
         with col_ed1:
@@ -16771,7 +16842,7 @@ elif menu == "🫂 Tutoria":
             st.session_state["tutoria_responsaveis_sync_warning"] = "Salvamento bloqueado: a tela não carregou estudantes da Tutoria. Recarregue do Supabase ou restaure backup antes de salvar."
             st.session_state.FONTE_TUTORIA = fonte
             return
-        elif total_seguro >= 10 and total_atual < int(total_seguro * 0.70):
+        elif not str(fonte).startswith("exclusao") and total_seguro >= 10 and total_atual < int(total_seguro * 0.70):
             st.session_state["tutoria_responsaveis_sync_warning"] = f"Proteção ativada: tentativa de salvar {total_atual} vínculos sobre uma base segura com {total_seguro}. Salvamento bloqueado para evitar perda em massa."
             st.session_state.FONTE_TUTORIA = fonte
             return
@@ -17301,17 +17372,12 @@ elif menu == "🫂 Tutoria":
     # Ele permite editar, remover estudante individualmente e limpar a lista inteira
     # do responsavel selecionado.
 
-    def _apagar_registro_supabase_tutoria(tutor_nome: str, nome_aluno: str = "", serie: str = "") -> bool:
-        """Proteção: não faz DELETE direto no Supabase.
-
-        A remoção na tela continua local, mas o vínculo online fica preservado
-        até existir um fluxo de arquivamento com confirmação explícita.
-        """
-        st.session_state["tutoria_responsaveis_sync_warning"] = (
-            "Proteção ativa: a remoção não apagou o vínculo do Supabase. "
-            "Os dados online foram preservados para evitar perda definitiva."
-        )
-        return False
+    def _apagar_registro_supabase_tutoria(tutor_nome: str, nome_aluno: str = "", serie: str = "", ra: str = "") -> bool:
+        """Exclui o vínculo selecionado também no Supabase."""
+        ok, msg = _excluir_registro_tutoria_supabase(tutor_nome, nome_aluno, serie, ra)
+        if not ok:
+            st.session_state["tutoria_responsaveis_sync_warning"] = msg
+        return ok
 
     st.markdown("---")
     st.subheader("📋 Estudantes da lista selecionada")
@@ -18199,6 +18265,7 @@ elif menu == "🫂 Tutoria":
         estudante_sel = alunos_raw[idx_sel]
         nome_antigo = str(estudante_sel.get("nome", "")).strip()
         serie_antiga = str(estudante_sel.get("serie", "")).strip()
+        ra_antigo = "".join(ch for ch in str(estudante_sel.get("ra", "")) if ch.isdigit())
         col_ed1, col_ed2 = st.columns(2)
         with col_ed1:
             novo_nome = st.text_input("Nome", value=nome_antigo, key=f"tutoria_nome_edit_{idx_sel}")
@@ -18214,16 +18281,18 @@ elif menu == "🫂 Tutoria":
                     st.warning("Informe um nome válido para salvar.")
                 else:
                     try:
-                        TUTORIA[tutor_sel]["alunos"][idx_sel] = {"nome": novo_nome, "serie": nova_serie}
-                        _salvar_estado_tutoria("local")
+                        TUTORIA[tutor_sel]["alunos"][idx_sel] = {"nome": novo_nome, "serie": nova_serie, "ra": ra_antigo}
+                        _salvar_estado_tutoria("edicao")
                         if SUPABASE_VALID:
-                            _apagar_registro_supabase_tutoria(tutor_sel, nome_antigo, serie_antiga)
+                            _apagar_registro_supabase_tutoria(tutor_sel, nome_antigo, serie_antiga, ra_antigo)
                             _supabase_request("POST", "tutoria", json=[{
                                 "professora": tutor_sel,
                                 "nome_aluno": novo_nome,
                                 "serie": nova_serie,
+                                "ra": ra_antigo,
                                 "origem": "edicao_manual"
                             }])
+                            _limpar_cache_tutoria_apos_mutacao()
                         st.success("✅ Estudante atualizado com sucesso.")
                         st.rerun()
                     except Exception as e:
@@ -18237,9 +18306,16 @@ elif menu == "🫂 Tutoria":
                 else:
                     try:
                         removido = TUTORIA[tutor_sel]["alunos"].pop(idx_sel)
-                        _salvar_estado_tutoria("local")
                         if SUPABASE_VALID:
-                            _apagar_registro_supabase_tutoria(tutor_sel, str(removido.get("nome", "")), str(removido.get("serie", "")))
+                            ok_del = _apagar_registro_supabase_tutoria(
+                                tutor_sel,
+                                str(removido.get("nome", "")),
+                                str(removido.get("serie", "")),
+                                str(removido.get("ra", "")),
+                            )
+                            if not ok_del:
+                                st.warning("O estudante foi removido da tela, mas houve falha ao excluir no Supabase. Verifique o aviso acima.")
+                        _salvar_estado_tutoria("exclusao_individual")
                         st.success("✅ Estudante excluído com sucesso.")
                         st.rerun()
                     except Exception as e:
@@ -18254,11 +18330,12 @@ elif menu == "🫂 Tutoria":
             else:
                 try:
                     TUTORIA[tutor_sel]["alunos"] = []
-                    _salvar_estado_tutoria("local")
                     if SUPABASE_VALID:
-                        tutor_q = requests.utils.quote(str(tutor_sel), safe="")
-                        _supabase_request("DELETE", f"tutoria?professora=eq.{tutor_q}")
-                    st.success("✅ Todos os estudantes da tutoria foram excluídos.")
+                        ok_del, msg_del = _excluir_lista_tutoria_supabase(tutor_sel)
+                        if not ok_del:
+                            st.warning(msg_del)
+                    _salvar_estado_tutoria("exclusao_lista_professor")
+                    st.success("✅ Todos os estudantes da tutoria do professor selecionado foram excluídos.")
                     st.rerun()
                 except Exception as e:
                     st.error(f"Erro ao excluir todos os estudantes: {e}")
