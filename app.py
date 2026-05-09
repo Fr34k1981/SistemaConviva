@@ -6898,6 +6898,63 @@ def gerar_pdf_tutoria(contexto: str, df_tutoria: pd.DataFrame) -> BytesIO:
     return buffer
 
 
+
+def gerar_zip_tutoria_por_professores(tutoria_dict: dict, df_alunos: pd.DataFrame) -> BytesIO:
+    """Gera ZIP com um PDF por professor(a) contendo somente estudantes ativos.
+
+    Esta função existe para a área "Exportar impressões em lote" da Tutoria.
+    Ela usa montar_dataframe_tutoria(), portanto respeita o filtro atual de alunos ativos.
+    """
+    buffer_zip = BytesIO()
+    with zipfile.ZipFile(buffer_zip, "w", zipfile.ZIP_DEFLATED) as zipf:
+        if not isinstance(tutoria_dict, dict):
+            tutoria_dict = {}
+        for nome_tutor in sorted(tutoria_dict.keys(), key=lambda x: normalizar_texto(x)):
+            df_pdf = montar_dataframe_tutoria(nome_tutor, df_alunos, tutoria_dict)
+            if df_pdf is None or df_pdf.empty:
+                continue
+            pdf_buffer = gerar_pdf_tutoria(f"Professor(a): {nome_tutor}", df_pdf)
+            nome_arquivo = f"Tutoria_Professor_{gerar_chave_segura(nome_tutor)}.pdf"
+            zipf.writestr(nome_arquivo, pdf_buffer.getvalue())
+    buffer_zip.seek(0)
+    return buffer_zip
+
+
+def gerar_zip_tutoria_por_turmas(tutoria_dict: dict, df_alunos: pd.DataFrame) -> BytesIO:
+    """Gera ZIP com um PDF por turma contendo somente estudantes ativos.
+
+    Consolida as listas de todos os responsáveis e separa por turma.
+    """
+    buffer_zip = BytesIO()
+    frames = []
+    if isinstance(tutoria_dict, dict):
+        for nome_tutor in sorted(tutoria_dict.keys(), key=lambda x: normalizar_texto(x)):
+            df_tmp = montar_dataframe_tutoria(nome_tutor, df_alunos, tutoria_dict)
+            if df_tmp is not None and not df_tmp.empty:
+                frames.append(df_tmp)
+
+    with zipfile.ZipFile(buffer_zip, "w", zipfile.ZIP_DEFLATED) as zipf:
+        if frames:
+            df_geral = pd.concat(frames, ignore_index=True)
+            coluna_turma = "Turma" if "Turma" in df_geral.columns else "Turma no Sistema"
+            if coluna_turma in df_geral.columns:
+                turmas = sorted(
+                    [str(t).strip() for t in df_geral[coluna_turma].dropna().unique() if str(t).strip()],
+                    key=lambda x: normalizar_texto(x)
+                )
+                for turma in turmas:
+                    df_turma = df_geral[df_geral[coluna_turma].astype(str).str.strip().eq(turma)].copy()
+                    if df_turma.empty:
+                        continue
+                    if "Nome" in df_turma.columns:
+                        df_turma = df_turma.sort_values(["Nome"], key=lambda s: s.map(normalizar_texto), kind="stable").reset_index(drop=True)
+                    pdf_buffer = gerar_pdf_tutoria(f"Turma: {turma}", df_turma)
+                    nome_arquivo = f"Tutoria_Turma_{gerar_chave_segura(turma)}.pdf"
+                    zipf.writestr(nome_arquivo, pdf_buffer.getvalue())
+    buffer_zip.seek(0)
+    return buffer_zip
+
+
 def gerar_pdf_estudantes_sem_tutor(contexto: str, df_sem_tutor: pd.DataFrame) -> BytesIO:
     """Gera PDF dos estudantes que ainda estão sem tutoria.
 
