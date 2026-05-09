@@ -3569,7 +3569,12 @@ def _opcoes_turmas_com_vazio() -> list[str]:
     return [""] + _opcoes_turmas_sistema()
 
 def estudante_ativo(linha) -> bool:
-    """Considera ativo todo estudante que nao esteja claramente marcado como inativo."""
+    """Retorna True somente quando a Situação/Status do estudante for exatamente Ativo.
+
+    Na Tutoria, estudantes com qualquer outro status oficial, como Não Comparecimento,
+    Remanejamento, Troca, Transferido ou campos em branco, devem ficar ocultos das
+    seleções, contagens, listas e impressões.
+    """
     for coluna in ["situacao", "situação", "status", "ativo"]:
         if coluna not in linha.index:
             continue
@@ -3577,16 +3582,9 @@ def estudante_ativo(linha) -> bool:
         if isinstance(valor, bool):
             return valor
         if valor is None or str(valor).strip() == "" or str(valor).lower().strip() in {"nan", "none", "null"}:
-            return True
-        valor_norm = normalizar_texto(valor)
-        termos_inativos = [
-            "INATIVO", "INATIVA", "TRANSFERIDO", "TRANSFERIDA", "REMOVIDO", "REMOVIDA",
-            "EVADIDO", "EVADIDA", "CANCELADO", "CANCELADA", "BAIXADO", "BAIXADA",
-            "DESISTENTE", "ABANDONO", "ENCERRADO", "ENCERRADA"
-        ]
-        if any(termo in valor_norm for termo in termos_inativos):
             return False
-        return True
+        valor_norm = normalizar_texto(valor)
+        return valor_norm in {"ATIVO", "ATIVA"}
     return True
 
 def preparar_base_alunos_ativos_tutoria(df_alunos: pd.DataFrame) -> pd.DataFrame:
@@ -6643,6 +6641,12 @@ def montar_dataframe_tutoria(nome_tutor: str, df_alunos: pd.DataFrame, tutoria_d
     df_tutoria["Horário"] = registro_tutor.get("horario", "")
     df_tutoria["Dia"] = registro_tutor.get("dia", "")
     df_tutoria["Perfil"] = registro_tutor.get("tipo", "Professor(a)")
+    # Na página de Tutoria, exibir e contar somente estudantes oficialmente ativos.
+    # Linhas com Não Comparecimento, Remanejamento, Troca, Transferido etc. ficam ocultas.
+    if "Situação" in df_tutoria.columns:
+        df_tutoria = df_tutoria[df_tutoria["Situação"].apply(lambda v: normalizar_texto(v) in {"ATIVO", "ATIVA"})].copy()
+    if "Status" in df_tutoria.columns:
+        df_tutoria = df_tutoria[df_tutoria["Status"].astype(str).str.strip().eq("Encontrado")].copy()
     if "Nome" in df_tutoria.columns:
         df_tutoria = df_tutoria.sort_values(["Nome"], kind="stable").reset_index(drop=True)
     return df_tutoria
@@ -16637,7 +16641,7 @@ elif menu == "🫂 Tutoria":
     # TUTORIA — BUSCA FLEXÍVEL + VALIDAÇÃO VISUAL
     # ======================================================
     def estudante_ativo(linha) -> bool:
-        """Considera ativo todo estudante que nao esteja claramente marcado como inativo."""
+        """Retorna True somente quando a Situação/Status do estudante for Ativo."""
         for coluna in ["situacao", "situação", "status", "ativo"]:
             if coluna not in linha.index:
                 continue
@@ -16645,16 +16649,9 @@ elif menu == "🫂 Tutoria":
             if isinstance(valor, bool):
                 return valor
             if valor is None or str(valor).strip() == "" or str(valor).lower().strip() in {"nan", "none", "null"}:
-                return True
-            valor_norm = normalizar_texto(valor)
-            termos_inativos = [
-                "INATIVO", "INATIVA", "TRANSFERIDO", "TRANSFERIDA", "REMOVIDO", "REMOVIDA",
-                "EVADIDO", "EVADIDA", "CANCELADO", "CANCELADA", "BAIXADO", "BAIXADA",
-                "DESISTENTE", "ABANDONO", "ENCERRADO", "ENCERRADA"
-            ]
-            if any(termo in valor_norm for termo in termos_inativos):
                 return False
-            return True
+            valor_norm = normalizar_texto(valor)
+            return valor_norm in {"ATIVO", "ATIVA"}
         return True
 
     def preparar_base_alunos_ativos_tutoria(df_alunos: pd.DataFrame) -> pd.DataFrame:
@@ -17311,33 +17308,30 @@ elif menu == "🫂 Tutoria":
         dados_tutores = []
         total_responsaveis_cadastrados = len(TUTORIA)
         for tutor, dados in sorted(TUTORIA.items()):
-            alunos = dados.get("alunos", []) or []
-            alunos_validos = [
-                a for a in alunos
-                if str((a or {}).get("nome", "") or (a or {}).get("nome_aluno", "") or "").strip()
-            ]
-            total_alunos_tutor = len(alunos_validos)
+            # Contar somente estudantes ativos, conforme a base oficial de alunos.
+            df_tutor_ativo = montar_dataframe_tutoria(tutor, df_alunos, TUTORIA)
+            total_alunos_tutor = len(df_tutor_ativo)
             if total_alunos_tutor <= 0:
                 continue
             series = ", ".join(sorted({
-                formatar_turma_eletiva((a or {}).get("serie", ""))
-                for a in alunos_validos
-                if (a or {}).get("serie")
-            }))
+                formatar_turma_eletiva(t)
+                for t in df_tutor_ativo.get("Turma", pd.Series(dtype=str)).dropna().astype(str).tolist()
+                if str(t).strip()
+            }, key=ordenar_turma_tutoria))
             dados_tutores.append({
                 "Responsável": tutor,
                 "Perfil": dados.get("tipo", "Professor(a)"),
                 "Espaço": dados.get("espaco", "") or espaco_oficial_por_tutor(tutor) or "Não informado",
                 "Horário": dados.get("horario", "") or TUTORIA_HORARIO_PADRAO_TURNO1,
                 "Dia": dados.get("dia", "") or TUTORIA_DIA_PADRAO_TURNO1,
-                "Total de Alunos": total_alunos_tutor,
+                "Total de Alunos Ativos": total_alunos_tutor,
                 "Turmas": series
             })
         df_tutores_view = pd.DataFrame(dados_tutores)
         if df_tutores_view.empty:
-            st.info("📭 Nenhum responsável com estudante vinculado no momento. Os cadastros continuam preservados para edição, mas esta lista exibe somente quem já possui estudantes atribuídos.")
+            st.info("📭 Nenhum responsável com estudante ativo vinculado no momento. Os cadastros continuam preservados para edição, mas esta lista exibe somente estudantes com Situação = Ativo.")
         else:
-            st.caption(f"Exibindo somente responsáveis com estudantes vinculados: {len(df_tutores_view)} de {total_responsaveis_cadastrados} cadastro(s).")
+            st.caption(f"Exibindo somente responsáveis com estudantes ativos vinculados: {len(df_tutores_view)} de {total_responsaveis_cadastrados} cadastro(s).")
             st.dataframe(df_tutores_view, use_container_width=True, hide_index=True)
             if any(df_tutores_view[c].astype(str).str.strip().eq("").any() for c in ["Espaço", "Horário", "Dia"] if c in df_tutores_view.columns):
                 st.caption("⚠️ Alguns cadastros estão sem Espaço/Horário/Dia no banco atual. A edição agora preserva esses campos e também tenta recuperar metadados de fontes locais/planilhas/professores quando disponíveis.")
@@ -17345,10 +17339,19 @@ elif menu == "🫂 Tutoria":
         st.info("📭 Nenhum cadastro realizado em tutoria.")
         st.stop()
 
+    nomes_tutoria_select = []
+    if "df_tutores_view" in locals() and not df_tutores_view.empty and "Responsável" in df_tutores_view.columns:
+        nomes_tutoria_select = df_tutores_view["Responsável"].dropna().astype(str).str.strip().tolist()
+    if not nomes_tutoria_select:
+        st.info("Não há responsável com estudante ativo para seleção neste momento.")
+        st.stop()
+    if st.session_state.get("tutoria_tutor_select") not in nomes_tutoria_select:
+        st.session_state["tutoria_tutor_select"] = nomes_tutoria_select[0]
+
     st.markdown("---")
     tutor_sel = st.selectbox(
         "Selecione o responsável",
-        nomes_tutoria,
+        nomes_tutoria_select,
         key="tutoria_tutor_select",
         on_change=_sincronizar_responsavel_tutoria,
         args=("tutoria_tutor_select",)
@@ -18362,72 +18365,97 @@ elif menu == "🫂 Tutoria":
         st.subheader("✏️ Editar ou Excluir Estudante")
         alunos_raw = sorted(alunos_raw, key=lambda a: normalizar_texto(a.get("nome", "")))
         TUTORIA[tutor_sel]["alunos"] = alunos_raw
-        opcoes_estudantes = [f"{a.get('nome', '').strip()} — {a.get('serie', '').strip()}".strip(" —") for a in alunos_raw]
-        idx_sel = st.selectbox(
-            "Selecione o estudante",
-            options=list(range(len(opcoes_estudantes))),
-            format_func=lambda i: opcoes_estudantes[i],
-            key="tutoria_idx_edicao"
-        )
 
-        estudante_sel = alunos_raw[idx_sel]
-        nome_antigo = str(estudante_sel.get("nome", "")).strip()
-        serie_antiga = str(estudante_sel.get("serie", "")).strip()
-        ra_antigo = "".join(ch for ch in str(estudante_sel.get("ra", "")) if ch.isdigit())
-        col_ed1, col_ed2 = st.columns(2)
-        with col_ed1:
-            novo_nome = st.text_input("Nome", value=nome_antigo, key=f"tutoria_nome_edit_{idx_sel}")
-        with col_ed2:
-            nova_serie = st.text_input("Turma", value=serie_antiga, key=f"tutoria_serie_edit_{idx_sel}")
+        # A seleção para edição também respeita a regra da Tutoria: mostrar somente estudantes ativos.
+        df_ativos_tutor_edicao = montar_dataframe_tutoria(tutor_sel, df_alunos, TUTORIA)
+        chaves_ativas_edicao = set()
+        if not df_ativos_tutor_edicao.empty:
+            for _, r in df_ativos_tutor_edicao.iterrows():
+                ra_ok = "".join(ch for ch in str(r.get("RA", "")) if ch.isdigit())
+                if ra_ok:
+                    chaves_ativas_edicao.add(("RA", ra_ok))
+                nome_ok = normalizar_texto(r.get("Nome", "") or r.get("Aluno Cadastrado", ""))
+                turma_ok = turma_para_comparacao(r.get("Turma", "") or r.get("Turma no Sistema", ""))
+                if nome_ok:
+                    chaves_ativas_edicao.add(("NOME_TURMA", nome_ok, turma_ok))
 
-        col_btn1, col_btn2 = st.columns(2)
-        with col_btn1:
-            if st.button("✅ Editar Estudante", type="primary", key="btn_editar_estudante_tutoria"):
-                novo_nome = novo_nome.strip()
-                nova_serie = formatar_turma_eletiva(nova_serie.strip())
-                if not novo_nome:
-                    st.warning("Informe um nome válido para salvar.")
-                else:
-                    try:
-                        TUTORIA[tutor_sel]["alunos"][idx_sel] = {"nome": novo_nome, "serie": nova_serie, "ra": ra_antigo}
-                        _salvar_estado_tutoria("edicao")
-                        if SUPABASE_VALID:
-                            _apagar_registro_supabase_tutoria(tutor_sel, nome_antigo, serie_antiga, ra_antigo)
-                            _supabase_request("POST", "tutoria", json=[{
-                                "professora": tutor_sel,
-                                "nome_aluno": novo_nome,
-                                "serie": nova_serie,
-                                "ra": ra_antigo,
-                                "origem": "edicao_manual"
-                            }])
-                            _limpar_cache_tutoria_apos_mutacao()
-                        st.success("✅ Estudante atualizado com sucesso.")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Erro ao editar estudante: {e}")
+        alunos_edicao = []
+        for idx_original, a in enumerate(alunos_raw):
+            ra_item = "".join(ch for ch in str(a.get("ra", "")) if ch.isdigit())
+            nome_item = normalizar_texto(a.get("nome", ""))
+            turma_item = turma_para_comparacao(a.get("serie", ""))
+            if (ra_item and ("RA", ra_item) in chaves_ativas_edicao) or (("NOME_TURMA", nome_item, turma_item) in chaves_ativas_edicao):
+                alunos_edicao.append((idx_original, a))
 
-        with col_btn2:
-            confirmar_exc = st.checkbox("Confirmar exclusão", key=f"confirmar_exclusao_tutoria_{idx_sel}")
-            if st.button("🗑️ Excluir Estudante", type="secondary", key="btn_excluir_estudante_tutoria"):
-                if not confirmar_exc:
-                    st.warning("Marque a confirmação para excluir.")
-                else:
-                    try:
-                        removido = TUTORIA[tutor_sel]["alunos"].pop(idx_sel)
-                        if SUPABASE_VALID:
-                            ok_del = _apagar_registro_supabase_tutoria(
-                                tutor_sel,
-                                str(removido.get("nome", "")),
-                                str(removido.get("serie", "")),
-                                str(removido.get("ra", "")),
-                            )
-                            if not ok_del:
-                                st.warning("O estudante foi removido da tela, mas houve falha ao excluir no Supabase. Verifique o aviso acima.")
-                        _salvar_estado_tutoria("exclusao_individual")
-                        st.success("✅ Estudante excluído com sucesso.")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Erro ao excluir estudante: {e}")
+        if not alunos_edicao:
+            st.info("Não há estudante ativo para editar ou excluir neste responsável.")
+        else:
+            opcoes_estudantes = [f"{a.get('nome', '').strip()} — {a.get('serie', '').strip()}".strip(" —") for _, a in alunos_edicao]
+            idx_sel = st.selectbox(
+                "Selecione o estudante",
+                options=list(range(len(opcoes_estudantes))),
+                format_func=lambda i: opcoes_estudantes[i],
+                key="tutoria_idx_edicao"
+            )
+
+            idx_real, estudante_sel = alunos_edicao[idx_sel]
+            nome_antigo = str(estudante_sel.get("nome", "")).strip()
+            serie_antiga = str(estudante_sel.get("serie", "")).strip()
+            ra_antigo = "".join(ch for ch in str(estudante_sel.get("ra", "")) if ch.isdigit())
+            col_ed1, col_ed2 = st.columns(2)
+            with col_ed1:
+                novo_nome = st.text_input("Nome", value=nome_antigo, key=f"tutoria_nome_edit_{idx_sel}")
+            with col_ed2:
+                nova_serie = st.text_input("Turma", value=serie_antiga, key=f"tutoria_serie_edit_{idx_sel}")
+
+            col_btn1, col_btn2 = st.columns(2)
+            with col_btn1:
+                if st.button("✅ Editar Estudante", type="primary", key="btn_editar_estudante_tutoria"):
+                    novo_nome = novo_nome.strip()
+                    nova_serie = formatar_turma_eletiva(nova_serie.strip())
+                    if not novo_nome:
+                        st.warning("Informe um nome válido para salvar.")
+                    else:
+                        try:
+                            TUTORIA[tutor_sel]["alunos"][idx_real] = {"nome": novo_nome, "serie": nova_serie, "ra": ra_antigo}
+                            _salvar_estado_tutoria("edicao")
+                            if SUPABASE_VALID:
+                                _apagar_registro_supabase_tutoria(tutor_sel, nome_antigo, serie_antiga, ra_antigo)
+                                _supabase_request("POST", "tutoria", json=[{
+                                    "professora": tutor_sel,
+                                    "nome_aluno": novo_nome,
+                                    "serie": nova_serie,
+                                    "ra": ra_antigo,
+                                    "origem": "edicao_manual"
+                                }])
+                                _limpar_cache_tutoria_apos_mutacao()
+                            st.success("✅ Estudante atualizado com sucesso.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Erro ao editar estudante: {e}")
+
+            with col_btn2:
+                confirmar_exc = st.checkbox("Confirmar exclusão", key=f"confirmar_exclusao_tutoria_{idx_sel}")
+                if st.button("🗑️ Excluir Estudante", type="secondary", key="btn_excluir_estudante_tutoria"):
+                    if not confirmar_exc:
+                        st.warning("Marque a confirmação para excluir.")
+                    else:
+                        try:
+                            removido = TUTORIA[tutor_sel]["alunos"].pop(idx_real)
+                            if SUPABASE_VALID:
+                                ok_del = _apagar_registro_supabase_tutoria(
+                                    tutor_sel,
+                                    str(removido.get("nome", "")),
+                                    str(removido.get("serie", "")),
+                                    str(removido.get("ra", "")),
+                                )
+                                if not ok_del:
+                                    st.warning("O estudante foi removido da tela, mas houve falha ao excluir no Supabase. Verifique o aviso acima.")
+                            _salvar_estado_tutoria("exclusao_individual")
+                            st.success("✅ Estudante excluído com sucesso.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Erro ao excluir estudante: {e}")
 
         st.markdown("---")
         st.subheader("🧹 Limpeza em Massa")
