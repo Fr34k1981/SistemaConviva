@@ -4702,10 +4702,22 @@ import gzip
 import time
 
 CACHE_LOCAL_ATIVO = os.getenv("CONVIVA_CACHE_LOCAL", "1") != "0"
-CACHE_LOCAL_TTL_SEGUNDOS = int(os.getenv("CONVIVA_CACHE_LOCAL_TTL", "21600"))  # 6 horas
-CACHE_LOCAL_DIR = Path(os.getenv("CONVIVA_CACHE_DIR", "/tmp/conviva_supabase_cache"))
+try:
+    CACHE_LOCAL_TTL_SEGUNDOS = int(os.getenv("CONVIVA_CACHE_LOCAL_TTL", "21600"))  # 6 horas
+except Exception:
+    CACHE_LOCAL_TTL_SEGUNDOS = 21600
+try:
+    CACHE_DERIVADO_TTL_SEGUNDOS = int(os.getenv("CONVIVA_CACHE_DERIVADO_TTL", "1800"))  # 30 minutos
+except Exception:
+    CACHE_DERIVADO_TTL_SEGUNDOS = 1800
+
+# Arquivos locais provisorios. Ficam fora do Git e sobrevivem a reruns do Streamlit.
+CACHE_LOCAL_BASE_DIR = Path(os.getenv("CONVIVA_CACHE_BASE_DIR", str(DATA_DIR / ".conviva_cache")))
+CACHE_LOCAL_DIR = Path(os.getenv("CONVIVA_CACHE_DIR", str(CACHE_LOCAL_BASE_DIR / "supabase")))
+CACHE_DERIVADO_DIR = Path(os.getenv("CONVIVA_CACHE_DERIVADO_DIR", str(CACHE_LOCAL_BASE_DIR / "derivados")))
 try:
     CACHE_LOCAL_DIR.mkdir(parents=True, exist_ok=True)
+    CACHE_DERIVADO_DIR.mkdir(parents=True, exist_ok=True)
 except Exception:
     CACHE_LOCAL_ATIVO = False
 
@@ -4714,6 +4726,76 @@ def _cache_key_supabase(path: str) -> str:
 
 def _cache_path_supabase(path: str) -> Path:
     return CACHE_LOCAL_DIR / f"{_cache_key_supabase(path)}.json.gz"
+
+def _hash_dataframe_cache(df: pd.DataFrame | None, colunas: list[str] | None = None) -> str:
+    """Gera uma assinatura curta para invalidar caches derivados quando os dados mudam."""
+    if df is None or not isinstance(df, pd.DataFrame) or df.empty:
+        return "empty"
+    try:
+        base = df.copy()
+        if colunas:
+            existentes = [c for c in colunas if c in base.columns]
+            if existentes:
+                base = base[existentes].copy()
+        base = base.fillna("").astype(str)
+        h = hashlib.sha256()
+        h.update(("|".join(map(str, base.columns)) + f"|{base.shape}").encode("utf-8"))
+        h.update(pd.util.hash_pandas_object(base, index=False).values.tobytes())
+        return h.hexdigest()
+    except Exception:
+        try:
+            return hashlib.sha256(df.to_json(orient="split", force_ascii=False).encode("utf-8")).hexdigest()
+        except Exception:
+            return str(time.time())
+
+def _cache_key_derivado(nome: str, *partes: str) -> str:
+    h = hashlib.sha256()
+    h.update(str(nome).encode("utf-8"))
+    for parte in partes:
+        h.update(str(parte).encode("utf-8"))
+    return h.hexdigest()
+
+def _cache_path_derivado(nome: str, chave: str) -> Path:
+    nome_seguro = re.sub(r"[^a-zA-Z0-9_.-]+", "_", str(nome)).strip("_") or "cache"
+    return CACHE_DERIVADO_DIR / f"{nome_seguro}_{chave}.json.gz"
+
+def _ler_dataframe_cache_derivado(nome: str, chave: str, ttl: int | None = None) -> pd.DataFrame | None:
+    if not CACHE_LOCAL_ATIVO:
+        return None
+    try:
+        arq = _cache_path_derivado(nome, chave)
+        if not arq.exists():
+            return None
+        idade = time.time() - arq.stat().st_mtime
+        if idade > (ttl or CACHE_DERIVADO_TTL_SEGUNDOS):
+            return None
+        with gzip.open(arq, "rt", encoding="utf-8") as f:
+            payload = json.load(f)
+        if not isinstance(payload, dict) or payload.get("tipo") != "dataframe":
+            return None
+        return pd.DataFrame(payload.get("registros", []), columns=payload.get("colunas") or None)
+    except Exception as e:
+        logger.warning(f"Falha ao ler cache derivado {nome}: {e}")
+        return None
+
+def _gravar_dataframe_cache_derivado(nome: str, chave: str, df: pd.DataFrame):
+    if not CACHE_LOCAL_ATIVO or df is None or not isinstance(df, pd.DataFrame):
+        return
+    try:
+        arq = _cache_path_derivado(nome, chave)
+        tmp = arq.with_suffix(".tmp")
+        payload = {
+            "tipo": "dataframe",
+            "nome": nome,
+            "criado_em": datetime.now().isoformat(),
+            "colunas": list(df.columns),
+            "registros": df.to_dict(orient="records"),
+        }
+        with gzip.open(tmp, "wt", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False)
+        os.replace(tmp, arq)
+    except Exception as e:
+        logger.warning(f"Falha ao gravar cache derivado {nome}: {e}")
 
 def _ler_cache_local_supabase(path: str, permitir_expirado: bool = False):
     if not CACHE_LOCAL_ATIVO:
@@ -4759,6 +4841,19 @@ def _limpar_cache_local_supabase():
     except Exception as e:
         logger.warning(f"Falha ao limpar cache local Supabase: {e}")
 
+def _limpar_cache_derivado_local(prefixo: str = ""):
+    try:
+        if not CACHE_DERIVADO_DIR.exists():
+            return
+        padrao = f"{prefixo}*.json.gz" if prefixo else "*.json.gz"
+        for arq in CACHE_DERIVADO_DIR.glob(padrao):
+            try:
+                arq.unlink()
+            except Exception:
+                pass
+    except Exception as e:
+        logger.warning(f"Falha ao limpar cache derivado local: {e}")
+
 def _limpar_cache_supabase_completo():
     """Limpa cache de memória e cache local após qualquer gravação/exclusão."""
     try:
@@ -4766,6 +4861,7 @@ def _limpar_cache_supabase_completo():
     except Exception:
         pass
     _limpar_cache_local_supabase()
+    _limpar_cache_derivado_local()
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def _supabase_get_dataframe(path: str, acao: str) -> pd.DataFrame:
@@ -7568,10 +7664,15 @@ if st.session_state.backup_manager is None:
 
 if not st.session_state.backup_realizado:
     try:
-        st.session_state.backup_manager.criar_backup()
+        if hasattr(st.session_state.backup_manager, "criar_backup_automatico_se_necessario"):
+            resultado_backup = st.session_state.backup_manager.criar_backup_automatico_se_necessario(intervalo_horas=24)
+        else:
+            criado = st.session_state.backup_manager.criar_backup()
+            resultado_backup = {"criado": criado}
         st.session_state.backup_manager.limpar_backups_antigos(dias_retencao=30)
         st.session_state.backup_realizado = True
-        verificar_conquista("backup_realizado")  # ⭐ Conquista por fazer backup
+        if resultado_backup.get("criado"):
+            verificar_conquista("backup_realizado")  # ⭐ Conquista por fazer backup
     except Exception as e:
         logger.error(f"Erro ao executar backup automático: {e}")
         # ======================================================
@@ -9912,6 +10013,73 @@ def _status_direitos_pontuacao(pontos) -> str:
         return "Sem pontuação"
     return "Direitos mantidos" if pontos >= 70 else "Perde direitos"
 
+def _faixa_pontuacao_game(pontos) -> str:
+    try:
+        pontos = float(pontos)
+    except Exception:
+        return "Sem dados"
+    if pontos >= 90:
+        return "Ouro"
+    if pontos >= 80:
+        return "Prata"
+    if pontos >= 70:
+        return "Bronze"
+    if pontos >= 50:
+        return "Missao de recuperacao"
+    return "Acompanhamento intensivo"
+
+def _missao_pontuacao_game(pontuacao: dict) -> str:
+    try:
+        if int(pontuacao.get("fontes_disponiveis", 0) or 0) == 0:
+            return "Registrar Mapao/Prova"
+        if float(pontuacao.get("percentual_prova_paulista") or 100) < 50:
+            return "Treino Prova Paulista"
+        if int(pontuacao.get("notas_baixas_mapao", 0) or 0) > 0:
+            return "Recuperar notas abaixo de 5"
+        if int(pontuacao.get("ocorrencias_total", 0) or 0) > 0:
+            return "Meta de convivencia"
+    except Exception:
+        pass
+    return "Manter desempenho"
+
+def _fontes_pontuacao_game(pontuacao: dict) -> str:
+    fontes = []
+    if pontuacao.get("media_global_mapao") is not None:
+        fontes.append("Mapao")
+    if pontuacao.get("percentual_prova_paulista") is not None:
+        fontes.append("Prova Paulista")
+    if int(pontuacao.get("ocorrencias_total", 0) or 0) > 0:
+        fontes.append("Convivencia")
+    return " + ".join(fontes) if fontes else "Sem fonte pedagogica"
+
+def _selo_turma_game(media, abaixo_70) -> str:
+    try:
+        media = float(media)
+        abaixo_70 = int(abaixo_70 or 0)
+    except Exception:
+        return "Em analise"
+    if media >= 85 and abaixo_70 == 0:
+        return "Sala ouro"
+    if media >= 75:
+        return "Sala em destaque"
+    if abaixo_70 > 0:
+        return "Plano de recuperacao"
+    return "Em evolucao"
+
+def _meta_turma_game(media, percentual_abaixo) -> str:
+    try:
+        media = float(media)
+        percentual_abaixo = float(percentual_abaixo)
+    except Exception:
+        return "Atualizar dados da turma"
+    if percentual_abaixo >= 30:
+        return "Reduzir estudantes abaixo de 70"
+    if media < 70:
+        return "Subir media da sala para 70"
+    if media < 85:
+        return "Chegar a media 85"
+    return "Manter sala no topo"
+
 
 # Compatibilidade com versões anteriores do código.
 def _pontos_por_media_global(media):
@@ -10025,12 +10193,32 @@ def _calcular_pontuacao_estudante_em_bases(nome: str, ra: str = "", turma: str =
     }
 
 
-def _ranking_pontuacao_turma(df_alunos_turma: pd.DataFrame) -> pd.DataFrame:
+def _ranking_pontuacao_turma(
+    df_alunos_turma: pd.DataFrame,
+    df_mapao_base: pd.DataFrame | None = None,
+    df_pp_base: pd.DataFrame | None = None,
+    df_oc_base: pd.DataFrame | None = None,
+) -> pd.DataFrame:
     if df_alunos_turma is None or df_alunos_turma.empty:
         return pd.DataFrame()
-    df_mapao_base = _dataframe_seguro_carregador("mapao")
-    df_pp_base = _dataframe_seguro_carregador("prova_paulista")
-    df_oc_base = _dataframe_seguro_carregador("ocorrencias")
+    if df_mapao_base is None:
+        df_mapao_base = _dataframe_seguro_carregador("mapao")
+    if df_pp_base is None:
+        df_pp_base = _dataframe_seguro_carregador("prova_paulista")
+    if df_oc_base is None:
+        df_oc_base = _dataframe_seguro_carregador("ocorrencias")
+
+    cache_chave = _cache_key_derivado(
+        "ranking_pontuacao",
+        _hash_dataframe_cache(df_alunos_turma, ["nome", "ra", "turma", "Estudante", "RA", "Turma"]),
+        _hash_dataframe_cache(df_mapao_base),
+        _hash_dataframe_cache(df_pp_base),
+        _hash_dataframe_cache(df_oc_base),
+    )
+    ranking_cache = _ler_dataframe_cache_derivado("ranking_pontuacao", cache_chave)
+    if isinstance(ranking_cache, pd.DataFrame) and not ranking_cache.empty:
+        return ranking_cache
+
     linhas = []
     for _, aluno in df_alunos_turma.iterrows():
         nome = str(aluno.get("nome", "") or "").strip()
@@ -10050,6 +10238,9 @@ def _ranking_pontuacao_turma(df_alunos_turma: pd.DataFrame) -> pd.DataFrame:
             "Turma": turma,
             "Pontuação": pont.get("pontuacao_final", 0),
             "Status": pont.get("status_direitos", _status_direitos_pontuacao(pont.get("pontuacao_final", 0))),
+            "Faixa": _faixa_pontuacao_game(pont.get("pontuacao_final", 0)),
+            "Missão recomendada": _missao_pontuacao_game(pont),
+            "Dados usados": _fontes_pontuacao_game(pont),
             "PP pts": pont.get("pontos_prova_paulista", 0),
             "Notas pts": pont.get("pontos_mapao", 0),
             "Convivência pts": pont.get("pontos_convivencia", 0),
@@ -10066,6 +10257,7 @@ def _ranking_pontuacao_turma(df_alunos_turma: pd.DataFrame) -> pd.DataFrame:
             ranking[col] = pd.to_numeric(ranking[col], errors="coerce")
     ranking = ranking.sort_values(["Pontuação", "Média global Mapão", "Prova Paulista (%)", "Estudante"], ascending=[False, False, False, True]).reset_index(drop=True)
     ranking.insert(0, "Posição", range(1, len(ranking) + 1))
+    _gravar_dataframe_cache_derivado("ranking_pontuacao", cache_chave, ranking)
     return ranking
 
 
@@ -10078,9 +10270,15 @@ def _ranking_pontuacao_geral(df_alunos_base: pd.DataFrame | None = None) -> pd.D
     return _ranking_pontuacao_turma(df_alunos_base)
 
 
-def _ranking_pontuacao_turmas(df_alunos_base: pd.DataFrame | None = None) -> pd.DataFrame:
+def _ranking_pontuacao_turmas(
+    df_alunos_base: pd.DataFrame | None = None,
+    ranking_base: pd.DataFrame | None = None,
+) -> pd.DataFrame:
     """Ranking justo das salas: usa média da pontuação dos estudantes, não soma bruta."""
-    ranking = _ranking_pontuacao_geral(df_alunos_base)
+    if isinstance(ranking_base, pd.DataFrame) and not ranking_base.empty:
+        ranking = ranking_base.copy()
+    else:
+        ranking = _ranking_pontuacao_geral(df_alunos_base)
     if ranking.empty or "Turma" not in ranking.columns:
         return pd.DataFrame()
     base = ranking.copy()
@@ -10105,6 +10303,8 @@ def _ranking_pontuacao_turmas(df_alunos_base: pd.DataFrame | None = None) -> pd.
     agrupado["Menor pontuação"] = agrupado["Menor pontuação"].round(1)
     agrupado = agrupado.sort_values(["Média da sala", "Estudantes avaliados", "Turma"], ascending=[False, False, True]).reset_index(drop=True)
     agrupado.insert(0, "Posição", range(1, len(agrupado) + 1))
+    agrupado["Selo da turma"] = agrupado.apply(lambda r: _selo_turma_game(r["Média da sala"], r["Estudantes abaixo de 70"]), axis=1)
+    agrupado["Meta da semana"] = agrupado.apply(lambda r: _meta_turma_game(r["Média da sala"], r["% abaixo de 70"]), axis=1)
     agrupado["Premiação semanal"] = agrupado["Posição"].apply(lambda p: "🏆 Sala da semana" if int(p) == 1 else "")
     agrupado["Premiação mensal"] = agrupado["Posição"].apply(lambda p: "🏆 Sala do mês" if int(p) == 1 else "")
     return agrupado
@@ -11667,6 +11867,7 @@ def _salvar_prova_paulista_local(
         df.to_json(PROVA_PAULISTA_LOCAL, orient="records", force_ascii=False, indent=2)
     except Exception:
         pass
+    _limpar_cache_derivado_local("ranking_pontuacao")
     if tentar_supabase:
         ok, msg = _salvar_prova_paulista_supabase(df)
         if ok:
@@ -12453,6 +12654,7 @@ def _salvar_mapao_local(df: pd.DataFrame, tentar_supabase: bool = True, mesclar_
         df.to_json(MAPAO_LOCAL, orient="records", force_ascii=False, indent=2)
     except Exception:
         pass
+    _limpar_cache_derivado_local("ranking_pontuacao")
 
     if tentar_supabase:
         ok, msg = _salvar_mapao_supabase(df)
@@ -12507,6 +12709,17 @@ def _ranking_pontuacao_geral(df_alunos_base: pd.DataFrame | None = None) -> pd.D
     alunos tem diferença de escrita, evitando ranking vazio ou zerado.
     """
     bases = []
+    df_pp_base = _dataframe_seguro_carregador("prova_paulista")
+    df_mapao_base = _dataframe_seguro_carregador("mapao")
+    df_oc_base = _dataframe_seguro_carregador("ocorrencias")
+    try:
+        st.session_state["conviva_game_fontes_resumo"] = {
+            "prova_paulista": int(len(df_pp_base)) if isinstance(df_pp_base, pd.DataFrame) else 0,
+            "mapao": int(len(df_mapao_base)) if isinstance(df_mapao_base, pd.DataFrame) else 0,
+            "ocorrencias": int(len(df_oc_base)) if isinstance(df_oc_base, pd.DataFrame) else 0,
+        }
+    except Exception:
+        pass
     if df_alunos_base is None:
         df_alunos_base = globals().get("df_alunos", pd.DataFrame())
     if isinstance(df_alunos_base, pd.DataFrame) and not df_alunos_base.empty:
@@ -12524,8 +12737,7 @@ def _ranking_pontuacao_geral(df_alunos_base: pd.DataFrame | None = None) -> pd.D
                 base_alunos[col] = ""
         bases.append(base_alunos[["Estudante", "RA", "Turma"]])
 
-    for carregador in ["prova_paulista", "mapao"]:
-        df_src = _dataframe_seguro_carregador(carregador)
+    for df_src in [df_pp_base, df_mapao_base]:
         if isinstance(df_src, pd.DataFrame) and not df_src.empty:
             src = df_src.copy()
             for col in ["Estudante", "RA", "Turma"]:
@@ -12547,7 +12759,12 @@ def _ranking_pontuacao_geral(df_alunos_base: pd.DataFrame | None = None) -> pd.D
     base = base.drop_duplicates(subset=["_chave_ra", "_chave_nome", "_chave_turma"], keep="last")
     base = base.drop(columns=["_chave_nome", "_chave_ra", "_chave_turma"], errors="ignore")
 
-    ranking = _ranking_pontuacao_turma(base.rename(columns={"Estudante": "nome", "RA": "ra", "Turma": "turma"}))
+    ranking = _ranking_pontuacao_turma(
+        base.rename(columns={"Estudante": "nome", "RA": "ra", "Turma": "turma"}),
+        df_mapao_base=df_mapao_base,
+        df_pp_base=df_pp_base,
+        df_oc_base=df_oc_base,
+    )
     if ranking.empty:
         return ranking
     # Não deixa estudantes sem nenhum dado pedagógico dominarem o ranking apenas com os 20 pontos de convivência.
@@ -12814,7 +13031,7 @@ if menu == "🏠 Dashboard":
     """, unsafe_allow_html=True)
 
     ranking_game_dashboard = _ranking_pontuacao_geral(df_alunos)
-    ranking_salas_dashboard = _ranking_pontuacao_turmas(df_alunos)
+    ranking_salas_dashboard = _ranking_pontuacao_turmas(df_alunos, ranking_base=ranking_game_dashboard)
     st.markdown("""
     <div style="display:flex; align-items:center; gap:0.5rem; margin:1.15rem 0 0.75rem 0;">
         <div style="width:4px; height:22px; background:linear-gradient(180deg,#22c55e,#0ea5e9); border-radius:4px;"></div>
@@ -12825,23 +13042,24 @@ if menu == "🏠 Dashboard":
         st.info("Assim que houver Mapão, Prova Paulista ou ocorrências, o ranking gamificado aparece aqui.")
     else:
         try:
-            st.caption(f"Fontes carregadas para a gamificação: Prova Paulista {_dataframe_seguro_carregador('prova_paulista').shape[0]} registro(s) · Mapão {_dataframe_seguro_carregador('mapao').shape[0]} registro(s) · Ocorrências {_dataframe_seguro_carregador('ocorrencias').shape[0]} registro(s).")
+            fontes_game = st.session_state.get("conviva_game_fontes_resumo", {})
+            st.caption(f"Fontes carregadas para a gamificação: Prova Paulista {fontes_game.get('prova_paulista', 0)} registro(s) · Mapão {fontes_game.get('mapao', 0)} registro(s) · Ocorrências {fontes_game.get('ocorrencias', 0)} registro(s).")
         except Exception:
             pass
         col_rank_alunos, col_rank_salas = st.columns([1.35, 1])
         with col_rank_alunos:
             st.markdown("**🏆 Melhores estudantes mais pontuados**")
-            cols_alunos = [c for c in ["Posição", "Estudante", "Turma", "Pontuação", "Status"] if c in ranking_game_dashboard.columns]
+            cols_alunos = [c for c in ["Posição", "Estudante", "Turma", "Pontuação", "Faixa", "Missão recomendada", "Status"] if c in ranking_game_dashboard.columns]
             st.dataframe(_formatar_ranking_pontuacao_para_exibir(ranking_game_dashboard[cols_alunos].head(10)), use_container_width=True, hide_index=True, height=390)
             with st.expander("Ver composição da pontuação", expanded=False):
-                cols_detalhe = [c for c in ["Posição", "Estudante", "PP pts", "Notas pts", "Convivência pts", "Ocorrências", "Notas abaixo de 5", "Prova Paulista (%)", "Média global Mapão"] if c in ranking_game_dashboard.columns]
+                cols_detalhe = [c for c in ["Posição", "Estudante", "Dados usados", "PP pts", "Notas pts", "Convivência pts", "Ocorrências", "Notas abaixo de 5", "Prova Paulista (%)", "Média global Mapão"] if c in ranking_game_dashboard.columns]
                 st.dataframe(_formatar_ranking_pontuacao_para_exibir(ranking_game_dashboard[cols_detalhe].head(30)), use_container_width=True, hide_index=True, height=360)
         with col_rank_salas:
             st.markdown("**🏫 Premiação por sala**")
             if ranking_salas_dashboard.empty:
                 st.caption("Sem salas avaliadas ainda.")
             else:
-                cols_salas = [c for c in ["Posição", "Turma", "Média da sala", "Estudantes avaliados", "Estudantes abaixo de 70", "% abaixo de 70", "Premiação semanal", "Premiação mensal"] if c in ranking_salas_dashboard.columns]
+                cols_salas = [c for c in ["Posição", "Turma", "Média da sala", "Selo da turma", "Meta da semana", "Estudantes avaliados", "Estudantes abaixo de 70", "% abaixo de 70", "Premiação semanal", "Premiação mensal"] if c in ranking_salas_dashboard.columns]
                 st.dataframe(_formatar_ranking_pontuacao_para_exibir(ranking_salas_dashboard[cols_salas].head(10)), use_container_width=True, hide_index=True)
 
     # ── Gráficos e Top 10 no Dashboard ───────────────────────

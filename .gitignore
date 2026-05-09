@@ -54,3 +54,6 @@ Thumbs.db
 .pytest_cache/
 .coverage
 htmlcov/
+data/.conviva_cache/
+data/cache/
+*.tmp
