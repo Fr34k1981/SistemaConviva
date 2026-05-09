@@ -15107,6 +15107,31 @@ elif "ALUNOS E TURMAS" in normalizar_texto(menu) or "IMPORTAR ALUNOS" in normali
 
     with aba_resumo:
         st.subheader("📊 Resumo por turno e etapa")
+
+        def _inferir_turno_turma(turma):
+            texto = str(turma or "").strip().upper()
+            if not texto:
+                return "Não informado"
+            if "TURNO 2" in texto or "T2" in texto:
+                return "Turno 2"
+            if "TURNO 1" in texto or "T1" in texto:
+                return "Turno 1"
+            if texto.startswith(("6", "7", "8", "9")) or any(x in texto for x in ["6º", "7º", "8º", "9º", "6°", "7°", "8°", "9°"]):
+                return "Turno 1"
+            if texto.startswith(("1", "2", "3")) or any(x in texto for x in ["1º", "2º", "3º", "1°", "2°", "3°", "SÉRIE", "SERIE"]):
+                return "Turno 2"
+            return "Não informado"
+
+        def _inferir_etapa_turma(turma):
+            texto = str(turma or "").strip().upper()
+            if not texto:
+                return "Não informado"
+            if texto.startswith(("6", "7", "8", "9")) or any(x in texto for x in ["6º", "7º", "8º", "9º", "6°", "7°", "8°", "9°"]):
+                return "Ensino Fundamental - Anos Finais"
+            if texto.startswith(("1", "2", "3")) or any(x in texto for x in ["1º", "2º", "3º", "1°", "2°", "3°", "SÉRIE", "SERIE"]):
+                return "Ensino Médio"
+            return "Não informado"
+
         if df_alunos.empty:
             st.info("Nenhum aluno cadastrado para resumir.")
         else:
@@ -17284,22 +17309,38 @@ elif menu == "🫂 Tutoria":
     st.subheader("📊 Cadastros da Tutoria")
     if TUTORIA:
         dados_tutores = []
+        total_responsaveis_cadastrados = len(TUTORIA)
         for tutor, dados in sorted(TUTORIA.items()):
-            alunos = dados.get("alunos", [])
-            series = ", ".join(sorted({formatar_turma_eletiva(a.get("serie", "")) for a in alunos if a.get("serie")}))
+            alunos = dados.get("alunos", []) or []
+            alunos_validos = [
+                a for a in alunos
+                if str((a or {}).get("nome", "") or (a or {}).get("nome_aluno", "") or "").strip()
+            ]
+            total_alunos_tutor = len(alunos_validos)
+            if total_alunos_tutor <= 0:
+                continue
+            series = ", ".join(sorted({
+                formatar_turma_eletiva((a or {}).get("serie", ""))
+                for a in alunos_validos
+                if (a or {}).get("serie")
+            }))
             dados_tutores.append({
                 "Responsável": tutor,
                 "Perfil": dados.get("tipo", "Professor(a)"),
                 "Espaço": dados.get("espaco", "") or espaco_oficial_por_tutor(tutor) or "Não informado",
                 "Horário": dados.get("horario", "") or TUTORIA_HORARIO_PADRAO_TURNO1,
                 "Dia": dados.get("dia", "") or TUTORIA_DIA_PADRAO_TURNO1,
-                "Total de Alunos": len(alunos),
+                "Total de Alunos": total_alunos_tutor,
                 "Turmas": series
             })
         df_tutores_view = pd.DataFrame(dados_tutores)
-        st.dataframe(df_tutores_view, use_container_width=True, hide_index=True)
-        if not df_tutores_view.empty and any(df_tutores_view[c].astype(str).str.strip().eq("").any() for c in ["Espaço", "Horário", "Dia"] if c in df_tutores_view.columns):
-            st.caption("⚠️ Alguns cadastros estão sem Espaço/Horário/Dia no banco atual. A edição agora preserva esses campos e também tenta recuperar metadados de fontes locais/planilhas/professores quando disponíveis.")
+        if df_tutores_view.empty:
+            st.info("📭 Nenhum responsável com estudante vinculado no momento. Os cadastros continuam preservados para edição, mas esta lista exibe somente quem já possui estudantes atribuídos.")
+        else:
+            st.caption(f"Exibindo somente responsáveis com estudantes vinculados: {len(df_tutores_view)} de {total_responsaveis_cadastrados} cadastro(s).")
+            st.dataframe(df_tutores_view, use_container_width=True, hide_index=True)
+            if any(df_tutores_view[c].astype(str).str.strip().eq("").any() for c in ["Espaço", "Horário", "Dia"] if c in df_tutores_view.columns):
+                st.caption("⚠️ Alguns cadastros estão sem Espaço/Horário/Dia no banco atual. A edição agora preserva esses campos e também tenta recuperar metadados de fontes locais/planilhas/professores quando disponíveis.")
     else:
         st.info("📭 Nenhum cadastro realizado em tutoria.")
         st.stop()
