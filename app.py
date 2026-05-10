@@ -2809,7 +2809,7 @@ def carregar_tutoria_local(fallback: dict | None = None) -> dict:
         logger.error(f"Erro ao carregar cache local da tutoria: {e}")
     return normalizar_base_tutoria(fallback or {})
 
-def salvar_tutoria_local(tutoria_dict: dict):
+def salvar_tutoria_local(tutoria_dict: dict, permitir_vazio: bool = False):
     """Salva a Tutoria localmente com backup automático antes de sobrescrever.
 
     Proteção importante: nunca grava uma versão vazia por cima de um arquivo
@@ -2830,7 +2830,7 @@ def salvar_tutoria_local(tutoria_dict: dict):
 
         total_antigo = total_estudantes_tutoria(base_antiga)
         total_novo = total_estudantes_tutoria(base_nova)
-        if total_antigo > 0 and total_novo == 0:
+        if total_antigo > 0 and total_novo == 0 and not permitir_vazio:
             logger.warning("Protecao Tutoria: bloqueado salvar cache vazio por cima de cache com estudantes.")
             return
 
@@ -5769,6 +5769,31 @@ def obter_eletiva_do_aluno(
  
     return melhor_prof if melhor_score >= 0.85 else ""
 
+TEXTO_TUTOR_NAO_LOCALIZADO = "Não localizado na base de tutoria"
+TEXTO_ELETIVA_NAO_LOCALIZADA = "Não localizado na base de eletivas"
+
+def texto_professor_tutor_relatorio(valor: str, com_icone: bool = False) -> str:
+    nome = str(valor or "").strip()
+    valores_vazios = {
+        "",
+        normalizar_texto("Não localizado"),
+        normalizar_texto(TEXTO_TUTOR_NAO_LOCALIZADO),
+    }
+    if normalizar_texto(nome) in valores_vazios:
+        return TEXTO_TUTOR_NAO_LOCALIZADO
+    return f"🫂 {nome}" if com_icone else nome
+
+def texto_eletiva_relatorio(valor: str, com_icone: bool = False) -> str:
+    nome = str(valor or "").strip()
+    valores_vazios = {
+        "",
+        normalizar_texto("Não localizado"),
+        normalizar_texto(TEXTO_ELETIVA_NAO_LOCALIZADA),
+    }
+    if normalizar_texto(nome) in valores_vazios:
+        return TEXTO_ELETIVA_NAO_LOCALIZADA
+    return f"🎨 {nome}" if com_icone else nome
+
 def gerar_pontos_atencao_automaticos(df_ocorrencias: pd.DataFrame, turma: str, ra: str, aluno: str, data_inicio, data_fim) -> list[str]:
     if df_ocorrencias.empty:
         return []
@@ -7231,8 +7256,8 @@ def gerar_pdf_relatorio_estudante(registro: dict, df_ocorrencias_aluno: pd.DataF
     aluno           = str(registro.get("aluno", "")).strip()
     ra              = str(registro.get("ra", "")).strip()
     turma           = str(registro.get("turma", "")).strip()
-    tutor           = str(registro.get("professor_tutor", "")).strip() or "Não localizado"
-    eletiva         = str(registro.get("eletiva", "")).strip() or "Não localizado"
+    tutor           = texto_professor_tutor_relatorio(registro.get("professor_tutor", ""))
+    eletiva         = texto_eletiva_relatorio(registro.get("eletiva", ""))
     data_inicio     = str(registro.get("data_inicio", "")).strip()
     data_fim        = str(registro.get("data_fim", "")).strip()
     try:
@@ -7258,8 +7283,8 @@ def gerar_pdf_relatorio_estudante(registro: dict, df_ocorrencias_aluno: pd.DataF
          Paragraph("<b>RA</b>", est_label),           Paragraph(ra, est_valor)],
         [Paragraph("<b>Turma</b>", est_label),        Paragraph(turma, est_valor),
          Paragraph("<b>Componente</b>", est_label),   Paragraph(componente, est_valor)],
-        [Paragraph("<b>Tutor(a)</b>", est_label),     Paragraph(tutor, est_valor),
-         Paragraph("<b>Eletiva</b>", est_label),      Paragraph(eletiva, est_valor)],
+        [Paragraph("<b>Professor(a) Tutor(a)</b>", est_label), Paragraph(tutor, est_valor),
+         Paragraph("<b>Eletiva — Professor(a)</b>", est_label), Paragraph(eletiva, est_valor)],
         [Paragraph("<b>Período</b>", est_label),      Paragraph(f"{data_ini_fmt} a {data_fim_fmt}", est_valor),
          Paragraph("<b>Coordenador(a)</b>", est_label), Paragraph(coordenador, est_valor)],
     ]
@@ -13734,12 +13759,12 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
             </div>
             """, unsafe_allow_html=True)
         else:
-            st.markdown("""
+            st.markdown(f"""
             <div style="background:#f8fafc;border:1.5px dashed #cbd5e1;border-radius:14px;
                         padding:.75rem 1rem;margin:.35rem 0;">
                 <div style="font-size:.72rem;font-weight:800;color:#64748b;letter-spacing:.08em;
                             text-transform:uppercase;margin-bottom:.2rem;">Professor(a) Tutor(a)</div>
-                <div style="font-size:.88rem;color:#94a3b8;">Não localizado na base de tutoria</div>
+                <div style="font-size:.88rem;color:#94a3b8;">{TEXTO_TUTOR_NAO_LOCALIZADO}</div>
             </div>
             """, unsafe_allow_html=True)
  
@@ -13754,12 +13779,12 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
             </div>
             """, unsafe_allow_html=True)
         else:
-            st.markdown("""
+            st.markdown(f"""
             <div style="background:#f8fafc;border:1.5px dashed #cbd5e1;border-radius:14px;
                         padding:.75rem 1rem;margin:.35rem 0;">
                 <div style="font-size:.72rem;font-weight:800;color:#64748b;letter-spacing:.08em;
                             text-transform:uppercase;margin-bottom:.2rem;">Eletiva — Professor(a)</div>
-                <div style="font-size:.88rem;color:#94a3b8;">Não localizado na base de eletivas</div>
+                <div style="font-size:.88rem;color:#94a3b8;">{TEXTO_ELETIVA_NAO_LOCALIZADA}</div>
             </div>
             """, unsafe_allow_html=True)
  
@@ -14286,20 +14311,22 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
             ).dt.strftime("%d/%m/%Y %H:%M")
  
         def _buscar_tutor(row):
-            return str(row.get("professor_tutor", "")).strip() or obter_professor_tutor_do_aluno(
+            tutor_encontrado = str(row.get("professor_tutor", "")).strip() or obter_professor_tutor_do_aluno(
                 str(row.get("aluno", "")), str(row.get("turma", "")), str(row.get("ra", "")), TUTORIA
             )
+            return texto_professor_tutor_relatorio(tutor_encontrado)
         def _buscar_eletiva(row):
-            return str(row.get("eletiva", "")).strip() or obter_eletiva_do_aluno(
+            eletiva_encontrada = str(row.get("eletiva", "")).strip() or obter_eletiva_do_aluno(
                 str(row.get("aluno", "")), str(row.get("turma", "")), str(row.get("ra", "")), ELETIVAS
             )
-        df_lista["Tutor(a)"]  = df_lista.apply(_buscar_tutor, axis=1)
-        df_lista["Eletiva"]   = df_lista.apply(_buscar_eletiva, axis=1)
+            return texto_eletiva_relatorio(eletiva_encontrada, com_icone=True)
+        df_lista["Professor(a) Tutor(a)"] = df_lista.apply(_buscar_tutor, axis=1)
+        df_lista["Eletiva — Professor(a)"] = df_lista.apply(_buscar_eletiva, axis=1)
  
         colunas_relatorio = [
             coluna for coluna in [
                 "id", "aluno", "ra", "data_inicio", "data_fim", "situacao_geral",
-                "Tutor(a)", "Eletiva", "coordenador_sala",
+                "Professor(a) Tutor(a)", "Eletiva — Professor(a)", "coordenador_sala",
                 "ultima_edicao_por", "updated_at", "alerta"
             ] if coluna in df_lista.columns
         ]
@@ -16954,8 +16981,20 @@ elif menu == "🫂 Tutoria":
     nomes_tutoria = sorted(TUTORIA.keys())
     if st.session_state.get("tutoria_responsaveis_sync_warning"):
         st.warning(st.session_state.get("tutoria_responsaveis_sync_warning"))
+    feedback_tutoria = st.session_state.pop("tutoria_feedback", None)
+    if isinstance(feedback_tutoria, dict) and feedback_tutoria.get("msg"):
+        tipo_feedback = feedback_tutoria.get("tipo", "info")
+        if tipo_feedback == "success":
+            st.success(feedback_tutoria.get("msg", ""))
+        elif tipo_feedback == "warning":
+            st.warning(feedback_tutoria.get("msg", ""))
+        elif tipo_feedback == "error":
+            st.error(feedback_tutoria.get("msg", ""))
+        else:
+            st.info(feedback_tutoria.get("msg", ""))
 
-    if total_estudantes_tutoria(TUTORIA) == 0:
+    exclusao_total_confirmada = bool(st.session_state.get("tutoria_exclusao_total_confirmada"))
+    if total_estudantes_tutoria(TUTORIA) == 0 and not exclusao_total_confirmada:
         referencia_alunos = TUTORIA_REFERENCIA_COM_ALUNOS if "TUTORIA_REFERENCIA_COM_ALUNOS" in globals() else {}
         if total_estudantes_tutoria(referencia_alunos) > 0:
             st.error("Os responsáveis foram carregados, mas os estudantes não apareceram nesta sessão. Use o botão abaixo para restaurar os vínculos sem apagar nada.")
@@ -16966,6 +17005,8 @@ elif menu == "🫂 Tutoria":
                 st.rerun()
         else:
             st.warning("A tela carregou responsáveis, mas nenhum vínculo de estudante foi encontrado no Supabase/cache local. Nada será salvo por cima da Tutoria enquanto estiver assim.")
+    elif total_estudantes_tutoria(TUTORIA) == 0 and exclusao_total_confirmada:
+        st.info("Tutoria sem vínculos após exclusão confirmada. Os estudantes ativos ficam disponíveis para nova oferta.")
 
     with st.expander("📘 Caderno de Tutoria Online 2026", expanded=False):
         render_caderno_tutoria_online(TUTORIA, st.session_state.get("df_alunos", pd.DataFrame()))
@@ -16981,10 +17022,11 @@ elif menu == "🫂 Tutoria":
         )
         total_atual = total_estudantes_tutoria(st.session_state.TUTORIA)
         total_seguro = total_estudantes_tutoria(fonte_segura)
-        if total_seguro > 0 and total_atual == 0:
+        fonte_exclusao = str(fonte).startswith("exclusao")
+        if total_seguro > 0 and total_atual == 0 and not fonte_exclusao:
             st.session_state.TUTORIA = mesclar_multiplas_fontes_tutoria(st.session_state.TUTORIA, fonte_segura)
             st.session_state["tutoria_responsaveis_sync_warning"] = "Proteção ativada: a tela estava sem estudantes e foi mesclada com Supabase/cache/planilha antes de salvar."
-        elif total_seguro == 0 and total_atual == 0:
+        elif total_seguro == 0 and total_atual == 0 and not fonte_exclusao:
             st.session_state["tutoria_responsaveis_sync_warning"] = "Salvamento bloqueado: a tela não carregou estudantes da Tutoria. Recarregue do Supabase ou restaure backup antes de salvar."
             st.session_state.FONTE_TUTORIA = fonte
             return
@@ -16992,9 +17034,10 @@ elif menu == "🫂 Tutoria":
             st.session_state["tutoria_responsaveis_sync_warning"] = f"Proteção ativada: tentativa de salvar {total_atual} vínculos sobre uma base segura com {total_seguro}. Salvamento bloqueado para evitar perda em massa."
             st.session_state.FONTE_TUTORIA = fonte
             return
-        salvar_tutoria_local(st.session_state.TUTORIA)
+        salvar_tutoria_local(st.session_state.TUTORIA, permitir_vazio=fonte_exclusao)
         salvar_tutoria_backup_json_supabase_seguro(st.session_state.TUTORIA, origem=f"salvar_estado_{fonte}")
         st.session_state.FONTE_TUTORIA = fonte
+        st.session_state["tutoria_exclusao_total_confirmada"] = bool(fonte_exclusao and total_atual == 0)
         if SUPABASE_VALID:
             ok_resp, msg_resp = sincronizar_tutoria_responsaveis_supabase(st.session_state.TUTORIA)
             if not ok_resp:
@@ -17539,19 +17582,90 @@ elif menu == "🫂 Tutoria":
             vinculos = [v for v in vinculos if str(v.get("tutor", "")).strip() != str(tutor_permitido).strip()]
         return bool(vinculos), vinculos
 
+    def _limpar_estado_disponibilidade_tutoria():
+        """Atualiza seleções temporárias quando um vínculo muda de lugar ou é excluído."""
+        for chave in (
+            "tutoria_busca_cadastro_selecionados",
+            "tutoria_temp_remover",
+            "tutoria_oferta_estudantes",
+            "tutoria_bloqueados_temp",
+            "tutoria_bloqueados_ultimo",
+            "tutoria_validacao_ultimo",
+        ):
+            st.session_state.pop(chave, None)
+
+    def _remover_estudante_do_tutor_local(tutor_nome: str, estudante: dict) -> list[dict]:
+        tutor_nome = str(tutor_nome or "").strip()
+        if not tutor_nome or tutor_nome not in TUTORIA:
+            return []
+        chaves_estudante = _chaves_estudante_tutoria(estudante)
+        restantes = []
+        removidos = []
+        for aluno_item in normalizar_alunos_tutoria(TUTORIA[tutor_nome].get("alunos", [])):
+            if chaves_estudante & _chaves_estudante_tutoria(aluno_item):
+                removidos.append(aluno_item)
+            else:
+                restantes.append(aluno_item)
+        TUTORIA[tutor_nome]["alunos"] = restantes
+        return removidos
+
+    def _montar_carga_tutores_tutoria(tutoria_dict: dict, df_alunos_base: pd.DataFrame) -> pd.DataFrame:
+        linhas = []
+        for tutor_nome, dados_tutor in normalizar_base_tutoria(tutoria_dict).items():
+            df_tutor = montar_dataframe_tutoria(tutor_nome, df_alunos_base, tutoria_dict)
+            if not df_tutor.empty and "Status" in df_tutor.columns:
+                tutorados_ativos = int((df_tutor["Status"].astype(str) == "Encontrado").sum())
+            else:
+                tutorados_ativos = 0
+            linhas.append({
+                "Responsável": tutor_nome,
+                "Perfil": dados_tutor.get("tipo", "Professor(a)"),
+                "Tutorados ativos": tutorados_ativos,
+                "Espaço": dados_tutor.get("espaco", "") or "Não informado",
+                "Horário": dados_tutor.get("horario", "") or "Não informado",
+                "Dia": dados_tutor.get("dia", "") or "Não informado",
+            })
+        df_carga = pd.DataFrame(linhas)
+        if df_carga.empty:
+            return df_carga
+        menor_carga = int(df_carga["Tutorados ativos"].min())
+        df_carga["Prioridade de oferta"] = df_carga["Tutorados ativos"].apply(
+            lambda total: "Receber oferta" if int(total) == menor_carga else ""
+        )
+        return df_carga.sort_values(["Tutorados ativos", "Responsável"], key=lambda s: s.map(normalizar_texto) if s.name == "Responsável" else s, kind="stable").reset_index(drop=True)
+
     def _localizar_duplicidades_tutoria(tutoria_dict: dict) -> pd.DataFrame:
         """Monta uma tabela de estudantes que aparecem em mais de uma lista."""
         mapa = _mapear_estudantes_vinculados_tutoria(tutoria_dict)
-        linhas = []
-        chaves_processadas = set()
-        for chave, vinculos in mapa.items():
+        grupos = {}
+        for _, vinculos in mapa.items():
             tutores = sorted({str(v.get("tutor", "")).strip() for v in vinculos if str(v.get("tutor", "")).strip()})
             if len(tutores) <= 1:
                 continue
-            assinatura = tuple(tutores) + (chave,)
-            if assinatura in chaves_processadas:
+            primeiro = vinculos[0] if vinculos else {}
+            ra_ref = next(("".join(ch for ch in str(v.get("ra", "")) if ch.isdigit()) for v in vinculos if "".join(ch for ch in str(v.get("ra", "")) if ch.isdigit())), "")
+            nome_ref = normalizar_texto(primeiro.get("nome", ""))
+            turma_ref = turma_para_comparacao(primeiro.get("serie", ""))
+            assinatura = (tuple(tutores), ra_ref or nome_ref, turma_ref)
+            grupo = grupos.setdefault(assinatura, {"vistos": set(), "vinculos": []})
+            for vinculo in vinculos:
+                id_vinculo = (
+                    str(vinculo.get("tutor", "")).strip(),
+                    normalizar_texto(vinculo.get("nome", "")),
+                    turma_para_comparacao(vinculo.get("serie", "")),
+                    "".join(ch for ch in str(vinculo.get("ra", "")) if ch.isdigit()),
+                )
+                if id_vinculo in grupo["vistos"]:
+                    continue
+                grupo["vistos"].add(id_vinculo)
+                grupo["vinculos"].append(vinculo)
+
+        linhas = []
+        for vinculos_info in grupos.values():
+            vinculos = vinculos_info.get("vinculos", [])
+            tutores = sorted({str(v.get("tutor", "")).strip() for v in vinculos if str(v.get("tutor", "")).strip()})
+            if len(tutores) <= 1:
                 continue
-            chaves_processadas.add(assinatura)
             primeiro = vinculos[0] if vinculos else {}
             linhas.append({
                 "Estudante": primeiro.get("nome", ""),
@@ -17652,6 +17766,72 @@ elif menu == "🫂 Tutoria":
         if not ok:
             st.session_state["tutoria_responsaveis_sync_warning"] = msg
         return ok
+
+    if not duplicidades_tutoria_df.empty:
+        with st.expander("🛠️ Resolver duplicidades de tutoria", expanded=False):
+            st.caption("Escolha em qual responsável o estudante deve permanecer. O sistema remove o vínculo dos demais responsáveis.")
+            opcoes_dup = []
+            mapa_dup = {}
+            for idx_dup, linha_dup in duplicidades_tutoria_df.reset_index(drop=True).iterrows():
+                label_dup = (
+                    f"{idx_dup + 1}. {linha_dup.get('Estudante', '')} — "
+                    f"{linha_dup.get('Turma', '')} — RA {linha_dup.get('RA', '') or 'sem RA'} "
+                    f"— {linha_dup.get('Aparece em', '')}"
+                )
+                opcoes_dup.append(label_dup)
+                mapa_dup[label_dup] = linha_dup.to_dict()
+
+            duplicidade_sel = st.selectbox(
+                "Duplicidade encontrada",
+                opcoes_dup,
+                key="tutoria_duplicidade_resolver_sel"
+            )
+            duplicidade_item = mapa_dup.get(duplicidade_sel, {})
+            estudante_dup = {
+                "nome": duplicidade_item.get("Estudante", ""),
+                "serie": duplicidade_item.get("Turma", ""),
+                "ra": duplicidade_item.get("RA", ""),
+            }
+            vinculos_dup = _vinculos_do_estudante_tutoria(estudante_dup, TUTORIA)
+            tutores_dup = sorted({str(v.get("tutor", "")).strip() for v in vinculos_dup if str(v.get("tutor", "")).strip()})
+
+            if len(tutores_dup) <= 1:
+                st.info("Esta duplicidade já foi resolvida na base atual.")
+            else:
+                manter_tutor = st.selectbox(
+                    "Manter estudante com",
+                    tutores_dup,
+                    key="tutoria_duplicidade_manter_tutor"
+                )
+                st.dataframe(pd.DataFrame(vinculos_dup), use_container_width=True, hide_index=True)
+                if st.button("✅ Resolver duplicidade selecionada", key="tutoria_btn_resolver_duplicidade", type="primary"):
+                    removidos_total = []
+                    for tutor_dup in tutores_dup:
+                        if tutor_dup == manter_tutor:
+                            continue
+                        removidos = _remover_estudante_do_tutor_local(tutor_dup, estudante_dup)
+                        for removido in removidos:
+                            removidos_total.append((tutor_dup, removido))
+                            if SUPABASE_VALID:
+                                _apagar_registro_supabase_tutoria(
+                                    tutor_dup,
+                                    str(removido.get("nome", "")),
+                                    str(removido.get("serie", "")),
+                                    str(removido.get("ra", "")),
+                                )
+                    if removidos_total:
+                        _limpar_estado_disponibilidade_tutoria()
+                        _salvar_estado_tutoria("exclusao_duplicidade")
+                        st.session_state["tutoria_feedback"] = {
+                            "tipo": "success",
+                            "msg": (
+                                f"Duplicidade resolvida: estudante mantido com {manter_tutor} "
+                                f"e removido de {len(removidos_total)} outro(s) vínculo(s)."
+                            )
+                        }
+                        st.rerun()
+                    else:
+                        st.info("Nenhum vínculo extra foi removido.")
 
     st.markdown("---")
     st.subheader("📋 Estudantes da lista selecionada")
@@ -17827,7 +18007,17 @@ elif menu == "🫂 Tutoria":
 
                         opcoes = ["Não adicionar"]
                         mapa_sugestoes = {"Não adicionar": None}
+                        sugestoes_ocultas = 0
                         for s in sugestoes:
+                            candidato_sugestao = {
+                                "nome": s.get("nome", ""),
+                                "serie": s.get("serie", ""),
+                                "ra": s.get("ra", ""),
+                            }
+                            ja_tem_sugestao, _ = _estudante_ja_tem_tutor(candidato_sugestao, TUTORIA)
+                            if ja_tem_sugestao:
+                                sugestoes_ocultas += 1
+                                continue
                             confianca = round(float(s.get("score", 0) or 0) * 100)
                             label = f"{s.get('nome', '')} — {s.get('serie', '')} — RA {s.get('ra', '')} — {confianca}%"
                             opcoes.append(label)
@@ -17836,6 +18026,8 @@ elif menu == "🫂 Tutoria":
                                 "serie": s.get("serie", ""),
                                 "ra": s.get("ra", ""),
                             }
+                        if sugestoes_ocultas:
+                            st.caption(f"{sugestoes_ocultas} sugestão(ões) ocultada(s) porque já possuem tutor cadastrado.")
 
                         escolha = st.selectbox(
                             f"{pend.get('nome', '')} ({pend.get('serie', '')})",
@@ -18040,7 +18232,9 @@ elif menu == "🫂 Tutoria":
                 df_resultado = df_resultado[df_resultado.apply(_linha_disponivel_para_tutoria, axis=1)]
                 total_ocultos = total_antes_disponibilidade - len(df_resultado)
                 if total_ocultos > 0:
-                    st.info(f"{total_ocultos} estudante(s) foram ocultados porque já possuem tutor em outra lista.")
+                    st.info(f"{total_ocultos} estudante(s) foram ocultados porque já possuem tutor cadastrado.")
+                if df_resultado.empty and total_ocultos > 0:
+                    st.success("Todos os estudantes encontrados nessa busca já estão vinculados a uma tutoria.")
 
             df_resultado = df_resultado.head(80)
 
@@ -18056,10 +18250,16 @@ elif menu == "🫂 Tutoria":
                 opcoes.append(label)
                 mapa_opcoes[label] = {"nome": nome, "serie": turma, "ra": ra}
 
+            chave_selecao_busca = "tutoria_busca_cadastro_selecionados"
+            if chave_selecao_busca in st.session_state:
+                st.session_state[chave_selecao_busca] = [
+                    item for item in st.session_state.get(chave_selecao_busca, [])
+                    if item in mapa_opcoes
+                ]
             selecionados = st.multiselect(
                 "Selecione estudantes para inserir na lista temporária",
                 opcoes,
-                key="tutoria_busca_cadastro_selecionados"
+                key=chave_selecao_busca
             )
             if selecionados:
                 qtd_auto = _adicionar_na_lista_temp([mapa_opcoes[item] for item in selecionados if item in mapa_opcoes])
@@ -18371,6 +18571,128 @@ elif menu == "🫂 Tutoria":
         col_st6.metric("Com tutor - Turno 2", com_turno2)
         col_st7.metric("Sem tutor - Turno 2", sem_turno2)
 
+        st.markdown("---")
+        st.subheader("⚖️ Oferta equilibrada para responsáveis com menos tutorados")
+        df_carga_tutores = _montar_carga_tutores_tutoria(TUTORIA, df_alunos)
+        if df_carga_tutores.empty:
+            st.info("Cadastre responsáveis na Tutoria para habilitar a oferta equilibrada.")
+        else:
+            st.caption("A prioridade mostra quem tem a menor quantidade de tutorados ativos neste momento.")
+            st.dataframe(
+                df_carga_tutores[
+                    ["Responsável", "Perfil", "Tutorados ativos", "Prioridade de oferta", "Espaço", "Horário", "Dia"]
+                ],
+                use_container_width=True,
+                hide_index=True
+            )
+
+            if df_sem_tutor.empty:
+                st.success("Não há estudantes disponíveis para oferta. Todos os ativos já possuem tutor.")
+            else:
+                mapa_carga_tutores = {
+                    str(row.get("Responsável", "")).strip(): int(row.get("Tutorados ativos", 0) or 0)
+                    for _, row in df_carga_tutores.iterrows()
+                }
+                opcoes_tutores_oferta = df_carga_tutores["Responsável"].dropna().astype(str).tolist()
+                tutor_oferta = st.selectbox(
+                    "Responsável para receber a oferta",
+                    opcoes_tutores_oferta,
+                    key="tutoria_oferta_tutor_destino",
+                    format_func=lambda nome: f"{nome} — {mapa_carga_tutores.get(str(nome), 0)} tutorado(s)"
+                )
+
+                col_oferta1, col_oferta2, col_oferta3 = st.columns([1, 1, 1])
+                with col_oferta1:
+                    filtro_turno_oferta = st.selectbox(
+                        "Turno da oferta",
+                        ["Todos"] + sorted(df_sem_tutor["Turno"].dropna().astype(str).unique().tolist()),
+                        key="tutoria_oferta_turno"
+                    )
+                with col_oferta2:
+                    turmas_oferta = sorted(
+                        df_sem_tutor["Turma"].dropna().astype(str).unique().tolist(),
+                        key=ordenar_turma_tutoria
+                    )
+                    filtro_turma_oferta = st.selectbox(
+                        "Sala/turma da oferta",
+                        ["Todas"] + turmas_oferta,
+                        key="tutoria_oferta_turma",
+                        format_func=lambda t: "Todas" if t == "Todas" else _formatar_opcao_turma_select(t)
+                    )
+                with col_oferta3:
+                    qtd_sugerida_oferta = st.number_input(
+                        "Quantidade sugerida",
+                        min_value=1,
+                        max_value=30,
+                        value=min(5, max(len(df_sem_tutor), 1)),
+                        step=1,
+                        key="tutoria_oferta_qtd"
+                    )
+
+                df_oferta = df_sem_tutor.copy()
+                if filtro_turno_oferta != "Todos":
+                    df_oferta = df_oferta[df_oferta["Turno"].astype(str) == filtro_turno_oferta]
+                if filtro_turma_oferta != "Todas":
+                    df_oferta = df_oferta[df_oferta["Turma"].astype(str) == filtro_turma_oferta]
+                df_oferta = df_oferta.head(80).reset_index(drop=True)
+
+                mapa_opcoes_oferta = {}
+                opcoes_oferta = []
+                for _, aluno_oferta in df_oferta.iterrows():
+                    nome_oferta = str(aluno_oferta.get("Nome", "")).strip()
+                    turma_oferta = formatar_turma_eletiva(aluno_oferta.get("Turma", ""))
+                    ra_oferta = "".join(ch for ch in str(aluno_oferta.get("RA", "")) if ch.isdigit())
+                    label_oferta = f"{nome_oferta} — {turma_oferta}" if turma_oferta else nome_oferta
+                    if ra_oferta:
+                        label_oferta = f"{label_oferta} — RA {ra_oferta}"
+                    opcoes_oferta.append(label_oferta)
+                    mapa_opcoes_oferta[label_oferta] = {
+                        "nome": nome_oferta,
+                        "serie": turma_oferta,
+                        "ra": ra_oferta,
+                    }
+
+                chave_oferta_estudantes = "tutoria_oferta_estudantes"
+                default_oferta = opcoes_oferta[:int(qtd_sugerida_oferta)]
+                if chave_oferta_estudantes in st.session_state:
+                    st.session_state[chave_oferta_estudantes] = [
+                        item for item in st.session_state.get(chave_oferta_estudantes, [])
+                        if item in mapa_opcoes_oferta
+                    ]
+                    kwargs_multiselect_oferta = {}
+                else:
+                    kwargs_multiselect_oferta = {"default": default_oferta}
+                selecionados_oferta = st.multiselect(
+                    "Estudantes disponíveis para ofertar",
+                    opcoes_oferta,
+                    key=chave_oferta_estudantes,
+                    **kwargs_multiselect_oferta
+                )
+                st.caption(f"Disponíveis no filtro: {len(df_oferta)} | Selecionados: {len(selecionados_oferta)}")
+                if st.button("✅ Vincular oferta ao responsável selecionado", key="tutoria_btn_vincular_oferta", type="primary"):
+                    itens_oferta = [
+                        mapa_opcoes_oferta[item]
+                        for item in selecionados_oferta
+                        if item in mapa_opcoes_oferta
+                    ]
+                    if not itens_oferta:
+                        st.warning("Selecione pelo menos um estudante disponível para ofertar.")
+                    else:
+                        qtd_oferta = _adicionar_estudantes_tutoria(
+                            itens_oferta,
+                            origem="oferta_equilibrada",
+                            tutor_destino=tutor_oferta
+                        )
+                        if qtd_oferta > 0:
+                            _limpar_estado_disponibilidade_tutoria()
+                            st.session_state["tutoria_feedback"] = {
+                                "tipo": "success",
+                                "msg": f"{qtd_oferta} estudante(s) ofertado(s) e vinculado(s) para {tutor_oferta}."
+                            }
+                            st.rerun()
+                        else:
+                            st.info("Nenhum estudante novo foi vinculado. Eles podem ter sido vinculados em outra ação antes da confirmação.")
+
         aba_geral_sem_tutor, aba_turno_sem_tutor, aba_sala_sem_tutor = st.tabs(["📌 Geral", "🕒 Por turno/etapa", "🏫 Por sala"])
 
         with aba_geral_sem_tutor:
@@ -18592,7 +18914,11 @@ elif menu == "🫂 Tutoria":
                                     "origem": "edicao_manual"
                                 }])
                                 _limpar_cache_tutoria_apos_mutacao()
-                            st.success("✅ Estudante atualizado com sucesso.")
+                            _limpar_estado_disponibilidade_tutoria()
+                            st.session_state["tutoria_feedback"] = {
+                                "tipo": "success",
+                                "msg": "Estudante atualizado com sucesso. As ofertas e duplicidades foram recalculadas."
+                            }
                             st.rerun()
                         except Exception as e:
                             st.error(f"Erro ao editar estudante: {e}")
@@ -18615,7 +18941,24 @@ elif menu == "🫂 Tutoria":
                                 if not ok_del:
                                     st.warning("O estudante foi removido da tela, mas houve falha ao excluir no Supabase. Verifique o aviso acima.")
                             _salvar_estado_tutoria("exclusao_individual")
-                            st.success("✅ Estudante excluído com sucesso.")
+                            _limpar_estado_disponibilidade_tutoria()
+                            ainda_tem_tutor, vinculos_restantes = _estudante_ja_tem_tutor(removido, TUTORIA)
+                            if ainda_tem_tutor:
+                                tutores_restantes = ", ".join(sorted({
+                                    v.get("tutor", "")
+                                    for v in vinculos_restantes
+                                    if v.get("tutor", "")
+                                }))
+                                msg_exclusao = (
+                                    "Estudante excluído deste responsável. Ele não voltou para oferta "
+                                    f"porque ainda aparece vinculado com: {tutores_restantes}."
+                                )
+                            else:
+                                msg_exclusao = "Estudante excluído com sucesso e liberado novamente para oferta."
+                            st.session_state["tutoria_feedback"] = {
+                                "tipo": "success",
+                                "msg": msg_exclusao
+                            }
                             st.rerun()
                         except Exception as e:
                             st.error(f"Erro ao excluir estudante: {e}")
@@ -18634,7 +18977,14 @@ elif menu == "🫂 Tutoria":
                         if not ok_del:
                             st.warning(msg_del)
                     _salvar_estado_tutoria("exclusao_lista_professor")
-                    st.success("✅ Todos os estudantes da tutoria do professor selecionado foram excluídos.")
+                    _limpar_estado_disponibilidade_tutoria()
+                    st.session_state["tutoria_feedback"] = {
+                        "tipo": "success",
+                        "msg": (
+                            "Todos os estudantes deste responsável foram excluídos. "
+                            "Quem não estiver em outra tutoria voltou para a oferta."
+                        )
+                    }
                     st.rerun()
                 except Exception as e:
                     st.error(f"Erro ao excluir todos os estudantes: {e}")
