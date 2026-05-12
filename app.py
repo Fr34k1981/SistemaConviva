@@ -9803,11 +9803,10 @@ def _resumo_mapao_tutoria_aluno(nome: str, ra: str = "", turma: str = "") -> dic
 
 
 def _rendimento_automatico_aluno(nome: str, ra: str = "", turma: str = "") -> dict:
-    """Monta rendimento por componente a partir do Mapão e da Prova Paulista, sem apagar dados manuais.
+    """Monta rendimento por componente a partir do Mapão, sem apagar dados manuais.
 
     Prioridade:
     1. Mapão: preenche a menção do componente no bimestre correspondente, em formato limpo (ex.: 8, 7,5).
-    2. Prova Paulista: entra como complemento apenas quando existir dado de componente.
     """
     rendimento = {disc: {"1º BIM": "", "2º BIM": "", "3º BIM": "", "4º BIM": "", "RESULTADO FINAL": ""} for disc in DISCIPLINAS_CADERNO_TUTORIA}
 
@@ -9828,24 +9827,6 @@ def _rendimento_automatico_aluno(nome: str, ra: str = "", turma: str = "") -> di
                     # Grava a menção como aparece no Mapão, sem prefixo, para facilitar leitura/impressão.
                     rendimento[disc][bim] = mencao
 
-    df_pp = _resumo_prova_paulista_aluno(nome, ra, turma)
-    componentes_pp = globals().get("PROVA_COMPONENTES_COLUNAS", [])
-    for _, row in df_pp.iterrows():
-        bim = _bimestre_para_coluna_caderno(row.get("Bimestre", ""))
-        for comp in componentes_pp:
-            if comp not in row.index:
-                continue
-            valor = _formatar_numero_pedagogico(row.get(comp, ""))
-            if not valor:
-                continue
-            disc = _componente_para_disciplina_caderno(comp)
-            if disc not in rendimento:
-                continue
-            atual = str(rendimento[disc].get(bim, "") or "").strip()
-            pp_txt = f"PP: {valor}%"
-            # Se já há menção do Mapão, mantém a menção e acrescenta PP sem apagar.
-            rendimento[disc][bim] = f"{atual} | {pp_txt}" if atual and pp_txt not in atual else (atual or pp_txt)
-
     for disc, dados in rendimento.items():
         valores = [str(dados.get(b, "") or "").strip() for b in ["1º BIM", "2º BIM", "3º BIM", "4º BIM"]]
         preenchidos = [v for v in valores if v]
@@ -9853,19 +9834,34 @@ def _rendimento_automatico_aluno(nome: str, ra: str = "", turma: str = "") -> di
             dados["RESULTADO FINAL"] = preenchidos[-1]
     return rendimento
 
+
+def _limpar_prova_paulista_do_rendimento(valor):
+    """Remove complementos antigos da Prova Paulista exibidos junto das menções do Mapão."""
+    if valor in (None, "", "None"):
+        return ""
+    texto = str(valor).strip()
+    if not texto:
+        return ""
+    partes = [p.strip() for p in re.split(r"\s*\|\s*", texto) if p.strip()]
+    filtradas = [p for p in partes if not re.search(r"\bPP\s*:|Prova Paulista", p, flags=re.IGNORECASE)]
+    return " | ".join(filtradas).strip()
+
+
 def _mesclar_rendimento_sem_perder_manual(rendimento_atual: dict, rendimento_auto: dict) -> dict:
     mesclado = json.loads(json.dumps(rendimento_atual or {}, ensure_ascii=False)) if isinstance(rendimento_atual, dict) else {}
     for disc in DISCIPLINAS_CADERNO_TUTORIA:
         mesclado.setdefault(disc, {"1º BIM": "", "2º BIM": "", "3º BIM": "", "4º BIM": "", "RESULTADO FINAL": ""})
         auto = (rendimento_auto or {}).get(disc, {}) or {}
         for campo in ["1º BIM", "2º BIM", "3º BIM", "4º BIM", "RESULTADO FINAL"]:
-            if not str(mesclado[disc].get(campo, "") or "").strip() and str(auto.get(campo, "") or "").strip():
-                mesclado[disc][campo] = auto.get(campo, "")
+            mesclado[disc][campo] = _limpar_prova_paulista_do_rendimento(mesclado[disc].get(campo, ""))
+            auto_valor = _limpar_prova_paulista_do_rendimento(auto.get(campo, ""))
+            if not str(mesclado[disc].get(campo, "") or "").strip() and str(auto_valor or "").strip():
+                mesclado[disc][campo] = auto_valor
     return mesclado
 
 
 def _extrair_primeiro_numero_texto(valor):
-    """Extrai o primeiro número de um texto como '8 | PP: 70%' ou 'Mapão: 7'."""
+    """Extrai o primeiro número de um texto como '8 | observação' ou 'Mapão: 7'."""
     if valor in (None, "", "None"):
         return None
     if isinstance(valor, (int, float)) and not pd.isna(valor):
@@ -10667,7 +10663,7 @@ def render_caderno_tutoria_online(TUTORIA: dict, df_alunos: pd.DataFrame | None 
 
     with tab_rend:
         st.markdown("### Rendimento Bimestral")
-        st.caption("O rendimento pode ser preenchido manualmente ou carregado automaticamente a partir do Mapão e da Prova Paulista já salvos.")
+        st.caption("O rendimento pode ser preenchido manualmente ou carregado automaticamente a partir do Mapão já salvo.")
         rendimento = caderno.get("rendimento_bimestral", {})
         rendimento_auto = _rendimento_automatico_aluno(aluno.get("nome", ""), aluno.get("ra", ""), aluno.get("turma", ""))
         resumo_mapao_auto = _resumo_mapao_tutoria_aluno(aluno.get("nome", ""), aluno.get("ra", ""), aluno.get("turma", ""))
@@ -10678,7 +10674,7 @@ def render_caderno_tutoria_online(TUTORIA: dict, df_alunos: pd.DataFrame | None 
         )
         col_auto_1, col_auto_2 = st.columns([1.3, 2])
         with col_auto_1:
-            if st.button("🔄 Carregar Mapão/Prova no rendimento", use_container_width=True, key=f"carregar_rendimento_auto_{chave}"):
+            if st.button("🔄 Carregar Mapão no rendimento", use_container_width=True, key=f"carregar_rendimento_auto_{chave}"):
                 caderno["rendimento_bimestral"] = _mesclar_rendimento_sem_perder_manual(rendimento, rendimento_auto)
                 if resumo_mapao_auto:
                     caderno["resumo_mapao_tutoria"] = resumo_mapao_auto
@@ -10687,9 +10683,9 @@ def render_caderno_tutoria_online(TUTORIA: dict, df_alunos: pd.DataFrame | None 
                 st.rerun()
         with col_auto_2:
             if tem_auto or resumo_mapao_auto:
-                st.info("Há dados de Mapão/Prova Paulista disponíveis para este estudante. O botão ao lado preenche apenas campos vazios.")
+                st.info("Há dados do Mapão disponíveis para este estudante. O botão ao lado preenche apenas campos vazios.")
             else:
-                st.warning("Ainda não encontrei Mapão ou Prova Paulista salvos para este estudante.")
+                st.warning("Ainda não encontrei Mapão salvo para este estudante.")
 
         resumo_mapao_salvo = caderno.get("resumo_mapao_tutoria", {}) or {}
         resumo_para_exibir = resumo_mapao_auto or resumo_mapao_salvo
