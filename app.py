@@ -5300,6 +5300,61 @@ def carregar_ocorrencias() -> pd.DataFrame:
 
     return df
 
+
+def carregar_ocorrencias_filtrado(
+    turma: str = "",
+    gravidade: str = "",
+    categoria: str = "",
+    professor: str = "",
+    estudante: str = "",
+    limite: int = 500,
+) -> pd.DataFrame:
+    """Busca ocorrências sob demanda, sem carregar todo o histórico."""
+    if not SUPABASE_VALID:
+        return carregar_ocorrencias()
+
+    filtros = []
+    if turma and turma != "Todas":
+        filtros.append(f"turma=eq.{_url_valor_supabase(turma)}")
+    if gravidade and gravidade != "Todas":
+        filtros.append(f"gravidade=eq.{_url_valor_supabase(gravidade)}")
+    if categoria and categoria != "Todas":
+        filtros.append(f"categoria=ilike.*{_url_valor_supabase(categoria)}*")
+    if professor and professor != "Todos":
+        filtros.append(f"professor=ilike.*{_url_valor_supabase(professor)}*")
+    if estudante:
+        filtros.append(f"aluno=ilike.*{_url_valor_supabase(estudante)}*")
+
+    limite_final = _limite_busca_supabase(limite, padrao=500, maximo=3000)
+    base_relato = (
+        "ocorrencias?"
+        "select=id,data,turma,aluno,ra,categoria,gravidade,encaminhamento,relato,professor,created_at"
+    )
+    base_descricao = (
+        "ocorrencias?"
+        "select=id,data,turma,aluno,ra,categoria,gravidade,encaminhamento,descricao,professor,created_at"
+    )
+    sufixo = "&".join(filtros + ["order=id.desc", f"limit={limite_final}"])
+    consulta_relato = f"{base_relato}&{sufixo}"
+    consulta_descricao = f"{base_descricao}&{sufixo}"
+
+    try:
+        df = _supabase_get_dataframe(consulta_relato, "buscar ocorrências")
+    except Exception as erro_relato:
+        try:
+            df = _supabase_get_dataframe(consulta_descricao, "buscar ocorrências")
+        except Exception:
+            raise erro_relato
+
+    if df is None or df.empty:
+        return pd.DataFrame()
+    if "relato" not in df.columns and "descricao" in df.columns:
+        df["relato"] = df["descricao"]
+    if "descricao" not in df.columns and "relato" in df.columns:
+        df["descricao"] = df["relato"]
+    return df
+
+
 @com_tratamento_erro
 def salvar_ocorrencia(ocorrencia: dict) -> bool:
     valido, msg = Validadores.validar_nao_vazio(ocorrencia.get("aluno"), "Nome do aluno")
@@ -7610,46 +7665,77 @@ df_responsaveis = pd.DataFrame()
 df_eletivas_supabase = pd.DataFrame()
 df_tutoria_supabase = pd.DataFrame()
 
-try:
-    df_alunos = carregar_alunos()
-except Exception as e:
-    st.warning("⚠️ Não foi possível carregar alunos.")
-    logger.error(e)
+MENU_ATUAL_NORMALIZADO = normalizar_texto(menu)
 
-try:
-    df_professores = carregar_professores()
-except Exception as e:
-    st.warning("⚠️ Não foi possível carregar professores.")
-    logger.error(e)
 
-try:
-    df_ocorrencias = carregar_ocorrencias()
-except Exception as e:
-    st.warning("⚠️ Não foi possível carregar ocorrências.")
-    logger.error(e)
+def _menu_precisa(*termos: str) -> bool:
+    return any(normalizar_texto(termo) in MENU_ATUAL_NORMALIZADO for termo in termos)
 
-try:
-    df_responsaveis = carregar_responsaveis()
-except Exception as e:
-    st.warning("⚠️ Não foi possível carregar responsáveis.")
-    logger.error(e)
+
+PRECISA_ALUNOS = _menu_precisa(
+    "DASHBOARD", "REGISTRAR OCORRENCIA", "RELATORIO DOS ESTUDANTES",
+    "CONSELHO", "COMUNICADO AOS PAIS", "ALUNOS E TURMAS", "ELETIVA", "TUTORIA",
+    "GRAFICOS E INDICADORES", "IMPRIMIR PDF", "MAPA DA SALA",
+    "PORTAL DO RESPONSAVEL",
+)
+PRECISA_PROFESSORES = _menu_precisa(
+    "DASHBOARD", "REGISTRAR OCORRENCIA", "CADASTRAR PROFESSORES",
+    "ELETIVA", "TUTORIA", "AGENDAMENTO DE ESPACOS",
+)
+PRECISA_OCORRENCIAS = _menu_precisa(
+    "DASHBOARD", "REGISTRAR OCORRENCIA", "RELATORIO DOS ESTUDANTES",
+    "COMUNICADO AOS PAIS", "GRAFICOS E INDICADORES", "IMPRIMIR PDF",
+    "PORTAL DO RESPONSAVEL",
+)
+PRECISA_RESPONSAVEIS = _menu_precisa("CADASTRAR ASSINATURAS", "COMUNICADO AOS PAIS", "IMPRIMIR PDF")
+PRECISA_ELETIVAS = _menu_precisa("ELETIVA")
+PRECISA_TUTORIA = _menu_precisa("TUTORIA", "RELATORIO DOS ESTUDANTES")
+
+if PRECISA_ALUNOS:
+    try:
+        df_alunos = carregar_alunos()
+        st.session_state["df_alunos"] = df_alunos
+    except Exception as e:
+        st.warning("⚠️ Não foi possível carregar alunos.")
+        logger.error(e)
+
+if PRECISA_PROFESSORES:
+    try:
+        df_professores = carregar_professores()
+    except Exception as e:
+        st.warning("⚠️ Não foi possível carregar professores.")
+        logger.error(e)
+
+if PRECISA_OCORRENCIAS:
+    try:
+        df_ocorrencias = carregar_ocorrencias()
+    except Exception as e:
+        st.warning("⚠️ Não foi possível carregar ocorrências.")
+        logger.error(e)
+
+if PRECISA_RESPONSAVEIS:
+    try:
+        df_responsaveis = carregar_responsaveis()
+    except Exception as e:
+        st.warning("⚠️ Não foi possível carregar responsáveis.")
+        logger.error(e)
 
 # ======================================================
 # ELETIVAS — DEFINIÇÃO DE FONTE
 # ======================================================
 
-if SUPABASE_VALID:
+if SUPABASE_VALID and PRECISA_ELETIVAS:
     try:
         df_eletivas_supabase = _supabase_get_dataframe("eletivas?select=professora,nome_aluno,serie&limit=50000", "carregar eletivas")
     except Exception:
         df_eletivas_supabase = pd.DataFrame()
 
-if SUPABASE_VALID:
+if SUPABASE_VALID and PRECISA_TUTORIA:
     df_tutoria_supabase = carregar_tutoria_supabase_segura("carregar tutoria")
 else:
     df_tutoria_supabase = pd.DataFrame()
 
-if st.session_state.ELETIVAS is None:
+if PRECISA_ELETIVAS and st.session_state.ELETIVAS is None:
     if SUPABASE_VALID:
         if not df_eletivas_supabase.empty:
             st.session_state.ELETIVAS = converter_eletivas_supabase_para_dict(df_eletivas_supabase)
@@ -7660,92 +7746,103 @@ if st.session_state.ELETIVAS is None:
     else:
         st.session_state.ELETIVAS = {k: [] for k in ELETIVAS.keys()}
         st.session_state.FONTE_ELETIVAS = "indisponivel"
-else:
+elif PRECISA_ELETIVAS:
     if SUPABASE_VALID:
+        try:
+            total_eletivas_sessao = sum(len(v or []) for v in (st.session_state.ELETIVAS or {}).values()) if isinstance(st.session_state.ELETIVAS, dict) else 0
+            if total_eletivas_sessao == 0 and isinstance(df_eletivas_supabase, pd.DataFrame) and not df_eletivas_supabase.empty:
+                st.session_state.ELETIVAS = converter_eletivas_supabase_para_dict(df_eletivas_supabase)
+        except Exception:
+            pass
         st.session_state.FONTE_ELETIVAS = "supabase"
     else:
         st.session_state.FONTE_ELETIVAS = "indisponivel"
 
-ELETIVAS = st.session_state.ELETIVAS
-FONTE_ELETIVAS = st.session_state.FONTE_ELETIVAS
+ELETIVAS = st.session_state.ELETIVAS if isinstance(st.session_state.ELETIVAS, dict) else {k: [] for k in ELETIVAS.keys()}
+FONTE_ELETIVAS = st.session_state.FONTE_ELETIVAS or ("sob demanda" if not PRECISA_ELETIVAS else "indisponivel")
 
-TUTORIA_LOCAL = carregar_tutoria_local()
-TUTORIA_PROFESSORES_META = converter_metadados_professores_para_tutoria(df_professores)
-TUTORIA_RESPONSAVEIS_META = carregar_tutoria_referencias_supabase_segura()
-TUTORIA_BACKUP_JSON = carregar_tutoria_backups_json_supabase_segura()
-TUTORIA_REFERENCIA_META = mesclar_multiplas_fontes_tutoria(TUTORIA_LOCAL, TUTORIA_EXCEL, TUTORIA_RESPONSAVEIS_META, TUTORIA_PROFESSORES_META, TUTORIA_BACKUP_JSON)
-
+TUTORIA_LOCAL = {}
+TUTORIA_PROFESSORES_META = {}
+TUTORIA_RESPONSAVEIS_META = {}
+TUTORIA_BACKUP_JSON = {}
+TUTORIA_REFERENCIA_META = {}
 TUTORIA_SUPABASE_BASE = {}
-if SUPABASE_VALID and isinstance(df_tutoria_supabase, pd.DataFrame) and not df_tutoria_supabase.empty:
-    try:
-        TUTORIA_SUPABASE_BASE = converter_tutoria_supabase_para_dict(df_tutoria_supabase)
-    except Exception as e:
-        logger.warning(f"Nao foi possivel converter tutoria do Supabase: {e}")
-        TUTORIA_SUPABASE_BASE = {}
+TUTORIA_REFERENCIA_COM_ALUNOS = {}
 
-# Fonte segura para vínculos: une Supabase + backup JSON + cache local + planilha.
-# Regra: nunca deixar uma fonte menor esconder uma fonte maior com tutorados.
-TUTORIA_REFERENCIA_COM_ALUNOS = mesclar_multiplas_fontes_tutoria(TUTORIA_SUPABASE_BASE, TUTORIA_BACKUP_JSON, TUTORIA_LOCAL, TUTORIA_EXCEL)
+if PRECISA_TUTORIA:
+    TUTORIA_LOCAL = carregar_tutoria_local()
+    TUTORIA_PROFESSORES_META = converter_metadados_professores_para_tutoria(df_professores)
+    TUTORIA_RESPONSAVEIS_META = carregar_tutoria_referencias_supabase_segura()
+    TUTORIA_BACKUP_JSON = carregar_tutoria_backups_json_supabase_segura()
+    TUTORIA_REFERENCIA_META = mesclar_multiplas_fontes_tutoria(TUTORIA_LOCAL, TUTORIA_EXCEL, TUTORIA_RESPONSAVEIS_META, TUTORIA_PROFESSORES_META, TUTORIA_BACKUP_JSON)
 
-if st.session_state.TUTORIA is None:
-    if SUPABASE_VALID and not df_tutoria_supabase.empty:
-        base_supabase = TUTORIA_SUPABASE_BASE
-        total_supabase = total_estudantes_tutoria(base_supabase)
-        total_seguro = total_estudantes_tutoria(TUTORIA_REFERENCIA_COM_ALUNOS)
-        # Só usa backup automaticamente quando o Supabase vier drasticamente menor.
-        # Isso restaura perdas acidentais grandes, mas permite exclusões intencionais
-        # de estudantes/professores sem o backup recolocar tudo de volta.
-        if total_seguro > 0 and total_supabase > 0 and total_supabase < int(total_seguro * 0.50):
-            st.session_state.TUTORIA = mesclar_tutoria_com_metadados(TUTORIA_REFERENCIA_COM_ALUNOS, TUTORIA_REFERENCIA_META)
-            st.session_state.FONTE_TUTORIA = "supabase/backup/cache"
-            st.session_state["tutoria_responsaveis_sync_warning"] = f"Proteção ativa: o Supabase trouxe apenas {total_supabase} vínculo(s), mas havia fonte segura com {total_seguro}. Usei a base maior para recuperar perda provável."
-        else:
-            st.session_state.TUTORIA = mesclar_tutoria_com_metadados(base_supabase, TUTORIA_REFERENCIA_META)
-            st.session_state.FONTE_TUTORIA = "supabase"
-    elif total_estudantes_tutoria(TUTORIA_LOCAL) > 0:
-        st.session_state.TUTORIA = mesclar_tutoria_com_metadados(TUTORIA_LOCAL, TUTORIA_REFERENCIA_META)
-        st.session_state.FONTE_TUTORIA = "local"
-    else:
-        st.session_state.TUTORIA = normalizar_base_tutoria(TUTORIA_EXCEL.copy() if TUTORIA_EXCEL else {})
-        st.session_state.TUTORIA = mesclar_tutoria_com_metadados(st.session_state.TUTORIA, TUTORIA_PROFESSORES_META)
-        st.session_state.FONTE_TUTORIA = "excel" if TUTORIA_EXCEL else "indisponivel"
-else:
-    st.session_state.TUTORIA = normalizar_base_tutoria(st.session_state.TUTORIA)
-    # Se a sessão ficou só com responsáveis, mas ainda existe uma fonte com
-    # estudantes, recupera a lista em vez de gravar vazio por cima.
-    total_sessao = total_estudantes_tutoria(st.session_state.TUTORIA)
-    total_seguro = total_estudantes_tutoria(TUTORIA_REFERENCIA_COM_ALUNOS)
-    if total_seguro > 0 and total_sessao == 0:
-        st.session_state.TUTORIA = mesclar_multiplas_fontes_tutoria(st.session_state.TUTORIA, TUTORIA_REFERENCIA_COM_ALUNOS)
-        st.session_state.TUTORIA = mesclar_tutoria_com_metadados(st.session_state.TUTORIA, TUTORIA_REFERENCIA_META)
-        st.session_state.FONTE_TUTORIA = "supabase/local/excel"
-        st.session_state["tutoria_responsaveis_sync_warning"] = "Proteção ativa: a Tutoria estava zerada na sessão e foi restaurada com Supabase/cache/planilha."
-    elif total_seguro >= 10 and total_sessao > 0 and total_sessao < int(total_seguro * 0.50):
-        st.session_state.TUTORIA = mesclar_multiplas_fontes_tutoria(st.session_state.TUTORIA, TUTORIA_REFERENCIA_COM_ALUNOS)
-        st.session_state.TUTORIA = mesclar_tutoria_com_metadados(st.session_state.TUTORIA, TUTORIA_REFERENCIA_META)
-        st.session_state.FONTE_TUTORIA = "supabase/local/excel"
-        st.session_state["tutoria_responsaveis_sync_warning"] = "Proteção ativa: a Tutoria estava muito menor que a base segura e foi restaurada para evitar perda acidental."
-    else:
-        st.session_state.TUTORIA = mesclar_tutoria_com_metadados(st.session_state.TUTORIA, TUTORIA_REFERENCIA_META)
+    if SUPABASE_VALID and isinstance(df_tutoria_supabase, pd.DataFrame) and not df_tutoria_supabase.empty:
+        try:
+            TUTORIA_SUPABASE_BASE = converter_tutoria_supabase_para_dict(df_tutoria_supabase)
+        except Exception as e:
+            logger.warning(f"Nao foi possivel converter tutoria do Supabase: {e}")
+            TUTORIA_SUPABASE_BASE = {}
+
+    # Fonte segura para vínculos: une Supabase + backup JSON + cache local + planilha.
+    # Regra: nunca deixar uma fonte menor esconder uma fonte maior com tutorados.
+    TUTORIA_REFERENCIA_COM_ALUNOS = mesclar_multiplas_fontes_tutoria(TUTORIA_SUPABASE_BASE, TUTORIA_BACKUP_JSON, TUTORIA_LOCAL, TUTORIA_EXCEL)
+
+    if st.session_state.TUTORIA is None:
         if SUPABASE_VALID and not df_tutoria_supabase.empty:
-            st.session_state.FONTE_TUTORIA = "supabase"
-        elif TUTORIA_LOCAL:
+            base_supabase = TUTORIA_SUPABASE_BASE
+            total_supabase = total_estudantes_tutoria(base_supabase)
+            total_seguro = total_estudantes_tutoria(TUTORIA_REFERENCIA_COM_ALUNOS)
+            if total_seguro > 0 and total_supabase > 0 and total_supabase < int(total_seguro * 0.50):
+                st.session_state.TUTORIA = mesclar_tutoria_com_metadados(TUTORIA_REFERENCIA_COM_ALUNOS, TUTORIA_REFERENCIA_META)
+                st.session_state.FONTE_TUTORIA = "supabase/backup/cache"
+                st.session_state["tutoria_responsaveis_sync_warning"] = f"Proteção ativa: o Supabase trouxe apenas {total_supabase} vínculo(s), mas havia fonte segura com {total_seguro}. Usei a base maior para recuperar perda provável."
+            else:
+                st.session_state.TUTORIA = mesclar_tutoria_com_metadados(base_supabase, TUTORIA_REFERENCIA_META)
+                st.session_state.FONTE_TUTORIA = "supabase"
+        elif total_estudantes_tutoria(TUTORIA_LOCAL) > 0:
+            st.session_state.TUTORIA = mesclar_tutoria_com_metadados(TUTORIA_LOCAL, TUTORIA_REFERENCIA_META)
             st.session_state.FONTE_TUTORIA = "local"
-        elif TUTORIA_EXCEL:
-            st.session_state.FONTE_TUTORIA = "excel"
         else:
-            st.session_state.FONTE_TUTORIA = "indisponivel"
+            st.session_state.TUTORIA = normalizar_base_tutoria(TUTORIA_EXCEL.copy() if TUTORIA_EXCEL else {})
+            st.session_state.TUTORIA = mesclar_tutoria_com_metadados(st.session_state.TUTORIA, TUTORIA_PROFESSORES_META)
+            st.session_state.FONTE_TUTORIA = "excel" if TUTORIA_EXCEL else "indisponivel"
+    else:
+        st.session_state.TUTORIA = normalizar_base_tutoria(st.session_state.TUTORIA)
+        total_sessao = total_estudantes_tutoria(st.session_state.TUTORIA)
+        total_seguro = total_estudantes_tutoria(TUTORIA_REFERENCIA_COM_ALUNOS)
+        if total_seguro > 0 and total_sessao == 0:
+            st.session_state.TUTORIA = mesclar_multiplas_fontes_tutoria(st.session_state.TUTORIA, TUTORIA_REFERENCIA_COM_ALUNOS)
+            st.session_state.TUTORIA = mesclar_tutoria_com_metadados(st.session_state.TUTORIA, TUTORIA_REFERENCIA_META)
+            st.session_state.FONTE_TUTORIA = "supabase/local/excel"
+            st.session_state["tutoria_responsaveis_sync_warning"] = "Proteção ativa: a Tutoria estava zerada na sessão e foi restaurada com Supabase/cache/planilha."
+        elif total_seguro >= 10 and total_sessao > 0 and total_sessao < int(total_seguro * 0.50):
+            st.session_state.TUTORIA = mesclar_multiplas_fontes_tutoria(st.session_state.TUTORIA, TUTORIA_REFERENCIA_COM_ALUNOS)
+            st.session_state.TUTORIA = mesclar_tutoria_com_metadados(st.session_state.TUTORIA, TUTORIA_REFERENCIA_META)
+            st.session_state.FONTE_TUTORIA = "supabase/local/excel"
+            st.session_state["tutoria_responsaveis_sync_warning"] = "Proteção ativa: a Tutoria estava muito menor que a base segura e foi restaurada para evitar perda acidental."
+        else:
+            st.session_state.TUTORIA = mesclar_tutoria_com_metadados(st.session_state.TUTORIA, TUTORIA_REFERENCIA_META)
+            if SUPABASE_VALID and not df_tutoria_supabase.empty:
+                st.session_state.FONTE_TUTORIA = "supabase"
+            elif TUTORIA_LOCAL:
+                st.session_state.FONTE_TUTORIA = "local"
+            elif TUTORIA_EXCEL:
+                st.session_state.FONTE_TUTORIA = "excel"
+            else:
+                st.session_state.FONTE_TUTORIA = "indisponivel"
 
-st.session_state.TUTORIA = aplicar_config_tutoria_oficial(st.session_state.TUTORIA)
-try:
-    # Não grava uma base vazia por cima de uma base local/planilha que ainda tem estudantes.
-    if total_estudantes_tutoria(st.session_state.TUTORIA) > 0 or total_estudantes_tutoria(TUTORIA_REFERENCIA_COM_ALUNOS) == 0:
-        salvar_tutoria_local(st.session_state.TUTORIA)
-except Exception:
-    pass
-TUTORIA = normalizar_base_tutoria(st.session_state.TUTORIA)
-st.session_state.TUTORIA = TUTORIA
-FONTE_TUTORIA = st.session_state.FONTE_TUTORIA
+    st.session_state.TUTORIA = aplicar_config_tutoria_oficial(st.session_state.TUTORIA)
+    try:
+        # Não grava uma base vazia por cima de uma base local/planilha que ainda tem estudantes.
+        if total_estudantes_tutoria(st.session_state.TUTORIA) > 0 or total_estudantes_tutoria(TUTORIA_REFERENCIA_COM_ALUNOS) == 0:
+            salvar_tutoria_local(st.session_state.TUTORIA)
+    except Exception:
+        pass
+
+TUTORIA = normalizar_base_tutoria(st.session_state.TUTORIA) if isinstance(st.session_state.TUTORIA, dict) else {}
+if PRECISA_TUTORIA:
+    st.session_state.TUTORIA = TUTORIA
+FONTE_TUTORIA = st.session_state.FONTE_TUTORIA or ("sob demanda" if not PRECISA_TUTORIA else "indisponivel")
 ROTAS_MENU_SUPORTADAS = {
     normalizar_texto("🏠 Dashboard"),
     normalizar_texto("📝 Registrar Ocorrência"),
@@ -8158,21 +8255,12 @@ def _montar_modelo_conselho_por_turma(turma: str, bimestre: str, ano_letivo: str
     alunos_base = alunos_base[alunos_base["turma_fmt"] == turma_fmt].copy()
     alunos_base = alunos_base.sort_values("nome", key=lambda s: s.map(normalizar_texto), kind="stable").reset_index(drop=True)
 
-    pp = _normalizar_dataframe_prova_paulista(_carregar_prova_paulista_local())
-    if not pp.empty:
-        pp = pp[(pp["Turma"].astype(str).apply(formatar_turma_eletiva) == turma_fmt)]
-        if bimestre:
-            pp = pp[pp["Bimestre"].astype(str).str.strip().eq(str(bimestre).strip()) | pp["Bimestre"].astype(str).str.strip().eq("")]
-        if ano_letivo:
-            pp = pp[pp["Ano letivo"].astype(str).str.strip().eq(str(ano_letivo).strip()) | pp["Ano letivo"].astype(str).str.strip().eq("")]
-
-    mapao = _normalizar_dataframe_mapao(_carregar_mapao_local())
-    if not mapao.empty:
-        mapao = mapao[(mapao["Turma"].astype(str).apply(formatar_turma_eletiva) == turma_fmt)]
-        if bimestre:
-            mapao = mapao[mapao["Bimestre"].astype(str).str.strip().eq(str(bimestre).strip()) | mapao["Bimestre"].astype(str).str.strip().eq("")]
-        if ano_letivo:
-            mapao = mapao[mapao["Ano letivo"].astype(str).str.strip().eq(str(ano_letivo).strip()) | mapao["Ano letivo"].astype(str).str.strip().eq("")]
+    pp = _normalizar_dataframe_prova_paulista(
+        _carregar_prova_paulista_filtrada(turma=turma_fmt, bimestre=bimestre, ano_letivo=ano_letivo, limite=600)
+    )
+    mapao = _normalizar_dataframe_mapao(
+        _carregar_mapao_filtrada(turma=turma_fmt, bimestre=bimestre, ano_letivo=ano_letivo, limite=600)
+    )
 
     def _linha_por_aluno(nome: str, ra: str, idx: int) -> dict:
         nome_norm = normalizar_texto(nome)
@@ -9674,11 +9762,21 @@ def _filtrar_aluno_df(df: pd.DataFrame, nome: str, ra: str = "", turma: str = ""
 
 
 def _resumo_prova_paulista_aluno(nome: str, ra: str = "", turma: str = "") -> pd.DataFrame:
+    if globals().get("_carregar_prova_paulista_filtrada") and (nome or ra or turma):
+        try:
+            return _carregar_prova_paulista_filtrada(turma=turma, estudante=nome, ra=ra, limite=80)
+        except Exception:
+            pass
     df_pp = _dataframe_seguro_carregador("prova_paulista")
     return _filtrar_aluno_df(df_pp, nome, ra, turma)
 
 
 def _resumo_mapao_aluno(nome: str, ra: str = "", turma: str = "") -> pd.DataFrame:
+    if globals().get("_carregar_mapao_filtrada") and (nome or ra or turma):
+        try:
+            return _carregar_mapao_filtrada(turma=turma, estudante=nome, ra=ra, limite=80)
+        except Exception:
+            pass
     df_mapao = _dataframe_seguro_carregador("mapao")
     return _filtrar_aluno_df(df_mapao, nome, ra, turma)
 
@@ -10101,7 +10199,10 @@ def _ranking_pontuacao_geral(df_alunos_base: pd.DataFrame | None = None) -> pd.D
 
 def _ranking_pontuacao_turmas(df_alunos_base: pd.DataFrame | None = None) -> pd.DataFrame:
     """Ranking justo das salas: usa média da pontuação dos estudantes, não soma bruta."""
-    ranking = _ranking_pontuacao_geral(df_alunos_base)
+    if isinstance(df_alunos_base, pd.DataFrame) and {"Pontuação", "Estudante", "Turma"}.issubset(df_alunos_base.columns):
+        ranking = df_alunos_base.copy()
+    else:
+        ranking = _ranking_pontuacao_geral(df_alunos_base)
     if ranking.empty or "Turma" not in ranking.columns:
         return pd.DataFrame()
     base = ranking.copy()
@@ -11300,7 +11401,9 @@ def _salvar_mapao_local(df: pd.DataFrame) -> None:
 def _render_pagina_mapao():
     page_header("🗺️ Mapão", "Importe frequência, situação e componentes para Conselho e Tutoria", "#059669")
     st.info("Mapão é a planilha pedagógica da turma. Mapa da Sala fica em outra página, apenas para organização dos assentos.")
-    df_mapao = _carregar_mapao_local()
+    df_mapao = st.session_state.get("mapao_busca_df", pd.DataFrame())
+    if not isinstance(df_mapao, pd.DataFrame):
+        df_mapao = pd.DataFrame()
     aba_upload, aba_dados = st.tabs(["📥 Importar Mapão", "🧾 Dados arquivados"])
     with aba_upload:
         arquivo = st.file_uploader("Enviar planilha/PDF do Mapão (.xlsx, .xls, .csv ou .pdf)", type=["xlsx", "xls", "csv", "pdf"], key="upload_mapao_online")
@@ -11632,6 +11735,154 @@ def _salvar_prova_paulista_supabase(df: pd.DataFrame) -> tuple[bool, str]:
         return False, f"Falha ao salvar no Supabase: {e}"
 
 
+def _url_valor_supabase(valor) -> str:
+    return requests.utils.quote(str(valor or "").strip(), safe="")
+
+
+def _limite_busca_supabase(limite, padrao: int = 300, maximo: int = 2000) -> int:
+    try:
+        valor = int(limite)
+    except Exception:
+        valor = padrao
+    return max(1, min(valor, maximo))
+
+
+def _filtrar_dataframe_busca_pedagogica(
+    df: pd.DataFrame,
+    turma: str = "",
+    estudante: str = "",
+    ra: str = "",
+    bimestre: str = "",
+    ano_letivo: str = "",
+) -> pd.DataFrame:
+    if df is None or df.empty:
+        return pd.DataFrame()
+    base = df.copy()
+    mask = pd.Series(True, index=base.index)
+
+    if turma and "Turma" in base.columns:
+        turma_norm = normalizar_texto(classificar_turma_sistema(turma).get("turma", turma))
+        mask = mask & base["Turma"].astype(str).apply(lambda v: normalizar_texto(formatar_turma_eletiva(v)) == turma_norm)
+    if bimestre and "Bimestre" in base.columns:
+        bim_norm = normalizar_texto(bimestre)
+        mask = mask & base["Bimestre"].astype(str).apply(lambda v: normalizar_texto(v) == bim_norm)
+    if ano_letivo and "Ano letivo" in base.columns:
+        ano_norm = str(ano_letivo).strip()
+        mask = mask & base["Ano letivo"].astype(str).str.strip().eq(ano_norm)
+    if ra:
+        ra_norm = _normalizar_ra_estudante(ra)
+        for col in ["RA", "ra"]:
+            if col in base.columns:
+                mask = mask & base[col].astype(str).apply(_normalizar_ra_estudante).eq(ra_norm)
+                break
+    if estudante and "Estudante" in base.columns:
+        estudante_norm = _normalizar_chave_estudante(estudante)
+        mask = mask & base["Estudante"].astype(str).apply(lambda v: estudante_norm in _normalizar_chave_estudante(v))
+
+    return base[mask].copy()
+
+
+def _consultar_supabase_busca_pedagogica(
+    tabela: str,
+    select_cols: str,
+    acao: str,
+    turma: str = "",
+    estudante: str = "",
+    ra: str = "",
+    bimestre: str = "",
+    ano_letivo: str = "",
+    limite: int = 300,
+) -> pd.DataFrame:
+    if not SUPABASE_VALID:
+        return pd.DataFrame()
+    partes = [f"{tabela}?select={select_cols}"]
+    if turma:
+        turma_final = classificar_turma_sistema(turma).get("turma", turma)
+        partes.append(f"turma=eq.{_url_valor_supabase(turma_final)}")
+    if bimestre:
+        partes.append(f"bimestre=eq.{_url_valor_supabase(bimestre)}")
+    if ano_letivo:
+        partes.append(f"ano_letivo=eq.{_url_valor_supabase(ano_letivo)}")
+    if ra:
+        partes.append(f"ra=eq.{_url_valor_supabase(_normalizar_ra_estudante(ra))}")
+    elif estudante:
+        partes.append(f"estudante=ilike.*{_url_valor_supabase(estudante)}*")
+    partes.append("order=created_at.desc")
+    partes.append(f"limit={_limite_busca_supabase(limite)}")
+    return _supabase_get_dataframe("&".join(partes), acao)
+
+
+def _fontes_locais_prova_paulista() -> list[pd.DataFrame]:
+    fontes = []
+    for chave in ["df_prova_paulista", "prova_paulista_df", "df_prova_paulista_online"]:
+        obj = st.session_state.get(chave)
+        if isinstance(obj, pd.DataFrame) and not obj.empty:
+            fontes.append(obj)
+    try:
+        if PROVA_PAULISTA_LOCAL.exists():
+            fontes.append(pd.read_json(PROVA_PAULISTA_LOCAL, orient="records"))
+    except Exception:
+        pass
+    return fontes
+
+
+def _carregar_prova_paulista_filtrada(
+    turma: str = "",
+    estudante: str = "",
+    ra: str = "",
+    bimestre: str = "",
+    ano_letivo: str = "",
+    limite: int = 300,
+) -> pd.DataFrame:
+    fontes = []
+    try:
+        df_sup = _consultar_supabase_busca_pedagogica(
+            "prova_paulista_resultados",
+            "ano_letivo,bimestre,turma,ciclo,turno,ra,estudante,participacao,acertos_percentual,componentes,arquivo_origem,created_at",
+            "buscar prova paulista",
+            turma=turma,
+            estudante=estudante,
+            ra=ra,
+            bimestre=bimestre,
+            ano_letivo=ano_letivo,
+            limite=limite,
+        )
+        if isinstance(df_sup, pd.DataFrame) and not df_sup.empty:
+            df_sup = df_sup.rename(columns={
+                "ra": "RA",
+                "estudante": "Estudante",
+                "turma": "Turma",
+                "ciclo": "Ciclo",
+                "turno": "Turno",
+                "bimestre": "Bimestre",
+                "ano_letivo": "Ano letivo",
+                "participacao": "Participação",
+                "acertos_percentual": "Acertos",
+                "arquivo_origem": "Arquivo origem",
+            })
+            fontes.append(df_sup)
+    except Exception as e:
+        logger.warning(f"Falha na busca filtrada da Prova Paulista: {e}")
+
+    for fonte in _fontes_locais_prova_paulista():
+        filtrada = _filtrar_dataframe_busca_pedagogica(
+            _normalizar_dataframe_prova_paulista(fonte),
+            turma=turma,
+            estudante=estudante,
+            ra=ra,
+            bimestre=bimestre,
+            ano_letivo=ano_letivo,
+        )
+        if not filtrada.empty:
+            fontes.append(filtrada.head(_limite_busca_supabase(limite)))
+
+    if not fontes:
+        return pd.DataFrame(columns=COLUNAS_PROVA_PAULISTA_PADRAO)
+    df = pd.concat([_normalizar_dataframe_prova_paulista(f) for f in fontes], ignore_index=True)
+    df = df.drop_duplicates(subset=["Ano letivo", "Bimestre", "Turma", "RA", "Estudante"], keep="last")
+    return df.head(_limite_busca_supabase(limite)).reset_index(drop=True)
+
+
 def _carregar_prova_paulista_local() -> pd.DataFrame:
     fontes = []
     if SUPABASE_VALID:
@@ -11713,7 +11964,9 @@ def _top10_prova_paulista(df: pd.DataFrame) -> pd.DataFrame:
 
 def _render_pagina_prova_paulista():
     page_header("🏆 Prova Paulista", "Importação, conferência, salvamento e ranking por turma", "#2563eb")
-    df_pp = _carregar_prova_paulista_local()
+    df_pp = st.session_state.get("prova_paulista_busca_df", pd.DataFrame())
+    if not isinstance(df_pp, pd.DataFrame):
+        df_pp = pd.DataFrame()
     tab_base, tab_editor, tab_top10 = st.tabs(["📥 Carregar dados", "🧾 Dados da Prova Paulista", "🏅 Top 10"])
 
     with tab_base:
@@ -11846,13 +12099,43 @@ def _render_pagina_prova_paulista():
                     st.session_state.pop("prova_paulista_preview", None)
                     st.rerun()
         elif df_pp.empty:
-            st.warning("Nenhum dado da Prova Paulista salvo ainda.")
+            st.info("Para revisar dados já salvos, use a aba Dados da Prova Paulista e faça uma busca por turma, estudante ou bimestre.")
         else:
             st.info("Há dados salvos. Use a aba Dados da Prova Paulista para revisar.")
 
     with tab_editor:
         st.markdown("### Conferir e editar dados salvos")
+        with st.form("form_busca_prova_paulista"):
+            st.caption("Busque apenas o recorte que deseja revisar. Isso evita carregar toda a base da Prova Paulista.")
+            b1, b2, b3, b4, b5 = st.columns([1.2, 1.4, 0.9, 0.8, 0.7])
+            with b1:
+                busca_turma_pp = st.selectbox("Turma", _opcoes_turmas_com_vazio(), key="pp_busca_turma", format_func=_formatar_opcao_turma_select)
+            with b2:
+                busca_estudante_pp = st.text_input("Estudante ou RA", value="", key="pp_busca_estudante", placeholder="Nome ou RA")
+            with b3:
+                busca_bimestre_pp = st.selectbox("Bimestre", ["", "1º Bimestre", "2º Bimestre", "3º Bimestre", "4º Bimestre"], key="pp_busca_bimestre")
+            with b4:
+                busca_ano_pp = st.text_input("Ano", value=str(datetime.now().year), key="pp_busca_ano")
+            with b5:
+                busca_limite_pp = st.number_input("Limite", min_value=50, max_value=2000, value=300, step=50, key="pp_busca_limite")
+            buscar_pp = st.form_submit_button("🔎 Buscar Prova Paulista", type="primary", use_container_width=True)
+
+        if buscar_pp:
+            termo_pp = str(busca_estudante_pp or "").strip()
+            ra_pp = termo_pp if termo_pp.isdigit() else ""
+            estudante_pp = "" if ra_pp else termo_pp
+            df_pp = _carregar_prova_paulista_filtrada(
+                turma=busca_turma_pp,
+                estudante=estudante_pp,
+                ra=ra_pp,
+                bimestre=busca_bimestre_pp,
+                ano_letivo=busca_ano_pp,
+                limite=int(busca_limite_pp),
+            )
+            st.session_state["prova_paulista_busca_df"] = df_pp
+
         if not df_pp.empty:
+            st.caption(f"{len(df_pp)} registro(s) carregado(s) para edição.")
             sem_turma = df_pp["Turma"].astype(str).str.strip().eq("")
             if sem_turma.any():
                 with st.expander("⚠️ Corrigir dados antigos sem turma", expanded=True):
@@ -11880,7 +12163,8 @@ def _render_pagina_prova_paulista():
                             st.rerun()
 
         if df_pp.empty:
-            df_pp = pd.DataFrame([{c: "" for c in COLUNAS_PROVA_PAULISTA_PADRAO}])
+            st.info("Informe os filtros acima e clique em Buscar para carregar os registros.")
+            df_pp = pd.DataFrame(columns=COLUNAS_PROVA_PAULISTA_PADRAO)
         editado = st.data_editor(
             _normalizar_dataframe_prova_paulista(df_pp),
             use_container_width=True,
@@ -11890,15 +12174,16 @@ def _render_pagina_prova_paulista():
             key="editor_prova_paulista_restaurado",
         )
         if st.button("💾 Salvar alterações da Prova Paulista", type="primary", use_container_width=True):
-            ok, msg = _salvar_prova_paulista_local(editado, tentar_supabase=True)
+            ok, msg = _salvar_prova_paulista_local(editado, tentar_supabase=True, mesclar_com_existente=True)
             st.success(msg) if ok else st.warning(msg)
+            st.session_state["prova_paulista_busca_df"] = _normalizar_dataframe_prova_paulista(editado)
             st.rerun()
 
     with tab_top10:
         st.markdown("### 🏅 Top 10 da Prova Paulista")
         ranking = _top10_prova_paulista(df_pp)
         if ranking.empty:
-            st.info("Carregue e salve uma planilha para montar o ranking por acertos.")
+            st.info("Faça uma busca na aba Dados da Prova Paulista para montar o Top 10 do recorte carregado.")
         else:
             st.dataframe(ranking, use_container_width=True, hide_index=True, height=420)
 
@@ -12311,7 +12596,9 @@ def _preparar_dataframe_para_editor_streamlit(df: pd.DataFrame) -> pd.DataFrame:
 def _render_pagina_mapao():
     page_header("🗺️ Mapão", "Importe frequência, situação e componentes para Conselho e Tutoria", "#059669")
     st.info("Mapão é a planilha pedagógica da turma. Mapa da Sala fica em outra página, apenas para organização dos assentos.")
-    df_mapao = _carregar_mapao_local()
+    df_mapao = st.session_state.get("mapao_busca_df", pd.DataFrame())
+    if not isinstance(df_mapao, pd.DataFrame):
+        df_mapao = pd.DataFrame()
     aba_upload, aba_dados = st.tabs(["📥 Importar Mapão", "🧾 Dados arquivados"])
     with aba_upload:
         opcoes_turma = _opcoes_turmas_com_vazio()
@@ -12366,16 +12653,49 @@ def _render_pagina_mapao():
                     st.session_state.pop("mapao_preview", None)
                     st.rerun()
         elif df_mapao.empty:
-            st.warning("Nenhum Mapão arquivado ainda.")
+            st.info("Para revisar Mapões já salvos, use a aba Dados arquivados e faça uma busca por turma, estudante ou bimestre.")
         else:
             st.info("Há Mapão salvo. Use a aba Dados arquivados para revisar.")
     with aba_dados:
+        with st.form("form_busca_mapao"):
+            st.caption("Busque somente o recorte que deseja revisar. Assim a página não carrega o Mapão inteiro.")
+            b1, b2, b3, b4, b5 = st.columns([1.2, 1.4, 0.9, 0.8, 0.7])
+            with b1:
+                busca_turma_mapao = st.selectbox("Turma", _opcoes_turmas_com_vazio(), key="mapao_busca_turma", format_func=_formatar_opcao_turma_select)
+            with b2:
+                busca_estudante_mapao = st.text_input("Estudante ou RA", value="", key="mapao_busca_estudante", placeholder="Nome ou RA")
+            with b3:
+                busca_bimestre_mapao = st.selectbox("Bimestre", ["", "1º Bimestre", "2º Bimestre", "3º Bimestre", "4º Bimestre"], key="mapao_busca_bimestre")
+            with b4:
+                busca_ano_mapao = st.text_input("Ano", value=str(datetime.now().year), key="mapao_busca_ano")
+            with b5:
+                busca_limite_mapao = st.number_input("Limite", min_value=50, max_value=2000, value=300, step=50, key="mapao_busca_limite")
+            buscar_mapao = st.form_submit_button("🔎 Buscar Mapão", type="primary", use_container_width=True)
+
+        if buscar_mapao:
+            termo_mapao = str(busca_estudante_mapao or "").strip()
+            ra_mapao = termo_mapao if termo_mapao.isdigit() else ""
+            estudante_mapao = "" if ra_mapao else termo_mapao
+            df_mapao = _carregar_mapao_filtrada(
+                turma=busca_turma_mapao,
+                estudante=estudante_mapao,
+                ra=ra_mapao,
+                bimestre=busca_bimestre_mapao,
+                ano_letivo=busca_ano_mapao,
+                limite=int(busca_limite_mapao),
+            )
+            st.session_state["mapao_busca_df"] = df_mapao
+
         if df_mapao.empty:
-            df_mapao = pd.DataFrame([{c: "" for c in COLUNAS_MAPAO_PADRAO}])
+            st.info("Informe os filtros acima e clique em Buscar para carregar os registros.")
+            df_mapao = pd.DataFrame(columns=COLUNAS_MAPAO_PADRAO)
+        else:
+            st.caption(f"{len(df_mapao)} registro(s) carregado(s) para edição.")
         editado = st.data_editor(_preparar_dataframe_para_editor_streamlit(df_mapao), use_container_width=True, hide_index=True, height=560, num_rows="dynamic", key="editor_mapao_online")
         if st.button("💾 Salvar alterações do Mapão", type="primary", use_container_width=True):
-            ok, msg = _salvar_mapao_local(editado, tentar_supabase=True)
+            ok, msg = _salvar_mapao_local(editado, tentar_supabase=True, mesclar_com_existente=True)
             st.success(msg) if ok else st.warning(msg)
+            st.session_state["mapao_busca_df"] = _normalizar_dataframe_mapao(editado)
             st.rerun()
 
 
@@ -12485,6 +12805,90 @@ def _salvar_mapao_local(df: pd.DataFrame, tentar_supabase: bool = True, mesclar_
             return True, msg
         return False, f"Salvo localmente. {msg}"
     return True, "Mapão salvo localmente."
+
+
+def _fontes_locais_mapao() -> list[pd.DataFrame]:
+    fontes = []
+    for chave in ["df_mapao", "mapao_df", "df_mapao_online"]:
+        obj = st.session_state.get(chave)
+        if isinstance(obj, pd.DataFrame) and not obj.empty:
+            fontes.append(obj)
+    try:
+        if MAPAO_LOCAL.exists():
+            fontes.append(pd.read_json(MAPAO_LOCAL, orient="records"))
+    except Exception:
+        pass
+    return fontes
+
+
+def _carregar_mapao_filtrada(
+    turma: str = "",
+    estudante: str = "",
+    ra: str = "",
+    bimestre: str = "",
+    ano_letivo: str = "",
+    limite: int = 300,
+) -> pd.DataFrame:
+    fontes = []
+    try:
+        df_sup = _consultar_supabase_busca_pedagogica(
+            "mapao_resultados",
+            "ano_letivo,bimestre,turma,ciclo,turno,estudante,ra,situacao,frequencia_percentual,frequencia,faltas,faltas_anuais,notas_abaixo_cinco,componentes,total_aulas,arquivo_origem,created_at",
+            "buscar mapão",
+            turma=turma,
+            estudante=estudante,
+            ra=ra,
+            bimestre=bimestre,
+            ano_letivo=ano_letivo,
+            limite=limite,
+        )
+        if isinstance(df_sup, pd.DataFrame) and not df_sup.empty:
+            df_sup = df_sup.rename(columns={
+                "estudante": "Estudante",
+                "ra": "RA",
+                "turma": "Turma",
+                "ciclo": "Ciclo",
+                "turno": "Turno",
+                "bimestre": "Bimestre",
+                "ano_letivo": "Ano letivo",
+                "situacao": "Situação",
+                "frequencia_percentual": "Frequência (%)",
+                "frequencia": "Frequência (%)",
+                "faltas": "Faltas",
+                "faltas_anuais": "Faltas anuais",
+                "notas_abaixo_cinco": "Notas abaixo de cinco",
+                "componentes": "Componentes",
+                "total_aulas": "Total de Aulas",
+                "arquivo_origem": "Arquivo origem",
+            })
+            if "Componentes" in df_sup.columns:
+                df_sup["Componentes"] = df_sup["Componentes"].apply(
+                    lambda v: json.dumps(v, ensure_ascii=False) if isinstance(v, (dict, list)) else v
+                )
+            fontes.append(df_sup)
+    except Exception as e:
+        logger.warning(f"Falha na busca filtrada do Mapão: {e}")
+
+    for fonte in _fontes_locais_mapao():
+        filtrada = _filtrar_dataframe_busca_pedagogica(
+            _normalizar_dataframe_mapao(fonte),
+            turma=turma,
+            estudante=estudante,
+            ra=ra,
+            bimestre=bimestre,
+            ano_letivo=ano_letivo,
+        )
+        if not filtrada.empty:
+            fontes.append(filtrada.head(_limite_busca_supabase(limite)))
+
+    if not fontes:
+        return pd.DataFrame(columns=COLUNAS_MAPAO_PADRAO)
+    df = pd.concat([_normalizar_dataframe_mapao(f) for f in fontes], ignore_index=True)
+    try:
+        df = df.drop_duplicates(subset=["Ano letivo", "Bimestre", "Turma", "Estudante"], keep="last")
+    except Exception:
+        pass
+    return df.head(_limite_busca_supabase(limite)).reset_index(drop=True)
 
 
 def _filtrar_aluno_df(df: pd.DataFrame, nome: str, ra: str = "", turma: str = "") -> pd.DataFrame:
@@ -12834,21 +13238,29 @@ if menu == "🏠 Dashboard":
     </div>
     """, unsafe_allow_html=True)
 
-    ranking_game_dashboard = _ranking_pontuacao_geral(df_alunos)
-    ranking_salas_dashboard = _ranking_pontuacao_turmas(df_alunos)
     st.markdown("""
     <div style="display:flex; align-items:center; gap:0.5rem; margin:1.15rem 0 0.75rem 0;">
         <div style="width:4px; height:22px; background:linear-gradient(180deg,#22c55e,#0ea5e9); border-radius:4px;"></div>
         <h3 style="margin:0; font-family:'Nunito',sans-serif; font-size:1.1rem; color:#0f172a;">🏅 Ranking gamificado — Estudantes e Salas</h3>
     </div>
     """, unsafe_allow_html=True)
-    if ranking_game_dashboard.empty:
+    carregar_ranking_dashboard = st.button("🔎 Carregar ranking pedagógico", key="dashboard_carregar_ranking_pedagogico")
+    if carregar_ranking_dashboard:
+        st.session_state["dashboard_ranking_pedagogico_carregado"] = True
+
+    if st.session_state.get("dashboard_ranking_pedagogico_carregado"):
+        ranking_game_dashboard = _ranking_pontuacao_geral(df_alunos)
+        ranking_salas_dashboard = _ranking_pontuacao_turmas(ranking_game_dashboard)
+    else:
+        ranking_game_dashboard = pd.DataFrame()
+        ranking_salas_dashboard = pd.DataFrame()
+
+    if ranking_game_dashboard.empty and not st.session_state.get("dashboard_ranking_pedagogico_carregado"):
+        st.info("O ranking usa Mapão e Prova Paulista, então fica sob demanda para acelerar a abertura do Dashboard.")
+    elif ranking_game_dashboard.empty:
         st.info("Assim que houver Mapão, Prova Paulista ou ocorrências, o ranking gamificado aparece aqui.")
     else:
-        try:
-            st.caption(f"Fontes carregadas para a gamificação: Prova Paulista {_dataframe_seguro_carregador('prova_paulista').shape[0]} registro(s) · Mapão {_dataframe_seguro_carregador('mapao').shape[0]} registro(s) · Ocorrências {_dataframe_seguro_carregador('ocorrencias').shape[0]} registro(s).")
-        except Exception:
-            pass
+        st.caption("Ranking carregado sob demanda para evitar leitura integral na abertura da página.")
         col_rank_alunos, col_rank_salas = st.columns([1.35, 1])
         with col_rank_alunos:
             st.markdown("**🏆 Melhores estudantes mais pontuados**")
@@ -13376,62 +13788,58 @@ elif "HISTORICO DE OCORRENCIA" in normalizar_texto(menu):
         st.success(mensagem_exclusao)
         st.session_state.mensagem_exclusao = None
 
-    if df_ocorrencias.empty:
-        st.info("📭 Nenhuma ocorrência registrada.")
-        st.stop()
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        turmas_disp = ["Todas"] + sorted(df_ocorrencias["turma"].dropna().unique().tolist())
-        filtro_turma = st.selectbox("Turma", turmas_disp)
-    with col2:
-        gravidades_disp = ["Todas"] + sorted(df_ocorrencias["gravidade"].dropna().unique().tolist())
-        filtro_gravidade = st.selectbox("Gravidade", gravidades_disp)
-    with col3:
-        categorias_unicas = sorted(df_ocorrencias["categoria"].dropna().unique().tolist())
-        filtro_categoria = st.selectbox("Categoria", ["Todas"] + categorias_unicas)
+    df_view = st.session_state.get("historico_ocorrencias_busca_df", pd.DataFrame())
+    if not isinstance(df_view, pd.DataFrame):
+        df_view = pd.DataFrame()
 
-    col4, col5 = st.columns(2)
-    with col4:
-        if "professor" in df_ocorrencias.columns:
-            professores_disp = ["Todos"] + sorted([
-                p for p in df_ocorrencias["professor"].dropna().astype(str).str.strip().unique().tolist() if p
-            ])
-            filtro_professor = st.selectbox("Professor", professores_disp)
-        else:
-            filtro_professor = "Todos"
-            st.selectbox("Professor", ["Todos"], disabled=True)
-    with col5:
-        data_parse = pd.to_datetime(df_ocorrencias["data"], format="%d/%m/%Y %H:%M", errors="coerce")
-        if data_parse.notna().any():
-            dt_min = data_parse.min().date()
-            dt_max = data_parse.max().date()
-        else:
-            hoje = datetime.now().date()
-            dt_min = hoje
-            dt_max = hoje
-        periodo = st.date_input("Per?odo", value=(dt_min, dt_max), min_value=dt_min, max_value=dt_max, key="hist_periodo", format="DD/MM/YYYY")
+    with st.form("form_busca_historico_ocorrencias"):
+        st.caption("Use filtros antes de carregar. A busca traz só os registros necessários e limita o volume exibido.")
+        h1, h2, h3, h4 = st.columns([1.1, 1, 1.4, 0.8])
+        with h1:
+            filtro_turma = st.selectbox("Turma", ["Todas"] + _opcoes_turmas_sistema(), key="hist_busca_turma")
+        with h2:
+            filtro_gravidade = st.selectbox("Gravidade", ["Todas", "Leve", "Moderada", "Grave", "Gravíssima"], key="hist_busca_gravidade")
+        with h3:
+            filtro_estudante = st.text_input("Estudante", value="", key="hist_busca_estudante", placeholder="Nome do estudante")
+        with h4:
+            filtro_limite = st.number_input("Limite", min_value=50, max_value=3000, value=500, step=50, key="hist_busca_limite")
 
-    df_view = df_ocorrencias.copy()
-    if filtro_turma != "Todas":
-        df_view = df_view[df_view["turma"] == filtro_turma]
-    if filtro_gravidade != "Todas":
-        df_view = df_view[df_view["gravidade"] == filtro_gravidade]
-    if filtro_categoria != "Todas":
-        df_view = df_view[df_view["categoria"] == filtro_categoria]
-    if filtro_professor != "Todos" and "professor" in df_view.columns:
-        df_view = df_view[df_view["professor"].astype(str).str.strip() == filtro_professor]
+        h5, h6, h7 = st.columns([1.2, 1.2, 1.3])
+        with h5:
+            filtro_categoria = st.text_input("Categoria contém", value="", key="hist_busca_categoria", placeholder="Ex: celular")
+        with h6:
+            filtro_professor = st.text_input("Professor", value="", key="hist_busca_professor", placeholder="Nome exato ou deixe vazio")
+        with h7:
+            hoje_hist = datetime.now().date()
+            periodo = st.date_input(
+                "Período depois da busca",
+                value=(hoje_hist - timedelta(days=30), hoje_hist),
+                key="hist_periodo",
+                format="DD/MM/YYYY",
+            )
+        buscar_historico = st.form_submit_button("🔎 Buscar ocorrências", type="primary", use_container_width=True)
 
-    df_view["data_dt_filtro"] = pd.to_datetime(df_view["data"], format="%d/%m/%Y %H:%M", errors="coerce")
-    if isinstance(periodo, tuple) and len(periodo) == 2:
-        ini, fim = periodo
-    else:
-        ini = periodo
-        fim = periodo
-    df_view = df_view[
-        (df_view["data_dt_filtro"].dt.date >= ini) &
-        (df_view["data_dt_filtro"].dt.date <= fim)
-    ]
-    df_view = df_view.drop(columns=["data_dt_filtro"], errors="ignore")
+    if buscar_historico:
+        df_view = carregar_ocorrencias_filtrado(
+            turma="" if filtro_turma == "Todas" else filtro_turma,
+            gravidade="" if filtro_gravidade == "Todas" else filtro_gravidade,
+            categoria=filtro_categoria.strip(),
+            professor=filtro_professor.strip(),
+            estudante=filtro_estudante.strip(),
+            limite=int(filtro_limite),
+        )
+        if not df_view.empty and "data" in df_view.columns:
+            df_view["data_dt_filtro"] = pd.to_datetime(df_view["data"], format="%d/%m/%Y %H:%M", errors="coerce")
+            if isinstance(periodo, tuple) and len(periodo) == 2:
+                ini, fim = periodo
+            else:
+                ini = periodo
+                fim = periodo
+            df_view = df_view[
+                (df_view["data_dt_filtro"].dt.date >= ini) &
+                (df_view["data_dt_filtro"].dt.date <= fim)
+            ].drop(columns=["data_dt_filtro"], errors="ignore")
+        st.session_state["historico_ocorrencias_busca_df"] = df_view
 
     st.markdown("""
     <div class="form-panel">
@@ -13509,6 +13917,7 @@ elif "HISTORICO DE OCORRENCIA" in normalizar_texto(menu):
                         st.session_state.mensagem_exclusao = f"✅ Ocorrência {int(id_excluir)} excluída com sucesso!"
                         show_toast(f"Ocorrência {int(id_excluir)} excluída.", "success")
                         carregar_ocorrencias.clear()
+                        st.session_state.pop("historico_ocorrencias_busca_df", None)
                         st.rerun()
         else:
             st.info("Nenhuma ocorrência disponível para exclusão com os filtros atuais.")
@@ -13564,6 +13973,7 @@ elif "HISTORICO DE OCORRENCIA" in normalizar_texto(menu):
                     st.success("✅ Ocorrência atualizada com sucesso!")
                     show_toast("Ocorrência atualizada com sucesso.", "success")
                     carregar_ocorrencias.clear()
+                    st.session_state.pop("historico_ocorrencias_busca_df", None)
                     st.session_state.editando_id = None
                     st.session_state.dados_edicao = None
                     st.rerun()
