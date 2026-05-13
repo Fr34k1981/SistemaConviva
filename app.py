@@ -1,4 +1,4 @@
-﻿# VERSAO VISUAL DEFINITIVA - SED + UNICORNIO + ARCO-IRIS
+# VERSAO VISUAL DEFINITIVA - SED + UNICORNIO + ARCO-IRIS
 # ======================================================
 # IMPORTS PADRÃO
 # ======================================================
@@ -2809,7 +2809,7 @@ def carregar_tutoria_local(fallback: dict | None = None) -> dict:
         logger.error(f"Erro ao carregar cache local da tutoria: {e}")
     return normalizar_base_tutoria(fallback or {})
 
-def salvar_tutoria_local(tutoria_dict: dict, permitir_vazio: bool = False):
+def salvar_tutoria_local(tutoria_dict: dict):
     """Salva a Tutoria localmente com backup automático antes de sobrescrever.
 
     Proteção importante: nunca grava uma versão vazia por cima de um arquivo
@@ -2830,7 +2830,7 @@ def salvar_tutoria_local(tutoria_dict: dict, permitir_vazio: bool = False):
 
         total_antigo = total_estudantes_tutoria(base_antiga)
         total_novo = total_estudantes_tutoria(base_nova)
-        if total_antigo > 0 and total_novo == 0 and not permitir_vazio:
+        if total_antigo > 0 and total_novo == 0:
             logger.warning("Protecao Tutoria: bloqueado salvar cache vazio por cima de cache com estudantes.")
             return
 
@@ -5300,61 +5300,6 @@ def carregar_ocorrencias() -> pd.DataFrame:
 
     return df
 
-
-def carregar_ocorrencias_filtrado(
-    turma: str = "",
-    gravidade: str = "",
-    categoria: str = "",
-    professor: str = "",
-    estudante: str = "",
-    limite: int = 500,
-) -> pd.DataFrame:
-    """Busca ocorrências sob demanda, sem carregar todo o histórico."""
-    if not SUPABASE_VALID:
-        return carregar_ocorrencias()
-
-    filtros = []
-    if turma and turma != "Todas":
-        filtros.append(f"turma=eq.{_url_valor_supabase(turma)}")
-    if gravidade and gravidade != "Todas":
-        filtros.append(f"gravidade=eq.{_url_valor_supabase(gravidade)}")
-    if categoria and categoria != "Todas":
-        filtros.append(f"categoria=ilike.*{_url_valor_supabase(categoria)}*")
-    if professor and professor != "Todos":
-        filtros.append(f"professor=ilike.*{_url_valor_supabase(professor)}*")
-    if estudante:
-        filtros.append(f"aluno=ilike.*{_url_valor_supabase(estudante)}*")
-
-    limite_final = _limite_busca_supabase(limite, padrao=500, maximo=3000)
-    base_relato = (
-        "ocorrencias?"
-        "select=id,data,turma,aluno,ra,categoria,gravidade,encaminhamento,relato,professor,created_at"
-    )
-    base_descricao = (
-        "ocorrencias?"
-        "select=id,data,turma,aluno,ra,categoria,gravidade,encaminhamento,descricao,professor,created_at"
-    )
-    sufixo = "&".join(filtros + ["order=id.desc", f"limit={limite_final}"])
-    consulta_relato = f"{base_relato}&{sufixo}"
-    consulta_descricao = f"{base_descricao}&{sufixo}"
-
-    try:
-        df = _supabase_get_dataframe(consulta_relato, "buscar ocorrências")
-    except Exception as erro_relato:
-        try:
-            df = _supabase_get_dataframe(consulta_descricao, "buscar ocorrências")
-        except Exception:
-            raise erro_relato
-
-    if df is None or df.empty:
-        return pd.DataFrame()
-    if "relato" not in df.columns and "descricao" in df.columns:
-        df["relato"] = df["descricao"]
-    if "descricao" not in df.columns and "relato" in df.columns:
-        df["descricao"] = df["relato"]
-    return df
-
-
 @com_tratamento_erro
 def salvar_ocorrencia(ocorrencia: dict) -> bool:
     valido, msg = Validadores.validar_nao_vazio(ocorrencia.get("aluno"), "Nome do aluno")
@@ -5784,70 +5729,74 @@ def obter_professor_tutor_do_aluno(
     return melhor_tutor if melhor_score >= 0.85 else ""
  
  
+def _turmas_equivalentes_para_vinculo(turma_a: str, turma_b: str) -> bool:
+    """Compara turma em formatos diferentes: 7C, 7º Ano C, 7 ano c."""
+    a = formatar_turma_eletiva(str(turma_a or "").strip())
+    b = formatar_turma_eletiva(str(turma_b or "").strip())
+    if not a or not b:
+        return True
+    if normalizar_texto(a) == normalizar_texto(b):
+        return True
+    try:
+        return bool(serie_compativel_turma(a, b) or serie_compativel_turma(b, a))
+    except Exception:
+        pass
+    def extrair(t):
+        txt = normalizar_texto(t)
+        ano = re.search(r"\b([1-9])", txt)
+        letra = re.search(r"ANO\s*([A-Z])|\b([A-Z])\b", txt)
+        letra_val = ""
+        if letra:
+            letra_val = letra.group(1) or letra.group(2) or ""
+        return (ano.group(1) if ano else "", letra_val)
+    ea = extrair(a)
+    eb = extrair(b)
+    return ea == eb and all(ea)
+
+
 def obter_eletiva_do_aluno(
     nome_aluno: str,
     turma_aluno: str,
     ra_aluno: str,
     eletivas_dict: dict,
 ) -> str:
-    """
-    Retorna o nome da(o) professora(o) de eletiva vinculado ao aluno.
-    Retorna "" se não encontrado.
-    """
-    nome_norm  = normalizar_texto(nome_aluno)
-    ra_norm    = "".join(ch for ch in str(ra_aluno or "") if ch.isdigit())
-    turma_norm = normalizar_texto(turma_aluno)
- 
-    melhor_prof  = ""
+    """Retorna a professora de eletiva do aluno usando RA, nome e turma equivalente."""
+    nome_norm = normalizar_texto(nome_aluno)
+    ra_norm = "".join(ch for ch in str(ra_aluno or "") if ch.isdigit())
+    turma_txt = formatar_turma_eletiva(turma_aluno)
+
+    melhor_prof = ""
     melhor_score = 0.0
- 
+    melhor_prof_sem_turma = ""
+    melhor_score_sem_turma = 0.0
+
     for prof, alunos in (eletivas_dict or {}).items():
-        for item in alunos:
-            # --- match por RA ---
-            ra_item = "".join(ch for ch in str(item.get("ra", "")) if ch.isdigit())
+        for item in alunos or []:
+            ra_item = _extrair_ra_de_row_ou_item(item)
             if ra_norm and ra_item and ra_norm == ra_item:
-                return prof
- 
+                return str(prof).strip()
+
             item_norm = normalizar_texto(item.get("nome", ""))
             if not item_norm:
                 continue
- 
-            serie_item = normalizar_texto(item.get("serie", ""))
-            serie_ok = (not serie_item) or (not turma_norm) or (serie_item in turma_norm) or (turma_norm in serie_item)
- 
-            score = SequenceMatcher(None, nome_norm, item_norm).ratio()
-            if nome_norm == item_norm and serie_ok:
-                return prof
-            if score > melhor_score and serie_ok:
+            serie_item = formatar_turma_eletiva(item.get("serie", ""))
+            turma_ok = _turmas_equivalentes_para_vinculo(serie_item, turma_txt)
+            score = SequenceMatcher(None, nome_norm, item_norm).ratio() if nome_norm else 0.0
+
+            if nome_norm == item_norm and turma_ok:
+                return str(prof).strip()
+            if score > melhor_score_sem_turma:
+                melhor_score_sem_turma = score
+                melhor_prof_sem_turma = str(prof).strip()
+            if turma_ok and score > melhor_score:
                 melhor_score = score
-                melhor_prof  = prof
- 
-    return melhor_prof if melhor_score >= 0.85 else ""
+                melhor_prof = str(prof).strip()
 
-TEXTO_TUTOR_NAO_LOCALIZADO = "Não localizado na base de tutoria"
-TEXTO_ELETIVA_NAO_LOCALIZADA = "Não localizado na base de eletivas"
-
-def texto_professor_tutor_relatorio(valor: str, com_icone: bool = False) -> str:
-    nome = str(valor or "").strip()
-    valores_vazios = {
-        "",
-        normalizar_texto("Não localizado"),
-        normalizar_texto(TEXTO_TUTOR_NAO_LOCALIZADO),
-    }
-    if normalizar_texto(nome) in valores_vazios:
-        return TEXTO_TUTOR_NAO_LOCALIZADO
-    return f"🫂 {nome}" if com_icone else nome
-
-def texto_eletiva_relatorio(valor: str, com_icone: bool = False) -> str:
-    nome = str(valor or "").strip()
-    valores_vazios = {
-        "",
-        normalizar_texto("Não localizado"),
-        normalizar_texto(TEXTO_ELETIVA_NAO_LOCALIZADA),
-    }
-    if normalizar_texto(nome) in valores_vazios:
-        return TEXTO_ELETIVA_NAO_LOCALIZADA
-    return f"🎨 {nome}" if com_icone else nome
+    if melhor_score >= 0.84:
+        return melhor_prof
+    if melhor_score_sem_turma >= 0.93:
+        return melhor_prof_sem_turma
+    return ""
 
 def gerar_pontos_atencao_automaticos(df_ocorrencias: pd.DataFrame, turma: str, ra: str, aluno: str, data_inicio, data_fim) -> list[str]:
     if df_ocorrencias.empty:
@@ -6135,29 +6084,72 @@ def carregar_tutoria_do_excel(caminho_arquivo: str, fallback: dict = None) -> di
         logger.error(f"Erro ao importar tutoria: {e}")
         return normalizar_base_tutoria(fallback if fallback is not None else {})
 
+def carregar_eletivas_supabase_segura(contexto: str = "carregar eletivas") -> pd.DataFrame:
+    """Carrega eletivas do Supabase aceitando tabelas com ou sem RA."""
+    if not SUPABASE_VALID:
+        return pd.DataFrame()
+    consultas = [
+        "eletivas?select=professora,nome_aluno,serie,ra&limit=50000",
+        "eletivas?select=professora,nome_aluno,serie&limit=50000",
+        "eletivas?select=*&limit=50000",
+    ]
+    ultimo_erro = None
+    for consulta in consultas:
+        try:
+            return _supabase_get_dataframe(consulta, contexto)
+        except Exception as e:
+            ultimo_erro = e
+            continue
+    logger.warning(f"Nao foi possivel carregar eletivas do Supabase: {ultimo_erro}")
+    return pd.DataFrame()
+
+def _extrair_ra_de_row_ou_item(obj) -> str:
+    aliases = ["ra", "RA", "nr_ra", "NR RA", "nrra", "codigo_ra", "Código RA"]
+    for alias in aliases:
+        try:
+            valor = obj.get(alias, "")
+        except Exception:
+            valor = ""
+        ra = "".join(ch for ch in str(valor or "") if ch.isdigit())
+        if ra:
+            return ra
+    return ""
+
 def converter_eletivas_para_registros(eletivas_dict: dict, origem: str = "excel") -> list:
     registros = []
-    for professora, alunos in eletivas_dict.items():
-        for item in alunos:
-            registros.append({
-                "professora": professora,
-                "nome_aluno": item.get("nome", ""),
-                "serie": formatar_turma_eletiva(item.get("serie", "")),
-                "origem": origem
-            })
+    for professora, alunos in (eletivas_dict or {}).items():
+        for item in alunos or []:
+            nome = str(item.get("nome", "")).strip()
+            serie = formatar_turma_eletiva(item.get("serie", ""))
+            ra = _extrair_ra_de_row_ou_item(item)
+            if not professora or not nome:
+                continue
+            registro = {
+                "professora": str(professora).strip(),
+                "nome_aluno": nome,
+                "serie": serie,
+                "origem": origem,
+            }
+            if ra:
+                registro["ra"] = ra
+            registros.append(registro)
     return registros
 
 def converter_eletivas_supabase_para_dict(df_eletivas: pd.DataFrame) -> dict:
-    if df_eletivas.empty:
+    if df_eletivas is None or df_eletivas.empty:
         return {}
     eletivas = {}
     for _, row in df_eletivas.iterrows():
         professora = str(row.get("professora", "")).strip()
-        nome_aluno = str(row.get("nome_aluno", "")).strip()
-        serie = formatar_turma_eletiva(str(row.get("serie", "")).strip())
+        nome_aluno = str(row.get("nome_aluno", row.get("nome", ""))).strip()
+        serie = formatar_turma_eletiva(str(row.get("serie", row.get("turma", ""))).strip())
+        ra = _extrair_ra_de_row_ou_item(row)
         if not professora or not nome_aluno:
             continue
-        eletivas.setdefault(professora, []).append({"nome": nome_aluno, "serie": serie})
+        item = {"nome": nome_aluno, "serie": serie}
+        if ra:
+            item["ra"] = ra
+        eletivas.setdefault(professora, []).append(item)
     return eletivas
 
 def converter_tutoria_para_registros(tutoria_dict: dict, origem: str = "excel") -> list:
@@ -7311,8 +7303,8 @@ def gerar_pdf_relatorio_estudante(registro: dict, df_ocorrencias_aluno: pd.DataF
     aluno           = str(registro.get("aluno", "")).strip()
     ra              = str(registro.get("ra", "")).strip()
     turma           = str(registro.get("turma", "")).strip()
-    tutor           = texto_professor_tutor_relatorio(registro.get("professor_tutor", ""))
-    eletiva         = texto_eletiva_relatorio(registro.get("eletiva", ""))
+    tutor           = str(registro.get("professor_tutor", "")).strip() or "Não localizado"
+    eletiva         = str(registro.get("eletiva", "")).strip() or "Não localizado"
     data_inicio     = str(registro.get("data_inicio", "")).strip()
     data_fim        = str(registro.get("data_fim", "")).strip()
     try:
@@ -7338,8 +7330,8 @@ def gerar_pdf_relatorio_estudante(registro: dict, df_ocorrencias_aluno: pd.DataF
          Paragraph("<b>RA</b>", est_label),           Paragraph(ra, est_valor)],
         [Paragraph("<b>Turma</b>", est_label),        Paragraph(turma, est_valor),
          Paragraph("<b>Componente</b>", est_label),   Paragraph(componente, est_valor)],
-        [Paragraph("<b>Professor(a) Tutor(a)</b>", est_label), Paragraph(tutor, est_valor),
-         Paragraph("<b>Eletiva — Professor(a)</b>", est_label), Paragraph(eletiva, est_valor)],
+        [Paragraph("<b>Tutor(a)</b>", est_label),     Paragraph(tutor, est_valor),
+         Paragraph("<b>Eletiva</b>", est_label),      Paragraph(eletiva, est_valor)],
         [Paragraph("<b>Período</b>", est_label),      Paragraph(f"{data_ini_fmt} a {data_fim_fmt}", est_valor),
          Paragraph("<b>Coordenador(a)</b>", est_label), Paragraph(coordenador, est_valor)],
     ]
@@ -7665,77 +7657,46 @@ df_responsaveis = pd.DataFrame()
 df_eletivas_supabase = pd.DataFrame()
 df_tutoria_supabase = pd.DataFrame()
 
-MENU_ATUAL_NORMALIZADO = normalizar_texto(menu)
+try:
+    df_alunos = carregar_alunos()
+except Exception as e:
+    st.warning("⚠️ Não foi possível carregar alunos.")
+    logger.error(e)
 
+try:
+    df_professores = carregar_professores()
+except Exception as e:
+    st.warning("⚠️ Não foi possível carregar professores.")
+    logger.error(e)
 
-def _menu_precisa(*termos: str) -> bool:
-    return any(normalizar_texto(termo) in MENU_ATUAL_NORMALIZADO for termo in termos)
+try:
+    df_ocorrencias = carregar_ocorrencias()
+except Exception as e:
+    st.warning("⚠️ Não foi possível carregar ocorrências.")
+    logger.error(e)
 
-
-PRECISA_ALUNOS = _menu_precisa(
-    "DASHBOARD", "REGISTRAR OCORRENCIA", "RELATORIO DOS ESTUDANTES",
-    "CONSELHO", "COMUNICADO AOS PAIS", "ALUNOS E TURMAS", "ELETIVA", "TUTORIA",
-    "GRAFICOS E INDICADORES", "IMPRIMIR PDF", "MAPA DA SALA",
-    "PORTAL DO RESPONSAVEL",
-)
-PRECISA_PROFESSORES = _menu_precisa(
-    "DASHBOARD", "REGISTRAR OCORRENCIA", "CADASTRAR PROFESSORES",
-    "ELETIVA", "TUTORIA", "AGENDAMENTO DE ESPACOS",
-)
-PRECISA_OCORRENCIAS = _menu_precisa(
-    "DASHBOARD", "REGISTRAR OCORRENCIA", "RELATORIO DOS ESTUDANTES",
-    "COMUNICADO AOS PAIS", "GRAFICOS E INDICADORES", "IMPRIMIR PDF",
-    "PORTAL DO RESPONSAVEL",
-)
-PRECISA_RESPONSAVEIS = _menu_precisa("CADASTRAR ASSINATURAS", "COMUNICADO AOS PAIS", "IMPRIMIR PDF")
-PRECISA_ELETIVAS = _menu_precisa("ELETIVA")
-PRECISA_TUTORIA = _menu_precisa("TUTORIA", "RELATORIO DOS ESTUDANTES")
-
-if PRECISA_ALUNOS:
-    try:
-        df_alunos = carregar_alunos()
-        st.session_state["df_alunos"] = df_alunos
-    except Exception as e:
-        st.warning("⚠️ Não foi possível carregar alunos.")
-        logger.error(e)
-
-if PRECISA_PROFESSORES:
-    try:
-        df_professores = carregar_professores()
-    except Exception as e:
-        st.warning("⚠️ Não foi possível carregar professores.")
-        logger.error(e)
-
-if PRECISA_OCORRENCIAS:
-    try:
-        df_ocorrencias = carregar_ocorrencias()
-    except Exception as e:
-        st.warning("⚠️ Não foi possível carregar ocorrências.")
-        logger.error(e)
-
-if PRECISA_RESPONSAVEIS:
-    try:
-        df_responsaveis = carregar_responsaveis()
-    except Exception as e:
-        st.warning("⚠️ Não foi possível carregar responsáveis.")
-        logger.error(e)
+try:
+    df_responsaveis = carregar_responsaveis()
+except Exception as e:
+    st.warning("⚠️ Não foi possível carregar responsáveis.")
+    logger.error(e)
 
 # ======================================================
 # ELETIVAS — DEFINIÇÃO DE FONTE
 # ======================================================
 
-if SUPABASE_VALID and PRECISA_ELETIVAS:
+if SUPABASE_VALID:
     try:
-        df_eletivas_supabase = _supabase_get_dataframe("eletivas?select=professora,nome_aluno,serie&limit=50000", "carregar eletivas")
+        df_eletivas_supabase = carregar_eletivas_supabase_segura("carregar eletivas")
     except Exception:
         df_eletivas_supabase = pd.DataFrame()
 
-if SUPABASE_VALID and PRECISA_TUTORIA:
+if SUPABASE_VALID:
     df_tutoria_supabase = carregar_tutoria_supabase_segura("carregar tutoria")
 else:
     df_tutoria_supabase = pd.DataFrame()
 
-if PRECISA_ELETIVAS and st.session_state.ELETIVAS is None:
+if st.session_state.ELETIVAS is None:
     if SUPABASE_VALID:
         if not df_eletivas_supabase.empty:
             st.session_state.ELETIVAS = converter_eletivas_supabase_para_dict(df_eletivas_supabase)
@@ -7746,103 +7707,92 @@ if PRECISA_ELETIVAS and st.session_state.ELETIVAS is None:
     else:
         st.session_state.ELETIVAS = {k: [] for k in ELETIVAS.keys()}
         st.session_state.FONTE_ELETIVAS = "indisponivel"
-elif PRECISA_ELETIVAS:
+else:
     if SUPABASE_VALID:
-        try:
-            total_eletivas_sessao = sum(len(v or []) for v in (st.session_state.ELETIVAS or {}).values()) if isinstance(st.session_state.ELETIVAS, dict) else 0
-            if total_eletivas_sessao == 0 and isinstance(df_eletivas_supabase, pd.DataFrame) and not df_eletivas_supabase.empty:
-                st.session_state.ELETIVAS = converter_eletivas_supabase_para_dict(df_eletivas_supabase)
-        except Exception:
-            pass
         st.session_state.FONTE_ELETIVAS = "supabase"
     else:
         st.session_state.FONTE_ELETIVAS = "indisponivel"
 
-ELETIVAS = st.session_state.ELETIVAS if isinstance(st.session_state.ELETIVAS, dict) else {k: [] for k in ELETIVAS.keys()}
-FONTE_ELETIVAS = st.session_state.FONTE_ELETIVAS or ("sob demanda" if not PRECISA_ELETIVAS else "indisponivel")
+ELETIVAS = st.session_state.ELETIVAS
+FONTE_ELETIVAS = st.session_state.FONTE_ELETIVAS
 
-TUTORIA_LOCAL = {}
-TUTORIA_PROFESSORES_META = {}
-TUTORIA_RESPONSAVEIS_META = {}
-TUTORIA_BACKUP_JSON = {}
-TUTORIA_REFERENCIA_META = {}
+TUTORIA_LOCAL = carregar_tutoria_local()
+TUTORIA_PROFESSORES_META = converter_metadados_professores_para_tutoria(df_professores)
+TUTORIA_RESPONSAVEIS_META = carregar_tutoria_referencias_supabase_segura()
+TUTORIA_BACKUP_JSON = carregar_tutoria_backups_json_supabase_segura()
+TUTORIA_REFERENCIA_META = mesclar_multiplas_fontes_tutoria(TUTORIA_LOCAL, TUTORIA_EXCEL, TUTORIA_RESPONSAVEIS_META, TUTORIA_PROFESSORES_META, TUTORIA_BACKUP_JSON)
+
 TUTORIA_SUPABASE_BASE = {}
-TUTORIA_REFERENCIA_COM_ALUNOS = {}
-
-if PRECISA_TUTORIA:
-    TUTORIA_LOCAL = carregar_tutoria_local()
-    TUTORIA_PROFESSORES_META = converter_metadados_professores_para_tutoria(df_professores)
-    TUTORIA_RESPONSAVEIS_META = carregar_tutoria_referencias_supabase_segura()
-    TUTORIA_BACKUP_JSON = carregar_tutoria_backups_json_supabase_segura()
-    TUTORIA_REFERENCIA_META = mesclar_multiplas_fontes_tutoria(TUTORIA_LOCAL, TUTORIA_EXCEL, TUTORIA_RESPONSAVEIS_META, TUTORIA_PROFESSORES_META, TUTORIA_BACKUP_JSON)
-
-    if SUPABASE_VALID and isinstance(df_tutoria_supabase, pd.DataFrame) and not df_tutoria_supabase.empty:
-        try:
-            TUTORIA_SUPABASE_BASE = converter_tutoria_supabase_para_dict(df_tutoria_supabase)
-        except Exception as e:
-            logger.warning(f"Nao foi possivel converter tutoria do Supabase: {e}")
-            TUTORIA_SUPABASE_BASE = {}
-
-    # Fonte segura para vínculos: une Supabase + backup JSON + cache local + planilha.
-    # Regra: nunca deixar uma fonte menor esconder uma fonte maior com tutorados.
-    TUTORIA_REFERENCIA_COM_ALUNOS = mesclar_multiplas_fontes_tutoria(TUTORIA_SUPABASE_BASE, TUTORIA_BACKUP_JSON, TUTORIA_LOCAL, TUTORIA_EXCEL)
-
-    if st.session_state.TUTORIA is None:
-        if SUPABASE_VALID and not df_tutoria_supabase.empty:
-            base_supabase = TUTORIA_SUPABASE_BASE
-            total_supabase = total_estudantes_tutoria(base_supabase)
-            total_seguro = total_estudantes_tutoria(TUTORIA_REFERENCIA_COM_ALUNOS)
-            if total_seguro > 0 and total_supabase > 0 and total_supabase < int(total_seguro * 0.50):
-                st.session_state.TUTORIA = mesclar_tutoria_com_metadados(TUTORIA_REFERENCIA_COM_ALUNOS, TUTORIA_REFERENCIA_META)
-                st.session_state.FONTE_TUTORIA = "supabase/backup/cache"
-                st.session_state["tutoria_responsaveis_sync_warning"] = f"Proteção ativa: o Supabase trouxe apenas {total_supabase} vínculo(s), mas havia fonte segura com {total_seguro}. Usei a base maior para recuperar perda provável."
-            else:
-                st.session_state.TUTORIA = mesclar_tutoria_com_metadados(base_supabase, TUTORIA_REFERENCIA_META)
-                st.session_state.FONTE_TUTORIA = "supabase"
-        elif total_estudantes_tutoria(TUTORIA_LOCAL) > 0:
-            st.session_state.TUTORIA = mesclar_tutoria_com_metadados(TUTORIA_LOCAL, TUTORIA_REFERENCIA_META)
-            st.session_state.FONTE_TUTORIA = "local"
-        else:
-            st.session_state.TUTORIA = normalizar_base_tutoria(TUTORIA_EXCEL.copy() if TUTORIA_EXCEL else {})
-            st.session_state.TUTORIA = mesclar_tutoria_com_metadados(st.session_state.TUTORIA, TUTORIA_PROFESSORES_META)
-            st.session_state.FONTE_TUTORIA = "excel" if TUTORIA_EXCEL else "indisponivel"
-    else:
-        st.session_state.TUTORIA = normalizar_base_tutoria(st.session_state.TUTORIA)
-        total_sessao = total_estudantes_tutoria(st.session_state.TUTORIA)
-        total_seguro = total_estudantes_tutoria(TUTORIA_REFERENCIA_COM_ALUNOS)
-        if total_seguro > 0 and total_sessao == 0:
-            st.session_state.TUTORIA = mesclar_multiplas_fontes_tutoria(st.session_state.TUTORIA, TUTORIA_REFERENCIA_COM_ALUNOS)
-            st.session_state.TUTORIA = mesclar_tutoria_com_metadados(st.session_state.TUTORIA, TUTORIA_REFERENCIA_META)
-            st.session_state.FONTE_TUTORIA = "supabase/local/excel"
-            st.session_state["tutoria_responsaveis_sync_warning"] = "Proteção ativa: a Tutoria estava zerada na sessão e foi restaurada com Supabase/cache/planilha."
-        elif total_seguro >= 10 and total_sessao > 0 and total_sessao < int(total_seguro * 0.50):
-            st.session_state.TUTORIA = mesclar_multiplas_fontes_tutoria(st.session_state.TUTORIA, TUTORIA_REFERENCIA_COM_ALUNOS)
-            st.session_state.TUTORIA = mesclar_tutoria_com_metadados(st.session_state.TUTORIA, TUTORIA_REFERENCIA_META)
-            st.session_state.FONTE_TUTORIA = "supabase/local/excel"
-            st.session_state["tutoria_responsaveis_sync_warning"] = "Proteção ativa: a Tutoria estava muito menor que a base segura e foi restaurada para evitar perda acidental."
-        else:
-            st.session_state.TUTORIA = mesclar_tutoria_com_metadados(st.session_state.TUTORIA, TUTORIA_REFERENCIA_META)
-            if SUPABASE_VALID and not df_tutoria_supabase.empty:
-                st.session_state.FONTE_TUTORIA = "supabase"
-            elif TUTORIA_LOCAL:
-                st.session_state.FONTE_TUTORIA = "local"
-            elif TUTORIA_EXCEL:
-                st.session_state.FONTE_TUTORIA = "excel"
-            else:
-                st.session_state.FONTE_TUTORIA = "indisponivel"
-
-    st.session_state.TUTORIA = aplicar_config_tutoria_oficial(st.session_state.TUTORIA)
+if SUPABASE_VALID and isinstance(df_tutoria_supabase, pd.DataFrame) and not df_tutoria_supabase.empty:
     try:
-        # Não grava uma base vazia por cima de uma base local/planilha que ainda tem estudantes.
-        if total_estudantes_tutoria(st.session_state.TUTORIA) > 0 or total_estudantes_tutoria(TUTORIA_REFERENCIA_COM_ALUNOS) == 0:
-            salvar_tutoria_local(st.session_state.TUTORIA)
-    except Exception:
-        pass
+        TUTORIA_SUPABASE_BASE = converter_tutoria_supabase_para_dict(df_tutoria_supabase)
+    except Exception as e:
+        logger.warning(f"Nao foi possivel converter tutoria do Supabase: {e}")
+        TUTORIA_SUPABASE_BASE = {}
 
-TUTORIA = normalizar_base_tutoria(st.session_state.TUTORIA) if isinstance(st.session_state.TUTORIA, dict) else {}
-if PRECISA_TUTORIA:
-    st.session_state.TUTORIA = TUTORIA
-FONTE_TUTORIA = st.session_state.FONTE_TUTORIA or ("sob demanda" if not PRECISA_TUTORIA else "indisponivel")
+# Fonte segura para vínculos: une Supabase + backup JSON + cache local + planilha.
+# Regra: nunca deixar uma fonte menor esconder uma fonte maior com tutorados.
+TUTORIA_REFERENCIA_COM_ALUNOS = mesclar_multiplas_fontes_tutoria(TUTORIA_SUPABASE_BASE, TUTORIA_BACKUP_JSON, TUTORIA_LOCAL, TUTORIA_EXCEL)
+
+if st.session_state.TUTORIA is None:
+    if SUPABASE_VALID and not df_tutoria_supabase.empty:
+        base_supabase = TUTORIA_SUPABASE_BASE
+        total_supabase = total_estudantes_tutoria(base_supabase)
+        total_seguro = total_estudantes_tutoria(TUTORIA_REFERENCIA_COM_ALUNOS)
+        # Só usa backup automaticamente quando o Supabase vier drasticamente menor.
+        # Isso restaura perdas acidentais grandes, mas permite exclusões intencionais
+        # de estudantes/professores sem o backup recolocar tudo de volta.
+        if total_seguro > 0 and total_supabase > 0 and total_supabase < int(total_seguro * 0.50):
+            st.session_state.TUTORIA = mesclar_tutoria_com_metadados(TUTORIA_REFERENCIA_COM_ALUNOS, TUTORIA_REFERENCIA_META)
+            st.session_state.FONTE_TUTORIA = "supabase/backup/cache"
+            st.session_state["tutoria_responsaveis_sync_warning"] = f"Proteção ativa: o Supabase trouxe apenas {total_supabase} vínculo(s), mas havia fonte segura com {total_seguro}. Usei a base maior para recuperar perda provável."
+        else:
+            st.session_state.TUTORIA = mesclar_tutoria_com_metadados(base_supabase, TUTORIA_REFERENCIA_META)
+            st.session_state.FONTE_TUTORIA = "supabase"
+    elif total_estudantes_tutoria(TUTORIA_LOCAL) > 0:
+        st.session_state.TUTORIA = mesclar_tutoria_com_metadados(TUTORIA_LOCAL, TUTORIA_REFERENCIA_META)
+        st.session_state.FONTE_TUTORIA = "local"
+    else:
+        st.session_state.TUTORIA = normalizar_base_tutoria(TUTORIA_EXCEL.copy() if TUTORIA_EXCEL else {})
+        st.session_state.TUTORIA = mesclar_tutoria_com_metadados(st.session_state.TUTORIA, TUTORIA_PROFESSORES_META)
+        st.session_state.FONTE_TUTORIA = "excel" if TUTORIA_EXCEL else "indisponivel"
+else:
+    st.session_state.TUTORIA = normalizar_base_tutoria(st.session_state.TUTORIA)
+    # Se a sessão ficou só com responsáveis, mas ainda existe uma fonte com
+    # estudantes, recupera a lista em vez de gravar vazio por cima.
+    total_sessao = total_estudantes_tutoria(st.session_state.TUTORIA)
+    total_seguro = total_estudantes_tutoria(TUTORIA_REFERENCIA_COM_ALUNOS)
+    if total_seguro > 0 and total_sessao == 0:
+        st.session_state.TUTORIA = mesclar_multiplas_fontes_tutoria(st.session_state.TUTORIA, TUTORIA_REFERENCIA_COM_ALUNOS)
+        st.session_state.TUTORIA = mesclar_tutoria_com_metadados(st.session_state.TUTORIA, TUTORIA_REFERENCIA_META)
+        st.session_state.FONTE_TUTORIA = "supabase/local/excel"
+        st.session_state["tutoria_responsaveis_sync_warning"] = "Proteção ativa: a Tutoria estava zerada na sessão e foi restaurada com Supabase/cache/planilha."
+    elif total_seguro >= 10 and total_sessao > 0 and total_sessao < int(total_seguro * 0.50):
+        st.session_state.TUTORIA = mesclar_multiplas_fontes_tutoria(st.session_state.TUTORIA, TUTORIA_REFERENCIA_COM_ALUNOS)
+        st.session_state.TUTORIA = mesclar_tutoria_com_metadados(st.session_state.TUTORIA, TUTORIA_REFERENCIA_META)
+        st.session_state.FONTE_TUTORIA = "supabase/local/excel"
+        st.session_state["tutoria_responsaveis_sync_warning"] = "Proteção ativa: a Tutoria estava muito menor que a base segura e foi restaurada para evitar perda acidental."
+    else:
+        st.session_state.TUTORIA = mesclar_tutoria_com_metadados(st.session_state.TUTORIA, TUTORIA_REFERENCIA_META)
+        if SUPABASE_VALID and not df_tutoria_supabase.empty:
+            st.session_state.FONTE_TUTORIA = "supabase"
+        elif TUTORIA_LOCAL:
+            st.session_state.FONTE_TUTORIA = "local"
+        elif TUTORIA_EXCEL:
+            st.session_state.FONTE_TUTORIA = "excel"
+        else:
+            st.session_state.FONTE_TUTORIA = "indisponivel"
+
+st.session_state.TUTORIA = aplicar_config_tutoria_oficial(st.session_state.TUTORIA)
+try:
+    # Não grava uma base vazia por cima de uma base local/planilha que ainda tem estudantes.
+    if total_estudantes_tutoria(st.session_state.TUTORIA) > 0 or total_estudantes_tutoria(TUTORIA_REFERENCIA_COM_ALUNOS) == 0:
+        salvar_tutoria_local(st.session_state.TUTORIA)
+except Exception:
+    pass
+TUTORIA = normalizar_base_tutoria(st.session_state.TUTORIA)
+st.session_state.TUTORIA = TUTORIA
+FONTE_TUTORIA = st.session_state.FONTE_TUTORIA
 ROTAS_MENU_SUPORTADAS = {
     normalizar_texto("🏠 Dashboard"),
     normalizar_texto("📝 Registrar Ocorrência"),
@@ -8255,12 +8205,21 @@ def _montar_modelo_conselho_por_turma(turma: str, bimestre: str, ano_letivo: str
     alunos_base = alunos_base[alunos_base["turma_fmt"] == turma_fmt].copy()
     alunos_base = alunos_base.sort_values("nome", key=lambda s: s.map(normalizar_texto), kind="stable").reset_index(drop=True)
 
-    pp = _normalizar_dataframe_prova_paulista(
-        _carregar_prova_paulista_filtrada(turma=turma_fmt, bimestre=bimestre, ano_letivo=ano_letivo, limite=600)
-    )
-    mapao = _normalizar_dataframe_mapao(
-        _carregar_mapao_filtrada(turma=turma_fmt, bimestre=bimestre, ano_letivo=ano_letivo, limite=600)
-    )
+    pp = _normalizar_dataframe_prova_paulista(_carregar_prova_paulista_local())
+    if not pp.empty:
+        pp = pp[(pp["Turma"].astype(str).apply(formatar_turma_eletiva) == turma_fmt)]
+        if bimestre:
+            pp = pp[pp["Bimestre"].astype(str).str.strip().eq(str(bimestre).strip()) | pp["Bimestre"].astype(str).str.strip().eq("")]
+        if ano_letivo:
+            pp = pp[pp["Ano letivo"].astype(str).str.strip().eq(str(ano_letivo).strip()) | pp["Ano letivo"].astype(str).str.strip().eq("")]
+
+    mapao = _normalizar_dataframe_mapao(_carregar_mapao_local())
+    if not mapao.empty:
+        mapao = mapao[(mapao["Turma"].astype(str).apply(formatar_turma_eletiva) == turma_fmt)]
+        if bimestre:
+            mapao = mapao[mapao["Bimestre"].astype(str).str.strip().eq(str(bimestre).strip()) | mapao["Bimestre"].astype(str).str.strip().eq("")]
+        if ano_letivo:
+            mapao = mapao[mapao["Ano letivo"].astype(str).str.strip().eq(str(ano_letivo).strip()) | mapao["Ano letivo"].astype(str).str.strip().eq("")]
 
     def _linha_por_aluno(nome: str, ra: str, idx: int) -> dict:
         nome_norm = normalizar_texto(nome)
@@ -9222,6 +9181,105 @@ CAMPOS_TUTORIA_COLETIVA = [
     "6-Ações individuais",
 ]
 
+# Logo da capa do Caderno de Tutoria. Mantido embutido para funcionar também no Streamlit Cloud.
+LOGO_CAPA_TUTORIA_B64 = """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"""
+
+BIMESTRES_CADERNO_TUTORIA = ["1º BIM", "2º BIM", "3º BIM", "4º BIM"]
+
+
+def _modelo_rendimento_disciplina() -> dict:
+    base = {"RESULTADO FINAL": ""}
+    for bim in BIMESTRES_CADERNO_TUTORIA:
+        base[bim] = ""
+        base[f"{bim} - Nota da sala"] = ""
+        base[f"{bim} - Prova Paulista"] = ""
+    return base
+
+
+def _separar_nota_sala_e_pp(valor) -> tuple[str, str]:
+    """Separa textos antigos como '7 | PP: 80%' em nota da sala e Prova Paulista."""
+    if valor in (None, "", "None"):
+        return "", ""
+    texto = str(valor).strip()
+    if not texto:
+        return "", ""
+    pp = ""
+    m_pp = re.search(r"PP\s*:\s*([0-9]+(?:[\.,][0-9]+)?\s*%?)", texto, flags=re.I)
+    if m_pp:
+        pp = m_pp.group(1).strip()
+        texto = (texto[:m_pp.start()] + texto[m_pp.end():]).strip()
+    texto = re.sub(r"\s*[|;,-]\s*$", "", texto).strip()
+    texto = re.sub(r"^\s*[|;,-]\s*", "", texto).strip()
+    return texto, pp
+
+
+def _limpar_nota_mapao_para_exibir(valor) -> str:
+    """Mostra somente a nota/menção do Mapão, sem prefixos antigos ou PP."""
+    if valor in (None, "", "None"):
+        return ""
+    texto = str(valor).strip()
+    if not texto:
+        return ""
+    # Remove qualquer informação antiga de Prova Paulista que tenha ficado junto.
+    texto, _ = _separar_nota_sala_e_pp(texto)
+    # Remove prefixos antigos salvos em versões anteriores, como "Mapão: 5".
+    texto = re.sub(r"^\s*map[ãa]o\s*[:=-]\s*", "", texto, flags=re.I).strip()
+    texto = re.sub(r"^\s*nota\s*(da\s*sala)?\s*[:=-]\s*", "", texto, flags=re.I).strip()
+    # Se ainda houver separador residual, mantém somente a parte da nota.
+    texto = re.sub(r"\s*[|;]\s*$", "", texto).strip()
+    return texto
+
+
+def _rendimento_get_nota_sala(reg: dict, bim: str) -> str:
+    reg = reg or {}
+    direto = _limpar_nota_mapao_para_exibir(reg.get(f"{bim} - Nota da sala", ""))
+    if direto:
+        return direto
+    sala, _ = _separar_nota_sala_e_pp(reg.get(bim, ""))
+    return _limpar_nota_mapao_para_exibir(sala)
+
+
+def _rendimento_get_prova_paulista(reg: dict, bim: str) -> str:
+    reg = reg or {}
+    direto = str(reg.get(f"{bim} - Prova Paulista", "") or "").strip()
+    if direto:
+        return direto
+    _, pp = _separar_nota_sala_e_pp(reg.get(bim, ""))
+    return pp
+
+
+def _rendimento_set_nota_sala(reg: dict, bim: str, valor) -> None:
+    valor_limpo = _limpar_nota_mapao_para_exibir(valor)
+    reg[f"{bim} - Nota da sala"] = valor_limpo
+    reg[bim] = valor_limpo
+
+
+def _rendimento_set_prova_paulista(reg: dict, bim: str, valor) -> None:
+    reg[f"{bim} - Prova Paulista"] = str(valor or "").replace("%", "").strip()
+
+
+def _rendimento_resultado_final(reg: dict) -> str:
+    """Resultado final do caderno usa somente a nota/menção do Mapão.
+
+    A Prova Paulista não deve aparecer no rendimento bimestral do caderno de Tutoria.
+    Dados antigos no formato "7 | PP: 80%" são lidos, mas apenas a nota da sala é exibida.
+    """
+    for bim in reversed(BIMESTRES_CADERNO_TUTORIA):
+        sala = _rendimento_get_nota_sala(reg, bim)
+        if sala:
+            return sala
+    resultado = str((reg or {}).get("RESULTADO FINAL", "") or "").strip()
+    sala, _ = _separar_nota_sala_e_pp(resultado)
+    return sala
+
+
+def _logo_capa_tutoria_reportlab(largura: float = 3.3*cm, altura: float = 3.3*cm):
+    try:
+        import base64
+        return Image(BytesIO(base64.b64decode(LOGO_CAPA_TUTORIA_B64)), width=largura, height=altura)
+    except Exception:
+        return ""
+
 
 def _chave_caderno_tutoria(professor: str, estudante: str, turma: str = "") -> str:
     bruto = f"{professor}|{estudante}|{turma}"
@@ -9246,7 +9304,7 @@ def modelo_caderno_tutoria_vazio(professor: str = "", estudante: str = "", turma
             "telefone_responsavel": "",
         },
         "rendimento_bimestral": {
-            disciplina: {"1º BIM": "", "2º BIM": "", "3º BIM": "", "4º BIM": "", "RESULTADO FINAL": ""}
+            disciplina: _modelo_rendimento_disciplina()
             for disciplina in DISCIPLINAS_CADERNO_TUTORIA
         },
         "participacao_pais": {
@@ -9576,11 +9634,11 @@ def sincronizar_caderno_tabelas_estruturadas(chave: str, caderno: dict) -> None:
                 payload.append({
                     "chave_caderno": chave, "professor": professor, "estudante": estudante, "turma": turma,
                     "componente_curricular": str(componente),
-                    "primeiro_bimestre": str((reg or {}).get("1º BIM", "")),
-                    "segundo_bimestre": str((reg or {}).get("2º BIM", "")),
-                    "terceiro_bimestre": str((reg or {}).get("3º BIM", "")),
-                    "quarto_bimestre": str((reg or {}).get("4º BIM", "")),
-                    "resultado_final": str((reg or {}).get("RESULTADO FINAL", "")),
+                    "primeiro_bimestre": _rendimento_get_nota_sala(reg, "1º BIM"),
+                    "segundo_bimestre": _rendimento_get_nota_sala(reg, "2º BIM"),
+                    "terceiro_bimestre": _rendimento_get_nota_sala(reg, "3º BIM"),
+                    "quarto_bimestre": _rendimento_get_nota_sala(reg, "4º BIM"),
+                    "resultado_final": _rendimento_resultado_final(reg),
                 })
             if payload:
                 _supabase_request("POST", "rendimento_bimestral", json=payload)
@@ -9762,21 +9820,11 @@ def _filtrar_aluno_df(df: pd.DataFrame, nome: str, ra: str = "", turma: str = ""
 
 
 def _resumo_prova_paulista_aluno(nome: str, ra: str = "", turma: str = "") -> pd.DataFrame:
-    if globals().get("_carregar_prova_paulista_filtrada") and (nome or ra or turma):
-        try:
-            return _carregar_prova_paulista_filtrada(turma=turma, estudante=nome, ra=ra, limite=80)
-        except Exception:
-            pass
     df_pp = _dataframe_seguro_carregador("prova_paulista")
     return _filtrar_aluno_df(df_pp, nome, ra, turma)
 
 
 def _resumo_mapao_aluno(nome: str, ra: str = "", turma: str = "") -> pd.DataFrame:
-    if globals().get("_carregar_mapao_filtrada") and (nome or ra or turma):
-        try:
-            return _carregar_mapao_filtrada(turma=turma, estudante=nome, ra=ra, limite=80)
-        except Exception:
-            pass
     df_mapao = _dataframe_seguro_carregador("mapao")
     return _filtrar_aluno_df(df_mapao, nome, ra, turma)
 
@@ -9901,12 +9949,13 @@ def _resumo_mapao_tutoria_aluno(nome: str, ra: str = "", turma: str = "") -> dic
 
 
 def _rendimento_automatico_aluno(nome: str, ra: str = "", turma: str = "") -> dict:
-    """Monta rendimento por componente a partir do Mapão, sem apagar dados manuais.
+    """Monta rendimento por componente usando somente o Mapão.
 
-    Prioridade:
-    1. Mapão: preenche a menção do componente no bimestre correspondente, em formato limpo (ex.: 8, 7,5).
+    O caderno de Tutoria deve mostrar apenas as notas/menções da sala vindas do Mapão.
+    A Prova Paulista pode continuar sendo usada em outras páginas/relatórios, mas não entra
+    nesta tabela de rendimento para evitar mistura entre nota da sala e PP.
     """
-    rendimento = {disc: {"1º BIM": "", "2º BIM": "", "3º BIM": "", "4º BIM": "", "RESULTADO FINAL": ""} for disc in DISCIPLINAS_CADERNO_TUTORIA}
+    rendimento = {disc: _modelo_rendimento_disciplina() for disc in DISCIPLINAS_CADERNO_TUTORIA}
 
     df_mapao = _resumo_mapao_aluno(nome, ra, turma)
     for _, row in df_mapao.iterrows():
@@ -9922,44 +9971,32 @@ def _rendimento_automatico_aluno(nome: str, ra: str = "", turma: str = "") -> di
                 else:
                     mencao = _valor_numerico_ou_texto(dados)
                 if mencao:
-                    # Grava a menção como aparece no Mapão, sem prefixo, para facilitar leitura/impressão.
-                    rendimento[disc][bim] = mencao
+                    _rendimento_set_nota_sala(rendimento[disc], bim, mencao)
 
     for disc, dados in rendimento.items():
-        valores = [str(dados.get(b, "") or "").strip() for b in ["1º BIM", "2º BIM", "3º BIM", "4º BIM"]]
-        preenchidos = [v for v in valores if v]
-        if preenchidos:
-            dados["RESULTADO FINAL"] = preenchidos[-1]
+        dados["RESULTADO FINAL"] = _rendimento_resultado_final(dados)
     return rendimento
-
-
-def _limpar_prova_paulista_do_rendimento(valor):
-    """Remove complementos antigos da Prova Paulista exibidos junto das menções do Mapão."""
-    if valor in (None, "", "None"):
-        return ""
-    texto = str(valor).strip()
-    if not texto:
-        return ""
-    partes = [p.strip() for p in re.split(r"\s*\|\s*", texto) if p.strip()]
-    filtradas = [p for p in partes if not re.search(r"\bPP\s*:|Prova Paulista", p, flags=re.IGNORECASE)]
-    return " | ".join(filtradas).strip()
-
 
 def _mesclar_rendimento_sem_perder_manual(rendimento_atual: dict, rendimento_auto: dict) -> dict:
     mesclado = json.loads(json.dumps(rendimento_atual or {}, ensure_ascii=False)) if isinstance(rendimento_atual, dict) else {}
     for disc in DISCIPLINAS_CADERNO_TUTORIA:
-        mesclado.setdefault(disc, {"1º BIM": "", "2º BIM": "", "3º BIM": "", "4º BIM": "", "RESULTADO FINAL": ""})
+        mesclado.setdefault(disc, _modelo_rendimento_disciplina())
         auto = (rendimento_auto or {}).get(disc, {}) or {}
-        for campo in ["1º BIM", "2º BIM", "3º BIM", "4º BIM", "RESULTADO FINAL"]:
-            mesclado[disc][campo] = _limpar_prova_paulista_do_rendimento(mesclado[disc].get(campo, ""))
-            auto_valor = _limpar_prova_paulista_do_rendimento(auto.get(campo, ""))
-            if not str(mesclado[disc].get(campo, "") or "").strip() and str(auto_valor or "").strip():
-                mesclado[disc][campo] = auto_valor
+        for bim in BIMESTRES_CADERNO_TUTORIA:
+            atual_limpo = _rendimento_get_nota_sala(mesclado[disc], bim)
+            auto_limpo = _rendimento_get_nota_sala(auto, bim)
+            valor_original = str(mesclado[disc].get(bim, "") or mesclado[disc].get(f"{bim} - Nota da sala", "") or "")
+            valor_sujo_antigo = bool(re.search(r"map[ãa]o\s*:|PP\s*:", valor_original, flags=re.I))
+            if auto_limpo and (not atual_limpo or valor_sujo_antigo):
+                _rendimento_set_nota_sala(mesclado[disc], bim, auto_limpo)
+            else:
+                _rendimento_set_nota_sala(mesclado[disc], bim, atual_limpo)
+        mesclado[disc]["RESULTADO FINAL"] = _rendimento_resultado_final(mesclado[disc])
     return mesclado
 
 
 def _extrair_primeiro_numero_texto(valor):
-    """Extrai o primeiro número de um texto como '8 | observação' ou 'Mapão: 7'."""
+    """Extrai o primeiro número de um texto como '8 | PP: 70%' ou 'Mapão: 7'."""
     if valor in (None, "", "None"):
         return None
     if isinstance(valor, (int, float)) and not pd.isna(valor):
@@ -10199,10 +10236,7 @@ def _ranking_pontuacao_geral(df_alunos_base: pd.DataFrame | None = None) -> pd.D
 
 def _ranking_pontuacao_turmas(df_alunos_base: pd.DataFrame | None = None) -> pd.DataFrame:
     """Ranking justo das salas: usa média da pontuação dos estudantes, não soma bruta."""
-    if isinstance(df_alunos_base, pd.DataFrame) and {"Pontuação", "Estudante", "Turma"}.issubset(df_alunos_base.columns):
-        ranking = df_alunos_base.copy()
-    else:
-        ranking = _ranking_pontuacao_geral(df_alunos_base)
+    ranking = _ranking_pontuacao_geral(df_alunos_base)
     if ranking.empty or "Turma" not in ranking.columns:
         return pd.DataFrame()
     base = ranking.copy()
@@ -10504,15 +10538,22 @@ def gerar_pdf_caderno_tutoria(caderno: dict) -> BytesIO:
     story = []
 
     # Capa
-    story.append(Spacer(1, 1.2*cm))
-    story.append(Paragraph("Caderno de", ParagraphStyle("Capa1", parent=base["Heading1"], alignment=TA_CENTER, fontSize=28, leading=32)))
-    story.append(Paragraph("TUTORIA", ParagraphStyle("Capa2", parent=base["Heading1"], alignment=TA_CENTER, fontName="Helvetica-Bold", fontSize=54, leading=58)))
-    story.append(Paragraph("2026", ParagraphStyle("Capa3", parent=base["Heading1"], alignment=TA_CENTER, fontName="Helvetica-Bold", fontSize=28, leading=34)))
+    logo = _logo_capa_tutoria_reportlab()
+    cabecalho_capa = [
+        [logo, Paragraph("Prof.ª Eliane Aparecida Dantas da Silva - PEI - Ensino Integral<br/>Escola dos Sonhos - 2026", ParagraphStyle("CapaTituloEscola", parent=base["Heading1"], alignment=TA_CENTER, fontName="Helvetica-Bold", fontSize=18, leading=23))]
+    ]
+    t_logo = Table(cabecalho_capa, colWidths=[4.0*cm, 20.2*cm])
+    t_logo.setStyle(TableStyle([("VALIGN", (0,0), (-1,-1), "MIDDLE"), ("ALIGN", (0,0), (0,0), "CENTER")]))
+    story.append(t_logo)
+    story.append(Spacer(1, 0.35*cm))
+    story.append(Paragraph("Endereço: R. Walter Souza Costa, 147 - Jardim Primavera, Ferraz de Vasconcelos - SP<br/>CEP:08535-310 - Telefone: (11) 4675-1855<br/>Email: e918623@educacao.sp.gov.br", ParagraphStyle("CapaEndereco", parent=base["Normal"], alignment=TA_CENTER, fontName="Helvetica-Bold", fontSize=10.5, leading=13)))
     story.append(Spacer(1, 0.8*cm))
+    story.append(Paragraph("Caderno de", ParagraphStyle("Capa1", parent=base["Heading1"], alignment=TA_CENTER, fontSize=26, leading=30)))
+    story.append(Paragraph("TUTORIA", ParagraphStyle("Capa2", parent=base["Heading1"], alignment=TA_CENTER, fontName="Helvetica-Bold", fontSize=48, leading=52)))
+    story.append(Paragraph("2026", ParagraphStyle("Capa3", parent=base["Heading1"], alignment=TA_CENTER, fontName="Helvetica-Bold", fontSize=25, leading=30)))
+    story.append(Spacer(1, 0.65*cm))
     story.append(Paragraph(f"Tutor: {html.escape(str(caderno.get('professor','')))}", ParagraphStyle("CapaTutor", parent=base["Normal"], alignment=TA_CENTER, fontSize=14, leading=18)))
     story.append(Paragraph(f"Estudante: {html.escape(str(caderno.get('estudante','')))} — {html.escape(str(caderno.get('turma','')))}", ParagraphStyle("CapaAluno", parent=base["Normal"], alignment=TA_CENTER, fontSize=11, leading=14)))
-    story.append(Spacer(1, 0.8*cm))
-    story.append(Paragraph("E.E. Profª Eliane Ap. Dantas da Silva", ParagraphStyle("CapaEscola", parent=base["Normal"], alignment=TA_CENTER, fontName="Helvetica-Bold", fontSize=13, leading=16)))
     story.append(PageBreak())
 
     # Identificação e rendimento
@@ -10531,9 +10572,16 @@ def gerar_pdf_caderno_tutoria(caderno: dict) -> BytesIO:
     linhas = [["COMPONENTE CURRICULAR", "1º BIM", "2º BIM", "3º BIM", "4º BIM", "RESULTADO FINAL"]]
     for disc in DISCIPLINAS_CADERNO_TUTORIA:
         reg = (caderno.get("rendimento_bimestral", {}) or {}).get(disc, {}) or {}
-        linhas.append([disc, reg.get("1º BIM", ""), reg.get("2º BIM", ""), reg.get("3º BIM", ""), reg.get("4º BIM", ""), reg.get("RESULTADO FINAL", "")])
+        linhas.append([
+            disc,
+            _rendimento_get_nota_sala(reg, "1º BIM"),
+            _rendimento_get_nota_sala(reg, "2º BIM"),
+            _rendimento_get_nota_sala(reg, "3º BIM"),
+            _rendimento_get_nota_sala(reg, "4º BIM"),
+            _rendimento_resultado_final(reg),
+        ])
     linhas = [[_pdf_texto_caderno(c, styles["cell_bold"] if r == 0 or c == row[0] else styles["cell"]) for c in row] for r, row in enumerate(linhas)]
-    t = Table(linhas, colWidths=[7.2*cm, 3.0*cm, 3.0*cm, 3.0*cm, 3.0*cm, 5.0*cm], repeatRows=1)
+    t = Table(linhas, colWidths=[7.2*cm, 3.2*cm, 3.2*cm, 3.2*cm, 3.2*cm, 4.2*cm], repeatRows=1)
     t.setStyle(TableStyle([("GRID", (0,0), (-1,-1), 0.35, colors.black), ("BACKGROUND", (0,0), (-1,0), colors.lightgrey), ("VALIGN", (0,0), (-1,-1), "MIDDLE")]))
     story.append(t)
     story.append(Spacer(1, 0.25*cm))
@@ -10764,7 +10812,7 @@ def render_caderno_tutoria_online(TUTORIA: dict, df_alunos: pd.DataFrame | None 
 
     with tab_rend:
         st.markdown("### Rendimento Bimestral")
-        st.caption("O rendimento pode ser preenchido manualmente ou carregado automaticamente a partir do Mapão já salvo.")
+        st.caption("O rendimento pode ser preenchido manualmente ou carregado automaticamente a partir das notas/menções do Mapão já salvas.")
         rendimento = caderno.get("rendimento_bimestral", {})
         rendimento_auto = _rendimento_automatico_aluno(aluno.get("nome", ""), aluno.get("ra", ""), aluno.get("turma", ""))
         resumo_mapao_auto = _resumo_mapao_tutoria_aluno(aluno.get("nome", ""), aluno.get("ra", ""), aluno.get("turma", ""))
@@ -10780,11 +10828,11 @@ def render_caderno_tutoria_online(TUTORIA: dict, df_alunos: pd.DataFrame | None 
                 if resumo_mapao_auto:
                     caderno["resumo_mapao_tutoria"] = resumo_mapao_auto
                 _atualizar_caderno(cadernos, chave, caderno)
-                st.success("Rendimento, menções e frequência do Mapão foram atualizados sem apagar campos manuais já preenchidos.")
+                st.success("Rendimento, menções e frequência do Mapão foram atualizados. Prefixos antigos como Mapão: foram removidos automaticamente.")
                 st.rerun()
         with col_auto_2:
             if tem_auto or resumo_mapao_auto:
-                st.info("Há dados do Mapão disponíveis para este estudante. O botão ao lado preenche apenas campos vazios.")
+                st.info("Há dados do Mapão disponíveis para este estudante. O botão ao lado atualiza as notas do Mapão e limpa prefixos antigos.")
             else:
                 st.warning("Ainda não encontrei Mapão salvo para este estudante.")
 
@@ -10805,17 +10853,26 @@ def render_caderno_tutoria_online(TUTORIA: dict, df_alunos: pd.DataFrame | None 
 
         rendimento = caderno.get("rendimento_bimestral", {})
         rendimento_para_exibicao = _mesclar_rendimento_sem_perder_manual(rendimento, rendimento_auto)
-        df_rend = pd.DataFrame([{"COMPONENTE CURRICULAR": disc, **(rendimento_para_exibicao.get(disc) or {})} for disc in DISCIPLINAS_CADERNO_TUTORIA])
-        df_edit = st.data_editor(df_rend, use_container_width=True, hide_index=True, num_rows="fixed", key=f"editor_rendimento_prof_{chave}")
+        linhas_rend = []
+        for disc in DISCIPLINAS_CADERNO_TUTORIA:
+            reg = rendimento_para_exibicao.get(disc) or {}
+            linha = {"COMPONENTE CURRICULAR": disc}
+            for bim in BIMESTRES_CADERNO_TUTORIA:
+                linha[bim] = _rendimento_get_nota_sala(reg, bim)
+            linha["RESULTADO FINAL"] = _rendimento_resultado_final(reg)
+            linhas_rend.append(linha)
+        df_rend = pd.DataFrame(linhas_rend)
+        st.caption("Esta tabela mostra somente as notas/menções do Mapão. A Prova Paulista não entra no caderno de Tutoria.")
+        df_edit = st.data_editor(df_rend, use_container_width=True, hide_index=True, num_rows="fixed", key=f"editor_rendimento_prof_limpo_mapao_{chave}")
         novo_rendimento = {}
         for _, row in df_edit.iterrows():
             disc = str(row.get("COMPONENTE CURRICULAR", "")).strip()
             if disc:
-                novo_rendimento[disc] = {
-                    "1º BIM": str(row.get("1º BIM", "")), "2º BIM": str(row.get("2º BIM", "")),
-                    "3º BIM": str(row.get("3º BIM", "")), "4º BIM": str(row.get("4º BIM", "")),
-                    "RESULTADO FINAL": str(row.get("RESULTADO FINAL", "")),
-                }
+                reg = _modelo_rendimento_disciplina()
+                for bim in BIMESTRES_CADERNO_TUTORIA:
+                    _rendimento_set_nota_sala(reg, bim, row.get(bim, ""))
+                reg["RESULTADO FINAL"] = str(row.get("RESULTADO FINAL", "") or "").strip() or _rendimento_resultado_final(reg)
+                novo_rendimento[disc] = reg
         caderno["rendimento_bimestral"] = novo_rendimento
         st.markdown("### Participação dos Pais nas Reuniões")
         participacao = caderno.get("participacao_pais", {})
@@ -11329,8 +11386,8 @@ def _top10_prova_paulista(df: pd.DataFrame) -> pd.DataFrame:
 # ======================================================
 MAPAO_LOCAL = DATA_DIR / "mapao_online.json"
 COLUNAS_MAPAO_PADRAO = [
-    "Estudante", "Turma", "Situação", "Frequência (%)", "Faltas", "Faltas anuais",
-    "Notas abaixo de cinco", "Componentes", "Bimestre"
+    "Estudante", "RA", "Turma", "Ciclo", "Turno", "Situação", "Frequência (%)", "Faltas", "Faltas anuais",
+    "Notas abaixo de cinco", "Componentes", "Bimestre", "Ano letivo", "Total de Aulas", "Arquivo origem"
 ]
 
 
@@ -11401,9 +11458,7 @@ def _salvar_mapao_local(df: pd.DataFrame) -> None:
 def _render_pagina_mapao():
     page_header("🗺️ Mapão", "Importe frequência, situação e componentes para Conselho e Tutoria", "#059669")
     st.info("Mapão é a planilha pedagógica da turma. Mapa da Sala fica em outra página, apenas para organização dos assentos.")
-    df_mapao = st.session_state.get("mapao_busca_df", pd.DataFrame())
-    if not isinstance(df_mapao, pd.DataFrame):
-        df_mapao = pd.DataFrame()
+    df_mapao = _carregar_mapao_local()
     aba_upload, aba_dados = st.tabs(["📥 Importar Mapão", "🧾 Dados arquivados"])
     with aba_upload:
         arquivo = st.file_uploader("Enviar planilha/PDF do Mapão (.xlsx, .xls, .csv ou .pdf)", type=["xlsx", "xls", "csv", "pdf"], key="upload_mapao_online")
@@ -11735,154 +11790,6 @@ def _salvar_prova_paulista_supabase(df: pd.DataFrame) -> tuple[bool, str]:
         return False, f"Falha ao salvar no Supabase: {e}"
 
 
-def _url_valor_supabase(valor) -> str:
-    return requests.utils.quote(str(valor or "").strip(), safe="")
-
-
-def _limite_busca_supabase(limite, padrao: int = 300, maximo: int = 2000) -> int:
-    try:
-        valor = int(limite)
-    except Exception:
-        valor = padrao
-    return max(1, min(valor, maximo))
-
-
-def _filtrar_dataframe_busca_pedagogica(
-    df: pd.DataFrame,
-    turma: str = "",
-    estudante: str = "",
-    ra: str = "",
-    bimestre: str = "",
-    ano_letivo: str = "",
-) -> pd.DataFrame:
-    if df is None or df.empty:
-        return pd.DataFrame()
-    base = df.copy()
-    mask = pd.Series(True, index=base.index)
-
-    if turma and "Turma" in base.columns:
-        turma_norm = normalizar_texto(classificar_turma_sistema(turma).get("turma", turma))
-        mask = mask & base["Turma"].astype(str).apply(lambda v: normalizar_texto(formatar_turma_eletiva(v)) == turma_norm)
-    if bimestre and "Bimestre" in base.columns:
-        bim_norm = normalizar_texto(bimestre)
-        mask = mask & base["Bimestre"].astype(str).apply(lambda v: normalizar_texto(v) == bim_norm)
-    if ano_letivo and "Ano letivo" in base.columns:
-        ano_norm = str(ano_letivo).strip()
-        mask = mask & base["Ano letivo"].astype(str).str.strip().eq(ano_norm)
-    if ra:
-        ra_norm = _normalizar_ra_estudante(ra)
-        for col in ["RA", "ra"]:
-            if col in base.columns:
-                mask = mask & base[col].astype(str).apply(_normalizar_ra_estudante).eq(ra_norm)
-                break
-    if estudante and "Estudante" in base.columns:
-        estudante_norm = _normalizar_chave_estudante(estudante)
-        mask = mask & base["Estudante"].astype(str).apply(lambda v: estudante_norm in _normalizar_chave_estudante(v))
-
-    return base[mask].copy()
-
-
-def _consultar_supabase_busca_pedagogica(
-    tabela: str,
-    select_cols: str,
-    acao: str,
-    turma: str = "",
-    estudante: str = "",
-    ra: str = "",
-    bimestre: str = "",
-    ano_letivo: str = "",
-    limite: int = 300,
-) -> pd.DataFrame:
-    if not SUPABASE_VALID:
-        return pd.DataFrame()
-    partes = [f"{tabela}?select={select_cols}"]
-    if turma:
-        turma_final = classificar_turma_sistema(turma).get("turma", turma)
-        partes.append(f"turma=eq.{_url_valor_supabase(turma_final)}")
-    if bimestre:
-        partes.append(f"bimestre=eq.{_url_valor_supabase(bimestre)}")
-    if ano_letivo:
-        partes.append(f"ano_letivo=eq.{_url_valor_supabase(ano_letivo)}")
-    if ra:
-        partes.append(f"ra=eq.{_url_valor_supabase(_normalizar_ra_estudante(ra))}")
-    elif estudante:
-        partes.append(f"estudante=ilike.*{_url_valor_supabase(estudante)}*")
-    partes.append("order=created_at.desc")
-    partes.append(f"limit={_limite_busca_supabase(limite)}")
-    return _supabase_get_dataframe("&".join(partes), acao)
-
-
-def _fontes_locais_prova_paulista() -> list[pd.DataFrame]:
-    fontes = []
-    for chave in ["df_prova_paulista", "prova_paulista_df", "df_prova_paulista_online"]:
-        obj = st.session_state.get(chave)
-        if isinstance(obj, pd.DataFrame) and not obj.empty:
-            fontes.append(obj)
-    try:
-        if PROVA_PAULISTA_LOCAL.exists():
-            fontes.append(pd.read_json(PROVA_PAULISTA_LOCAL, orient="records"))
-    except Exception:
-        pass
-    return fontes
-
-
-def _carregar_prova_paulista_filtrada(
-    turma: str = "",
-    estudante: str = "",
-    ra: str = "",
-    bimestre: str = "",
-    ano_letivo: str = "",
-    limite: int = 300,
-) -> pd.DataFrame:
-    fontes = []
-    try:
-        df_sup = _consultar_supabase_busca_pedagogica(
-            "prova_paulista_resultados",
-            "ano_letivo,bimestre,turma,ciclo,turno,ra,estudante,participacao,acertos_percentual,componentes,arquivo_origem,created_at",
-            "buscar prova paulista",
-            turma=turma,
-            estudante=estudante,
-            ra=ra,
-            bimestre=bimestre,
-            ano_letivo=ano_letivo,
-            limite=limite,
-        )
-        if isinstance(df_sup, pd.DataFrame) and not df_sup.empty:
-            df_sup = df_sup.rename(columns={
-                "ra": "RA",
-                "estudante": "Estudante",
-                "turma": "Turma",
-                "ciclo": "Ciclo",
-                "turno": "Turno",
-                "bimestre": "Bimestre",
-                "ano_letivo": "Ano letivo",
-                "participacao": "Participação",
-                "acertos_percentual": "Acertos",
-                "arquivo_origem": "Arquivo origem",
-            })
-            fontes.append(df_sup)
-    except Exception as e:
-        logger.warning(f"Falha na busca filtrada da Prova Paulista: {e}")
-
-    for fonte in _fontes_locais_prova_paulista():
-        filtrada = _filtrar_dataframe_busca_pedagogica(
-            _normalizar_dataframe_prova_paulista(fonte),
-            turma=turma,
-            estudante=estudante,
-            ra=ra,
-            bimestre=bimestre,
-            ano_letivo=ano_letivo,
-        )
-        if not filtrada.empty:
-            fontes.append(filtrada.head(_limite_busca_supabase(limite)))
-
-    if not fontes:
-        return pd.DataFrame(columns=COLUNAS_PROVA_PAULISTA_PADRAO)
-    df = pd.concat([_normalizar_dataframe_prova_paulista(f) for f in fontes], ignore_index=True)
-    df = df.drop_duplicates(subset=["Ano letivo", "Bimestre", "Turma", "RA", "Estudante"], keep="last")
-    return df.head(_limite_busca_supabase(limite)).reset_index(drop=True)
-
-
 def _carregar_prova_paulista_local() -> pd.DataFrame:
     fontes = []
     if SUPABASE_VALID:
@@ -11964,9 +11871,7 @@ def _top10_prova_paulista(df: pd.DataFrame) -> pd.DataFrame:
 
 def _render_pagina_prova_paulista():
     page_header("🏆 Prova Paulista", "Importação, conferência, salvamento e ranking por turma", "#2563eb")
-    df_pp = st.session_state.get("prova_paulista_busca_df", pd.DataFrame())
-    if not isinstance(df_pp, pd.DataFrame):
-        df_pp = pd.DataFrame()
+    df_pp = _carregar_prova_paulista_local()
     tab_base, tab_editor, tab_top10 = st.tabs(["📥 Carregar dados", "🧾 Dados da Prova Paulista", "🏅 Top 10"])
 
     with tab_base:
@@ -12099,43 +12004,13 @@ def _render_pagina_prova_paulista():
                     st.session_state.pop("prova_paulista_preview", None)
                     st.rerun()
         elif df_pp.empty:
-            st.info("Para revisar dados já salvos, use a aba Dados da Prova Paulista e faça uma busca por turma, estudante ou bimestre.")
+            st.warning("Nenhum dado da Prova Paulista salvo ainda.")
         else:
             st.info("Há dados salvos. Use a aba Dados da Prova Paulista para revisar.")
 
     with tab_editor:
         st.markdown("### Conferir e editar dados salvos")
-        with st.form("form_busca_prova_paulista"):
-            st.caption("Busque apenas o recorte que deseja revisar. Isso evita carregar toda a base da Prova Paulista.")
-            b1, b2, b3, b4, b5 = st.columns([1.2, 1.4, 0.9, 0.8, 0.7])
-            with b1:
-                busca_turma_pp = st.selectbox("Turma", _opcoes_turmas_com_vazio(), key="pp_busca_turma", format_func=_formatar_opcao_turma_select)
-            with b2:
-                busca_estudante_pp = st.text_input("Estudante ou RA", value="", key="pp_busca_estudante", placeholder="Nome ou RA")
-            with b3:
-                busca_bimestre_pp = st.selectbox("Bimestre", ["", "1º Bimestre", "2º Bimestre", "3º Bimestre", "4º Bimestre"], key="pp_busca_bimestre")
-            with b4:
-                busca_ano_pp = st.text_input("Ano", value=str(datetime.now().year), key="pp_busca_ano")
-            with b5:
-                busca_limite_pp = st.number_input("Limite", min_value=50, max_value=2000, value=300, step=50, key="pp_busca_limite")
-            buscar_pp = st.form_submit_button("🔎 Buscar Prova Paulista", type="primary", use_container_width=True)
-
-        if buscar_pp:
-            termo_pp = str(busca_estudante_pp or "").strip()
-            ra_pp = termo_pp if termo_pp.isdigit() else ""
-            estudante_pp = "" if ra_pp else termo_pp
-            df_pp = _carregar_prova_paulista_filtrada(
-                turma=busca_turma_pp,
-                estudante=estudante_pp,
-                ra=ra_pp,
-                bimestre=busca_bimestre_pp,
-                ano_letivo=busca_ano_pp,
-                limite=int(busca_limite_pp),
-            )
-            st.session_state["prova_paulista_busca_df"] = df_pp
-
         if not df_pp.empty:
-            st.caption(f"{len(df_pp)} registro(s) carregado(s) para edição.")
             sem_turma = df_pp["Turma"].astype(str).str.strip().eq("")
             if sem_turma.any():
                 with st.expander("⚠️ Corrigir dados antigos sem turma", expanded=True):
@@ -12163,8 +12038,7 @@ def _render_pagina_prova_paulista():
                             st.rerun()
 
         if df_pp.empty:
-            st.info("Informe os filtros acima e clique em Buscar para carregar os registros.")
-            df_pp = pd.DataFrame(columns=COLUNAS_PROVA_PAULISTA_PADRAO)
+            df_pp = pd.DataFrame([{c: "" for c in COLUNAS_PROVA_PAULISTA_PADRAO}])
         editado = st.data_editor(
             _normalizar_dataframe_prova_paulista(df_pp),
             use_container_width=True,
@@ -12174,16 +12048,15 @@ def _render_pagina_prova_paulista():
             key="editor_prova_paulista_restaurado",
         )
         if st.button("💾 Salvar alterações da Prova Paulista", type="primary", use_container_width=True):
-            ok, msg = _salvar_prova_paulista_local(editado, tentar_supabase=True, mesclar_com_existente=True)
+            ok, msg = _salvar_prova_paulista_local(editado, tentar_supabase=True)
             st.success(msg) if ok else st.warning(msg)
-            st.session_state["prova_paulista_busca_df"] = _normalizar_dataframe_prova_paulista(editado)
             st.rerun()
 
     with tab_top10:
         st.markdown("### 🏅 Top 10 da Prova Paulista")
         ranking = _top10_prova_paulista(df_pp)
         if ranking.empty:
-            st.info("Faça uma busca na aba Dados da Prova Paulista para montar o Top 10 do recorte carregado.")
+            st.info("Carregue e salve uma planilha para montar o ranking por acertos.")
         else:
             st.dataframe(ranking, use_container_width=True, hide_index=True, height=420)
 
@@ -12596,9 +12469,7 @@ def _preparar_dataframe_para_editor_streamlit(df: pd.DataFrame) -> pd.DataFrame:
 def _render_pagina_mapao():
     page_header("🗺️ Mapão", "Importe frequência, situação e componentes para Conselho e Tutoria", "#059669")
     st.info("Mapão é a planilha pedagógica da turma. Mapa da Sala fica em outra página, apenas para organização dos assentos.")
-    df_mapao = st.session_state.get("mapao_busca_df", pd.DataFrame())
-    if not isinstance(df_mapao, pd.DataFrame):
-        df_mapao = pd.DataFrame()
+    df_mapao = _carregar_mapao_local()
     aba_upload, aba_dados = st.tabs(["📥 Importar Mapão", "🧾 Dados arquivados"])
     with aba_upload:
         opcoes_turma = _opcoes_turmas_com_vazio()
@@ -12653,49 +12524,16 @@ def _render_pagina_mapao():
                     st.session_state.pop("mapao_preview", None)
                     st.rerun()
         elif df_mapao.empty:
-            st.info("Para revisar Mapões já salvos, use a aba Dados arquivados e faça uma busca por turma, estudante ou bimestre.")
+            st.warning("Nenhum Mapão arquivado ainda.")
         else:
             st.info("Há Mapão salvo. Use a aba Dados arquivados para revisar.")
     with aba_dados:
-        with st.form("form_busca_mapao"):
-            st.caption("Busque somente o recorte que deseja revisar. Assim a página não carrega o Mapão inteiro.")
-            b1, b2, b3, b4, b5 = st.columns([1.2, 1.4, 0.9, 0.8, 0.7])
-            with b1:
-                busca_turma_mapao = st.selectbox("Turma", _opcoes_turmas_com_vazio(), key="mapao_busca_turma", format_func=_formatar_opcao_turma_select)
-            with b2:
-                busca_estudante_mapao = st.text_input("Estudante ou RA", value="", key="mapao_busca_estudante", placeholder="Nome ou RA")
-            with b3:
-                busca_bimestre_mapao = st.selectbox("Bimestre", ["", "1º Bimestre", "2º Bimestre", "3º Bimestre", "4º Bimestre"], key="mapao_busca_bimestre")
-            with b4:
-                busca_ano_mapao = st.text_input("Ano", value=str(datetime.now().year), key="mapao_busca_ano")
-            with b5:
-                busca_limite_mapao = st.number_input("Limite", min_value=50, max_value=2000, value=300, step=50, key="mapao_busca_limite")
-            buscar_mapao = st.form_submit_button("🔎 Buscar Mapão", type="primary", use_container_width=True)
-
-        if buscar_mapao:
-            termo_mapao = str(busca_estudante_mapao or "").strip()
-            ra_mapao = termo_mapao if termo_mapao.isdigit() else ""
-            estudante_mapao = "" if ra_mapao else termo_mapao
-            df_mapao = _carregar_mapao_filtrada(
-                turma=busca_turma_mapao,
-                estudante=estudante_mapao,
-                ra=ra_mapao,
-                bimestre=busca_bimestre_mapao,
-                ano_letivo=busca_ano_mapao,
-                limite=int(busca_limite_mapao),
-            )
-            st.session_state["mapao_busca_df"] = df_mapao
-
         if df_mapao.empty:
-            st.info("Informe os filtros acima e clique em Buscar para carregar os registros.")
-            df_mapao = pd.DataFrame(columns=COLUNAS_MAPAO_PADRAO)
-        else:
-            st.caption(f"{len(df_mapao)} registro(s) carregado(s) para edição.")
+            df_mapao = pd.DataFrame([{c: "" for c in COLUNAS_MAPAO_PADRAO}])
         editado = st.data_editor(_preparar_dataframe_para_editor_streamlit(df_mapao), use_container_width=True, hide_index=True, height=560, num_rows="dynamic", key="editor_mapao_online")
         if st.button("💾 Salvar alterações do Mapão", type="primary", use_container_width=True):
-            ok, msg = _salvar_mapao_local(editado, tentar_supabase=True, mesclar_com_existente=True)
+            ok, msg = _salvar_mapao_local(editado, tentar_supabase=True)
             st.success(msg) if ok else st.warning(msg)
-            st.session_state["mapao_busca_df"] = _normalizar_dataframe_mapao(editado)
             st.rerun()
 
 
@@ -12807,92 +12645,8 @@ def _salvar_mapao_local(df: pd.DataFrame, tentar_supabase: bool = True, mesclar_
     return True, "Mapão salvo localmente."
 
 
-def _fontes_locais_mapao() -> list[pd.DataFrame]:
-    fontes = []
-    for chave in ["df_mapao", "mapao_df", "df_mapao_online"]:
-        obj = st.session_state.get(chave)
-        if isinstance(obj, pd.DataFrame) and not obj.empty:
-            fontes.append(obj)
-    try:
-        if MAPAO_LOCAL.exists():
-            fontes.append(pd.read_json(MAPAO_LOCAL, orient="records"))
-    except Exception:
-        pass
-    return fontes
-
-
-def _carregar_mapao_filtrada(
-    turma: str = "",
-    estudante: str = "",
-    ra: str = "",
-    bimestre: str = "",
-    ano_letivo: str = "",
-    limite: int = 300,
-) -> pd.DataFrame:
-    fontes = []
-    try:
-        df_sup = _consultar_supabase_busca_pedagogica(
-            "mapao_resultados",
-            "ano_letivo,bimestre,turma,ciclo,turno,estudante,ra,situacao,frequencia_percentual,frequencia,faltas,faltas_anuais,notas_abaixo_cinco,componentes,total_aulas,arquivo_origem,created_at",
-            "buscar mapão",
-            turma=turma,
-            estudante=estudante,
-            ra=ra,
-            bimestre=bimestre,
-            ano_letivo=ano_letivo,
-            limite=limite,
-        )
-        if isinstance(df_sup, pd.DataFrame) and not df_sup.empty:
-            df_sup = df_sup.rename(columns={
-                "estudante": "Estudante",
-                "ra": "RA",
-                "turma": "Turma",
-                "ciclo": "Ciclo",
-                "turno": "Turno",
-                "bimestre": "Bimestre",
-                "ano_letivo": "Ano letivo",
-                "situacao": "Situação",
-                "frequencia_percentual": "Frequência (%)",
-                "frequencia": "Frequência (%)",
-                "faltas": "Faltas",
-                "faltas_anuais": "Faltas anuais",
-                "notas_abaixo_cinco": "Notas abaixo de cinco",
-                "componentes": "Componentes",
-                "total_aulas": "Total de Aulas",
-                "arquivo_origem": "Arquivo origem",
-            })
-            if "Componentes" in df_sup.columns:
-                df_sup["Componentes"] = df_sup["Componentes"].apply(
-                    lambda v: json.dumps(v, ensure_ascii=False) if isinstance(v, (dict, list)) else v
-                )
-            fontes.append(df_sup)
-    except Exception as e:
-        logger.warning(f"Falha na busca filtrada do Mapão: {e}")
-
-    for fonte in _fontes_locais_mapao():
-        filtrada = _filtrar_dataframe_busca_pedagogica(
-            _normalizar_dataframe_mapao(fonte),
-            turma=turma,
-            estudante=estudante,
-            ra=ra,
-            bimestre=bimestre,
-            ano_letivo=ano_letivo,
-        )
-        if not filtrada.empty:
-            fontes.append(filtrada.head(_limite_busca_supabase(limite)))
-
-    if not fontes:
-        return pd.DataFrame(columns=COLUNAS_MAPAO_PADRAO)
-    df = pd.concat([_normalizar_dataframe_mapao(f) for f in fontes], ignore_index=True)
-    try:
-        df = df.drop_duplicates(subset=["Ano letivo", "Bimestre", "Turma", "Estudante"], keep="last")
-    except Exception:
-        pass
-    return df.head(_limite_busca_supabase(limite)).reset_index(drop=True)
-
-
 def _filtrar_aluno_df(df: pd.DataFrame, nome: str, ra: str = "", turma: str = "") -> pd.DataFrame:
-    """Filtra aluno com RA quando houver e com nome normalizado/flexível quando não houver RA."""
+    """Filtra aluno com RA, nome normalizado e aproximação segura dentro da mesma turma."""
     if df is None or df.empty:
         return pd.DataFrame()
     base = df.copy()
@@ -12900,29 +12654,46 @@ def _filtrar_aluno_df(df: pd.DataFrame, nome: str, ra: str = "", turma: str = ""
     nome_norm = _normalizar_chave_estudante(nome)
     turma_norm = normalizar_texto(turma)
 
-    mask = pd.Series(False, index=base.index)
+    # Primeiro limita por turma quando possível. Isso evita cruzar estudantes parecidos de salas diferentes.
+    base_turma = base
+    if turma_norm:
+        for col in ["Turma", "turma"]:
+            if col in base.columns:
+                turma_col = base[col].astype(str).apply(normalizar_texto)
+                candidato = base[turma_col == turma_norm].copy()
+                if not candidato.empty:
+                    base_turma = candidato
+                break
+
+    mask = pd.Series(False, index=base_turma.index)
     if ra_norm:
         for col in ["RA", "ra", "NR RA", "nr_ra"]:
-            if col in base.columns:
-                mask = mask | (base[col].astype(str).apply(_normalizar_ra_estudante) == ra_norm)
+            if col in base_turma.columns:
+                mask = mask | (base_turma[col].astype(str).apply(_normalizar_ra_estudante) == ra_norm)
 
     if nome_norm:
         for col in ["Estudante", "estudante", "aluno", "Aluno", "nome", "Nome"]:
-            if col in base.columns:
-                nomes_col = base[col].astype(str).apply(_normalizar_chave_estudante)
+            if col in base_turma.columns:
+                nomes_col = base_turma[col].astype(str).apply(_normalizar_chave_estudante)
                 mask = mask | (nomes_col == nome_norm)
-                # Fallback para pequenas diferenças de acento, ordem ou espaços.
                 mask = mask | nomes_col.apply(lambda x: bool(x and nome_norm and (x in nome_norm or nome_norm in x)))
 
-    filtrado = base[mask].copy()
-    if turma_norm and not filtrado.empty:
-        for col in ["Turma", "turma"]:
-            if col in filtrado.columns:
-                turma_col = filtrado[col].astype(str).apply(normalizar_texto)
-                filtrado_turma = filtrado[turma_col == turma_norm].copy()
-                if not filtrado_turma.empty:
-                    return filtrado_turma
-    return filtrado
+                # Última tentativa: similaridade alta, útil quando o Mapão vem com nome abreviado
+                # ou com parte do sobrenome diferente. Só vale dentro da turma filtrada.
+                if not mask.any():
+                    scores = nomes_col.apply(lambda x: SequenceMatcher(None, x, nome_norm).ratio() if x and nome_norm else 0)
+                    if not scores.empty and scores.max() >= 0.82:
+                        mask = scores >= scores.max()
+                break
+
+    filtrado = base_turma[mask].copy()
+    if not filtrado.empty:
+        return filtrado
+
+    # Fallback antigo, sem limitar turma, para bases que não possuem coluna Turma.
+    if base_turma is not base:
+        return _filtrar_aluno_df(base, nome, ra, "")
+    return pd.DataFrame()
 
 
 def _ranking_pontuacao_geral(df_alunos_base: pd.DataFrame | None = None) -> pd.DataFrame:
@@ -12981,6 +12752,253 @@ def _ranking_pontuacao_geral(df_alunos_base: pd.DataFrame | None = None) -> pd.D
         ranking = ranking.sort_values(["Tem dados pedagógicos", "Pontuação", "Média global Mapão", "Prova Paulista (%)", "Estudante"], ascending=[False, False, False, False, True]).reset_index(drop=True)
         ranking["Posição"] = range(1, len(ranking) + 1)
     return ranking
+
+
+# ======================================================
+# CORREÇÃO DEFINITIVA - TUTORIA USA SOMENTE NOTA LIMPA DO MAPÃO
+# ======================================================
+# Este bloco fica no final do arquivo para sobrescrever versões anteriores.
+# Objetivo:
+# 1) Remover definitivamente prefixos como "Mapão:" da tela e do PDF.
+# 2) Não misturar Prova Paulista no rendimento do Caderno de Tutoria.
+# 3) Encontrar o estudante no Mapão por RA, nome normalizado e nome aproximado dentro da turma.
+
+def _limpar_nota_mapao_para_exibir(valor) -> str:
+    """Retorna somente a nota/menção do Mapão, sem prefixo e sem Prova Paulista."""
+    if valor in (None, "", "None"):
+        return ""
+    texto = str(valor).strip()
+    if not texto or texto.lower() in {"nan", "none", "null", "<na>"}:
+        return ""
+
+    # Remove qualquer pedaço de Prova Paulista que tenha sido salvo junto no passado.
+    texto = re.sub(r"\s*[|;,-]?\s*PP\s*[:=-]\s*\d+(?:[\.,]\d+)?\s*%?\s*", "", texto, flags=re.I).strip()
+    texto = re.sub(r"\s*prova\s+paulista\s*[:=-]\s*\d+(?:[\.,]\d+)?\s*%?\s*", "", texto, flags=re.I).strip()
+
+    # Remove prefixos antigos do Mapão/nota da sala.
+    texto = re.sub(r"^\s*map[ãa]o\s*[:=-]\s*", "", texto, flags=re.I).strip()
+    texto = re.sub(r"^\s*nota\s*(da\s*sala)?\s*[:=-]\s*", "", texto, flags=re.I).strip()
+
+    # Se ainda ficou algo como "Mapão: 7 | ...", pega só o primeiro valor útil.
+    texto = texto.split("|")[0].split(";")[0].strip()
+    texto = re.sub(r"^\s*map[ãa]o\s*[:=-]\s*", "", texto, flags=re.I).strip()
+
+    return texto
+
+
+def _rendimento_get_nota_sala(reg: dict, bim: str) -> str:
+    """Lê somente a nota da sala/Mapão para o bimestre."""
+    reg = reg or {}
+    for chave in [f"{bim} - Nota da sala", bim, f"{bim} - Mapão", f"{bim} - Mapao"]:
+        valor = _limpar_nota_mapao_para_exibir(reg.get(chave, ""))
+        if valor:
+            return valor
+    return ""
+
+
+def _rendimento_set_nota_sala(reg: dict, bim: str, valor) -> None:
+    """Salva a nota já limpa, sem prefixo Mapão e sem PP."""
+    valor_limpo = _limpar_nota_mapao_para_exibir(valor)
+    reg[f"{bim} - Nota da sala"] = valor_limpo
+    reg[bim] = valor_limpo
+    # Limpa campos antigos que causavam reaparecimento de prefixo na tela/PDF.
+    reg.pop(f"{bim} - Mapão", None)
+    reg.pop(f"{bim} - Mapao", None)
+    reg.pop(f"{bim} - Prova Paulista", None)
+
+
+def _rendimento_resultado_final(reg: dict) -> str:
+    """Resultado final usa apenas o último bimestre com nota do Mapão."""
+    reg = reg or {}
+    direto = _limpar_nota_mapao_para_exibir(reg.get("RESULTADO FINAL", ""))
+    if direto:
+        return direto
+    for bim in reversed(BIMESTRES_CADERNO_TUTORIA):
+        valor = _rendimento_get_nota_sala(reg, bim)
+        if valor:
+            return valor
+    return ""
+
+
+def _filtrar_aluno_df(df: pd.DataFrame, nome: str, ra: str = "", turma: str = "") -> pd.DataFrame:
+    """Filtra aluno no Mapão/PP/Ocorrências com tolerância, priorizando RA e turma."""
+    if df is None or df.empty:
+        return pd.DataFrame()
+
+    base = df.copy()
+    ra_norm = _normalizar_ra_estudante(ra)
+    nome_norm = _normalizar_chave_estudante(nome)
+    turma_norm = normalizar_texto(turma)
+
+    # Limita por turma primeiro, quando existir. Isso evita pegar homônimos de outra sala.
+    base_turma = base
+    if turma_norm:
+        for col in ["Turma", "turma", "serie", "Série", "Ano/Série"]:
+            if col in base.columns:
+                cand = base[base[col].astype(str).apply(normalizar_texto) == turma_norm].copy()
+                if not cand.empty:
+                    base_turma = cand
+                break
+
+    # 1) RA exato.
+    if ra_norm:
+        for col in ["RA", "ra", "NR RA", "nr_ra"]:
+            if col in base_turma.columns:
+                achado = base_turma[base_turma[col].astype(str).apply(_normalizar_ra_estudante) == ra_norm].copy()
+                if not achado.empty:
+                    return achado
+
+    # 2) Nome exato normalizado.
+    if nome_norm:
+        for col in ["Estudante", "estudante", "aluno", "Aluno", "nome", "Nome", "Nome do Aluno"]:
+            if col in base_turma.columns:
+                nomes = base_turma[col].astype(str).apply(_normalizar_chave_estudante)
+                achado = base_turma[nomes == nome_norm].copy()
+                if not achado.empty:
+                    return achado
+
+                # 3) Nome contido, útil quando uma base tem sobrenome a mais ou a menos.
+                achado = base_turma[nomes.apply(lambda x: bool(x and nome_norm and (x in nome_norm or nome_norm in x)))].copy()
+                if not achado.empty:
+                    return achado
+
+                # 4) Similaridade alta dentro da turma.
+                scores = nomes.apply(lambda x: SequenceMatcher(None, x, nome_norm).ratio() if x and nome_norm else 0)
+                if not scores.empty and scores.max() >= 0.80:
+                    return base_turma[scores >= scores.max()].copy()
+                break
+
+    # Fallback sem turma, para casos em que o registro veio sem turma ou a turma foi digitada em formato diferente.
+    if base_turma is not base:
+        return _filtrar_aluno_df(base, nome, ra, "")
+    return pd.DataFrame()
+
+
+def _rendimento_automatico_aluno(nome: str, ra: str = "", turma: str = "") -> dict:
+    """Monta o rendimento usando apenas notas/menções do Mapão."""
+    rendimento = {disc: _modelo_rendimento_disciplina() for disc in DISCIPLINAS_CADERNO_TUTORIA}
+    df_mapao = _resumo_mapao_aluno(nome, ra, turma)
+    if df_mapao is None or df_mapao.empty:
+        return rendimento
+
+    for _, row in df_mapao.iterrows():
+        bim = _bimestre_para_coluna_caderno(row.get("Bimestre", ""))
+        componentes = _mapao_componentes_objeto(row.get("Componentes", {}))
+        if not isinstance(componentes, dict):
+            continue
+        for comp, dados in componentes.items():
+            disc = _componente_para_disciplina_caderno(comp)
+            if disc not in rendimento:
+                continue
+            if isinstance(dados, dict):
+                mencao = dados.get("mencao", dados.get("nota", dados.get("valor", "")))
+            else:
+                mencao = dados
+            mencao = _limpar_nota_mapao_para_exibir(_valor_numerico_ou_texto(mencao))
+            if mencao:
+                _rendimento_set_nota_sala(rendimento[disc], bim, mencao)
+
+    for disc, dados in rendimento.items():
+        dados["RESULTADO FINAL"] = _rendimento_resultado_final(dados)
+    return rendimento
+
+
+def _mesclar_rendimento_sem_perder_manual(rendimento_atual: dict, rendimento_auto: dict) -> dict:
+    """Mescla Mapão com campos manuais e limpa prefixos antigos sempre."""
+    mesclado = json.loads(json.dumps(rendimento_atual or {}, ensure_ascii=False)) if isinstance(rendimento_atual, dict) else {}
+    for disc in DISCIPLINAS_CADERNO_TUTORIA:
+        mesclado.setdefault(disc, _modelo_rendimento_disciplina())
+        auto = (rendimento_auto or {}).get(disc, {}) or {}
+        for bim in BIMESTRES_CADERNO_TUTORIA:
+            atual_limpo = _rendimento_get_nota_sala(mesclado[disc], bim)
+            auto_limpo = _rendimento_get_nota_sala(auto, bim)
+            valor_final = auto_limpo or atual_limpo
+            _rendimento_set_nota_sala(mesclado[disc], bim, valor_final)
+        mesclado[disc]["RESULTADO FINAL"] = _rendimento_resultado_final(mesclado[disc])
+    return mesclado
+
+
+
+# ======================================================
+# BASE INTEGRADA DE ESTUDANTES — LISTA + MAPÃO + PROVA PAULISTA
+# ======================================================
+def _df_alunos_ativos_com_ra(df_base: pd.DataFrame) -> pd.DataFrame:
+    if df_base is None or df_base.empty:
+        return pd.DataFrame(columns=["nome", "turma", "ra", "situacao"])
+    df = df_base.copy()
+    for col in ["nome", "turma", "ra", "situacao"]:
+        if col not in df.columns:
+            df[col] = ""
+    df["situacao_norm"] = df["situacao"].astype(str).apply(normalizar_texto)
+    df = df[(df["situacao_norm"].eq("") | df["situacao_norm"].str.contains("ATIVO", na=False))].copy()
+    df["ra_norm"] = df["ra"].astype(str).apply(_normalizar_ra_estudante)
+    df["nome_norm"] = df["nome"].astype(str).apply(_normalizar_chave_estudante)
+    df["turma_fmt"] = df["turma"].astype(str).apply(formatar_turma_eletiva)
+    return df
+
+def _base_estudantes_integrada_turma(turma: str, df_base_alunos: pd.DataFrame) -> pd.DataFrame:
+    turma_fmt = formatar_turma_eletiva(turma)
+    linhas = []
+    def add_linha(nome, ra, turma_valor, fonte, situacao=""):
+        nome = str(nome or "").strip()
+        ra = _normalizar_ra_estudante(ra)
+        turma_valor = formatar_turma_eletiva(turma_valor)
+        if not nome and not ra:
+            return
+        if turma_fmt and turma_valor and not _turmas_equivalentes_para_vinculo(turma_valor, turma_fmt):
+            return
+        linhas.append({"Nome": nome, "RA": ra, "Turma": turma_valor or turma_fmt, "Situação": situacao, "Fonte": fonte})
+
+    base_ativos = _df_alunos_ativos_com_ra(df_base_alunos)
+    if not base_ativos.empty:
+        for _, r in base_ativos.iterrows():
+            add_linha(r.get("nome", ""), r.get("ra", ""), r.get("turma", ""), "Lista oficial", r.get("situacao", "Ativo"))
+
+    try:
+        df_m = _carregar_mapao_local()
+        if isinstance(df_m, pd.DataFrame) and not df_m.empty:
+            for _, r in df_m.iterrows():
+                add_linha(r.get("Estudante", r.get("nome", r.get("Nome", ""))), r.get("RA", r.get("ra", r.get("NR RA", ""))), r.get("Turma", r.get("turma", "")), "Mapão", r.get("Situação", r.get("situacao", "")))
+    except Exception as e:
+        logger.warning(f"Nao foi possivel compor base integrada do Mapao: {e}")
+
+    try:
+        df_pp = _carregar_prova_paulista_local()
+        if isinstance(df_pp, pd.DataFrame) and not df_pp.empty:
+            for _, r in df_pp.iterrows():
+                add_linha(r.get("Estudante", r.get("nome", r.get("Nome", ""))), r.get("RA", r.get("ra", r.get("NR RA", ""))), r.get("Turma", r.get("turma", "")), "Prova Paulista", r.get("Situação", r.get("situacao", "")))
+    except Exception as e:
+        logger.warning(f"Nao foi possivel compor base integrada da Prova Paulista: {e}")
+
+    if not linhas:
+        return pd.DataFrame(columns=["Nome", "RA", "Turma", "Situação", "Fontes"])
+    df = pd.DataFrame(linhas)
+    df["chave"] = df.apply(lambda r: r["RA"] if r["RA"] else f"{_normalizar_chave_estudante(r['Nome'])}|{normalizar_texto(r['Turma'])}", axis=1)
+    agregado = []
+    for _, g in df.groupby("chave", dropna=False):
+        nome = next((x for x in g["Nome"].astype(str).tolist() if x.strip()), "")
+        ra = next((x for x in g["RA"].astype(str).tolist() if x.strip()), "")
+        turma_g = next((x for x in g["Turma"].astype(str).tolist() if x.strip()), turma_fmt)
+        situacao = next((x for x in g["Situação"].astype(str).tolist() if x.strip()), "")
+        fontes = ", ".join(sorted(set(g["Fonte"].astype(str).tolist())))
+        agregado.append({"Nome": nome, "RA": ra, "Turma": turma_g, "Situação": situacao or "Ativo/sem informação", "Fontes": fontes})
+    return pd.DataFrame(agregado).sort_values(["Turma", "Nome", "RA"]).reset_index(drop=True)
+
+def _render_estudantes_fora_da_lista_oficial(turma: str, df_base_alunos: pd.DataFrame):
+    df_integrada = _base_estudantes_integrada_turma(turma, df_base_alunos)
+    if df_integrada.empty:
+        return
+    base = _df_alunos_ativos_com_ra(df_base_alunos)
+    if base.empty:
+        presentes = set()
+    else:
+        presentes = set(base.apply(lambda r: r["ra_norm"] if r["ra_norm"] else f"{r['nome_norm']}|{normalizar_texto(r['turma_fmt'])}", axis=1).tolist())
+    df_integrada["chave"] = df_integrada.apply(lambda r: _normalizar_ra_estudante(r["RA"]) if _normalizar_ra_estudante(r["RA"]) else f"{_normalizar_chave_estudante(r['Nome'])}|{normalizar_texto(formatar_turma_eletiva(r['Turma']))}", axis=1)
+    pendentes = df_integrada[~df_integrada["chave"].isin(presentes)].drop(columns=["chave"], errors="ignore")
+    if not pendentes.empty:
+        with st.expander(f"⚠️ Estudantes encontrados no Mapão/Prova Paulista, mas ausentes da lista oficial da turma {turma}", expanded=False):
+            st.caption("Conferência para atualizar a lista oficial sem perder RA. Exibe Nome, RA, Turma e origem onde o estudante apareceu.")
+            st.dataframe(pendentes[["Nome", "RA", "Turma", "Situação", "Fontes"]], use_container_width=True, hide_index=True, height=260)
 
 if menu == "🏠 Dashboard":
     # ── Header no modelo SED, mantendo identidade do sistema ──
@@ -13238,29 +13256,21 @@ if menu == "🏠 Dashboard":
     </div>
     """, unsafe_allow_html=True)
 
+    ranking_game_dashboard = _ranking_pontuacao_geral(df_alunos)
+    ranking_salas_dashboard = _ranking_pontuacao_turmas(df_alunos)
     st.markdown("""
     <div style="display:flex; align-items:center; gap:0.5rem; margin:1.15rem 0 0.75rem 0;">
         <div style="width:4px; height:22px; background:linear-gradient(180deg,#22c55e,#0ea5e9); border-radius:4px;"></div>
         <h3 style="margin:0; font-family:'Nunito',sans-serif; font-size:1.1rem; color:#0f172a;">🏅 Ranking gamificado — Estudantes e Salas</h3>
     </div>
     """, unsafe_allow_html=True)
-    carregar_ranking_dashboard = st.button("🔎 Carregar ranking pedagógico", key="dashboard_carregar_ranking_pedagogico")
-    if carregar_ranking_dashboard:
-        st.session_state["dashboard_ranking_pedagogico_carregado"] = True
-
-    if st.session_state.get("dashboard_ranking_pedagogico_carregado"):
-        ranking_game_dashboard = _ranking_pontuacao_geral(df_alunos)
-        ranking_salas_dashboard = _ranking_pontuacao_turmas(ranking_game_dashboard)
-    else:
-        ranking_game_dashboard = pd.DataFrame()
-        ranking_salas_dashboard = pd.DataFrame()
-
-    if ranking_game_dashboard.empty and not st.session_state.get("dashboard_ranking_pedagogico_carregado"):
-        st.info("O ranking usa Mapão e Prova Paulista, então fica sob demanda para acelerar a abertura do Dashboard.")
-    elif ranking_game_dashboard.empty:
+    if ranking_game_dashboard.empty:
         st.info("Assim que houver Mapão, Prova Paulista ou ocorrências, o ranking gamificado aparece aqui.")
     else:
-        st.caption("Ranking carregado sob demanda para evitar leitura integral na abertura da página.")
+        try:
+            st.caption(f"Fontes carregadas para a gamificação: Prova Paulista {_dataframe_seguro_carregador('prova_paulista').shape[0]} registro(s) · Mapão {_dataframe_seguro_carregador('mapao').shape[0]} registro(s) · Ocorrências {_dataframe_seguro_carregador('ocorrencias').shape[0]} registro(s).")
+        except Exception:
+            pass
         col_rank_alunos, col_rank_salas = st.columns([1.35, 1])
         with col_rank_alunos:
             st.markdown("**🏆 Melhores estudantes mais pontuados**")
@@ -13788,58 +13798,62 @@ elif "HISTORICO DE OCORRENCIA" in normalizar_texto(menu):
         st.success(mensagem_exclusao)
         st.session_state.mensagem_exclusao = None
 
-    df_view = st.session_state.get("historico_ocorrencias_busca_df", pd.DataFrame())
-    if not isinstance(df_view, pd.DataFrame):
-        df_view = pd.DataFrame()
+    if df_ocorrencias.empty:
+        st.info("📭 Nenhuma ocorrência registrada.")
+        st.stop()
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        turmas_disp = ["Todas"] + sorted(df_ocorrencias["turma"].dropna().unique().tolist())
+        filtro_turma = st.selectbox("Turma", turmas_disp)
+    with col2:
+        gravidades_disp = ["Todas"] + sorted(df_ocorrencias["gravidade"].dropna().unique().tolist())
+        filtro_gravidade = st.selectbox("Gravidade", gravidades_disp)
+    with col3:
+        categorias_unicas = sorted(df_ocorrencias["categoria"].dropna().unique().tolist())
+        filtro_categoria = st.selectbox("Categoria", ["Todas"] + categorias_unicas)
 
-    with st.form("form_busca_historico_ocorrencias"):
-        st.caption("Use filtros antes de carregar. A busca traz só os registros necessários e limita o volume exibido.")
-        h1, h2, h3, h4 = st.columns([1.1, 1, 1.4, 0.8])
-        with h1:
-            filtro_turma = st.selectbox("Turma", ["Todas"] + _opcoes_turmas_sistema(), key="hist_busca_turma")
-        with h2:
-            filtro_gravidade = st.selectbox("Gravidade", ["Todas", "Leve", "Moderada", "Grave", "Gravíssima"], key="hist_busca_gravidade")
-        with h3:
-            filtro_estudante = st.text_input("Estudante", value="", key="hist_busca_estudante", placeholder="Nome do estudante")
-        with h4:
-            filtro_limite = st.number_input("Limite", min_value=50, max_value=3000, value=500, step=50, key="hist_busca_limite")
+    col4, col5 = st.columns(2)
+    with col4:
+        if "professor" in df_ocorrencias.columns:
+            professores_disp = ["Todos"] + sorted([
+                p for p in df_ocorrencias["professor"].dropna().astype(str).str.strip().unique().tolist() if p
+            ])
+            filtro_professor = st.selectbox("Professor", professores_disp)
+        else:
+            filtro_professor = "Todos"
+            st.selectbox("Professor", ["Todos"], disabled=True)
+    with col5:
+        data_parse = pd.to_datetime(df_ocorrencias["data"], format="%d/%m/%Y %H:%M", errors="coerce")
+        if data_parse.notna().any():
+            dt_min = data_parse.min().date()
+            dt_max = data_parse.max().date()
+        else:
+            hoje = datetime.now().date()
+            dt_min = hoje
+            dt_max = hoje
+        periodo = st.date_input("Per?odo", value=(dt_min, dt_max), min_value=dt_min, max_value=dt_max, key="hist_periodo", format="DD/MM/YYYY")
 
-        h5, h6, h7 = st.columns([1.2, 1.2, 1.3])
-        with h5:
-            filtro_categoria = st.text_input("Categoria contém", value="", key="hist_busca_categoria", placeholder="Ex: celular")
-        with h6:
-            filtro_professor = st.text_input("Professor", value="", key="hist_busca_professor", placeholder="Nome exato ou deixe vazio")
-        with h7:
-            hoje_hist = datetime.now().date()
-            periodo = st.date_input(
-                "Período depois da busca",
-                value=(hoje_hist - timedelta(days=30), hoje_hist),
-                key="hist_periodo",
-                format="DD/MM/YYYY",
-            )
-        buscar_historico = st.form_submit_button("🔎 Buscar ocorrências", type="primary", use_container_width=True)
+    df_view = df_ocorrencias.copy()
+    if filtro_turma != "Todas":
+        df_view = df_view[df_view["turma"] == filtro_turma]
+    if filtro_gravidade != "Todas":
+        df_view = df_view[df_view["gravidade"] == filtro_gravidade]
+    if filtro_categoria != "Todas":
+        df_view = df_view[df_view["categoria"] == filtro_categoria]
+    if filtro_professor != "Todos" and "professor" in df_view.columns:
+        df_view = df_view[df_view["professor"].astype(str).str.strip() == filtro_professor]
 
-    if buscar_historico:
-        df_view = carregar_ocorrencias_filtrado(
-            turma="" if filtro_turma == "Todas" else filtro_turma,
-            gravidade="" if filtro_gravidade == "Todas" else filtro_gravidade,
-            categoria=filtro_categoria.strip(),
-            professor=filtro_professor.strip(),
-            estudante=filtro_estudante.strip(),
-            limite=int(filtro_limite),
-        )
-        if not df_view.empty and "data" in df_view.columns:
-            df_view["data_dt_filtro"] = pd.to_datetime(df_view["data"], format="%d/%m/%Y %H:%M", errors="coerce")
-            if isinstance(periodo, tuple) and len(periodo) == 2:
-                ini, fim = periodo
-            else:
-                ini = periodo
-                fim = periodo
-            df_view = df_view[
-                (df_view["data_dt_filtro"].dt.date >= ini) &
-                (df_view["data_dt_filtro"].dt.date <= fim)
-            ].drop(columns=["data_dt_filtro"], errors="ignore")
-        st.session_state["historico_ocorrencias_busca_df"] = df_view
+    df_view["data_dt_filtro"] = pd.to_datetime(df_view["data"], format="%d/%m/%Y %H:%M", errors="coerce")
+    if isinstance(periodo, tuple) and len(periodo) == 2:
+        ini, fim = periodo
+    else:
+        ini = periodo
+        fim = periodo
+    df_view = df_view[
+        (df_view["data_dt_filtro"].dt.date >= ini) &
+        (df_view["data_dt_filtro"].dt.date <= fim)
+    ]
+    df_view = df_view.drop(columns=["data_dt_filtro"], errors="ignore")
 
     st.markdown("""
     <div class="form-panel">
@@ -13917,7 +13931,6 @@ elif "HISTORICO DE OCORRENCIA" in normalizar_texto(menu):
                         st.session_state.mensagem_exclusao = f"✅ Ocorrência {int(id_excluir)} excluída com sucesso!"
                         show_toast(f"Ocorrência {int(id_excluir)} excluída.", "success")
                         carregar_ocorrencias.clear()
-                        st.session_state.pop("historico_ocorrencias_busca_df", None)
                         st.rerun()
         else:
             st.info("Nenhuma ocorrência disponível para exclusão com os filtros atuais.")
@@ -13973,7 +13986,6 @@ elif "HISTORICO DE OCORRENCIA" in normalizar_texto(menu):
                     st.success("✅ Ocorrência atualizada com sucesso!")
                     show_toast("Ocorrência atualizada com sucesso.", "success")
                     carregar_ocorrencias.clear()
-                    st.session_state.pop("historico_ocorrencias_busca_df", None)
                     st.session_state.editando_id = None
                     st.session_state.dados_edicao = None
                     st.rerun()
@@ -14073,6 +14085,7 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
     col_metric_1.metric("👥 Estudantes da turma", len(alunos_turma))
     col_metric_2.metric("🧾 Relatórios cadastrados", len(relatorios_turma))
     col_metric_3.metric("🚨 Sinalizações de atenção", total_alertas)
+    _render_estudantes_fora_da_lista_oficial(turma_sel, df_alunos)
  
     professores_lista = []
     coordenadores_lista = []
@@ -14142,6 +14155,7 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
     aluno_info  = alunos_turma[alunos_turma["aluno_label"] == aluno_label_sel].iloc[0]
     aluno_nome  = str(aluno_info.get("nome", "")).strip()
     aluno_ra    = str(aluno_info.get("ra", "")).strip()
+    st.caption(f"Estudante selecionado: {aluno_nome} • RA {aluno_ra or 'não informado'} • Turma {turma_sel}")
  
     professor_tutor_auto = obter_professor_tutor_do_aluno(
         aluno_nome, turma_sel, aluno_ra, TUTORIA
@@ -14165,12 +14179,12 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
             </div>
             """, unsafe_allow_html=True)
         else:
-            st.markdown(f"""
+            st.markdown("""
             <div style="background:#f8fafc;border:1.5px dashed #cbd5e1;border-radius:14px;
                         padding:.75rem 1rem;margin:.35rem 0;">
                 <div style="font-size:.72rem;font-weight:800;color:#64748b;letter-spacing:.08em;
                             text-transform:uppercase;margin-bottom:.2rem;">Professor(a) Tutor(a)</div>
-                <div style="font-size:.88rem;color:#94a3b8;">{TEXTO_TUTOR_NAO_LOCALIZADO}</div>
+                <div style="font-size:.88rem;color:#94a3b8;">Não localizado na base de tutoria</div>
             </div>
             """, unsafe_allow_html=True)
  
@@ -14185,12 +14199,12 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
             </div>
             """, unsafe_allow_html=True)
         else:
-            st.markdown(f"""
+            st.markdown("""
             <div style="background:#f8fafc;border:1.5px dashed #cbd5e1;border-radius:14px;
                         padding:.75rem 1rem;margin:.35rem 0;">
                 <div style="font-size:.72rem;font-weight:800;color:#64748b;letter-spacing:.08em;
                             text-transform:uppercase;margin-bottom:.2rem;">Eletiva — Professor(a)</div>
-                <div style="font-size:.88rem;color:#94a3b8;">{TEXTO_ELETIVA_NAO_LOCALIZADA}</div>
+                <div style="font-size:.88rem;color:#94a3b8;">Não localizado na base de eletivas</div>
             </div>
             """, unsafe_allow_html=True)
  
@@ -14717,22 +14731,20 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
             ).dt.strftime("%d/%m/%Y %H:%M")
  
         def _buscar_tutor(row):
-            tutor_encontrado = str(row.get("professor_tutor", "")).strip() or obter_professor_tutor_do_aluno(
+            return str(row.get("professor_tutor", "")).strip() or obter_professor_tutor_do_aluno(
                 str(row.get("aluno", "")), str(row.get("turma", "")), str(row.get("ra", "")), TUTORIA
             )
-            return texto_professor_tutor_relatorio(tutor_encontrado)
         def _buscar_eletiva(row):
-            eletiva_encontrada = str(row.get("eletiva", "")).strip() or obter_eletiva_do_aluno(
+            return str(row.get("eletiva", "")).strip() or obter_eletiva_do_aluno(
                 str(row.get("aluno", "")), str(row.get("turma", "")), str(row.get("ra", "")), ELETIVAS
             )
-            return texto_eletiva_relatorio(eletiva_encontrada, com_icone=True)
-        df_lista["Professor(a) Tutor(a)"] = df_lista.apply(_buscar_tutor, axis=1)
-        df_lista["Eletiva — Professor(a)"] = df_lista.apply(_buscar_eletiva, axis=1)
+        df_lista["Tutor(a)"]  = df_lista.apply(_buscar_tutor, axis=1)
+        df_lista["Eletiva"]   = df_lista.apply(_buscar_eletiva, axis=1)
  
         colunas_relatorio = [
             coluna for coluna in [
                 "id", "aluno", "ra", "data_inicio", "data_fim", "situacao_geral",
-                "Professor(a) Tutor(a)", "Eletiva — Professor(a)", "coordenador_sala",
+                "Tutor(a)", "Eletiva", "coordenador_sala",
                 "ultima_edicao_por", "updated_at", "alerta"
             ] if coluna in df_lista.columns
         ]
@@ -16447,7 +16459,7 @@ elif menu == "🎨 Eletiva":
         with col_sync1:
             if st.button("🔄 Recarregar Eletivas do Supabase", key="reload_eletivas_supabase", use_container_width=True):
                 try:
-                    df_refresh = _supabase_get_dataframe("eletivas?select=professora,nome_aluno,serie&limit=50000", "recarregar eletivas")
+                    df_refresh = carregar_eletivas_supabase_segura("recarregar eletivas")
                     st.session_state.ELETIVAS = converter_eletivas_supabase_para_dict(df_refresh) if not df_refresh.empty else {k: [] for k in ELETIVAS.keys()}
                     st.session_state.FONTE_ELETIVAS = "supabase"
                     st.success("✅ Eletivas recarregadas do Supabase.")
@@ -17387,20 +17399,8 @@ elif menu == "🫂 Tutoria":
     nomes_tutoria = sorted(TUTORIA.keys())
     if st.session_state.get("tutoria_responsaveis_sync_warning"):
         st.warning(st.session_state.get("tutoria_responsaveis_sync_warning"))
-    feedback_tutoria = st.session_state.pop("tutoria_feedback", None)
-    if isinstance(feedback_tutoria, dict) and feedback_tutoria.get("msg"):
-        tipo_feedback = feedback_tutoria.get("tipo", "info")
-        if tipo_feedback == "success":
-            st.success(feedback_tutoria.get("msg", ""))
-        elif tipo_feedback == "warning":
-            st.warning(feedback_tutoria.get("msg", ""))
-        elif tipo_feedback == "error":
-            st.error(feedback_tutoria.get("msg", ""))
-        else:
-            st.info(feedback_tutoria.get("msg", ""))
 
-    exclusao_total_confirmada = bool(st.session_state.get("tutoria_exclusao_total_confirmada"))
-    if total_estudantes_tutoria(TUTORIA) == 0 and not exclusao_total_confirmada:
+    if total_estudantes_tutoria(TUTORIA) == 0:
         referencia_alunos = TUTORIA_REFERENCIA_COM_ALUNOS if "TUTORIA_REFERENCIA_COM_ALUNOS" in globals() else {}
         if total_estudantes_tutoria(referencia_alunos) > 0:
             st.error("Os responsáveis foram carregados, mas os estudantes não apareceram nesta sessão. Use o botão abaixo para restaurar os vínculos sem apagar nada.")
@@ -17411,8 +17411,6 @@ elif menu == "🫂 Tutoria":
                 st.rerun()
         else:
             st.warning("A tela carregou responsáveis, mas nenhum vínculo de estudante foi encontrado no Supabase/cache local. Nada será salvo por cima da Tutoria enquanto estiver assim.")
-    elif total_estudantes_tutoria(TUTORIA) == 0 and exclusao_total_confirmada:
-        st.info("Tutoria sem vínculos após exclusão confirmada. Os estudantes ativos ficam disponíveis para nova oferta.")
 
     with st.expander("📘 Caderno de Tutoria Online 2026", expanded=False):
         render_caderno_tutoria_online(TUTORIA, st.session_state.get("df_alunos", pd.DataFrame()))
@@ -17428,11 +17426,10 @@ elif menu == "🫂 Tutoria":
         )
         total_atual = total_estudantes_tutoria(st.session_state.TUTORIA)
         total_seguro = total_estudantes_tutoria(fonte_segura)
-        fonte_exclusao = str(fonte).startswith("exclusao")
-        if total_seguro > 0 and total_atual == 0 and not fonte_exclusao:
+        if total_seguro > 0 and total_atual == 0:
             st.session_state.TUTORIA = mesclar_multiplas_fontes_tutoria(st.session_state.TUTORIA, fonte_segura)
             st.session_state["tutoria_responsaveis_sync_warning"] = "Proteção ativada: a tela estava sem estudantes e foi mesclada com Supabase/cache/planilha antes de salvar."
-        elif total_seguro == 0 and total_atual == 0 and not fonte_exclusao:
+        elif total_seguro == 0 and total_atual == 0:
             st.session_state["tutoria_responsaveis_sync_warning"] = "Salvamento bloqueado: a tela não carregou estudantes da Tutoria. Recarregue do Supabase ou restaure backup antes de salvar."
             st.session_state.FONTE_TUTORIA = fonte
             return
@@ -17440,10 +17437,9 @@ elif menu == "🫂 Tutoria":
             st.session_state["tutoria_responsaveis_sync_warning"] = f"Proteção ativada: tentativa de salvar {total_atual} vínculos sobre uma base segura com {total_seguro}. Salvamento bloqueado para evitar perda em massa."
             st.session_state.FONTE_TUTORIA = fonte
             return
-        salvar_tutoria_local(st.session_state.TUTORIA, permitir_vazio=fonte_exclusao)
+        salvar_tutoria_local(st.session_state.TUTORIA)
         salvar_tutoria_backup_json_supabase_seguro(st.session_state.TUTORIA, origem=f"salvar_estado_{fonte}")
         st.session_state.FONTE_TUTORIA = fonte
-        st.session_state["tutoria_exclusao_total_confirmada"] = bool(fonte_exclusao and total_atual == 0)
         if SUPABASE_VALID:
             ok_resp, msg_resp = sincronizar_tutoria_responsaveis_supabase(st.session_state.TUTORIA)
             if not ok_resp:
@@ -17988,90 +17984,19 @@ elif menu == "🫂 Tutoria":
             vinculos = [v for v in vinculos if str(v.get("tutor", "")).strip() != str(tutor_permitido).strip()]
         return bool(vinculos), vinculos
 
-    def _limpar_estado_disponibilidade_tutoria():
-        """Atualiza seleções temporárias quando um vínculo muda de lugar ou é excluído."""
-        for chave in (
-            "tutoria_busca_cadastro_selecionados",
-            "tutoria_temp_remover",
-            "tutoria_oferta_estudantes",
-            "tutoria_bloqueados_temp",
-            "tutoria_bloqueados_ultimo",
-            "tutoria_validacao_ultimo",
-        ):
-            st.session_state.pop(chave, None)
-
-    def _remover_estudante_do_tutor_local(tutor_nome: str, estudante: dict) -> list[dict]:
-        tutor_nome = str(tutor_nome or "").strip()
-        if not tutor_nome or tutor_nome not in TUTORIA:
-            return []
-        chaves_estudante = _chaves_estudante_tutoria(estudante)
-        restantes = []
-        removidos = []
-        for aluno_item in normalizar_alunos_tutoria(TUTORIA[tutor_nome].get("alunos", [])):
-            if chaves_estudante & _chaves_estudante_tutoria(aluno_item):
-                removidos.append(aluno_item)
-            else:
-                restantes.append(aluno_item)
-        TUTORIA[tutor_nome]["alunos"] = restantes
-        return removidos
-
-    def _montar_carga_tutores_tutoria(tutoria_dict: dict, df_alunos_base: pd.DataFrame) -> pd.DataFrame:
-        linhas = []
-        for tutor_nome, dados_tutor in normalizar_base_tutoria(tutoria_dict).items():
-            df_tutor = montar_dataframe_tutoria(tutor_nome, df_alunos_base, tutoria_dict)
-            if not df_tutor.empty and "Status" in df_tutor.columns:
-                tutorados_ativos = int((df_tutor["Status"].astype(str) == "Encontrado").sum())
-            else:
-                tutorados_ativos = 0
-            linhas.append({
-                "Responsável": tutor_nome,
-                "Perfil": dados_tutor.get("tipo", "Professor(a)"),
-                "Tutorados ativos": tutorados_ativos,
-                "Espaço": dados_tutor.get("espaco", "") or "Não informado",
-                "Horário": dados_tutor.get("horario", "") or "Não informado",
-                "Dia": dados_tutor.get("dia", "") or "Não informado",
-            })
-        df_carga = pd.DataFrame(linhas)
-        if df_carga.empty:
-            return df_carga
-        menor_carga = int(df_carga["Tutorados ativos"].min())
-        df_carga["Prioridade de oferta"] = df_carga["Tutorados ativos"].apply(
-            lambda total: "Receber oferta" if int(total) == menor_carga else ""
-        )
-        return df_carga.sort_values(["Tutorados ativos", "Responsável"], key=lambda s: s.map(normalizar_texto) if s.name == "Responsável" else s, kind="stable").reset_index(drop=True)
-
     def _localizar_duplicidades_tutoria(tutoria_dict: dict) -> pd.DataFrame:
         """Monta uma tabela de estudantes que aparecem em mais de uma lista."""
         mapa = _mapear_estudantes_vinculados_tutoria(tutoria_dict)
-        grupos = {}
-        for _, vinculos in mapa.items():
-            tutores = sorted({str(v.get("tutor", "")).strip() for v in vinculos if str(v.get("tutor", "")).strip()})
-            if len(tutores) <= 1:
-                continue
-            primeiro = vinculos[0] if vinculos else {}
-            ra_ref = next(("".join(ch for ch in str(v.get("ra", "")) if ch.isdigit()) for v in vinculos if "".join(ch for ch in str(v.get("ra", "")) if ch.isdigit())), "")
-            nome_ref = normalizar_texto(primeiro.get("nome", ""))
-            turma_ref = turma_para_comparacao(primeiro.get("serie", ""))
-            assinatura = (tuple(tutores), ra_ref or nome_ref, turma_ref)
-            grupo = grupos.setdefault(assinatura, {"vistos": set(), "vinculos": []})
-            for vinculo in vinculos:
-                id_vinculo = (
-                    str(vinculo.get("tutor", "")).strip(),
-                    normalizar_texto(vinculo.get("nome", "")),
-                    turma_para_comparacao(vinculo.get("serie", "")),
-                    "".join(ch for ch in str(vinculo.get("ra", "")) if ch.isdigit()),
-                )
-                if id_vinculo in grupo["vistos"]:
-                    continue
-                grupo["vistos"].add(id_vinculo)
-                grupo["vinculos"].append(vinculo)
-
         linhas = []
-        for vinculos_info in grupos.values():
-            vinculos = vinculos_info.get("vinculos", [])
+        chaves_processadas = set()
+        for chave, vinculos in mapa.items():
             tutores = sorted({str(v.get("tutor", "")).strip() for v in vinculos if str(v.get("tutor", "")).strip()})
             if len(tutores) <= 1:
                 continue
+            assinatura = tuple(tutores) + (chave,)
+            if assinatura in chaves_processadas:
+                continue
+            chaves_processadas.add(assinatura)
             primeiro = vinculos[0] if vinculos else {}
             linhas.append({
                 "Estudante": primeiro.get("nome", ""),
@@ -18172,72 +18097,6 @@ elif menu == "🫂 Tutoria":
         if not ok:
             st.session_state["tutoria_responsaveis_sync_warning"] = msg
         return ok
-
-    if not duplicidades_tutoria_df.empty:
-        with st.expander("🛠️ Resolver duplicidades de tutoria", expanded=False):
-            st.caption("Escolha em qual responsável o estudante deve permanecer. O sistema remove o vínculo dos demais responsáveis.")
-            opcoes_dup = []
-            mapa_dup = {}
-            for idx_dup, linha_dup in duplicidades_tutoria_df.reset_index(drop=True).iterrows():
-                label_dup = (
-                    f"{idx_dup + 1}. {linha_dup.get('Estudante', '')} — "
-                    f"{linha_dup.get('Turma', '')} — RA {linha_dup.get('RA', '') or 'sem RA'} "
-                    f"— {linha_dup.get('Aparece em', '')}"
-                )
-                opcoes_dup.append(label_dup)
-                mapa_dup[label_dup] = linha_dup.to_dict()
-
-            duplicidade_sel = st.selectbox(
-                "Duplicidade encontrada",
-                opcoes_dup,
-                key="tutoria_duplicidade_resolver_sel"
-            )
-            duplicidade_item = mapa_dup.get(duplicidade_sel, {})
-            estudante_dup = {
-                "nome": duplicidade_item.get("Estudante", ""),
-                "serie": duplicidade_item.get("Turma", ""),
-                "ra": duplicidade_item.get("RA", ""),
-            }
-            vinculos_dup = _vinculos_do_estudante_tutoria(estudante_dup, TUTORIA)
-            tutores_dup = sorted({str(v.get("tutor", "")).strip() for v in vinculos_dup if str(v.get("tutor", "")).strip()})
-
-            if len(tutores_dup) <= 1:
-                st.info("Esta duplicidade já foi resolvida na base atual.")
-            else:
-                manter_tutor = st.selectbox(
-                    "Manter estudante com",
-                    tutores_dup,
-                    key="tutoria_duplicidade_manter_tutor"
-                )
-                st.dataframe(pd.DataFrame(vinculos_dup), use_container_width=True, hide_index=True)
-                if st.button("✅ Resolver duplicidade selecionada", key="tutoria_btn_resolver_duplicidade", type="primary"):
-                    removidos_total = []
-                    for tutor_dup in tutores_dup:
-                        if tutor_dup == manter_tutor:
-                            continue
-                        removidos = _remover_estudante_do_tutor_local(tutor_dup, estudante_dup)
-                        for removido in removidos:
-                            removidos_total.append((tutor_dup, removido))
-                            if SUPABASE_VALID:
-                                _apagar_registro_supabase_tutoria(
-                                    tutor_dup,
-                                    str(removido.get("nome", "")),
-                                    str(removido.get("serie", "")),
-                                    str(removido.get("ra", "")),
-                                )
-                    if removidos_total:
-                        _limpar_estado_disponibilidade_tutoria()
-                        _salvar_estado_tutoria("exclusao_duplicidade")
-                        st.session_state["tutoria_feedback"] = {
-                            "tipo": "success",
-                            "msg": (
-                                f"Duplicidade resolvida: estudante mantido com {manter_tutor} "
-                                f"e removido de {len(removidos_total)} outro(s) vínculo(s)."
-                            )
-                        }
-                        st.rerun()
-                    else:
-                        st.info("Nenhum vínculo extra foi removido.")
 
     st.markdown("---")
     st.subheader("📋 Estudantes da lista selecionada")
@@ -18413,17 +18272,7 @@ elif menu == "🫂 Tutoria":
 
                         opcoes = ["Não adicionar"]
                         mapa_sugestoes = {"Não adicionar": None}
-                        sugestoes_ocultas = 0
                         for s in sugestoes:
-                            candidato_sugestao = {
-                                "nome": s.get("nome", ""),
-                                "serie": s.get("serie", ""),
-                                "ra": s.get("ra", ""),
-                            }
-                            ja_tem_sugestao, _ = _estudante_ja_tem_tutor(candidato_sugestao, TUTORIA)
-                            if ja_tem_sugestao:
-                                sugestoes_ocultas += 1
-                                continue
                             confianca = round(float(s.get("score", 0) or 0) * 100)
                             label = f"{s.get('nome', '')} — {s.get('serie', '')} — RA {s.get('ra', '')} — {confianca}%"
                             opcoes.append(label)
@@ -18432,8 +18281,6 @@ elif menu == "🫂 Tutoria":
                                 "serie": s.get("serie", ""),
                                 "ra": s.get("ra", ""),
                             }
-                        if sugestoes_ocultas:
-                            st.caption(f"{sugestoes_ocultas} sugestão(ões) ocultada(s) porque já possuem tutor cadastrado.")
 
                         escolha = st.selectbox(
                             f"{pend.get('nome', '')} ({pend.get('serie', '')})",
@@ -18638,9 +18485,7 @@ elif menu == "🫂 Tutoria":
                 df_resultado = df_resultado[df_resultado.apply(_linha_disponivel_para_tutoria, axis=1)]
                 total_ocultos = total_antes_disponibilidade - len(df_resultado)
                 if total_ocultos > 0:
-                    st.info(f"{total_ocultos} estudante(s) foram ocultados porque já possuem tutor cadastrado.")
-                if df_resultado.empty and total_ocultos > 0:
-                    st.success("Todos os estudantes encontrados nessa busca já estão vinculados a uma tutoria.")
+                    st.info(f"{total_ocultos} estudante(s) foram ocultados porque já possuem tutor em outra lista.")
 
             df_resultado = df_resultado.head(80)
 
@@ -18656,16 +18501,10 @@ elif menu == "🫂 Tutoria":
                 opcoes.append(label)
                 mapa_opcoes[label] = {"nome": nome, "serie": turma, "ra": ra}
 
-            chave_selecao_busca = "tutoria_busca_cadastro_selecionados"
-            if chave_selecao_busca in st.session_state:
-                st.session_state[chave_selecao_busca] = [
-                    item for item in st.session_state.get(chave_selecao_busca, [])
-                    if item in mapa_opcoes
-                ]
             selecionados = st.multiselect(
                 "Selecione estudantes para inserir na lista temporária",
                 opcoes,
-                key=chave_selecao_busca
+                key="tutoria_busca_cadastro_selecionados"
             )
             if selecionados:
                 qtd_auto = _adicionar_na_lista_temp([mapa_opcoes[item] for item in selecionados if item in mapa_opcoes])
@@ -18977,128 +18816,6 @@ elif menu == "🫂 Tutoria":
         col_st6.metric("Com tutor - Turno 2", com_turno2)
         col_st7.metric("Sem tutor - Turno 2", sem_turno2)
 
-        st.markdown("---")
-        st.subheader("⚖️ Oferta equilibrada para responsáveis com menos tutorados")
-        df_carga_tutores = _montar_carga_tutores_tutoria(TUTORIA, df_alunos)
-        if df_carga_tutores.empty:
-            st.info("Cadastre responsáveis na Tutoria para habilitar a oferta equilibrada.")
-        else:
-            st.caption("A prioridade mostra quem tem a menor quantidade de tutorados ativos neste momento.")
-            st.dataframe(
-                df_carga_tutores[
-                    ["Responsável", "Perfil", "Tutorados ativos", "Prioridade de oferta", "Espaço", "Horário", "Dia"]
-                ],
-                use_container_width=True,
-                hide_index=True
-            )
-
-            if df_sem_tutor.empty:
-                st.success("Não há estudantes disponíveis para oferta. Todos os ativos já possuem tutor.")
-            else:
-                mapa_carga_tutores = {
-                    str(row.get("Responsável", "")).strip(): int(row.get("Tutorados ativos", 0) or 0)
-                    for _, row in df_carga_tutores.iterrows()
-                }
-                opcoes_tutores_oferta = df_carga_tutores["Responsável"].dropna().astype(str).tolist()
-                tutor_oferta = st.selectbox(
-                    "Responsável para receber a oferta",
-                    opcoes_tutores_oferta,
-                    key="tutoria_oferta_tutor_destino",
-                    format_func=lambda nome: f"{nome} — {mapa_carga_tutores.get(str(nome), 0)} tutorado(s)"
-                )
-
-                col_oferta1, col_oferta2, col_oferta3 = st.columns([1, 1, 1])
-                with col_oferta1:
-                    filtro_turno_oferta = st.selectbox(
-                        "Turno da oferta",
-                        ["Todos"] + sorted(df_sem_tutor["Turno"].dropna().astype(str).unique().tolist()),
-                        key="tutoria_oferta_turno"
-                    )
-                with col_oferta2:
-                    turmas_oferta = sorted(
-                        df_sem_tutor["Turma"].dropna().astype(str).unique().tolist(),
-                        key=ordenar_turma_tutoria
-                    )
-                    filtro_turma_oferta = st.selectbox(
-                        "Sala/turma da oferta",
-                        ["Todas"] + turmas_oferta,
-                        key="tutoria_oferta_turma",
-                        format_func=lambda t: "Todas" if t == "Todas" else _formatar_opcao_turma_select(t)
-                    )
-                with col_oferta3:
-                    qtd_sugerida_oferta = st.number_input(
-                        "Quantidade sugerida",
-                        min_value=1,
-                        max_value=30,
-                        value=min(5, max(len(df_sem_tutor), 1)),
-                        step=1,
-                        key="tutoria_oferta_qtd"
-                    )
-
-                df_oferta = df_sem_tutor.copy()
-                if filtro_turno_oferta != "Todos":
-                    df_oferta = df_oferta[df_oferta["Turno"].astype(str) == filtro_turno_oferta]
-                if filtro_turma_oferta != "Todas":
-                    df_oferta = df_oferta[df_oferta["Turma"].astype(str) == filtro_turma_oferta]
-                df_oferta = df_oferta.head(80).reset_index(drop=True)
-
-                mapa_opcoes_oferta = {}
-                opcoes_oferta = []
-                for _, aluno_oferta in df_oferta.iterrows():
-                    nome_oferta = str(aluno_oferta.get("Nome", "")).strip()
-                    turma_oferta = formatar_turma_eletiva(aluno_oferta.get("Turma", ""))
-                    ra_oferta = "".join(ch for ch in str(aluno_oferta.get("RA", "")) if ch.isdigit())
-                    label_oferta = f"{nome_oferta} — {turma_oferta}" if turma_oferta else nome_oferta
-                    if ra_oferta:
-                        label_oferta = f"{label_oferta} — RA {ra_oferta}"
-                    opcoes_oferta.append(label_oferta)
-                    mapa_opcoes_oferta[label_oferta] = {
-                        "nome": nome_oferta,
-                        "serie": turma_oferta,
-                        "ra": ra_oferta,
-                    }
-
-                chave_oferta_estudantes = "tutoria_oferta_estudantes"
-                default_oferta = opcoes_oferta[:int(qtd_sugerida_oferta)]
-                if chave_oferta_estudantes in st.session_state:
-                    st.session_state[chave_oferta_estudantes] = [
-                        item for item in st.session_state.get(chave_oferta_estudantes, [])
-                        if item in mapa_opcoes_oferta
-                    ]
-                    kwargs_multiselect_oferta = {}
-                else:
-                    kwargs_multiselect_oferta = {"default": default_oferta}
-                selecionados_oferta = st.multiselect(
-                    "Estudantes disponíveis para ofertar",
-                    opcoes_oferta,
-                    key=chave_oferta_estudantes,
-                    **kwargs_multiselect_oferta
-                )
-                st.caption(f"Disponíveis no filtro: {len(df_oferta)} | Selecionados: {len(selecionados_oferta)}")
-                if st.button("✅ Vincular oferta ao responsável selecionado", key="tutoria_btn_vincular_oferta", type="primary"):
-                    itens_oferta = [
-                        mapa_opcoes_oferta[item]
-                        for item in selecionados_oferta
-                        if item in mapa_opcoes_oferta
-                    ]
-                    if not itens_oferta:
-                        st.warning("Selecione pelo menos um estudante disponível para ofertar.")
-                    else:
-                        qtd_oferta = _adicionar_estudantes_tutoria(
-                            itens_oferta,
-                            origem="oferta_equilibrada",
-                            tutor_destino=tutor_oferta
-                        )
-                        if qtd_oferta > 0:
-                            _limpar_estado_disponibilidade_tutoria()
-                            st.session_state["tutoria_feedback"] = {
-                                "tipo": "success",
-                                "msg": f"{qtd_oferta} estudante(s) ofertado(s) e vinculado(s) para {tutor_oferta}."
-                            }
-                            st.rerun()
-                        else:
-                            st.info("Nenhum estudante novo foi vinculado. Eles podem ter sido vinculados em outra ação antes da confirmação.")
-
         aba_geral_sem_tutor, aba_turno_sem_tutor, aba_sala_sem_tutor = st.tabs(["📌 Geral", "🕒 Por turno/etapa", "🏫 Por sala"])
 
         with aba_geral_sem_tutor:
@@ -19320,11 +19037,7 @@ elif menu == "🫂 Tutoria":
                                     "origem": "edicao_manual"
                                 }])
                                 _limpar_cache_tutoria_apos_mutacao()
-                            _limpar_estado_disponibilidade_tutoria()
-                            st.session_state["tutoria_feedback"] = {
-                                "tipo": "success",
-                                "msg": "Estudante atualizado com sucesso. As ofertas e duplicidades foram recalculadas."
-                            }
+                            st.success("✅ Estudante atualizado com sucesso.")
                             st.rerun()
                         except Exception as e:
                             st.error(f"Erro ao editar estudante: {e}")
@@ -19347,24 +19060,7 @@ elif menu == "🫂 Tutoria":
                                 if not ok_del:
                                     st.warning("O estudante foi removido da tela, mas houve falha ao excluir no Supabase. Verifique o aviso acima.")
                             _salvar_estado_tutoria("exclusao_individual")
-                            _limpar_estado_disponibilidade_tutoria()
-                            ainda_tem_tutor, vinculos_restantes = _estudante_ja_tem_tutor(removido, TUTORIA)
-                            if ainda_tem_tutor:
-                                tutores_restantes = ", ".join(sorted({
-                                    v.get("tutor", "")
-                                    for v in vinculos_restantes
-                                    if v.get("tutor", "")
-                                }))
-                                msg_exclusao = (
-                                    "Estudante excluído deste responsável. Ele não voltou para oferta "
-                                    f"porque ainda aparece vinculado com: {tutores_restantes}."
-                                )
-                            else:
-                                msg_exclusao = "Estudante excluído com sucesso e liberado novamente para oferta."
-                            st.session_state["tutoria_feedback"] = {
-                                "tipo": "success",
-                                "msg": msg_exclusao
-                            }
+                            st.success("✅ Estudante excluído com sucesso.")
                             st.rerun()
                         except Exception as e:
                             st.error(f"Erro ao excluir estudante: {e}")
@@ -19383,14 +19079,7 @@ elif menu == "🫂 Tutoria":
                         if not ok_del:
                             st.warning(msg_del)
                     _salvar_estado_tutoria("exclusao_lista_professor")
-                    _limpar_estado_disponibilidade_tutoria()
-                    st.session_state["tutoria_feedback"] = {
-                        "tipo": "success",
-                        "msg": (
-                            "Todos os estudantes deste responsável foram excluídos. "
-                            "Quem não estiver em outra tutoria voltou para a oferta."
-                        )
-                    }
+                    st.success("✅ Todos os estudantes da tutoria do professor selecionado foram excluídos.")
                     st.rerun()
                 except Exception as e:
                     st.error(f"Erro ao excluir todos os estudantes: {e}")
