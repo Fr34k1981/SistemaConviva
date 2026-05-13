@@ -5663,72 +5663,106 @@ def excluir_relatorio_estudante(id_relatorio) -> tuple[bool, str]:
 
     from difflib import SequenceMatcher
 
+
+def _tokens_nome_vinculo(valor: str) -> set:
+    texto = normalizar_texto(valor)
+    partes = [p for p in re.split(r"\s+", texto) if len(p) >= 3]
+    ignorar = {"DOS", "DAS", "DO", "DA", "DE", "E"}
+    return {p for p in partes if p not in ignorar}
+
+
+def _score_nome_vinculo(nome_aluno: str, nome_base: str) -> float:
+    """Score mais tolerante para localizar estudante após atualização da lista oficial.
+
+    A lista da SEDUC pode trazer o nome completo com pequenas diferenças do nome
+    que estava salvo na Tutoria. Por isso usa similaridade + interseção de tokens.
+    """
+    a = normalizar_texto(nome_aluno)
+    b = normalizar_texto(nome_base)
+    if not a or not b:
+        return 0.0
+    if a == b:
+        return 1.0
+    score = SequenceMatcher(None, a, b).ratio()
+    ta = _tokens_nome_vinculo(a)
+    tb = _tokens_nome_vinculo(b)
+    if ta and tb:
+        inter = len(ta & tb)
+        # Reforça quando primeiro e último nome batem, comum em atualização de lista.
+        lista_a = [x for x in a.split() if x not in {"DOS", "DAS", "DO", "DA", "DE", "E"}]
+        lista_b = [x for x in b.split() if x not in {"DOS", "DAS", "DO", "DA", "DE", "E"}]
+        if lista_a and lista_b and lista_a[0] == lista_b[0]:
+            score = max(score, 0.82)
+        if len(lista_a) >= 2 and len(lista_b) >= 2 and lista_a[-1] == lista_b[-1]:
+            score = max(score, 0.84)
+        if inter >= 3:
+            score = max(score, 0.93)
+        elif inter >= 2:
+            score = max(score, 0.88)
+    return float(score)
+
+
 def obter_professor_tutor_do_aluno(
     nome_aluno: str,
     turma_aluno: str,
     ra_aluno: str,
     tutoria_dict: dict,
 ) -> str:
+    """Retorna o tutor do estudante usando RA, nome e turma com busca tolerante.
+
+    Regras:
+    1. RA tem prioridade absoluta quando existir na Tutoria.
+    2. Nome exato + turma equivalente vem em seguida.
+    3. Nome muito parecido dentro da mesma turma é aceito.
+    4. Como último recurso, nome quase idêntico sem turma também é aceito.
+    """
     nome_norm = normalizar_texto(nome_aluno)
-    # Garante que RA seja apenas números
     ra_norm = "".join(ch for ch in str(ra_aluno or "") if ch.isdigit())
-    turma_norm = normalizar_texto(turma_aluno)
- 
-    melhor_tutor = ""
-    melhor_score = 0.0
- 
-    # Verifica se o dict existe
+    turma_txt = formatar_turma_eletiva(turma_aluno)
+
     if not tutoria_dict:
         return ""
 
-    for tutor, dados in tutoria_dict.items():
-        if not dados or "alunos" not in dados:
-            continue
+    melhor_tutor_turma = ""
+    melhor_score_turma = 0.0
+    melhor_tutor_sem_turma = ""
+    melhor_score_sem_turma = 0.0
 
-        for item in dados["alunos"]:
-            # --- 1. Prioridade Máxima: RA ---
+    for tutor, dados in normalizar_base_tutoria(tutoria_dict).items():
+        alunos = dados.get("alunos", []) if isinstance(dados, dict) else []
+        for item in alunos or []:
+            if not isinstance(item, dict):
+                continue
             ra_item = "".join(ch for ch in str(item.get("ra", "")) if ch.isdigit())
             if ra_norm and ra_item and ra_norm == ra_item:
-                return tutor # RA é único, achou, volta imediatamente
- 
-            # --- 2. Verificação de Nome ---
-            item_norm = normalizar_texto(item.get("nome", ""))
-            if not item_norm:
+                return str(tutor).strip()
+
+            item_nome = str(item.get("nome", "")).strip()
+            item_norm = normalizar_texto(item_nome)
+            if not item_norm or not nome_norm:
                 continue
- 
-            # --- 3. Lógica de Série Mais Segura ---
-            # Tenta verificar se é exatamente a mesma string ou se contém
-            serie_item = normalizar_texto(item.get("serie", ""))
-            serie_ok = False
-            
-            if not serie_item or not turma_norm:
-                serie_ok = True # Se não tem info de série, assume ok
-            elif serie_item == turma_norm:
-                serie_ok = True
-            # Lógica de substring apenas se for número curto (ex: "7" em "7A")
-            # Evita que "8" case com "18"
-            elif len(serie_item) < 3 and len(turma_norm) < 5: 
-                 if serie_item in turma_norm or turma_norm in serie_item:
-                     serie_ok = True
 
-            if not serie_ok:
-                continue # Pula se a série não bater, economiza processamento
+            serie_item = formatar_turma_eletiva(item.get("serie", ""))
+            turma_ok = _turmas_equivalentes_para_vinculo(serie_item, turma_txt)
+            score = _score_nome_vinculo(nome_norm, item_norm)
 
-            # --- 4. Comparação Fuzzy ---
-            if nome_norm == item_norm:
-                return tutor # Exato e série ok, retorna
-            
-            score = SequenceMatcher(None, nome_norm, item_norm).ratio()
-            
-            # Atualiza melhor score, mas NÃO retorna ainda (para achar o melhor)
-            if score > melhor_score:
-                melhor_score = score
-                melhor_tutor = tutor
+            if item_norm == nome_norm and turma_ok:
+                return str(tutor).strip()
 
-    # Retorna apenas se o score for muito alto
-    return melhor_tutor if melhor_score >= 0.85 else ""
+            if score > melhor_score_sem_turma:
+                melhor_score_sem_turma = score
+                melhor_tutor_sem_turma = str(tutor).strip()
+            if turma_ok and score > melhor_score_turma:
+                melhor_score_turma = score
+                melhor_tutor_turma = str(tutor).strip()
+
+    if melhor_score_turma >= 0.86:
+        return melhor_tutor_turma
+    if melhor_score_sem_turma >= 0.94:
+        return melhor_tutor_sem_turma
+    return ""
  
- 
+
 def _turmas_equivalentes_para_vinculo(turma_a: str, turma_b: str) -> bool:
     """Compara turma em formatos diferentes: 7C, 7º Ano C, 7 ano c."""
     a = formatar_turma_eletiva(str(turma_a or "").strip())
@@ -7791,6 +7825,19 @@ try:
 except Exception:
     pass
 TUTORIA = normalizar_base_tutoria(st.session_state.TUTORIA)
+# Base ampliada só para busca/exibição em relatórios. Não grava nem apaga dados.
+# Evita que uma sessão antiga esconda vínculos que ainda existem no Supabase/cache/backup.
+try:
+    TUTORIA_BUSCA_COMPLETA = mesclar_multiplas_fontes_tutoria(
+        TUTORIA,
+        TUTORIA_SUPABASE_BASE,
+        TUTORIA_REFERENCIA_COM_ALUNOS,
+        TUTORIA_BACKUP_JSON,
+        TUTORIA_LOCAL,
+        TUTORIA_EXCEL,
+    )
+except Exception:
+    TUTORIA_BUSCA_COMPLETA = TUTORIA
 st.session_state.TUTORIA = TUTORIA
 FONTE_TUTORIA = st.session_state.FONTE_TUTORIA
 ROTAS_MENU_SUPORTADAS = {
@@ -14158,7 +14205,7 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
     st.caption(f"Estudante selecionado: {aluno_nome} • RA {aluno_ra or 'não informado'} • Turma {turma_sel}")
  
     professor_tutor_auto = obter_professor_tutor_do_aluno(
-        aluno_nome, turma_sel, aluno_ra, TUTORIA
+        aluno_nome, turma_sel, aluno_ra, TUTORIA_BUSCA_COMPLETA
     )
     eletiva_auto = obter_eletiva_do_aluno(
         aluno_nome, turma_sel, aluno_ra, ELETIVAS
