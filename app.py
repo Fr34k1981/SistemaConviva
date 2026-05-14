@@ -5702,66 +5702,47 @@ def _score_nome_vinculo(nome_aluno: str, nome_base: str) -> float:
     return float(score)
 
 
-def obter_professor_tutor_do_aluno(
-    nome_aluno: str,
-    turma_aluno: str,
-    ra_aluno: str,
-    tutoria_dict: dict,
-) -> str:
-    """Retorna o tutor do estudante usando RA, nome e turma com busca tolerante.
 
-    Regras:
-    1. RA tem prioridade absoluta quando existir na Tutoria.
-    2. Nome exato + turma equivalente vem em seguida.
-    3. Nome muito parecido dentro da mesma turma é aceito.
-    4. Como último recurso, nome quase idêntico sem turma também é aceito.
+def _tokens_nome_vinculo(valor: str) -> set:
+    texto = normalizar_texto(valor)
+    partes = [p for p in re.split(r"\s+", texto) if len(p) >= 3]
+    ignorar = {"DOS", "DAS", "DO", "DA", "DE", "E", "A", "O"}
+    return {p for p in partes if p not in ignorar}
+
+
+def _score_nome_vinculo(nome_aluno: str, nome_base: str) -> float:
+    """Score tolerante para localizar estudante após troca/atualização de lista.
+
+    Evita que pequenas diferenças de grafia impeçam o card de Tutoria/Eletiva
+    no Relatório dos Estudantes.
     """
-    nome_norm = normalizar_texto(nome_aluno)
-    ra_norm = "".join(ch for ch in str(ra_aluno or "") if ch.isdigit())
-    turma_txt = formatar_turma_eletiva(turma_aluno)
+    a = normalizar_texto(nome_aluno)
+    b = normalizar_texto(nome_base)
+    if not a or not b:
+        return 0.0
+    if a == b:
+        return 1.0
+    if len(a) >= 10 and len(b) >= 10 and (a in b or b in a):
+        return 0.96
+    score = SequenceMatcher(None, a, b).ratio()
+    ta = _tokens_nome_vinculo(a)
+    tb = _tokens_nome_vinculo(b)
+    if ta and tb:
+        inter = len(ta & tb)
+        lista_a = [x for x in a.split() if x not in {"DOS", "DAS", "DO", "DA", "DE", "E", "A", "O"}]
+        lista_b = [x for x in b.split() if x not in {"DOS", "DAS", "DO", "DA", "DE", "E", "A", "O"}]
+        if lista_a and lista_b and lista_a[0] == lista_b[0]:
+            score = max(score, 0.82)
+        if len(lista_a) >= 2 and len(lista_b) >= 2 and lista_a[-1] == lista_b[-1]:
+            score = max(score, 0.84)
+        if inter >= 4:
+            score = max(score, 0.96)
+        elif inter >= 3:
+            score = max(score, 0.93)
+        elif inter >= 2:
+            score = max(score, 0.88)
+    return float(score)
 
-    if not tutoria_dict:
-        return ""
-
-    melhor_tutor_turma = ""
-    melhor_score_turma = 0.0
-    melhor_tutor_sem_turma = ""
-    melhor_score_sem_turma = 0.0
-
-    for tutor, dados in normalizar_base_tutoria(tutoria_dict).items():
-        alunos = dados.get("alunos", []) if isinstance(dados, dict) else []
-        for item in alunos or []:
-            if not isinstance(item, dict):
-                continue
-            ra_item = "".join(ch for ch in str(item.get("ra", "")) if ch.isdigit())
-            if ra_norm and ra_item and ra_norm == ra_item:
-                return str(tutor).strip()
-
-            item_nome = str(item.get("nome", "")).strip()
-            item_norm = normalizar_texto(item_nome)
-            if not item_norm or not nome_norm:
-                continue
-
-            serie_item = formatar_turma_eletiva(item.get("serie", ""))
-            turma_ok = _turmas_equivalentes_para_vinculo(serie_item, turma_txt)
-            score = _score_nome_vinculo(nome_norm, item_norm)
-
-            if item_norm == nome_norm and turma_ok:
-                return str(tutor).strip()
-
-            if score > melhor_score_sem_turma:
-                melhor_score_sem_turma = score
-                melhor_tutor_sem_turma = str(tutor).strip()
-            if turma_ok and score > melhor_score_turma:
-                melhor_score_turma = score
-                melhor_tutor_turma = str(tutor).strip()
-
-    if melhor_score_turma >= 0.86:
-        return melhor_tutor_turma
-    if melhor_score_sem_turma >= 0.94:
-        return melhor_tutor_sem_turma
-    return ""
- 
 
 def _turmas_equivalentes_para_vinculo(turma_a: str, turma_b: str) -> bool:
     """Compara turma em formatos diferentes: 7C, 7º Ano C, 7 ano c."""
@@ -5772,9 +5753,11 @@ def _turmas_equivalentes_para_vinculo(turma_a: str, turma_b: str) -> bool:
     if normalizar_texto(a) == normalizar_texto(b):
         return True
     try:
-        return bool(serie_compativel_turma(a, b) or serie_compativel_turma(b, a))
+        if serie_compativel_turma(a, b) or serie_compativel_turma(b, a):
+            return True
     except Exception:
         pass
+
     def extrair(t):
         txt = normalizar_texto(t)
         ano = re.search(r"\b([1-9])", txt)
@@ -5783,9 +5766,188 @@ def _turmas_equivalentes_para_vinculo(turma_a: str, turma_b: str) -> bool:
         if letra:
             letra_val = letra.group(1) or letra.group(2) or ""
         return (ano.group(1) if ano else "", letra_val)
+
     ea = extrair(a)
     eb = extrair(b)
     return ea == eb and all(ea)
+
+
+def _ra_limpo_vinculo(valor) -> str:
+    return "".join(ch for ch in str(valor or "") if ch.isdigit())
+
+
+def _candidatos_tutoria_relatorio(tutoria_dict: dict) -> list[dict]:
+    """Une candidatos da Tutoria em memória + Supabase já carregado.
+
+    Não faz nova leitura pesada. Usa somente objetos que já estão carregados no app.
+    """
+    candidatos = []
+    vistos = set()
+
+    def add(tutor, nome, turma, ra):
+        tutor = str(tutor or "").strip()
+        nome = str(nome or "").strip()
+        turma = str(turma or "").strip()
+        ra = _ra_limpo_vinculo(ra)
+        if not tutor or not nome:
+            return
+        chave = (normalizar_texto(tutor), normalizar_texto(nome), turma_para_comparacao(turma), ra)
+        if chave in vistos:
+            return
+        vistos.add(chave)
+        candidatos.append({"tutor": tutor, "nome": nome, "turma": turma, "ra": ra})
+
+    try:
+        for tutor, dados in normalizar_base_tutoria(tutoria_dict).items():
+            alunos = dados.get("alunos", []) if isinstance(dados, dict) else []
+            for item in alunos or []:
+                if isinstance(item, dict):
+                    add(tutor, item.get("nome", ""), item.get("serie", item.get("turma", "")), item.get("ra", ""))
+    except Exception:
+        pass
+
+    try:
+        df_tut = globals().get("df_tutoria_supabase", pd.DataFrame())
+        if isinstance(df_tut, pd.DataFrame) and not df_tut.empty:
+            for _, row in df_tut.iterrows():
+                add(
+                    row.get("professora", row.get("tutor", row.get("responsavel", ""))),
+                    row.get("nome_aluno", row.get("nome", row.get("aluno", ""))),
+                    row.get("serie", row.get("turma", "")),
+                    row.get("ra", row.get("RA", "")),
+                )
+    except Exception:
+        pass
+
+    return candidatos
+
+
+def obter_professor_tutor_do_aluno(
+    nome_aluno: str,
+    turma_aluno: str,
+    ra_aluno: str,
+    tutoria_dict: dict,
+) -> str:
+    """Retorna o tutor do estudante usando RA, nome e turma com busca tolerante.
+
+    Prioridade:
+    1. RA igual.
+    2. Nome igual + turma equivalente.
+    3. Nome parecido dentro da mesma turma.
+    4. Nome muito parecido mesmo sem turma.
+    """
+    nome_norm = normalizar_texto(nome_aluno)
+    ra_norm = _ra_limpo_vinculo(ra_aluno)
+    turma_txt = formatar_turma_eletiva(turma_aluno)
+    if not nome_norm and not ra_norm:
+        return ""
+
+    melhor_tutor_turma = ""
+    melhor_score_turma = 0.0
+    melhor_tutor_sem_turma = ""
+    melhor_score_sem_turma = 0.0
+
+    for cand in _candidatos_tutoria_relatorio(tutoria_dict):
+        tutor = str(cand.get("tutor", "")).strip()
+        if not tutor:
+            continue
+        ra_item = _ra_limpo_vinculo(cand.get("ra", ""))
+        if ra_norm and ra_item and ra_norm == ra_item:
+            return tutor
+
+        item_norm = normalizar_texto(cand.get("nome", ""))
+        if not item_norm or not nome_norm:
+            continue
+        serie_item = formatar_turma_eletiva(cand.get("turma", ""))
+        turma_ok = _turmas_equivalentes_para_vinculo(serie_item, turma_txt)
+        score = _score_nome_vinculo(nome_norm, item_norm)
+
+        if item_norm == nome_norm and turma_ok:
+            return tutor
+        if turma_ok and score > melhor_score_turma:
+            melhor_score_turma = score
+            melhor_tutor_turma = tutor
+        if score > melhor_score_sem_turma:
+            melhor_score_sem_turma = score
+            melhor_tutor_sem_turma = tutor
+
+    if melhor_score_turma >= 0.82:
+        return melhor_tutor_turma
+    if melhor_score_sem_turma >= 0.92:
+        return melhor_tutor_sem_turma
+    return ""
+
+
+def _mesclar_eletivas_para_busca(*fontes: dict) -> dict:
+    """Une bases de Eletiva sem apagar dados e sem nova consulta ao Supabase."""
+    resultado = {}
+    vistos = set()
+    for fonte in fontes:
+        if not isinstance(fonte, dict):
+            continue
+        for prof, alunos in fonte.items():
+            prof_txt = str(prof or "").strip()
+            if not prof_txt:
+                continue
+            resultado.setdefault(prof_txt, [])
+            for item in alunos or []:
+                if not isinstance(item, dict):
+                    continue
+                nome = str(item.get("nome", item.get("nome_aluno", ""))).strip()
+                turma = formatar_turma_eletiva(item.get("serie", item.get("turma", "")))
+                ra = _ra_limpo_vinculo(item.get("ra", item.get("RA", "")))
+                if not nome:
+                    continue
+                chave = (normalizar_texto(prof_txt), normalizar_texto(nome), turma_para_comparacao(turma), ra)
+                if chave in vistos:
+                    continue
+                vistos.add(chave)
+                novo = {"nome": nome, "serie": turma}
+                if ra:
+                    novo["ra"] = ra
+                resultado[prof_txt].append(novo)
+    return resultado
+
+
+def _candidatos_eletiva_relatorio(eletivas_dict: dict) -> list[dict]:
+    candidatos = []
+    vistos = set()
+
+    def add(prof, nome, turma, ra):
+        prof = str(prof or "").strip()
+        nome = str(nome or "").strip()
+        turma = str(turma or "").strip()
+        ra = _ra_limpo_vinculo(ra)
+        if not prof or not nome:
+            return
+        chave = (normalizar_texto(prof), normalizar_texto(nome), turma_para_comparacao(turma), ra)
+        if chave in vistos:
+            return
+        vistos.add(chave)
+        candidatos.append({"prof": prof, "nome": nome, "turma": turma, "ra": ra})
+
+    try:
+        for prof, alunos in (eletivas_dict or {}).items():
+            for item in alunos or []:
+                if isinstance(item, dict):
+                    add(prof, item.get("nome", item.get("nome_aluno", "")), item.get("serie", item.get("turma", "")), item.get("ra", ""))
+    except Exception:
+        pass
+
+    try:
+        df_el = globals().get("df_eletivas_supabase", pd.DataFrame())
+        if isinstance(df_el, pd.DataFrame) and not df_el.empty:
+            for _, row in df_el.iterrows():
+                add(
+                    row.get("professora", row.get("professor", row.get("responsavel", ""))),
+                    row.get("nome_aluno", row.get("nome", row.get("aluno", ""))),
+                    row.get("serie", row.get("turma", "")),
+                    row.get("ra", row.get("RA", "")),
+                )
+    except Exception:
+        pass
+
+    return candidatos
 
 
 def obter_eletiva_do_aluno(
@@ -5794,43 +5956,48 @@ def obter_eletiva_do_aluno(
     ra_aluno: str,
     eletivas_dict: dict,
 ) -> str:
-    """Retorna a professora de eletiva do aluno usando RA, nome e turma equivalente."""
+    """Retorna a professora de eletiva usando RA, nome e turma equivalente."""
     nome_norm = normalizar_texto(nome_aluno)
-    ra_norm = "".join(ch for ch in str(ra_aluno or "") if ch.isdigit())
+    ra_norm = _ra_limpo_vinculo(ra_aluno)
     turma_txt = formatar_turma_eletiva(turma_aluno)
+    if not nome_norm and not ra_norm:
+        return ""
 
-    melhor_prof = ""
-    melhor_score = 0.0
+    melhor_prof_turma = ""
+    melhor_score_turma = 0.0
     melhor_prof_sem_turma = ""
     melhor_score_sem_turma = 0.0
 
-    for prof, alunos in (eletivas_dict or {}).items():
-        for item in alunos or []:
-            ra_item = _extrair_ra_de_row_ou_item(item)
-            if ra_norm and ra_item and ra_norm == ra_item:
-                return str(prof).strip()
+    for cand in _candidatos_eletiva_relatorio(eletivas_dict):
+        prof = str(cand.get("prof", "")).strip()
+        if not prof:
+            continue
+        ra_item = _ra_limpo_vinculo(cand.get("ra", ""))
+        if ra_norm and ra_item and ra_norm == ra_item:
+            return prof
 
-            item_norm = normalizar_texto(item.get("nome", ""))
-            if not item_norm:
-                continue
-            serie_item = formatar_turma_eletiva(item.get("serie", ""))
-            turma_ok = _turmas_equivalentes_para_vinculo(serie_item, turma_txt)
-            score = SequenceMatcher(None, nome_norm, item_norm).ratio() if nome_norm else 0.0
+        item_norm = normalizar_texto(cand.get("nome", ""))
+        if not item_norm or not nome_norm:
+            continue
+        serie_item = formatar_turma_eletiva(cand.get("turma", ""))
+        turma_ok = _turmas_equivalentes_para_vinculo(serie_item, turma_txt)
+        score = _score_nome_vinculo(nome_norm, item_norm)
 
-            if nome_norm == item_norm and turma_ok:
-                return str(prof).strip()
-            if score > melhor_score_sem_turma:
-                melhor_score_sem_turma = score
-                melhor_prof_sem_turma = str(prof).strip()
-            if turma_ok and score > melhor_score:
-                melhor_score = score
-                melhor_prof = str(prof).strip()
+        if item_norm == nome_norm and turma_ok:
+            return prof
+        if turma_ok and score > melhor_score_turma:
+            melhor_score_turma = score
+            melhor_prof_turma = prof
+        if score > melhor_score_sem_turma:
+            melhor_score_sem_turma = score
+            melhor_prof_sem_turma = prof
 
-    if melhor_score >= 0.84:
-        return melhor_prof
-    if melhor_score_sem_turma >= 0.93:
+    if melhor_score_turma >= 0.82:
+        return melhor_prof_turma
+    if melhor_score_sem_turma >= 0.92:
         return melhor_prof_sem_turma
     return ""
+
 
 def gerar_pontos_atencao_automaticos(df_ocorrencias: pd.DataFrame, turma: str, ra: str, aluno: str, data_inicio, data_fim) -> list[str]:
     if df_ocorrencias.empty:
@@ -7749,6 +7916,18 @@ else:
 
 ELETIVAS = st.session_state.ELETIVAS
 FONTE_ELETIVAS = st.session_state.FONTE_ELETIVAS
+try:
+    # Proteção: se a sessão ficou com Eletivas vazias, mas o Supabase trouxe dados,
+    # recarrega a base para os cards do Relatório dos Estudantes não ficarem zerados.
+    if isinstance(df_eletivas_supabase, pd.DataFrame) and not df_eletivas_supabase.empty:
+        total_eletivas_sessao = sum(len(v or []) for v in (ELETIVAS or {}).values()) if isinstance(ELETIVAS, dict) else 0
+        if total_eletivas_sessao == 0:
+            ELETIVAS = converter_eletivas_supabase_para_dict(df_eletivas_supabase)
+            st.session_state.ELETIVAS = ELETIVAS
+            st.session_state.FONTE_ELETIVAS = "supabase"
+    ELETIVAS_BUSCA_COMPLETA = _mesclar_eletivas_para_busca(ELETIVAS, globals().get("ELETIVAS_EXCEL", {}))
+except Exception:
+    ELETIVAS_BUSCA_COMPLETA = ELETIVAS
 
 TUTORIA_LOCAL = carregar_tutoria_local()
 TUTORIA_PROFESSORES_META = converter_metadados_professores_para_tutoria(df_professores)
@@ -14208,7 +14387,7 @@ elif "RELATORIO DOS ESTUDANTES" in normalizar_texto(menu):
         aluno_nome, turma_sel, aluno_ra, TUTORIA_BUSCA_COMPLETA
     )
     eletiva_auto = obter_eletiva_do_aluno(
-        aluno_nome, turma_sel, aluno_ra, ELETIVAS
+        aluno_nome, turma_sel, aluno_ra, ELETIVAS_BUSCA_COMPLETA
     )
 
     dados_integrados_relatorio = _dados_integrados_estudante(aluno_nome, aluno_ra, turma_sel)
@@ -17227,124 +17406,6 @@ elif menu == "🫂 Tutoria":
         return base.reset_index(drop=True)
 
 
-    def _coletar_estudantes_de_dataframe_integrado(df_origem: pd.DataFrame, fonte: str) -> pd.DataFrame:
-        """Extrai Nome, Turma, RA e Situação de uma base externa (Mapão/Prova Paulista).
-
-        A finalidade é permitir que a Tutoria encontre estudantes que ainda não
-        apareceram na lista oficial, ou que foram remanejados, mas já constam no
-        Mapão/Prova Paulista.
-        """
-        if df_origem is None or df_origem.empty:
-            return pd.DataFrame(columns=["nome", "turma", "ra", "situacao", "fonte"])
-
-        base = df_origem.copy()
-
-        def _coluna_existente(possiveis):
-            for c in possiveis:
-                if c in base.columns:
-                    return c
-            # fallback por normalização
-            mapa_norm = {normalizar_texto(c): c for c in base.columns}
-            for c in possiveis:
-                n = normalizar_texto(c)
-                if n in mapa_norm:
-                    return mapa_norm[n]
-            return None
-
-        col_nome = _coluna_existente(["nome", "Nome", "Estudante", "estudante", "Aluno", "aluno", "NOME DO ALUNO", "Nome do Aluno"])
-        col_turma = _coluna_existente(["turma", "Turma", "Série", "Serie", "Ano/Série", "Ano/Serie", "NM_SERIE"])
-        col_ra = _coluna_existente(["ra", "RA", "NR RA", "nr_ra", "RA do Aluno", "COD_ALUNO"])
-        col_situacao = _coluna_existente(["situacao", "Situação", "Situação do Aluno", "status", "Status", "SITUACAO"])
-
-        if not col_nome:
-            return pd.DataFrame(columns=["nome", "turma", "ra", "situacao", "fonte"])
-
-        saida = pd.DataFrame()
-        saida["nome"] = base[col_nome].astype(str).str.strip()
-        saida["turma"] = base[col_turma].astype(str).apply(formatar_turma_eletiva) if col_turma else ""
-        saida["ra"] = base[col_ra].astype(str).str.replace(r"\D", "", regex=True) if col_ra else ""
-        saida["situacao"] = base[col_situacao].astype(str).str.strip() if col_situacao else "Encontrado em " + fonte
-        saida["fonte"] = fonte
-        saida = saida[saida["nome"].astype(str).str.strip() != ""]
-        return saida.reset_index(drop=True)
-
-
-    def preparar_base_integrada_estudantes_tutoria(df_alunos: pd.DataFrame) -> pd.DataFrame:
-        """Monta uma base única para a Tutoria usando Lista Oficial + Mapão + Prova Paulista.
-
-        Isso evita o problema do estudante atualizado/remanejado aparecer no Mapão
-        ou na Prova Paulista, mas não aparecer na seleção da Tutoria.
-        """
-        fontes = []
-
-        # 1) Lista oficial de alunos: mantém ativos e também permite visualizar
-        # remanejados/transferidos quando a base pedagógica externa os confirma.
-        if df_alunos is not None and not df_alunos.empty and "nome" in df_alunos.columns:
-            base_oficial = df_alunos.copy()
-            if "turma" not in base_oficial.columns:
-                base_oficial["turma"] = ""
-            if "ra" not in base_oficial.columns:
-                base_oficial["ra"] = ""
-            if "situacao" not in base_oficial.columns:
-                base_oficial["situacao"] = "Ativo"
-            oficial = pd.DataFrame({
-                "nome": base_oficial["nome"].astype(str).str.strip(),
-                "turma": base_oficial["turma"].astype(str).apply(formatar_turma_eletiva),
-                "ra": base_oficial["ra"].astype(str).str.replace(r"\D", "", regex=True),
-                "situacao": base_oficial["situacao"].astype(str).str.strip(),
-                "fonte": "Lista oficial",
-            })
-            fontes.append(oficial)
-
-        # 2) Mapão e Prova Paulista: entram como bases de conferência para
-        # atualizar turma/RA quando a lista oficial não trouxe o estudante.
-        try:
-            fontes.append(_coletar_estudantes_de_dataframe_integrado(_carregar_mapao_local(), "Mapão"))
-        except Exception:
-            pass
-        try:
-            fontes.append(_coletar_estudantes_de_dataframe_integrado(_carregar_prova_paulista_local(), "Prova Paulista"))
-        except Exception:
-            pass
-
-        if not fontes:
-            return pd.DataFrame(columns=["nome", "turma", "ra", "situacao", "fonte", "nome_norm", "nome_aprox", "turma_norm"])
-
-        base = pd.concat(fontes, ignore_index=True)
-        for col in ["nome", "turma", "ra", "situacao", "fonte"]:
-            if col not in base.columns:
-                base[col] = ""
-            base[col] = base[col].astype(str).str.strip()
-
-        base["turma"] = base["turma"].apply(formatar_turma_eletiva)
-        base["ra"] = base["ra"].str.replace(r"\D", "", regex=True)
-        base = base[base["nome"] != ""].copy()
-
-        # Prioridade: lista oficial ativa > Mapão/PP > lista oficial com outro status.
-        def _prioridade(row):
-            situacao_norm = normalizar_texto(row.get("situacao", ""))
-            fonte_norm = normalizar_texto(row.get("fonte", ""))
-            if fonte_norm == "LISTA OFICIAL" and situacao_norm in {"ATIVO", "ATIVA"}:
-                return 0
-            if fonte_norm in {"MAPAO", "PROVA PAULISTA"}:
-                return 1
-            return 2
-
-        base["_prioridade"] = base.apply(_prioridade, axis=1)
-        base["nome_norm"] = base["nome"].apply(normalizar_texto)
-        base["nome_aprox"] = base["nome"].apply(_nome_para_busca_aproximada)
-        base["turma_norm"] = base["turma"].apply(turma_para_comparacao)
-        base = base.sort_values(["_prioridade", "nome", "turma"], kind="stable")
-
-        # Deduplicação: RA manda; sem RA, usa nome+turma.
-        base["_chave"] = base.apply(
-            lambda r: f"RA:{r.get('ra')}" if str(r.get("ra", "")).strip() else f"NOME:{r.get('nome_norm')}|TURMA:{r.get('turma_norm')}",
-            axis=1
-        )
-        base = base.drop_duplicates(subset=["_chave"], keep="first").drop(columns=["_prioridade", "_chave"], errors="ignore")
-        return base.reset_index(drop=True)
-
-
     def _score_nome_tutoria(nome_digitado: str, nome_base: str) -> float:
         nome_norm = normalizar_texto(nome_digitado)
         base_norm = normalizar_texto(nome_base)
@@ -17376,7 +17437,7 @@ elif menu == "🫂 Tutoria":
 
     def buscar_estudante_ativo_mais_proximo(nome_digitado: str, serie_digitada: str, df_alunos: pd.DataFrame) -> dict | None:
         """Busca o estudante ativo mais proximo no Supabase usando turma como confirmacao forte."""
-        base = preparar_base_integrada_estudantes_tutoria(df_alunos)
+        base = preparar_base_alunos_ativos_tutoria(df_alunos)
         if base.empty:
             return None
 
@@ -17441,7 +17502,7 @@ elif menu == "🫂 Tutoria":
         Aqui a intenção NÃO é inserir automaticamente, mas mostrar opções para o usuário escolher.
         Por isso o limite é mais baixo e a turma funciona como filtro/preferência forte.
         """
-        base = preparar_base_integrada_estudantes_tutoria(df_alunos)
+        base = preparar_base_alunos_ativos_tutoria(df_alunos)
         if base.empty:
             return []
 
@@ -18175,63 +18236,9 @@ elif menu == "🫂 Tutoria":
     duplicidades_tutoria_df = _localizar_duplicidades_tutoria(TUTORIA)
     if not duplicidades_tutoria_df.empty:
         st.warning(f"⚠️ Existem {len(duplicidades_tutoria_df)} estudante(s) em duplicidade nas listas de tutoria.")
-        with st.expander("🔁 Resolver estudantes em duplicidade", expanded=False):
+        with st.expander("🔁 Ver estudantes em duplicidade", expanded=False):
             st.dataframe(duplicidades_tutoria_df, use_container_width=True, hide_index=True)
-            st.caption("Escolha em qual responsável o estudante deve permanecer. O sistema remove o vínculo dos demais responsáveis e mantém apenas o escolhido.")
-
-            mapa_dup = _mapear_estudantes_vinculados_tutoria(TUTORIA)
-            opcoes_dup = []
-            mapa_opcoes_dup = {}
-            for chave_dup, vinculos_dup in mapa_dup.items():
-                tutores_dup = sorted({str(v.get("tutor", "")).strip() for v in vinculos_dup if str(v.get("tutor", "")).strip()})
-                if len(tutores_dup) <= 1:
-                    continue
-                primeiro_dup = vinculos_dup[0] if vinculos_dup else {}
-                rotulo_dup = f"{primeiro_dup.get('nome', '')} — {primeiro_dup.get('serie', '')} — RA {primeiro_dup.get('ra', '') or 'sem RA'} — {len(tutores_dup)} listas"
-                opcoes_dup.append(rotulo_dup)
-                mapa_opcoes_dup[rotulo_dup] = {"chave": chave_dup, "vinculos": vinculos_dup, "tutores": tutores_dup, "primeiro": primeiro_dup}
-
-            if opcoes_dup:
-                dup_sel = st.selectbox("Estudante em duplicidade", opcoes_dup, key="tutoria_dup_estudante_resolver")
-                dados_dup = mapa_opcoes_dup.get(dup_sel, {})
-                tutor_manter = st.selectbox("Manter este estudante com", dados_dup.get("tutores", []), key="tutoria_dup_tutor_manter")
-                if st.button("✅ Resolver duplicidade selecionada", key="tutoria_btn_resolver_dup", type="primary", use_container_width=True):
-                    chave_alvo = dados_dup.get("chave")
-                    primeiro = dados_dup.get("primeiro", {}) or {}
-                    nome_alvo = str(primeiro.get("nome", "")).strip()
-                    ra_alvo = "".join(ch for ch in str(primeiro.get("ra", "")) if ch.isdigit())
-                    turma_alvo = turma_para_comparacao(primeiro.get("serie", ""))
-
-                    def _mesmo_estudante_para_resolver(aluno: dict) -> bool:
-                        ra = "".join(ch for ch in str(aluno.get("ra", "")) if ch.isdigit())
-                        if ra_alvo and ra == ra_alvo:
-                            return True
-                        nome_ok = normalizar_texto(aluno.get("nome", "")) == normalizar_texto(nome_alvo)
-                        turma_ok = turma_para_comparacao(aluno.get("serie", "")) == turma_alvo
-                        return nome_ok and turma_ok
-
-                    removidos = 0
-                    for tutor_nome, registro in list(TUTORIA.items()):
-                        alunos_lista = normalizar_alunos_tutoria(registro.get("alunos", []))
-                        nova_lista = []
-                        for aluno in alunos_lista:
-                            if _mesmo_estudante_para_resolver(aluno) and str(tutor_nome).strip() != str(tutor_manter).strip():
-                                removidos += 1
-                                continue
-                            nova_lista.append(aluno)
-                        TUTORIA[tutor_nome]["alunos"] = nova_lista
-
-                    st.session_state.TUTORIA = TUTORIA
-                    salvar_tutoria_local(TUTORIA)
-                    if SUPABASE_VALID:
-                        try:
-                            sincronizar_tutoria_listas_supabase(TUTORIA)
-                        except Exception as e:
-                            st.warning(f"Duplicidade resolvida localmente, mas o Supabase não sincronizou agora: {e}")
-                    st.success(f"Duplicidade resolvida. Mantido com {tutor_manter}. Removido de {removidos} outra(s) lista(s).")
-                    st.rerun()
-            else:
-                st.success("Nenhuma duplicidade ativa para resolver.")
+            st.caption("Remova o estudante da lista incorreta antes de tentar vinculá-lo a outro responsável.")
 
     # ======================================================
     # ======================================================
@@ -18608,7 +18615,13 @@ elif menu == "🫂 Tutoria":
             novo = {"nome": nome, "serie": turma, "ra": ra}
             ja_tem, vinculos = _estudante_ja_tem_tutor(novo, TUTORIA)
             if ja_tem:
-                novo["tutor_atual"] = ", ".join(sorted({str(v.get("tutor", "")).strip() for v in vinculos if str(v.get("tutor", "")).strip()}))
+                bloqueados.append({
+                    "nome": nome,
+                    "serie": turma,
+                    "ra": ra,
+                    "tutores": ", ".join(sorted({v.get("tutor", "") for v in vinculos if v.get("tutor", "")})),
+                })
+                continue
             chave = _chave_aluno_temp(novo)
             if chave in existentes:
                 continue
@@ -18618,7 +18631,8 @@ elif menu == "🫂 Tutoria":
         if bloqueados:
             st.session_state["tutoria_bloqueados_temp"] = bloqueados
             st.warning(
-                "Atenção: havia estudantes já vinculados. Agora eles não são bloqueados automaticamente; use a área de duplicidades para escolher com quem ficar."
+                "Estudantes não adicionados porque já estão em outra lista: "
+                + ", ".join([f"{b['nome']} ({b['serie']}) — {b['tutores']}" for b in bloqueados[:10]])
             )
         return adicionados
 
@@ -18629,9 +18643,9 @@ elif menu == "🫂 Tutoria":
     if df_alunos.empty:
         st.info("Não há alunos carregados do Supabase para buscar.")
     else:
-        base_busca = preparar_base_integrada_estudantes_tutoria(df_alunos).copy()
+        base_busca = preparar_base_alunos_ativos_tutoria(df_alunos).copy()
         if base_busca.empty:
-            st.warning("Nenhum estudante foi encontrado na lista oficial, Mapão ou Prova Paulista.")
+            st.warning("Nenhum estudante ativo foi encontrado na tabela de alunos.")
         else:
             base_busca["nome"] = base_busca["nome"].astype(str)
             if "turma" not in base_busca.columns:
@@ -18684,23 +18698,22 @@ elif menu == "🫂 Tutoria":
             df_resultado = df_resultado.sort_values(["nome", "turma_padrao"], kind="stable")
 
             if not df_resultado.empty:
-                def _marcar_tutor_existente(linha):
+                def _linha_disponivel_para_tutoria(linha):
                     candidato = {
                         "nome": linha.get("nome", ""),
                         "serie": linha.get("turma_padrao", linha.get("turma", "")),
                         "ra": linha.get("ra", ""),
                     }
-                    ja_tem, vinculos = _estudante_ja_tem_tutor(candidato, TUTORIA)
-                    if not ja_tem:
-                        return ""
-                    return ", ".join(sorted({str(v.get("tutor", "")).strip() for v in vinculos if str(v.get("tutor", "")).strip()}))
+                    ja_tem, _ = _estudante_ja_tem_tutor(candidato, TUTORIA)
+                    return not ja_tem
 
-                df_resultado["tutor_atual"] = df_resultado.apply(_marcar_tutor_existente, axis=1)
-                qtd_com_tutor = int((df_resultado["tutor_atual"].astype(str).str.strip() != "").sum())
-                if qtd_com_tutor:
-                    st.info(f"{qtd_com_tutor} estudante(s) já têm tutor. Eles continuam aparecendo para conferência e podem ser resolvidos na área de duplicidades.")
+                total_antes_disponibilidade = len(df_resultado)
+                df_resultado = df_resultado[df_resultado.apply(_linha_disponivel_para_tutoria, axis=1)]
+                total_ocultos = total_antes_disponibilidade - len(df_resultado)
+                if total_ocultos > 0:
+                    st.info(f"{total_ocultos} estudante(s) foram ocultados porque já possuem tutor em outra lista.")
 
-            df_resultado = df_resultado.head(120)
+            df_resultado = df_resultado.head(80)
 
             mapa_opcoes = {}
             opcoes = []
@@ -18708,18 +18721,11 @@ elif menu == "🫂 Tutoria":
                 nome = str(linha.get("nome", "")).strip()
                 turma = formatar_turma_eletiva(str(linha.get("turma_padrao", linha.get("turma", ""))).strip())
                 ra = "".join(ch for ch in str(linha.get("ra", "")) if ch.isdigit())
-                fonte = str(linha.get("fonte", "")).strip()
-                situacao = str(linha.get("situacao", "")).strip()
-                tutor_atual = str(linha.get("tutor_atual", "")).strip()
                 label = f"{nome} — {turma}" if turma else nome
                 if ra:
                     label = f"{label} — RA {ra}"
-                if fonte:
-                    label = f"{label} — {fonte}"
-                if tutor_atual:
-                    label = f"{label} — Já está com: {tutor_atual}"
                 opcoes.append(label)
-                mapa_opcoes[label] = {"nome": nome, "serie": turma, "ra": ra, "situacao": situacao, "fonte": fonte, "tutor_atual": tutor_atual}
+                mapa_opcoes[label] = {"nome": nome, "serie": turma, "ra": ra}
 
             selecionados = st.multiselect(
                 "Selecione estudantes para inserir na lista temporária",
@@ -18766,37 +18772,6 @@ elif menu == "🫂 Tutoria":
                 st.success(f"{qtd_add} estudante(s) adicionados à lista temporária.")
             else:
                 st.warning("Nenhum estudante novo foi adicionado. Verifique se já estão na lista ou se os dados estão vazios.")
-
-    # ------------------------------------------------------
-    # 2.5) Inserir estudante manualmente, mesmo fora das bases
-    # ------------------------------------------------------
-    with st.expander("✍️ Inserir estudante manualmente na lista temporária", expanded=False):
-        st.caption("Use quando o estudante ainda não apareceu na lista oficial, no Mapão ou na Prova Paulista. O RA é recomendado para evitar duplicidade.")
-        col_m1, col_m2, col_m3 = st.columns([2, 1, 1])
-        with col_m1:
-            manual_nome = st.text_input("Nome do estudante", key="tutoria_manual_nome")
-        with col_m2:
-            manual_ra = st.text_input("RA", key="tutoria_manual_ra")
-        with col_m3:
-            manual_turma = st.text_input("Turma", key="tutoria_manual_turma", placeholder="Ex: 7º Ano B")
-        manual_situacao = st.text_input("Situação/observação", key="tutoria_manual_situacao", placeholder="Ex: Remanejado, matrícula nova, não consta na lista")
-        if st.button("➕ Adicionar estudante manual à lista temporária", key="tutoria_btn_manual_temp", type="primary", use_container_width=True):
-            item_manual = {
-                "nome": str(manual_nome).strip(),
-                "serie": formatar_turma_eletiva(manual_turma),
-                "ra": "".join(ch for ch in str(manual_ra) if ch.isdigit()),
-                "situacao": str(manual_situacao).strip() or "Inserido manualmente",
-                "fonte": "Inserção manual",
-            }
-            if not item_manual["nome"]:
-                st.warning("Informe o nome do estudante.")
-            else:
-                qtd_manual = _adicionar_na_lista_temp([item_manual])
-                if qtd_manual:
-                    st.success("Estudante manual adicionado à lista temporária.")
-                    st.rerun()
-                else:
-                    st.info("Esse estudante já estava na lista temporária.")
 
     # ------------------------------------------------------
     # 3) Lista temporaria com opcao de remover antes de salvar
