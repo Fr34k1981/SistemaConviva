@@ -2848,6 +2848,130 @@ def salvar_tutoria_local(tutoria_dict: dict):
     except Exception as e:
         logger.error(f"Erro ao salvar cache local da tutoria: {e}")
 
+
+def _nome_responsavel_tutoria_tem_nome_sobrenome(nome: str) -> bool:
+    """Retorna True somente para nomes completos de responsáveis.
+
+    Regra prática para a Tutoria: nomes com apenas uma palavra, como
+    "Erika", "Elaine" ou "Igor", são considerados cadastros parciais e
+    não devem aparecer nas listas principais. Eles só são preservados se
+    ainda houver vínculo sem destino de nome completo equivalente.
+    """
+    texto = str(nome or "").strip()
+    if not texto:
+        return False
+    partes = [p for p in re.split(r"\s+", texto) if p]
+    if len(partes) < 2:
+        return False
+    if len(re.sub(r"[^A-Za-zÀ-ÿ]", "", texto)) < 5:
+        return False
+    return True
+
+
+def _primeiro_nome_tutoria(nome: str) -> str:
+    partes = [p for p in re.split(r"\s+", str(nome or "").strip()) if p]
+    return normalizar_texto(partes[0]) if partes else ""
+
+
+def _nomes_professores_cadastrados_validos(df_professores_base: pd.DataFrame | None = None) -> list[str]:
+    nomes = []
+    try:
+        if df_professores_base is not None and not df_professores_base.empty and "nome" in df_professores_base.columns:
+            nomes = df_professores_base["nome"].dropna().astype(str).str.strip().tolist()
+    except Exception:
+        nomes = []
+    nomes = [n for n in nomes if _nome_responsavel_tutoria_tem_nome_sobrenome(n)]
+    return sorted(set(nomes), key=lambda x: normalizar_texto(x))
+
+
+def normalizar_responsaveis_tutoria_para_exibicao(tutoria_dict: dict, df_professores_base: pd.DataFrame | None = None) -> dict:
+    """Remove/mescla cadastros parciais de responsáveis sem apagar vínculos.
+
+    - Se existir "Erika" e também "Erika Paula Viana Watanabe", os alunos
+      vinculados em "Erika" são movidos para o nome completo e o cadastro curto
+      sai da tela.
+    - Se o nome curto não tiver alunos, ele é removido.
+    - Se o nome curto tiver alunos e não houver nome completo correspondente,
+      ele é mantido internamente para não perder dados, mas não deve ser usado
+      nas listas principais.
+    """
+    base = normalizar_base_tutoria(tutoria_dict)
+    if not base:
+        return {}
+
+    nomes_prof = _nomes_professores_cadastrados_validos(df_professores_base)
+    candidatos_completos = {normalizar_texto(n): n for n in nomes_prof}
+    for nome in base.keys():
+        if _nome_responsavel_tutoria_tem_nome_sobrenome(nome):
+            candidatos_completos.setdefault(normalizar_texto(nome), nome)
+
+    # índice por primeiro nome para achar destino provável.
+    por_primeiro = {}
+    for nome_completo in candidatos_completos.values():
+        por_primeiro.setdefault(_primeiro_nome_tutoria(nome_completo), []).append(nome_completo)
+
+    resultado = dict(base)
+    alterou = False
+    for nome in list(base.keys()):
+        if _nome_responsavel_tutoria_tem_nome_sobrenome(nome):
+            continue
+        dados_curto = resultado.get(nome, estrutura_tutoria_vazia(nome=nome))
+        alunos_curto = normalizar_alunos_tutoria(dados_curto.get("alunos", []))
+        primeiro = _primeiro_nome_tutoria(nome)
+        destinos = sorted(por_primeiro.get(primeiro, []), key=lambda x: (len(x), normalizar_texto(x)))
+        destino = destinos[0] if destinos else ""
+        if destino and destino != nome:
+            dados_destino = resultado.get(destino, estrutura_tutoria_vazia(nome=destino))
+            # preserva metadados do destino; só completa se estiver vazio.
+            for campo in ["tipo", "espaco", "horario", "dia"]:
+                if not str(dados_destino.get(campo, "")).strip() and str(dados_curto.get(campo, "")).strip():
+                    dados_destino[campo] = dados_curto.get(campo, "")
+            existentes = normalizar_alunos_tutoria(dados_destino.get("alunos", []))
+            chaves = {
+                ("".join(ch for ch in str(a.get("ra", "")) if ch.isdigit()), normalizar_texto(a.get("nome", "")), turma_para_comparacao(a.get("serie", "")))
+                for a in existentes
+            }
+            for aluno in alunos_curto:
+                chave = (
+                    "".join(ch for ch in str(aluno.get("ra", "")) if ch.isdigit()),
+                    normalizar_texto(aluno.get("nome", "")),
+                    turma_para_comparacao(aluno.get("serie", "")),
+                )
+                if chave not in chaves:
+                    existentes.append(aluno)
+                    chaves.add(chave)
+            dados_destino["alunos"] = existentes
+            resultado[destino] = dados_destino
+            resultado.pop(nome, None)
+            alterou = True
+        elif not alunos_curto:
+            resultado.pop(nome, None)
+            alterou = True
+        # Se houver alunos e não houver destino completo, preserva internamente.
+
+    if alterou:
+        try:
+            salvar_tutoria_local(resultado)
+        except Exception:
+            pass
+    return normalizar_base_tutoria(resultado)
+
+
+def nomes_responsaveis_validos_tutoria(tutoria_dict: dict, df_professores_base: pd.DataFrame | None = None, incluir_sem_alunos: bool = True) -> list[str]:
+    base = normalizar_base_tutoria(tutoria_dict)
+    nomes = [str(n).strip() for n in base.keys() if _nome_responsavel_tutoria_tem_nome_sobrenome(n)]
+    # Mantém também professores cadastrados na página de professores para permitir novo vínculo.
+    if incluir_sem_alunos:
+        nomes.extend(_nomes_professores_cadastrados_validos(df_professores_base))
+    vistos = set()
+    saida = []
+    for nome in sorted(nomes, key=lambda x: normalizar_texto(x)):
+        chave = normalizar_texto(nome)
+        if chave and chave not in vistos:
+            saida.append(nome)
+            vistos.add(chave)
+    return saida
+
 # ======================================================
 # AGENDAMENTO DE ESPAÇOS - CONSTANTES
 # ======================================================
@@ -17621,8 +17745,11 @@ elif menu == "🫂 Tutoria":
 
     page_header("🫂 Tutoria", "Cadastre professores, estudantes e espaços usados na tutoria", "#0f766e")
     TUTORIA = normalizar_base_tutoria(st.session_state.get("TUTORIA", {}))
+    # Limpeza segura de responsáveis parciais: nomes com apenas uma palavra
+    # são mesclados ao nome completo correspondente ou ocultados das listas principais.
+    TUTORIA = normalizar_responsaveis_tutoria_para_exibicao(TUTORIA, df_professores)
     st.session_state.TUTORIA = TUTORIA
-    nomes_tutoria = sorted(TUTORIA.keys())
+    nomes_tutoria = nomes_responsaveis_validos_tutoria(TUTORIA, df_professores, incluir_sem_alunos=True)
     if st.session_state.get("tutoria_responsaveis_sync_warning"):
         st.warning(st.session_state.get("tutoria_responsaveis_sync_warning"))
 
@@ -17681,7 +17808,7 @@ elif menu == "🫂 Tutoria":
         st.session_state["tutoria_edit_loaded_for"] = nome_responsavel
 
     def _sincronizar_responsavel_tutoria(origem: str):
-        nomes_atuais = sorted(TUTORIA.keys())
+        nomes_atuais = nomes_responsaveis_validos_tutoria(TUTORIA, df_professores, incluir_sem_alunos=True)
         if not nomes_atuais:
             return
         selecionado = str(st.session_state.get(origem, "")).strip()
@@ -17807,6 +17934,8 @@ elif menu == "🫂 Tutoria":
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+    st.info("Organização da Tutoria: cadastros, vínculo, impressão, sem tutor e edição ficam separados em blocos. Para desempenho real, evitei criar `st.tabs`, porque no Streamlit as abas carregam tudo ao mesmo tempo; o ideal é manter blocos/expansores e carregar bases pesadas só quando solicitado.")
 
     # ======================================================
     # ÁREA TÉCNICA DA TUTORIA — OCULTA DA TELA PRINCIPAL
@@ -18057,6 +18186,8 @@ elif menu == "🫂 Tutoria":
         dados_tutores = []
         total_responsaveis_cadastrados = len(TUTORIA)
         for tutor, dados in sorted(TUTORIA.items()):
+            if not _nome_responsavel_tutoria_tem_nome_sobrenome(tutor):
+                continue
             # Contar somente estudantes ativos, conforme a base oficial de alunos.
             df_tutor_ativo = montar_dataframe_tutoria(tutor, df_alunos, TUTORIA)
             total_alunos_tutor = len(df_tutor_ativo)
@@ -18092,10 +18223,7 @@ elif menu == "🫂 Tutoria":
     # mas a seleção para vincular estudantes precisa listar TODOS os responsáveis cadastrados.
     # Caso contrário, um responsável recém-cadastrado ou ainda sem estudante ativo fica oculto
     # e o sistema parece impedir o vínculo.
-    nomes_tutoria_select = sorted(
-        [str(nome).strip() for nome in TUTORIA.keys() if str(nome).strip()],
-        key=lambda x: normalizar_texto(x)
-    )
+    nomes_tutoria_select = nomes_responsaveis_validos_tutoria(TUTORIA, df_professores, incluir_sem_alunos=True)
     if not nomes_tutoria_select:
         st.info("Não há responsável cadastrado para seleção neste momento.")
         st.stop()
@@ -18236,9 +18364,46 @@ elif menu == "🫂 Tutoria":
     duplicidades_tutoria_df = _localizar_duplicidades_tutoria(TUTORIA)
     if not duplicidades_tutoria_df.empty:
         st.warning(f"⚠️ Existem {len(duplicidades_tutoria_df)} estudante(s) em duplicidade nas listas de tutoria.")
-        with st.expander("🔁 Ver estudantes em duplicidade", expanded=False):
+        with st.expander("🔁 Ver estudantes em duplicidade e escolher com quem fica", expanded=False):
             st.dataframe(duplicidades_tutoria_df, use_container_width=True, hide_index=True)
-            st.caption("Remova o estudante da lista incorreta antes de tentar vinculá-lo a outro responsável.")
+            st.caption("Escolha o estudante e o responsável correto. O sistema mantém o vínculo escolhido e remove das outras listas, sem apagar o cadastro do responsável.")
+            opcoes_dup = []
+            for _, rdup in duplicidades_tutoria_df.iterrows():
+                opcoes_dup.append(f"{rdup.get('Estudante','')} · {rdup.get('Turma','')} · RA {rdup.get('RA','')}")
+            dup_escolhida = st.selectbox("Estudante em duplicidade", [""] + opcoes_dup, key="tutoria_dup_estudante_escolhido")
+            if dup_escolhida:
+                idx_dup = opcoes_dup.index(dup_escolhida)
+                linha_dup = duplicidades_tutoria_df.iloc[idx_dup].to_dict()
+                tutores_dup = [t.strip() for t in str(linha_dup.get("Aparece em", "")).split(",") if t.strip()]
+                tutor_mantido = st.selectbox("Responsável correto para manter", tutores_dup, key="tutoria_dup_tutor_mantido")
+                if st.button("✅ Resolver duplicidade mantendo este responsável", key="btn_resolver_dup_tutoria", type="primary"):
+                    nome_dup = str(linha_dup.get("Estudante", "")).strip()
+                    ra_dup = "".join(ch for ch in str(linha_dup.get("RA", "")) if ch.isdigit())
+                    turma_dup = turma_para_comparacao(linha_dup.get("Turma", ""))
+                    removidos = 0
+                    for tutor_nome in list(TUTORIA.keys()):
+                        if str(tutor_nome).strip() == str(tutor_mantido).strip():
+                            continue
+                        dados_t = obter_registro_tutoria(TUTORIA, tutor_nome)
+                        nova_lista = []
+                        for aluno_t in normalizar_alunos_tutoria(dados_t.get("alunos", [])):
+                            ra_t = "".join(ch for ch in str(aluno_t.get("ra", "")) if ch.isdigit())
+                            mesmo_ra = bool(ra_dup and ra_t and ra_dup == ra_t)
+                            mesmo_nome_turma = (normalizar_texto(aluno_t.get("nome", "")) == normalizar_texto(nome_dup) and turma_para_comparacao(aluno_t.get("serie", "")) == turma_dup)
+                            if mesmo_ra or mesmo_nome_turma:
+                                removidos += 1
+                                if SUPABASE_VALID:
+                                    try:
+                                        _excluir_registro_tutoria_supabase(tutor_nome, aluno_t.get("nome", ""), aluno_t.get("serie", ""), aluno_t.get("ra", ""))
+                                    except Exception:
+                                        pass
+                            else:
+                                nova_lista.append(aluno_t)
+                        dados_t["alunos"] = nova_lista
+                        TUTORIA[tutor_nome] = dados_t
+                    _salvar_estado_tutoria("exclusao_duplicidade")
+                    st.success(f"Duplicidade resolvida. {removidos} vínculo(s) removido(s) das listas incorretas.")
+                    st.rerun()
 
     # ======================================================
     # ======================================================
