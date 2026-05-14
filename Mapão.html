@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Mapão Escolar Pro - Versão Final</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #f4f7f6; --card-bg: #ffffff; --primary: #1e3a8a;
+            --accent-green: #10b981; --accent-red: #ef4444; --accent-yellow: #f59e0b; --accent-blue: #3b82f6;
+            --border: #e2e8f0;
+        }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: #334155; margin: 0; padding: 20px; line-height: 1.5; }
+        .app-container { max-width: 1400px; margin: 0 auto; }
+        .top-bar { background: var(--card-bg); padding: 16px 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: space-between; }
+        .top-bar h1 { margin: 0; color: var(--primary); font-size: 1.4rem; font-weight: 700; }
+        .controls { display: flex; gap: 10px; flex-wrap: wrap; }
+        .btn { padding: 10px 16px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: all 0.2s; display: flex; align-items: center; gap: 6px; }
+        .btn:hover { transform: translateY(-1px); opacity: 0.95; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--accent-green); color: white; }
+        .btn-warning { background: var(--accent-yellow); color: white; }
+        .btn-info { background: var(--accent-blue); color: white; }
+        .file-input { display: none; }
+
+        .turma-container { background: var(--card-bg); border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); padding: 20px; margin-bottom: 20px; display: none; }
+        .turma-container.active { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .turma-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; margin-bottom: 15px; gap: 15px; border-bottom: 2px solid var(--border); padding-bottom: 15px; }
+        .turma-title { font-size: 1.3rem; color: var(--primary); font-weight: 700; margin: 0; }
+        
+        .student-selector { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .student-selector label { font-weight: 600; color: var(--primary); }
+        .student-selector select { padding: 10px 14px; border: 2px solid var(--border); border-radius: 8px; font-size: 0.95rem; outline: none; min-width: 300px; background: white; }
+        .student-selector select:focus { border-color: var(--primary); }
+        
+        .top-students { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
+        .top-students h3 { margin: 0 0 10px; font-size: 1rem; }
+        .top-students-list { display: flex; gap: 15px; flex-wrap: wrap; }
+        .top-student-card { background: rgba(255,255,255,0.2); padding: 10px 15px; border-radius: 8px; flex: 1; min-width: 200px; }
+        .top-student-card .name { font-weight: 700; margin-bottom: 5px; }
+        .top-student-card .media { font-size: 1.2rem; font-weight: 800; }
+
+        .analysis-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .analysis-card { background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid var(--border); border-left: 5px solid var(--primary); }
+        .analysis-card h3 { font-size: 0.85rem; color: #64748b; margin: 0 0 6px; font-weight: 700; text-transform: uppercase; }
+        .analysis-card .value { font-size: 1.1rem; font-weight: 800; color: var(--primary); }
+        .badge-red { color: var(--accent-red); font-weight: 700; }
+        .badge-green { color: var(--accent-green); font-weight: 700; }
+
+        .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin-bottom: 15px; }
+        .meta-item { background: #f1f5f9; padding: 8px 12px; border-radius: 6px; display: flex; justify-content: space-between; }
+        .meta-label { font-weight: 700; color: var(--primary); font-size: 0.8rem; }
+
+        .table-wrapper { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 1000px; }
+        th, td { padding: 10px 8px; text-align: center; border: 1px solid #e2e8f0; white-space: nowrap; }
+        th { background: var(--primary); color: white; font-weight: 600; position: sticky; top: 0; z-index: 10; }
+        th.sub-header { background: #3b82f6; font-weight: 500; font-size: 0.8rem; }
+        
+        .col-grp-0 { background-color: #f0f9ff; } .col-grp-1 { background-color: #f0fdf4; } .col-grp-2 { background-color: #fffbeb; }
+        .col-grp-3 { background-color: #fdf4ff; } .col-grp-4 { background-color: #eff6ff; } .col-grp-5 { background-color: #fff1f2; }
+        .col-grp-6 { background-color: #f5f5f4; } .col-grp-7 { background-color: #fafaf9; } .col-grp-8 { background-color: #ecfeff; }
+
+        .student-name { text-align: left; font-weight: 600; color: #0f172a; background: #f8fafc !important; position: sticky; left: 0; z-index: 8; min-width: 200px; padding-left: 14px !important; }
+        th.student-name { background: var(--primary) !important; color: white !important; z-index: 15; min-width: 200px; }
+
+        .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 700; text-align: center; display: inline-block; }
+        .status-ativo { background: #dcfce7; color: #166534; } .status-transferido { background: #fef3c7; color: #92400e; } .status-baixa { background: #fee2e2; color: #991b1b; }
+
+        .grade-low { background: #fee2e2 !important; color: #b91c1c !important; font-weight: 800; border: 1px solid #fca5a5; border-radius: 4px; }
+        .grade-good { color: #166534; font-weight: 600; }
+        
+        .student-highlight { background: #fef3c7 !important; font-weight: 700; }
+
+        @media print {
+            @page { size: A4 landscape; margin: 8mm; }
+            .no-print { display: none !important; }
+            .turma-container { display: block !important; box-shadow: none; padding: 0; border: none; page-break-after: always; margin-bottom: 40px; }
+            .turma-container:last-child { page-break-after: auto; }
+            body { background: white; padding: 10px; font-size: 8pt; }
+            th, td { padding: 3px 4px; font-size: 7.5pt; border: 0.5px solid #000; }
+            th { background: #e2e8f0 !important; color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .analysis-card, .top-students { border: 1px solid #000; page-break-inside: avoid; margin-bottom: 10px; background: white !important; color: black !important; }
+            .meta-item { border: 1px solid #ccc; }
+            .status-badge { border: 1px solid #000; background: white !important; color: black !important; font-weight: 800; }
+            .grade-low { background: #ffdddd !important; color: #000 !important; }
+            .top-students { background: #f0f0f0 !important; }
+            .top-student-card { background: #e0e0e0 !important; }
+        }
+        
+        .tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 10px; }
+        .tab-btn { padding: 10px 18px; border: none; background: #e2e8f0; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; white-space: nowrap; transition: 0.2s; color: #64748b; }
+        .tab-btn.active { background: var(--primary); color: white; }
+        .tab-btn:hover { background: #cbd5e1; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="top-bar no-print">
+            <h1>🎓 Mapão Escolar Pro</h1>
+            <div class="controls">
+                <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">📂 Carregar Excel</button>
+                <button class="btn btn-success" onclick="saveData()">💾 Salvar Local</button>
+                <button class="btn btn-warning" onclick="loadData()">📥 Carregar Salvos</button>
+                <button class="btn btn-info" onclick="window.print()">🖨️ Imprimir / PDF</button>
+                <button class="btn" style="background:#ef4444; color:white;" onclick="clearData()">🗑️ Limpar</button>
+                <input type="file" id="fileInput" class="file-input" accept=".xlsx" onchange="handleFile(this.files[0])">
+            </div>
+        </div>
+
+        <div id="tabsContainer" class="tabs no-print"></div>
+        <div id="outputContainer"></div>
+    </div>
+
+    <script>
+        let currentWorkbookData = null;
+        
+        function handleFile(file) {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                processWorkbook(workbook);
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function processWorkbook(workbook) {
+            currentWorkbookData = [];
+            const container = document.getElementById('outputContainer');
+            const tabs = document.getElementById('tabsContainer');
+            container.innerHTML = ''; tabs.innerHTML = '';
+
+            workbook.SheetNames.forEach((name, idx) => {
+                const sheet = workbook.Sheets[name];
+                const jsonData = XLSX.utils.sheet_to_json(sheet, {header: 1, defval: ""});
+                const parsed = parseSheet(jsonData, name);
+                if (parsed) {
+                    currentWorkbookData.push(parsed);
+                    
+                    const tab = document.createElement('button');
+                    tab.className = `tab-btn ${idx === 0 ? 'active' : ''}`;
+                    tab.textContent = parsed.meta.Turma || name;
+                    tab.onclick = () => switchTab(idx);
+                    tabs.appendChild(tab);
+
+                    const page = document.createElement('div');
+                    page.className = `turma-container ${idx === 0 ? 'active' : ''}`;
+                    page.id = `turma-${idx}`;
+                    page.innerHTML = renderTurma(parsed, idx);
+                    container.appendChild(page);
+                }
+            });
+        }
+
+        function switchTab(idx) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.turma-container').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab-btn')[idx].classList.add('active');
+            document.getElementById(`turma-${idx}`).classList.add('active');
+        }
+
+        function parseSheet(data, sheetName) {
+            let hIdx = -1;
+            for(let i=0; i<data.length; i++) {
+                if(data[i][0] && data[i][0].toString().toUpperCase().includes('ALUNO')) { hIdx = i; break; }
+            }
+            if(hIdx === -1) return null;
+
+            const meta = { Turma: sheetName };
+            for(let i=0; i<hIdx; i++) {
+                const row = data[i].join(' ');
+                if(row.includes('Ano Letivo:')) meta.Ano = data[i][1];
+                if(row.includes('Escola:')) meta.Escola = data[i][1];
+                if(row.includes('Turma:')) meta.Turma = data[i][1];
+            }
+
+            const headers = [];
+            let currSub = null;
+            const rawH = data[hIdx];
+            const rawSubH = data[hIdx+1] || [];
+            for(let c=0; c<rawH.length; c++) {
+                if(rawH[c] && !['ALUNO','SITUAÇÃO','TOTAL'].includes(rawH[c].toString().toUpperCase())) currSub = rawH[c];
+                if(currSub) headers.push({ sub: currSub, field: rawSubH[c]||'V' });
+            }
+
+            const students = [];
+            for(let i=hIdx+2; i<data.length; i++) {
+                const row = data[i];
+                if(!row[0] || row[0].toString().includes('Legenda') || row[0].toString().includes('Aulas')) break;
+                if(!row[0].trim()) continue;
+                const s = { nome: row[0], sit: row[1]||'Ativo', dados: {} };
+                let c = 2;
+                headers.forEach(h => {
+                    s.dados[`${h.sub}_${h.field}`] = row[c] !== undefined ? row[c] : '-';
+                    c++;
+                });
+                students.push(s);
+            }
+
+            return { meta, headers, students, uniqueSubs: [...new Set(headers.map(h => h.sub))] };
+        }
+
+        function analyze(parsed) {
+            const ativos = parsed.students.filter(s => s.sit.toLowerCase().includes('ativo'));
+            let zerados = [], multiLow = [], best = { n: 'N/A', m: 0 }, allStudents = [];
+            const subGrades = {};
+
+            ativos.forEach(s => {
+                let hasGrade = false, lowCount = 0, sum = 0, count = 0;
+                parsed.headers.forEach(h => {
+                    if (h.field !== 'M') return;
+                    const val = s.dados[`${h.sub}_M`];
+                    const num = parseFloat(val);
+                    if (!isNaN(num) && val !== '-') {
+                        subGrades[h.sub] = (subGrades[h.sub] || 0) + 1;
+                        hasGrade = true; sum += num; count++;
+                        if (num < 5) lowCount++;
+                    }
+                });
+                if (!hasGrade) zerados.push(s.nome);
+                if (lowCount > 3) multiLow.push(`${s.nome} (${lowCount})`);
+                const avg = count > 0 ? sum/count : 0;
+                allStudents.push({ nome: s.nome, media: avg });
+                if (avg > best.m) best = { n: s.nome, m: avg.toFixed(1) };
+            });
+
+            // Top 3 students
+            allStudents.sort((a, b) => b.media - a.media);
+            const top3 = allStudents.slice(0, 3);
+
+            return { 
+                zerados, multiLow, best, top3,
+                emptySubs: parsed.uniqueSubs.filter(s => !subGrades[s]), 
+                count: ativos.length 
+            };
+        }
+
+        function renderTurma(parsed, idx) {
+            const an = analyze(parsed);
+            
+            // Student selector options
+            let studentOptions = '<option value="">-- Exibir Todos os Estudantes --</option>';
+            parsed.students.forEach((s, i) => {
+                studentOptions += `<option value="${i}">${s.nome}</option>`;
+            });
+
+            let headHtml = `<tr><th class="student-name">ALUNO</th><th>SIT</th>`;
+            parsed.uniqueSubs.forEach(sub => {
+                const count = parsed.headers.filter(h => h.sub === sub).length;
+                headHtml += `<th colspan="${count}">${sub}</th>`;
+            });
+            headHtml += `</tr><tr><th class="student-name" style="display:none"></th><th></th>`;
+            parsed.uniqueSubs.forEach((sub, i) => {
+                parsed.headers.filter(h => h.sub === sub).forEach((h, j) => {
+                    headHtml += `<th class="sub-header" style="${j===0 ? 'border-left: 2px solid #fff;' : ''}">${h.field}</th>`;
+                });
+            });
+            headHtml += `</tr>`;
+
+            let bodyHtml = '';
+            parsed.students.forEach((s, sIdx) => {
+                const statusClass = s.sit.toLowerCase().includes('ativo') ? 'status-ativo' : (s.sit.toLowerCase().includes('baixa') ? 'status-baixa' : 'status-transferido');
+                const rowId = `turma-${idx}-row-${sIdx}`;
+                bodyHtml += `<tr id="${rowId}"><td class="student-name">${s.nome}</td><td><span class="status-badge ${statusClass}">${s.sit}</span></td>`;
+                parsed.uniqueSubs.forEach((sub, subIdx) => {
+                    parsed.headers.filter(h => h.sub === sub).forEach((h) => {
+                        const key = `${h.sub}_${h.field}`;
+                        let val = s.dados[key] || '-';
+                        let cls = `col-grp-${subIdx % 9}`;
+                        if (h.field === 'M' && !isNaN(val) && val !== '-') {
+                            const n = parseFloat(val);
+                            if (n < 5) cls += ' grade-low';
+                            else if (n >= 9) cls += ' grade-good';
+                        }
+                        bodyHtml += `<td class="${cls}">${val}</td>`;
+                    });
+                });
+                bodyHtml += `</tr>`;
+            });
+
+            // Top 3 students HTML
+            const top3Html = an.top3.length > 0 ? `
+                <div class="top-students">
+                    <h3>🏆 Top 3 Melhores Desempenhos</h3>
+                    <div class="top-students-list">
+                        ${an.top3.map((t, i) => `
+                            <div class="top-student-card">
+                                <div class="name">${i+1}º - ${t.nome}</div>
+                                <div class="media">${t.media.toFixed(1)}/10</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : '';
+
+            return `
+                <div class="meta-grid">
+                    <div class="meta-item"><span class="meta-label">Escola</span>${parsed.meta.Escola || '-'}</div>
+                    <div class="meta-item"><span class="meta-label">Turma</span>${parsed.meta.Turma}</div>
+                    <div class="meta-item"><span class="meta-label">Ano</span>${parsed.meta.Ano || '-'}</div>
+                    <div class="meta-item"><span class="meta-label">Total Alunos</span>${parsed.students.length}</div>
+                </div>
+                
+                ${top3Html}
+                
+                <div class="analysis-grid">
+                    <div class="analysis-card"><h3>🔴 Notas Baixas (&lt;5)</h3><div class="value badge-red">${an.multiLow.length}</div></div>
+                    <div class="analysis-card"><h3>⚠️ Disciplinas sem notas</h3><div class="value">${an.emptySubs.length}</div></div>
+                    <div class="analysis-card"><h3>🚫 Alunos Zerados</h3><div class="value">${an.zerados.length}</div></div>
+                    <div class="analysis-card"><h3>🏆 Melhor Média</h3><div class="value badge-green">${an.n} (${an.m})</div></div>
+                </div>
+                
+                <div class="turma-header no-print">
+                    <h2 class="turma-title">📋 Tabela de Rendimento</h2>
+                    <div class="student-selector">
+                        <label for="student-select-${idx}">🔍 Selecionar Estudante:</label>
+                        <select id="student-select-${idx}" onchange="filterStudent(${idx}, this.value)">
+                            ${studentOptions}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="table-wrapper">
+                    <table id="table-${idx}">
+                        <thead>${headHtml}</thead>
+                        <tbody id="tbody-${idx}">${bodyHtml}</tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        window.filterStudent = function(turmaIdx, studentIdx) {
+            const tbody = document.getElementById(`tbody-${turmaIdx}`);
+            const rows = tbody.querySelectorAll('tr');
+            
+            if (studentIdx === "") {
+                // Show all rows
+                rows.forEach(row => row.style.display = '');
+            } else {
+                // Hide all rows first
+                rows.forEach(row => row.style.display = 'none');
+                // Show only selected student
+                const selectedRow = document.getElementById(`turma-${turmaIdx}-row-${studentIdx}`);
+                if (selectedRow) {
+                    selectedRow.style.display = '';
+                    selectedRow.classList.add('student-highlight');
+                }
+            }
+        };
+
+        window.saveData = () => {
+            if (!currentWorkbookData) return alert('Carregue um arquivo primeiro.');
+            localStorage.setItem('mapaoPro2026_v4', JSON.stringify(currentWorkbookData));
+            alert('Dados salvos com sucesso!');
+        };
+
+        window.loadData = () => {
+            const saved = localStorage.getItem('mapaoPro2026_v4');
+            if (!saved) return alert('Nenhum dado salvo.');
+            currentWorkbookData = JSON.parse(saved);
+            const container = document.getElementById('outputContainer');
+            const tabs = document.getElementById('tabsContainer');
+            container.innerHTML = ''; tabs.innerHTML = '';
+            currentWorkbookData.forEach((p, i) => {
+                const tab = document.createElement('button');
+                tab.className = `tab-btn ${i===0?'active':''}`; tab.textContent = p.meta.Turma;
+                tab.onclick = () => switchTab(i); tabs.appendChild(tab);
+                const page = document.createElement('div');
+                page.className = `turma-container ${i===0?'active':''}`;
+                page.id = `turma-${i}`;
+                page.innerHTML = renderTurma(p, i); container.appendChild(page);
+            });
+            alert('Dados carregados!');
+        };
+
+        window.clearData = () => {
+            if(confirm('Apagar dados salvos e reiniciar?')) {
+                localStorage.removeItem('mapaoPro2026_v4');
+                currentWorkbookData = null;
+                document.getElementById('outputContainer').innerHTML = '';
+                document.getElementById('tabsContainer').innerHTML = '';
+            }
+        };
+    </script>
+</body>
+</html>
