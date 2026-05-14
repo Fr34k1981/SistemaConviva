@@ -17935,24 +17935,7 @@ elif menu == "🫂 Tutoria":
     </div>
     """, unsafe_allow_html=True)
 
-    st.info("A Tutoria agora fica separada por seções. Para carregar mais rápido, o sistema renderiza somente a seção escolhida, em vez de abrir todos os blocos de uma vez.")
-
-    SECOES_TUTORIA = [
-        "Cadastro de Responsáveis e Espaços",
-        "Cadastros da Tutoria",
-        "Pesquisa e Lista do Responsável",
-        "Inserir Estudantes na Tutoria",
-        "Imprimir Lista da Tutoria",
-        "Estudantes Sem Tutor",
-        "Editar ou Excluir Estudante",
-    ]
-    secao_tutoria = st.radio(
-        "Escolha a área da Tutoria",
-        SECOES_TUTORIA,
-        horizontal=True,
-        key="secao_tutoria_principal",
-    )
-
+    st.info("Organização da Tutoria: cadastros, vínculo, impressão, sem tutor e edição ficam separados em blocos. Para desempenho real, evitei criar `st.tabs`, porque no Streamlit as abas carregam tudo ao mesmo tempo; o ideal é manter blocos/expansores e carregar bases pesadas só quando solicitado.")
 
     # ======================================================
     # ÁREA TÉCNICA DA TUTORIA — OCULTA DA TELA PRINCIPAL
@@ -18010,1513 +17993,1492 @@ elif menu == "🫂 Tutoria":
                 else:
                     st.warning(msg_lote)
 
-    if secao_tutoria == "Cadastro de Responsáveis e Espaços":
-        # Seção carregada sob demanda para reduzir processamento da página de Tutoria.
+    st.markdown("---")
+    st.subheader("👩‍🏫 Cadastro de Responsáveis e Espaços")
+    tab_novo_tutor, tab_editar_tutor = st.tabs(["➕ Novo cadastro", "⚙️ Editar cadastro"])
 
-        st.markdown("---")
-        st.subheader("👩‍🏫 Cadastro de Responsáveis e Espaços")
-        tab_novo_tutor, tab_editar_tutor = st.tabs(["➕ Novo cadastro", "⚙️ Editar cadastro"])
-    
-        if nomes_tutoria:
-            if st.session_state.get("tutoria_responsavel_atual") not in nomes_tutoria:
-                st.session_state["tutoria_responsavel_atual"] = nomes_tutoria[0]
-            for chave in ("tutoria_tutor_select", "tutoria_tutor_lista_lote", "tutoria_tutor_edicao"):
-                if st.session_state.get(chave) not in nomes_tutoria:
-                    st.session_state[chave] = st.session_state["tutoria_responsavel_atual"]
-            if st.session_state.get("tutoria_edit_loaded_for") != st.session_state["tutoria_tutor_edicao"]:
-                _carregar_campos_edicao_tutoria(st.session_state["tutoria_tutor_edicao"])
-    
-        with tab_novo_tutor:
-            col_n1, col_n2 = st.columns(2)
-            with col_n1:
+    if nomes_tutoria:
+        if st.session_state.get("tutoria_responsavel_atual") not in nomes_tutoria:
+            st.session_state["tutoria_responsavel_atual"] = nomes_tutoria[0]
+        for chave in ("tutoria_tutor_select", "tutoria_tutor_lista_lote", "tutoria_tutor_edicao"):
+            if st.session_state.get(chave) not in nomes_tutoria:
+                st.session_state[chave] = st.session_state["tutoria_responsavel_atual"]
+        if st.session_state.get("tutoria_edit_loaded_for") != st.session_state["tutoria_tutor_edicao"]:
+            _carregar_campos_edicao_tutoria(st.session_state["tutoria_tutor_edicao"])
+
+    with tab_novo_tutor:
+        col_n1, col_n2 = st.columns(2)
+        with col_n1:
+            professores_lista = []
+            if not df_professores.empty and "nome" in df_professores.columns:
+                professores_lista = sorted(df_professores["nome"].dropna().astype(str).unique().tolist())
+            
+            if professores_lista:
+                nome_novo_tutor = st.selectbox("Nome do responsável", professores_lista, key="tutoria_novo_nome")
+            else:
+                st.warning("Nenhum professor cadastrado. Cadastre professores em '👨‍🏫 Cadastrar Professores'.")
+                nome_novo_tutor = ""
+            
+            opcoes_espacos_tutoria = obter_opcoes_espacos_tutoria(TUTORIA)
+            espaco_novo_tutor_select = st.selectbox(
+                "Espaço usado",
+                opcoes_espacos_tutoria + ["Outro espaço"],
+                key="tutoria_novo_espaco_select"
+            )
+            if espaco_novo_tutor_select == "Outro espaço":
+                espaco_novo_tutor = st.text_input(
+                    "Digite o novo espaço",
+                    key="tutoria_novo_espaco",
+                    placeholder="Ex: Sala 12"
+                )
+            else:
+                espaco_novo_tutor = espaco_novo_tutor_select
+        
+        with col_n2:
+            tipo_novo_tutor = st.selectbox("Perfil", PERFIS_TUTORIA, key="tutoria_novo_tipo")
+            horario_novo_tutor = st.text_input("Horário", key="tutoria_novo_horario", placeholder="Ex: 13:10 às 14:00")
+        
+        dia_novo_tutor = st.text_input("Dia", key="tutoria_novo_dia", placeholder="Ex: Quarta-feira")
+        
+        if st.button("✅ Cadastrar Responsável", key="btn_cadastrar_tutor_tutoria", type="primary"):
+            nome_novo_tutor = str(nome_novo_tutor).strip()
+            if not nome_novo_tutor:
+                st.warning("Informe o nome do responsável.")
+            else:
+                nome_existente_tutoria = next(
+                    (nome_existente for nome_existente in TUTORIA.keys()
+                     if normalizar_texto(nome_novo_tutor) == normalizar_texto(nome_existente)),
+                    None
+                )
+                if nome_existente_tutoria:
+                    st.session_state["tutoria_responsavel_atual"] = nome_existente_tutoria
+                    st.session_state["tutoria_tutor_select"] = nome_existente_tutoria
+                    st.session_state["tutoria_tutor_edicao"] = nome_existente_tutoria
+                    st.warning("Já existe um cadastro com esse nome. O cadastro foi selecionado abaixo para vincular estudantes ou editar os dados.")
+                    st.rerun()
+                TUTORIA[nome_novo_tutor] = {
+                    "nome": nome_novo_tutor,
+                    "tipo": normalizar_perfil_tutoria(tipo_novo_tutor),
+                    "espaco": normalizar_espaco_tutoria(espaco_novo_tutor),
+                    "horario": str(horario_novo_tutor).strip(),
+                    "dia": str(dia_novo_tutor).strip(),
+                    "alunos": []
+                }
+                _salvar_estado_tutoria("local")
+                st.success("✅ Cadastro realizado com sucesso.")
+                st.rerun()
+            if False:
+                TUTORIA[nome_novo_tutor] = {
+                    "nome": nome_novo_tutor,
+                    "tipo": normalizar_perfil_tutoria(tipo_novo_tutor),
+                    "espaco": normalizar_espaco_tutoria(espaco_novo_tutor),
+                    "horario": str(horario_novo_tutor).strip(),
+                    "dia": str(dia_novo_tutor).strip(),
+                    "alunos": []
+                }
+                _salvar_estado_tutoria("local")
+                st.success("✅ Cadastro realizado com sucesso.")
+                st.rerun()
+
+    with tab_editar_tutor:
+        if not TUTORIA:
+            st.info("Cadastre um responsável para habilitar a edição.")
+        else:
+            tutor_edicao = st.selectbox(
+                "Cadastro para editar",
+                nomes_tutoria,
+                key="tutoria_tutor_edicao",
+                on_change=_sincronizar_responsavel_tutoria,
+                args=("tutoria_tutor_edicao",)
+            )
+            dados_edicao = obter_registro_tutoria(TUTORIA, tutor_edicao)
+            col_e1, col_e2 = st.columns(2)
+            with col_e1:
                 professores_lista = []
                 if not df_professores.empty and "nome" in df_professores.columns:
                     professores_lista = sorted(df_professores["nome"].dropna().astype(str).unique().tolist())
                 
+                nome_atual = dados_edicao.get("nome", "")
                 if professores_lista:
-                    nome_novo_tutor = st.selectbox("Nome do responsável", professores_lista, key="tutoria_novo_nome")
+                    idx_atual = professores_lista.index(nome_atual) if nome_atual in professores_lista else 0
+                    nome_edit_tutor = st.selectbox("Nome", professores_lista, index=idx_atual, key="tutoria_edit_nome")
                 else:
-                    st.warning("Nenhum professor cadastrado. Cadastre professores em '👨‍🏫 Cadastrar Professores'.")
-                    nome_novo_tutor = ""
+                    nome_edit_tutor = st.text_input("Nome", value=nome_atual, key="tutoria_edit_nome")
+                    st.warning("Nenhum professor cadastrado. Cadastre professores primeiro.")
                 
                 opcoes_espacos_tutoria = obter_opcoes_espacos_tutoria(TUTORIA)
-                espaco_novo_tutor_select = st.selectbox(
+                espaco_atual = dados_edicao.get("espaco", "")
+                opcoes_edit_espacos = list(opcoes_espacos_tutoria)
+                if espaco_atual and normalizar_texto(espaco_atual) not in {normalizar_texto(e) for e in opcoes_edit_espacos}:
+                    opcoes_edit_espacos.append(espaco_atual)
+                idx_espaco = opcoes_edit_espacos.index(espaco_atual) if espaco_atual in opcoes_edit_espacos else 0
+                espaco_edit_tutor_select = st.selectbox(
                     "Espaço usado",
-                    opcoes_espacos_tutoria + ["Outro espaço"],
-                    key="tutoria_novo_espaco_select"
+                    opcoes_edit_espacos + ["Outro espaço"],
+                    index=idx_espaco,
+                    key="tutoria_edit_espaco_select"
                 )
-                if espaco_novo_tutor_select == "Outro espaço":
-                    espaco_novo_tutor = st.text_input(
+                if espaco_edit_tutor_select == "Outro espaço":
+                    espaco_edit_tutor = st.text_input(
                         "Digite o novo espaço",
-                        key="tutoria_novo_espaco",
-                        placeholder="Ex: Sala 12"
+                        value=espaco_atual,
+                        key="tutoria_edit_espaco"
                     )
                 else:
-                    espaco_novo_tutor = espaco_novo_tutor_select
-            
-            with col_n2:
-                tipo_novo_tutor = st.selectbox("Perfil", PERFIS_TUTORIA, key="tutoria_novo_tipo")
-                horario_novo_tutor = st.text_input("Horário", key="tutoria_novo_horario", placeholder="Ex: 13:10 às 14:00")
-            
-            dia_novo_tutor = st.text_input("Dia", key="tutoria_novo_dia", placeholder="Ex: Quarta-feira")
-            
-            if st.button("✅ Cadastrar Responsável", key="btn_cadastrar_tutor_tutoria", type="primary"):
-                nome_novo_tutor = str(nome_novo_tutor).strip()
-                if not nome_novo_tutor:
-                    st.warning("Informe o nome do responsável.")
-                else:
-                    nome_existente_tutoria = next(
-                        (nome_existente for nome_existente in TUTORIA.keys()
-                         if normalizar_texto(nome_novo_tutor) == normalizar_texto(nome_existente)),
-                        None
-                    )
-                    if nome_existente_tutoria:
-                        st.session_state["tutoria_responsavel_atual"] = nome_existente_tutoria
-                        st.session_state["tutoria_tutor_select"] = nome_existente_tutoria
-                        st.session_state["tutoria_tutor_edicao"] = nome_existente_tutoria
-                        st.warning("Já existe um cadastro com esse nome. O cadastro foi selecionado abaixo para vincular estudantes ou editar os dados.")
-                        st.rerun()
-                    TUTORIA[nome_novo_tutor] = {
-                        "nome": nome_novo_tutor,
-                        "tipo": normalizar_perfil_tutoria(tipo_novo_tutor),
-                        "espaco": normalizar_espaco_tutoria(espaco_novo_tutor),
-                        "horario": str(horario_novo_tutor).strip(),
-                        "dia": str(dia_novo_tutor).strip(),
-                        "alunos": []
-                    }
-                    _salvar_estado_tutoria("local")
-                    st.success("✅ Cadastro realizado com sucesso.")
-                    st.rerun()
-                if False:
-                    TUTORIA[nome_novo_tutor] = {
-                        "nome": nome_novo_tutor,
-                        "tipo": normalizar_perfil_tutoria(tipo_novo_tutor),
-                        "espaco": normalizar_espaco_tutoria(espaco_novo_tutor),
-                        "horario": str(horario_novo_tutor).strip(),
-                        "dia": str(dia_novo_tutor).strip(),
-                        "alunos": []
-                    }
-                    _salvar_estado_tutoria("local")
-                    st.success("✅ Cadastro realizado com sucesso.")
-                    st.rerun()
-    
-        with tab_editar_tutor:
-            if not TUTORIA:
-                st.info("Cadastre um responsável para habilitar a edição.")
-            else:
-                tutor_edicao = st.selectbox(
-                    "Cadastro para editar",
-                    nomes_tutoria,
-                    key="tutoria_tutor_edicao",
-                    on_change=_sincronizar_responsavel_tutoria,
-                    args=("tutoria_tutor_edicao",)
-                )
-                dados_edicao = obter_registro_tutoria(TUTORIA, tutor_edicao)
-                col_e1, col_e2 = st.columns(2)
-                with col_e1:
-                    professores_lista = []
-                    if not df_professores.empty and "nome" in df_professores.columns:
-                        professores_lista = sorted(df_professores["nome"].dropna().astype(str).unique().tolist())
-                    
-                    nome_atual = dados_edicao.get("nome", "")
-                    if professores_lista:
-                        idx_atual = professores_lista.index(nome_atual) if nome_atual in professores_lista else 0
-                        nome_edit_tutor = st.selectbox("Nome", professores_lista, index=idx_atual, key="tutoria_edit_nome")
+                    espaco_edit_tutor = espaco_edit_tutor_select
+            with col_e2:
+                perfil_atual = normalizar_perfil_tutoria(dados_edicao.get("tipo", "Professor(a)"))
+                idx_perfil = PERFIS_TUTORIA.index(perfil_atual) if perfil_atual in PERFIS_TUTORIA else 0
+                tipo_edit_tutor = st.selectbox("Perfil", PERFIS_TUTORIA, index=idx_perfil, key="tutoria_edit_tipo")
+                horario_edit_tutor = st.text_input("Horário", value=str(dados_edicao.get("horario", "") or ""), key="tutoria_edit_horario")
+            dia_edit_tutor = st.text_input("Dia", value=str(dados_edicao.get("dia", "") or ""), key="tutoria_edit_dia")
+
+            col_b1, col_b2 = st.columns(2)
+            with col_b1:
+                if st.button("💾 Salvar Professor(a)", key="btn_salvar_tutor_tutoria", type="primary"):
+                    nome_edit_tutor = str(nome_edit_tutor).strip()
+                    if not nome_edit_tutor:
+                        st.warning("Informe um nome válido.")
+                    elif nome_edit_tutor != tutor_edicao and any(normalizar_texto(nome_edit_tutor) == normalizar_texto(nome_existente) for nome_existente in TUTORIA.keys()):
+                        st.warning("Já existe outro cadastro com esse nome.")
                     else:
-                        nome_edit_tutor = st.text_input("Nome", value=nome_atual, key="tutoria_edit_nome")
-                        st.warning("Nenhum professor cadastrado. Cadastre professores primeiro.")
-                    
-                    opcoes_espacos_tutoria = obter_opcoes_espacos_tutoria(TUTORIA)
-                    espaco_atual = dados_edicao.get("espaco", "")
-                    opcoes_edit_espacos = list(opcoes_espacos_tutoria)
-                    if espaco_atual and normalizar_texto(espaco_atual) not in {normalizar_texto(e) for e in opcoes_edit_espacos}:
-                        opcoes_edit_espacos.append(espaco_atual)
-                    idx_espaco = opcoes_edit_espacos.index(espaco_atual) if espaco_atual in opcoes_edit_espacos else 0
-                    espaco_edit_tutor_select = st.selectbox(
-                        "Espaço usado",
-                        opcoes_edit_espacos + ["Outro espaço"],
-                        index=idx_espaco,
-                        key="tutoria_edit_espaco_select"
-                    )
-                    if espaco_edit_tutor_select == "Outro espaço":
-                        espaco_edit_tutor = st.text_input(
-                            "Digite o novo espaço",
-                            value=espaco_atual,
-                            key="tutoria_edit_espaco"
-                        )
-                    else:
-                        espaco_edit_tutor = espaco_edit_tutor_select
-                with col_e2:
-                    perfil_atual = normalizar_perfil_tutoria(dados_edicao.get("tipo", "Professor(a)"))
-                    idx_perfil = PERFIS_TUTORIA.index(perfil_atual) if perfil_atual in PERFIS_TUTORIA else 0
-                    tipo_edit_tutor = st.selectbox("Perfil", PERFIS_TUTORIA, index=idx_perfil, key="tutoria_edit_tipo")
-                    horario_edit_tutor = st.text_input("Horário", value=str(dados_edicao.get("horario", "") or ""), key="tutoria_edit_horario")
-                dia_edit_tutor = st.text_input("Dia", value=str(dados_edicao.get("dia", "") or ""), key="tutoria_edit_dia")
-    
-                col_b1, col_b2 = st.columns(2)
-                with col_b1:
-                    if st.button("💾 Salvar Professor(a)", key="btn_salvar_tutor_tutoria", type="primary"):
-                        nome_edit_tutor = str(nome_edit_tutor).strip()
-                        if not nome_edit_tutor:
-                            st.warning("Informe um nome válido.")
-                        elif nome_edit_tutor != tutor_edicao and any(normalizar_texto(nome_edit_tutor) == normalizar_texto(nome_existente) for nome_existente in TUTORIA.keys()):
-                            st.warning("Já existe outro cadastro com esse nome.")
-                        else:
-                            dados_salvos = obter_registro_tutoria(TUTORIA, tutor_edicao)
-                            dados_salvos["nome"] = nome_edit_tutor
-                            dados_salvos["tipo"] = normalizar_perfil_tutoria(tipo_edit_tutor)
-                            dados_salvos["espaco"] = str(espaco_edit_tutor).strip()
-                            dados_salvos["horario"] = str(horario_edit_tutor).strip()
-                            dados_salvos["dia"] = str(dia_edit_tutor).strip()
-                            if nome_edit_tutor != tutor_edicao:
-                                TUTORIA.pop(tutor_edicao, None)
-                            TUTORIA[nome_edit_tutor] = dados_salvos
-                            _salvar_estado_tutoria("local")
-                            if SUPABASE_VALID and nome_edit_tutor != tutor_edicao:
-                                try:
-                                    tutor_q = requests.utils.quote(str(tutor_edicao), safe="")
-                                    _supabase_request("DELETE", f"tutoria?professora=eq.{tutor_q}")
-                                    registros = converter_tutoria_para_registros({nome_edit_tutor: dados_salvos}, origem="renomeacao_tutor")
-                                    if registros:
-                                        _supabase_request("POST", "tutoria", json=registros)
-                                except Exception:
-                                    pass
-                            st.success("✅ Cadastro atualizado com sucesso.")
-                            st.rerun()
-                with col_b2:
-                    confirmar_exclusao_tutor = st.checkbox("Confirmar exclusão do cadastro", key="confirmar_exclusao_tutor_tutoria")
-                    if st.button("🗑️ Excluir Cadastro", key="btn_excluir_tutor_tutoria", type="secondary"):
-                        if not confirmar_exclusao_tutor:
-                            st.warning("Marque a confirmação para excluir.")
-                        else:
+                        dados_salvos = obter_registro_tutoria(TUTORIA, tutor_edicao)
+                        dados_salvos["nome"] = nome_edit_tutor
+                        dados_salvos["tipo"] = normalizar_perfil_tutoria(tipo_edit_tutor)
+                        dados_salvos["espaco"] = str(espaco_edit_tutor).strip()
+                        dados_salvos["horario"] = str(horario_edit_tutor).strip()
+                        dados_salvos["dia"] = str(dia_edit_tutor).strip()
+                        if nome_edit_tutor != tutor_edicao:
                             TUTORIA.pop(tutor_edicao, None)
-                            _salvar_estado_tutoria("local")
-                            if SUPABASE_VALID:
-                                try:
-                                    tutor_q = requests.utils.quote(str(tutor_edicao), safe="")
-                                    _supabase_request("DELETE", f"tutoria?professora=eq.{tutor_q}")
-                                except Exception:
-                                    pass
-                            st.success("✅ Cadastro excluído com sucesso.")
-                            st.rerun()
-    
-    if secao_tutoria == "Cadastros da Tutoria":
-        # Seção carregada sob demanda para reduzir processamento da página de Tutoria.
-
-        st.markdown("---")
-        st.subheader("📊 Cadastros da Tutoria")
-        if TUTORIA:
-            dados_tutores = []
-            total_responsaveis_cadastrados = len(TUTORIA)
-            for tutor, dados in sorted(TUTORIA.items()):
-                if not _nome_responsavel_tutoria_tem_nome_sobrenome(tutor):
-                    continue
-                # Contar somente estudantes ativos, conforme a base oficial de alunos.
-                df_tutor_ativo = montar_dataframe_tutoria(tutor, df_alunos, TUTORIA)
-                total_alunos_tutor = len(df_tutor_ativo)
-                if total_alunos_tutor <= 0:
-                    continue
-                series = ", ".join(sorted({
-                    formatar_turma_eletiva(t)
-                    for t in df_tutor_ativo.get("Turma", pd.Series(dtype=str)).dropna().astype(str).tolist()
-                    if str(t).strip()
-                }, key=ordenar_turma_tutoria))
-                dados_tutores.append({
-                    "Responsável": tutor,
-                    "Perfil": dados.get("tipo", "Professor(a)"),
-                    "Espaço": dados.get("espaco", "") or espaco_oficial_por_tutor(tutor) or "Não informado",
-                    "Horário": dados.get("horario", "") or TUTORIA_HORARIO_PADRAO_TURNO1,
-                    "Dia": dados.get("dia", "") or TUTORIA_DIA_PADRAO_TURNO1,
-                    "Total de Alunos Ativos": total_alunos_tutor,
-                    "Turmas": series
-                })
-            df_tutores_view = pd.DataFrame(dados_tutores)
-            if df_tutores_view.empty:
-                st.info("📭 Nenhum responsável com estudante ativo vinculado no momento. Os cadastros continuam preservados para edição, mas esta lista exibe somente estudantes com Situação = Ativo.")
-            else:
-                st.caption(f"Exibindo somente responsáveis com estudantes ativos vinculados: {len(df_tutores_view)} de {total_responsaveis_cadastrados} cadastro(s).")
-                st.dataframe(df_tutores_view, use_container_width=True, hide_index=True)
-                if any(df_tutores_view[c].astype(str).str.strip().eq("").any() for c in ["Espaço", "Horário", "Dia"] if c in df_tutores_view.columns):
-                    st.caption("⚠️ Alguns cadastros estão sem Espaço/Horário/Dia no banco atual. A edição agora preserva esses campos e também tenta recuperar metadados de fontes locais/planilhas/professores quando disponíveis.")
-        else:
-            st.info("📭 Nenhum cadastro realizado em tutoria.")
-            st.stop()
-    
-        # A tabela acima continua exibindo somente responsáveis com estudantes ativos,
-        # mas a seleção para vincular estudantes precisa listar TODOS os responsáveis cadastrados.
-        # Caso contrário, um responsável recém-cadastrado ou ainda sem estudante ativo fica oculto
-        # e o sistema parece impedir o vínculo.
-        nomes_tutoria_select = nomes_responsaveis_validos_tutoria(TUTORIA, df_professores, incluir_sem_alunos=True)
-        if not nomes_tutoria_select:
-            st.info("Não há responsável cadastrado para seleção neste momento.")
-            st.stop()
-    
-        if "df_tutores_view" in locals() and not df_tutores_view.empty and "Responsável" in df_tutores_view.columns:
-            tutores_com_ativos = set(df_tutores_view["Responsável"].dropna().astype(str).str.strip())
-        else:
-            tutores_com_ativos = set()
-        tutores_sem_ativos = [nome for nome in nomes_tutoria_select if nome not in tutores_com_ativos]
-        if tutores_sem_ativos:
-            with st.expander("👥 Responsáveis cadastrados ainda sem estudante ativo vinculado", expanded=False):
-                st.caption("Estes cadastros não aparecem na tabela de cima porque ela mostra somente responsáveis com estudantes ativos, mas eles continuam disponíveis para vincular estudantes.")
-                st.dataframe(pd.DataFrame({"Responsável": tutores_sem_ativos}), use_container_width=True, hide_index=True)
-    
-        if st.session_state.get("tutoria_tutor_select") not in nomes_tutoria_select:
-            st.session_state["tutoria_tutor_select"] = nomes_tutoria_select[0]
-    
-        st.markdown("---")
-        tutor_sel = st.selectbox(
-            "Selecione o responsável",
-            nomes_tutoria_select,
-            key="tutoria_tutor_select",
-            on_change=_sincronizar_responsavel_tutoria,
-            args=("tutoria_tutor_select",)
-        )
-        tutor_info = obter_registro_tutoria(TUTORIA, tutor_sel)
-        alunos_raw = tutor_info.get("alunos", [])
-    
-        col_meta1, col_meta2, col_meta3, col_meta4 = st.columns(4)
-        meta_tutoria = [
-            ("Perfil", tutor_info.get("tipo", "Professor(a)")),
-            ("Espaço", tutor_info.get("espaco", "") or "Não informado"),
-            ("Horário", tutor_info.get("horario", "") or "Não informado"),
-            ("Dia", tutor_info.get("dia", "") or "Não informado")
-        ]
-        for coluna, (rotulo, valor) in zip((col_meta1, col_meta2, col_meta3, col_meta4), meta_tutoria):
-            with coluna:
-                st.markdown(
-                    f"""
-                    <div style="padding:0.25rem 0 0.75rem 0;">
-                        <div style="font-size:0.95rem;color:#475569;margin-bottom:0.35rem;">{rotulo}</div>
-                        <div style="font-family:'Nunito',sans-serif;font-size:0.95rem;line-height:1.35;font-weight:700;color:#1e293b;word-break:break-word;">
-                            {html.escape(str(valor))}
-                        </div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-    
-        # ======================================================
-        # TUTORIA - CONTROLE DE DUPLICIDADE
-        # Objetivo: impedir que um estudante já vinculado a um tutor
-        # apareça disponível para outro tutor, além de apontar registros
-        # duplicados já existentes para correção manual.
-        # ======================================================
-        def _nome_fonetico_seguro_tutoria(valor: str) -> str:
-            try:
-                return normalizar_nome_fonetico(valor)
-            except Exception:
-                return normalizar_texto(valor)
-    
-        def _chaves_estudante_tutoria(item: dict) -> set[str]:
-            """Gera chaves de comparação por RA, nome normalizado e nome fonético."""
-            ra = "".join(ch for ch in str(item.get("ra", "")) if ch.isdigit())
-            nome = str(item.get("nome", item.get("Nome", item.get("aluno", "")))).strip()
-            serie = formatar_turma_eletiva(str(item.get("serie", item.get("turma", item.get("Turma", "")))).strip())
-            turma_cmp = turma_para_comparacao(serie)
-            chaves = set()
-            if ra:
-                chaves.add(f"RA|{ra}")
-            if nome:
-                chaves.add(f"NOME|{normalizar_texto(nome)}|{turma_cmp}")
-                chaves.add(f"FON|{_nome_fonetico_seguro_tutoria(nome)}|{turma_cmp}")
-            return {c for c in chaves if c and not c.endswith("||")}
-    
-        def _mapear_estudantes_vinculados_tutoria(tutoria_dict: dict) -> dict:
-            """Retorna chave -> lista de vínculos encontrados em todas as listas de tutoria."""
-            mapa = {}
-            for tutor_nome, dados_tutor in normalizar_base_tutoria(tutoria_dict).items():
-                for aluno_item in dados_tutor.get("alunos", []) or []:
-                    registro = {
-                        "tutor": tutor_nome,
-                        "nome": str(aluno_item.get("nome", "")).strip(),
-                        "serie": formatar_turma_eletiva(aluno_item.get("serie", "")),
-                        "ra": "".join(ch for ch in str(aluno_item.get("ra", "")) if ch.isdigit()),
-                    }
-                    for chave in _chaves_estudante_tutoria(aluno_item):
-                        mapa.setdefault(chave, []).append(registro)
-            return mapa
-    
-        def _vinculos_do_estudante_tutoria(item: dict, tutoria_dict: dict) -> list[dict]:
-            mapa = _mapear_estudantes_vinculados_tutoria(tutoria_dict)
-            encontrados = []
-            vistos = set()
-            for chave in _chaves_estudante_tutoria(item):
-                for vinculo in mapa.get(chave, []):
-                    id_vinculo = (
-                        vinculo.get("tutor", ""),
-                        vinculo.get("ra", ""),
-                        normalizar_texto(vinculo.get("nome", "")),
-                        turma_para_comparacao(vinculo.get("serie", "")),
-                    )
-                    if id_vinculo not in vistos:
-                        encontrados.append(vinculo)
-                        vistos.add(id_vinculo)
-            return encontrados
-    
-        def _estudante_ja_tem_tutor(item: dict, tutoria_dict: dict, tutor_permitido: str | None = None) -> tuple[bool, list[dict]]:
-            """Retorna True quando o estudante já está em qualquer lista de tutoria."""
-            vinculos = _vinculos_do_estudante_tutoria(item, tutoria_dict)
-            if tutor_permitido:
-                vinculos = [v for v in vinculos if str(v.get("tutor", "")).strip() != str(tutor_permitido).strip()]
-            return bool(vinculos), vinculos
-    
-        def _localizar_duplicidades_tutoria(tutoria_dict: dict) -> pd.DataFrame:
-            """Monta uma tabela de estudantes que aparecem em mais de uma lista."""
-            mapa = _mapear_estudantes_vinculados_tutoria(tutoria_dict)
-            linhas = []
-            chaves_processadas = set()
-            for chave, vinculos in mapa.items():
-                tutores = sorted({str(v.get("tutor", "")).strip() for v in vinculos if str(v.get("tutor", "")).strip()})
-                if len(tutores) <= 1:
-                    continue
-                assinatura = tuple(tutores) + (chave,)
-                if assinatura in chaves_processadas:
-                    continue
-                chaves_processadas.add(assinatura)
-                primeiro = vinculos[0] if vinculos else {}
-                linhas.append({
-                    "Estudante": primeiro.get("nome", ""),
-                    "Turma": primeiro.get("serie", ""),
-                    "RA": primeiro.get("ra", ""),
-                    "Aparece em": ", ".join(tutores),
-                    "Quantidade de listas": len(tutores),
-                })
-            return pd.DataFrame(linhas)
-    
-        duplicidades_tutoria_df = _localizar_duplicidades_tutoria(TUTORIA)
-        if not duplicidades_tutoria_df.empty:
-            st.warning(f"⚠️ Existem {len(duplicidades_tutoria_df)} estudante(s) em duplicidade nas listas de tutoria.")
-            with st.expander("🔁 Ver estudantes em duplicidade e escolher com quem fica", expanded=False):
-                st.dataframe(duplicidades_tutoria_df, use_container_width=True, hide_index=True)
-                st.caption("Escolha o estudante e o responsável correto. O sistema mantém o vínculo escolhido e remove das outras listas, sem apagar o cadastro do responsável.")
-                opcoes_dup = []
-                for _, rdup in duplicidades_tutoria_df.iterrows():
-                    opcoes_dup.append(f"{rdup.get('Estudante','')} · {rdup.get('Turma','')} · RA {rdup.get('RA','')}")
-                dup_escolhida = st.selectbox("Estudante em duplicidade", [""] + opcoes_dup, key="tutoria_dup_estudante_escolhido")
-                if dup_escolhida:
-                    idx_dup = opcoes_dup.index(dup_escolhida)
-                    linha_dup = duplicidades_tutoria_df.iloc[idx_dup].to_dict()
-                    tutores_dup = [t.strip() for t in str(linha_dup.get("Aparece em", "")).split(",") if t.strip()]
-                    tutor_mantido = st.selectbox("Responsável correto para manter", tutores_dup, key="tutoria_dup_tutor_mantido")
-                    if st.button("✅ Resolver duplicidade mantendo este responsável", key="btn_resolver_dup_tutoria", type="primary"):
-                        nome_dup = str(linha_dup.get("Estudante", "")).strip()
-                        ra_dup = "".join(ch for ch in str(linha_dup.get("RA", "")) if ch.isdigit())
-                        turma_dup = turma_para_comparacao(linha_dup.get("Turma", ""))
-                        removidos = 0
-                        for tutor_nome in list(TUTORIA.keys()):
-                            if str(tutor_nome).strip() == str(tutor_mantido).strip():
-                                continue
-                            dados_t = obter_registro_tutoria(TUTORIA, tutor_nome)
-                            nova_lista = []
-                            for aluno_t in normalizar_alunos_tutoria(dados_t.get("alunos", [])):
-                                ra_t = "".join(ch for ch in str(aluno_t.get("ra", "")) if ch.isdigit())
-                                mesmo_ra = bool(ra_dup and ra_t and ra_dup == ra_t)
-                                mesmo_nome_turma = (normalizar_texto(aluno_t.get("nome", "")) == normalizar_texto(nome_dup) and turma_para_comparacao(aluno_t.get("serie", "")) == turma_dup)
-                                if mesmo_ra or mesmo_nome_turma:
-                                    removidos += 1
-                                    if SUPABASE_VALID:
-                                        try:
-                                            _excluir_registro_tutoria_supabase(tutor_nome, aluno_t.get("nome", ""), aluno_t.get("serie", ""), aluno_t.get("ra", ""))
-                                        except Exception:
-                                            pass
-                                else:
-                                    nova_lista.append(aluno_t)
-                            dados_t["alunos"] = nova_lista
-                            TUTORIA[tutor_nome] = dados_t
-                        _salvar_estado_tutoria("exclusao_duplicidade")
-                        st.success(f"Duplicidade resolvida. {removidos} vínculo(s) removido(s) das listas incorretas.")
+                        TUTORIA[nome_edit_tutor] = dados_salvos
+                        _salvar_estado_tutoria("local")
+                        if SUPABASE_VALID and nome_edit_tutor != tutor_edicao:
+                            try:
+                                tutor_q = requests.utils.quote(str(tutor_edicao), safe="")
+                                _supabase_request("DELETE", f"tutoria?professora=eq.{tutor_q}")
+                                registros = converter_tutoria_para_registros({nome_edit_tutor: dados_salvos}, origem="renomeacao_tutor")
+                                if registros:
+                                    _supabase_request("POST", "tutoria", json=registros)
+                            except Exception:
+                                pass
+                        st.success("✅ Cadastro atualizado com sucesso.")
                         st.rerun()
-    
-        # ======================================================
-        # ======================================================
-    
-        # ======================================================
-        # TUTORIA - PESQUISA RAPIDA: COM QUEM ESTA O ESTUDANTE
-        # ======================================================
-    if secao_tutoria == "Pesquisa e Lista do Responsável":
-        # Seção carregada sob demanda para reduzir processamento da página de Tutoria.
-
-        with st.expander("🔎 Pesquisar estudante na Tutoria", expanded=False):
-            st.caption("Use esta pesquisa para localizar rapidamente se o estudante ativo já está vinculado a algum responsável/tutor.")
-            base_ativos_pesquisa = preparar_base_alunos_ativos_tutoria(df_alunos)
-            if base_ativos_pesquisa.empty:
-                st.info("Nenhum estudante ativo encontrado na base de alunos para pesquisa.")
-            else:
-                base_ativos_pesquisa = base_ativos_pesquisa.copy()
-                base_ativos_pesquisa["rotulo_busca_tutoria"] = base_ativos_pesquisa.apply(
-                    lambda r: f"{str(r.get('nome', '')).strip()} · {formatar_turma_eletiva(r.get('turma', ''))} · RA {str(r.get('ra', '')).strip() or 'sem RA'}",
-                    axis=1
-                )
-                opcoes_estudantes_tutoria = base_ativos_pesquisa["rotulo_busca_tutoria"].dropna().astype(str).tolist()
-                estudante_pesquisado_rotulo = st.selectbox(
-                    "Digite ou selecione o estudante ativo",
-                    [""] + opcoes_estudantes_tutoria,
-                    key="tutoria_pesquisa_estudante_vinculo"
-                )
-                if estudante_pesquisado_rotulo:
-                    linha_estudante = base_ativos_pesquisa[
-                        base_ativos_pesquisa["rotulo_busca_tutoria"].astype(str).eq(str(estudante_pesquisado_rotulo))
-                    ].head(1)
-                    if linha_estudante.empty:
-                        st.warning("Não foi possível localizar o estudante selecionado na base ativa.")
+            with col_b2:
+                confirmar_exclusao_tutor = st.checkbox("Confirmar exclusão do cadastro", key="confirmar_exclusao_tutor_tutoria")
+                if st.button("🗑️ Excluir Cadastro", key="btn_excluir_tutor_tutoria", type="secondary"):
+                    if not confirmar_exclusao_tutor:
+                        st.warning("Marque a confirmação para excluir.")
                     else:
-                        aluno_pesquisa = linha_estudante.iloc[0].to_dict()
-                        item_pesquisa = {
-                            "nome": str(aluno_pesquisa.get("nome", "")).strip(),
-                            "serie": formatar_turma_eletiva(aluno_pesquisa.get("turma", "")),
-                            "ra": "".join(ch for ch in str(aluno_pesquisa.get("ra", "")) if ch.isdigit()),
-                        }
-                        vinculos_encontrados = _vinculos_do_estudante_tutoria(item_pesquisa, TUTORIA)
-                        linhas_resultado = []
-                        if vinculos_encontrados:
-                            for vinculo in vinculos_encontrados:
-                                tutor_nome = str(vinculo.get("tutor", "")).strip()
-                                dados_tutor = obter_registro_tutoria(TUTORIA, tutor_nome)
-                                linhas_resultado.append({
-                                    "Estudante": item_pesquisa["nome"],
-                                    "Turma": item_pesquisa["serie"],
-                                    "RA": item_pesquisa["ra"],
-                                    "Situação": str(aluno_pesquisa.get("situacao", "Ativo") or "Ativo").strip(),
-                                    "Status na Tutoria": "Com tutor",
-                                    "Tutor(a)/Responsável": tutor_nome,
-                                    "Perfil": dados_tutor.get("tipo", "Professor(a)"),
-                                    "Espaço": dados_tutor.get("espaco", "") or "Não informado",
-                                    "Horário": dados_tutor.get("horario", "") or "Não informado",
-                                    "Dia": dados_tutor.get("dia", "") or "Não informado",
-                                })
-                            st.success(f"Estudante localizado em {len(vinculos_encontrados)} lista(s) de tutoria.")
-                        else:
+                        TUTORIA.pop(tutor_edicao, None)
+                        _salvar_estado_tutoria("local")
+                        if SUPABASE_VALID:
+                            try:
+                                tutor_q = requests.utils.quote(str(tutor_edicao), safe="")
+                                _supabase_request("DELETE", f"tutoria?professora=eq.{tutor_q}")
+                            except Exception:
+                                pass
+                        st.success("✅ Cadastro excluído com sucesso.")
+                        st.rerun()
+
+    st.markdown("---")
+    st.subheader("📊 Cadastros da Tutoria")
+    if TUTORIA:
+        dados_tutores = []
+        total_responsaveis_cadastrados = len(TUTORIA)
+        for tutor, dados in sorted(TUTORIA.items()):
+            if not _nome_responsavel_tutoria_tem_nome_sobrenome(tutor):
+                continue
+            # Contar somente estudantes ativos, conforme a base oficial de alunos.
+            df_tutor_ativo = montar_dataframe_tutoria(tutor, df_alunos, TUTORIA)
+            total_alunos_tutor = len(df_tutor_ativo)
+            if total_alunos_tutor <= 0:
+                continue
+            series = ", ".join(sorted({
+                formatar_turma_eletiva(t)
+                for t in df_tutor_ativo.get("Turma", pd.Series(dtype=str)).dropna().astype(str).tolist()
+                if str(t).strip()
+            }, key=ordenar_turma_tutoria))
+            dados_tutores.append({
+                "Responsável": tutor,
+                "Perfil": dados.get("tipo", "Professor(a)"),
+                "Espaço": dados.get("espaco", "") or espaco_oficial_por_tutor(tutor) or "Não informado",
+                "Horário": dados.get("horario", "") or TUTORIA_HORARIO_PADRAO_TURNO1,
+                "Dia": dados.get("dia", "") or TUTORIA_DIA_PADRAO_TURNO1,
+                "Total de Alunos Ativos": total_alunos_tutor,
+                "Turmas": series
+            })
+        df_tutores_view = pd.DataFrame(dados_tutores)
+        if df_tutores_view.empty:
+            st.info("📭 Nenhum responsável com estudante ativo vinculado no momento. Os cadastros continuam preservados para edição, mas esta lista exibe somente estudantes com Situação = Ativo.")
+        else:
+            st.caption(f"Exibindo somente responsáveis com estudantes ativos vinculados: {len(df_tutores_view)} de {total_responsaveis_cadastrados} cadastro(s).")
+            st.dataframe(df_tutores_view, use_container_width=True, hide_index=True)
+            if any(df_tutores_view[c].astype(str).str.strip().eq("").any() for c in ["Espaço", "Horário", "Dia"] if c in df_tutores_view.columns):
+                st.caption("⚠️ Alguns cadastros estão sem Espaço/Horário/Dia no banco atual. A edição agora preserva esses campos e também tenta recuperar metadados de fontes locais/planilhas/professores quando disponíveis.")
+    else:
+        st.info("📭 Nenhum cadastro realizado em tutoria.")
+        st.stop()
+
+    # A tabela acima continua exibindo somente responsáveis com estudantes ativos,
+    # mas a seleção para vincular estudantes precisa listar TODOS os responsáveis cadastrados.
+    # Caso contrário, um responsável recém-cadastrado ou ainda sem estudante ativo fica oculto
+    # e o sistema parece impedir o vínculo.
+    nomes_tutoria_select = nomes_responsaveis_validos_tutoria(TUTORIA, df_professores, incluir_sem_alunos=True)
+    if not nomes_tutoria_select:
+        st.info("Não há responsável cadastrado para seleção neste momento.")
+        st.stop()
+
+    if "df_tutores_view" in locals() and not df_tutores_view.empty and "Responsável" in df_tutores_view.columns:
+        tutores_com_ativos = set(df_tutores_view["Responsável"].dropna().astype(str).str.strip())
+    else:
+        tutores_com_ativos = set()
+    tutores_sem_ativos = [nome for nome in nomes_tutoria_select if nome not in tutores_com_ativos]
+    if tutores_sem_ativos:
+        with st.expander("👥 Responsáveis cadastrados ainda sem estudante ativo vinculado", expanded=False):
+            st.caption("Estes cadastros não aparecem na tabela de cima porque ela mostra somente responsáveis com estudantes ativos, mas eles continuam disponíveis para vincular estudantes.")
+            st.dataframe(pd.DataFrame({"Responsável": tutores_sem_ativos}), use_container_width=True, hide_index=True)
+
+    if st.session_state.get("tutoria_tutor_select") not in nomes_tutoria_select:
+        st.session_state["tutoria_tutor_select"] = nomes_tutoria_select[0]
+
+    st.markdown("---")
+    tutor_sel = st.selectbox(
+        "Selecione o responsável",
+        nomes_tutoria_select,
+        key="tutoria_tutor_select",
+        on_change=_sincronizar_responsavel_tutoria,
+        args=("tutoria_tutor_select",)
+    )
+    tutor_info = obter_registro_tutoria(TUTORIA, tutor_sel)
+    alunos_raw = tutor_info.get("alunos", [])
+
+    col_meta1, col_meta2, col_meta3, col_meta4 = st.columns(4)
+    meta_tutoria = [
+        ("Perfil", tutor_info.get("tipo", "Professor(a)")),
+        ("Espaço", tutor_info.get("espaco", "") or "Não informado"),
+        ("Horário", tutor_info.get("horario", "") or "Não informado"),
+        ("Dia", tutor_info.get("dia", "") or "Não informado")
+    ]
+    for coluna, (rotulo, valor) in zip((col_meta1, col_meta2, col_meta3, col_meta4), meta_tutoria):
+        with coluna:
+            st.markdown(
+                f"""
+                <div style="padding:0.25rem 0 0.75rem 0;">
+                    <div style="font-size:0.95rem;color:#475569;margin-bottom:0.35rem;">{rotulo}</div>
+                    <div style="font-family:'Nunito',sans-serif;font-size:0.95rem;line-height:1.35;font-weight:700;color:#1e293b;word-break:break-word;">
+                        {html.escape(str(valor))}
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+    # ======================================================
+    # TUTORIA - CONTROLE DE DUPLICIDADE
+    # Objetivo: impedir que um estudante já vinculado a um tutor
+    # apareça disponível para outro tutor, além de apontar registros
+    # duplicados já existentes para correção manual.
+    # ======================================================
+    def _nome_fonetico_seguro_tutoria(valor: str) -> str:
+        try:
+            return normalizar_nome_fonetico(valor)
+        except Exception:
+            return normalizar_texto(valor)
+
+    def _chaves_estudante_tutoria(item: dict) -> set[str]:
+        """Gera chaves de comparação por RA, nome normalizado e nome fonético."""
+        ra = "".join(ch for ch in str(item.get("ra", "")) if ch.isdigit())
+        nome = str(item.get("nome", item.get("Nome", item.get("aluno", "")))).strip()
+        serie = formatar_turma_eletiva(str(item.get("serie", item.get("turma", item.get("Turma", "")))).strip())
+        turma_cmp = turma_para_comparacao(serie)
+        chaves = set()
+        if ra:
+            chaves.add(f"RA|{ra}")
+        if nome:
+            chaves.add(f"NOME|{normalizar_texto(nome)}|{turma_cmp}")
+            chaves.add(f"FON|{_nome_fonetico_seguro_tutoria(nome)}|{turma_cmp}")
+        return {c for c in chaves if c and not c.endswith("||")}
+
+    def _mapear_estudantes_vinculados_tutoria(tutoria_dict: dict) -> dict:
+        """Retorna chave -> lista de vínculos encontrados em todas as listas de tutoria."""
+        mapa = {}
+        for tutor_nome, dados_tutor in normalizar_base_tutoria(tutoria_dict).items():
+            for aluno_item in dados_tutor.get("alunos", []) or []:
+                registro = {
+                    "tutor": tutor_nome,
+                    "nome": str(aluno_item.get("nome", "")).strip(),
+                    "serie": formatar_turma_eletiva(aluno_item.get("serie", "")),
+                    "ra": "".join(ch for ch in str(aluno_item.get("ra", "")) if ch.isdigit()),
+                }
+                for chave in _chaves_estudante_tutoria(aluno_item):
+                    mapa.setdefault(chave, []).append(registro)
+        return mapa
+
+    def _vinculos_do_estudante_tutoria(item: dict, tutoria_dict: dict) -> list[dict]:
+        mapa = _mapear_estudantes_vinculados_tutoria(tutoria_dict)
+        encontrados = []
+        vistos = set()
+        for chave in _chaves_estudante_tutoria(item):
+            for vinculo in mapa.get(chave, []):
+                id_vinculo = (
+                    vinculo.get("tutor", ""),
+                    vinculo.get("ra", ""),
+                    normalizar_texto(vinculo.get("nome", "")),
+                    turma_para_comparacao(vinculo.get("serie", "")),
+                )
+                if id_vinculo not in vistos:
+                    encontrados.append(vinculo)
+                    vistos.add(id_vinculo)
+        return encontrados
+
+    def _estudante_ja_tem_tutor(item: dict, tutoria_dict: dict, tutor_permitido: str | None = None) -> tuple[bool, list[dict]]:
+        """Retorna True quando o estudante já está em qualquer lista de tutoria."""
+        vinculos = _vinculos_do_estudante_tutoria(item, tutoria_dict)
+        if tutor_permitido:
+            vinculos = [v for v in vinculos if str(v.get("tutor", "")).strip() != str(tutor_permitido).strip()]
+        return bool(vinculos), vinculos
+
+    def _localizar_duplicidades_tutoria(tutoria_dict: dict) -> pd.DataFrame:
+        """Monta uma tabela de estudantes que aparecem em mais de uma lista."""
+        mapa = _mapear_estudantes_vinculados_tutoria(tutoria_dict)
+        linhas = []
+        chaves_processadas = set()
+        for chave, vinculos in mapa.items():
+            tutores = sorted({str(v.get("tutor", "")).strip() for v in vinculos if str(v.get("tutor", "")).strip()})
+            if len(tutores) <= 1:
+                continue
+            assinatura = tuple(tutores) + (chave,)
+            if assinatura in chaves_processadas:
+                continue
+            chaves_processadas.add(assinatura)
+            primeiro = vinculos[0] if vinculos else {}
+            linhas.append({
+                "Estudante": primeiro.get("nome", ""),
+                "Turma": primeiro.get("serie", ""),
+                "RA": primeiro.get("ra", ""),
+                "Aparece em": ", ".join(tutores),
+                "Quantidade de listas": len(tutores),
+            })
+        return pd.DataFrame(linhas)
+
+    duplicidades_tutoria_df = _localizar_duplicidades_tutoria(TUTORIA)
+    if not duplicidades_tutoria_df.empty:
+        st.warning(f"⚠️ Existem {len(duplicidades_tutoria_df)} estudante(s) em duplicidade nas listas de tutoria.")
+        with st.expander("🔁 Ver estudantes em duplicidade e escolher com quem fica", expanded=False):
+            st.dataframe(duplicidades_tutoria_df, use_container_width=True, hide_index=True)
+            st.caption("Escolha o estudante e o responsável correto. O sistema mantém o vínculo escolhido e remove das outras listas, sem apagar o cadastro do responsável.")
+            opcoes_dup = []
+            for _, rdup in duplicidades_tutoria_df.iterrows():
+                opcoes_dup.append(f"{rdup.get('Estudante','')} · {rdup.get('Turma','')} · RA {rdup.get('RA','')}")
+            dup_escolhida = st.selectbox("Estudante em duplicidade", [""] + opcoes_dup, key="tutoria_dup_estudante_escolhido")
+            if dup_escolhida:
+                idx_dup = opcoes_dup.index(dup_escolhida)
+                linha_dup = duplicidades_tutoria_df.iloc[idx_dup].to_dict()
+                tutores_dup = [t.strip() for t in str(linha_dup.get("Aparece em", "")).split(",") if t.strip()]
+                tutor_mantido = st.selectbox("Responsável correto para manter", tutores_dup, key="tutoria_dup_tutor_mantido")
+                if st.button("✅ Resolver duplicidade mantendo este responsável", key="btn_resolver_dup_tutoria", type="primary"):
+                    nome_dup = str(linha_dup.get("Estudante", "")).strip()
+                    ra_dup = "".join(ch for ch in str(linha_dup.get("RA", "")) if ch.isdigit())
+                    turma_dup = turma_para_comparacao(linha_dup.get("Turma", ""))
+                    removidos = 0
+                    for tutor_nome in list(TUTORIA.keys()):
+                        if str(tutor_nome).strip() == str(tutor_mantido).strip():
+                            continue
+                        dados_t = obter_registro_tutoria(TUTORIA, tutor_nome)
+                        nova_lista = []
+                        for aluno_t in normalizar_alunos_tutoria(dados_t.get("alunos", [])):
+                            ra_t = "".join(ch for ch in str(aluno_t.get("ra", "")) if ch.isdigit())
+                            mesmo_ra = bool(ra_dup and ra_t and ra_dup == ra_t)
+                            mesmo_nome_turma = (normalizar_texto(aluno_t.get("nome", "")) == normalizar_texto(nome_dup) and turma_para_comparacao(aluno_t.get("serie", "")) == turma_dup)
+                            if mesmo_ra or mesmo_nome_turma:
+                                removidos += 1
+                                if SUPABASE_VALID:
+                                    try:
+                                        _excluir_registro_tutoria_supabase(tutor_nome, aluno_t.get("nome", ""), aluno_t.get("serie", ""), aluno_t.get("ra", ""))
+                                    except Exception:
+                                        pass
+                            else:
+                                nova_lista.append(aluno_t)
+                        dados_t["alunos"] = nova_lista
+                        TUTORIA[tutor_nome] = dados_t
+                    _salvar_estado_tutoria("exclusao_duplicidade")
+                    st.success(f"Duplicidade resolvida. {removidos} vínculo(s) removido(s) das listas incorretas.")
+                    st.rerun()
+
+    # ======================================================
+    # ======================================================
+
+    # ======================================================
+    # TUTORIA - PESQUISA RAPIDA: COM QUEM ESTA O ESTUDANTE
+    # ======================================================
+    with st.expander("🔎 Pesquisar estudante na Tutoria", expanded=False):
+        st.caption("Use esta pesquisa para localizar rapidamente se o estudante ativo já está vinculado a algum responsável/tutor.")
+        base_ativos_pesquisa = preparar_base_alunos_ativos_tutoria(df_alunos)
+        if base_ativos_pesquisa.empty:
+            st.info("Nenhum estudante ativo encontrado na base de alunos para pesquisa.")
+        else:
+            base_ativos_pesquisa = base_ativos_pesquisa.copy()
+            base_ativos_pesquisa["rotulo_busca_tutoria"] = base_ativos_pesquisa.apply(
+                lambda r: f"{str(r.get('nome', '')).strip()} · {formatar_turma_eletiva(r.get('turma', ''))} · RA {str(r.get('ra', '')).strip() or 'sem RA'}",
+                axis=1
+            )
+            opcoes_estudantes_tutoria = base_ativos_pesquisa["rotulo_busca_tutoria"].dropna().astype(str).tolist()
+            estudante_pesquisado_rotulo = st.selectbox(
+                "Digite ou selecione o estudante ativo",
+                [""] + opcoes_estudantes_tutoria,
+                key="tutoria_pesquisa_estudante_vinculo"
+            )
+            if estudante_pesquisado_rotulo:
+                linha_estudante = base_ativos_pesquisa[
+                    base_ativos_pesquisa["rotulo_busca_tutoria"].astype(str).eq(str(estudante_pesquisado_rotulo))
+                ].head(1)
+                if linha_estudante.empty:
+                    st.warning("Não foi possível localizar o estudante selecionado na base ativa.")
+                else:
+                    aluno_pesquisa = linha_estudante.iloc[0].to_dict()
+                    item_pesquisa = {
+                        "nome": str(aluno_pesquisa.get("nome", "")).strip(),
+                        "serie": formatar_turma_eletiva(aluno_pesquisa.get("turma", "")),
+                        "ra": "".join(ch for ch in str(aluno_pesquisa.get("ra", "")) if ch.isdigit()),
+                    }
+                    vinculos_encontrados = _vinculos_do_estudante_tutoria(item_pesquisa, TUTORIA)
+                    linhas_resultado = []
+                    if vinculos_encontrados:
+                        for vinculo in vinculos_encontrados:
+                            tutor_nome = str(vinculo.get("tutor", "")).strip()
+                            dados_tutor = obter_registro_tutoria(TUTORIA, tutor_nome)
                             linhas_resultado.append({
                                 "Estudante": item_pesquisa["nome"],
                                 "Turma": item_pesquisa["serie"],
                                 "RA": item_pesquisa["ra"],
                                 "Situação": str(aluno_pesquisa.get("situacao", "Ativo") or "Ativo").strip(),
-                                "Status na Tutoria": "Sem tutor",
-                                "Tutor(a)/Responsável": "-",
-                                "Perfil": "-",
-                                "Espaço": "-",
-                                "Horário": "-",
-                                "Dia": "-",
+                                "Status na Tutoria": "Com tutor",
+                                "Tutor(a)/Responsável": tutor_nome,
+                                "Perfil": dados_tutor.get("tipo", "Professor(a)"),
+                                "Espaço": dados_tutor.get("espaco", "") or "Não informado",
+                                "Horário": dados_tutor.get("horario", "") or "Não informado",
+                                "Dia": dados_tutor.get("dia", "") or "Não informado",
                             })
-                            st.warning("Este estudante ativo ainda não aparece vinculado a nenhum responsável na Tutoria.")
-                        st.dataframe(pd.DataFrame(linhas_resultado), use_container_width=True, hide_index=True)
-    
-        # TUTORIA - GERENCIAR LISTA ATUAL DE ESTUDANTES
-        # ======================================================
-        # Este bloco fica visivel na pagina principal de Tutoria.
-        # Ele permite editar, remover estudante individualmente e limpar a lista inteira
-        # do responsavel selecionado.
-    
-        def _apagar_registro_supabase_tutoria(tutor_nome: str, nome_aluno: str = "", serie: str = "", ra: str = "") -> bool:
-            """Exclui o vínculo selecionado também no Supabase."""
-            ok, msg = _excluir_registro_tutoria_supabase(tutor_nome, nome_aluno, serie, ra)
-            if not ok:
-                st.session_state["tutoria_responsaveis_sync_warning"] = msg
-            return ok
-    
-        st.markdown("---")
-        st.subheader("📋 Estudantes da lista selecionada")
-        st.caption("Ações de editar, excluir estudante e limpar lista ficam em uma única área mais abaixo, evitando duplicidade e poluição visual.")
-    
-        alunos_raw = normalizar_alunos_tutoria(tutor_info.get("alunos", []))
-        if tutor_sel not in TUTORIA:
-            TUTORIA[tutor_sel] = estrutura_tutoria_vazia(nome=tutor_sel)
-        TUTORIA[tutor_sel]["alunos"] = alunos_raw
-    
-        if alunos_raw:
-            df_lista_atual = pd.DataFrame([
-                {
-                    "Nº": idx + 1,
-                    "Nome": str(aluno.get("nome", "")).strip(),
-                    "Turma": formatar_turma_eletiva(str(aluno.get("serie", "")).strip()),
-                    "RA": "".join(ch for ch in str(aluno.get("ra", "")) if ch.isdigit()),
-                }
-                for idx, aluno in enumerate(alunos_raw)
-            ])
-            st.dataframe(df_lista_atual, use_container_width=True, hide_index=True)
-        else:
-            st.info("Este responsável ainda não possui estudantes vinculados. Use a área de cadastro abaixo para inserir estudantes.")
-        def _adicionar_estudantes_tutoria(novos_estudantes: list, origem: str, tutor_destino: str | None = None):
-            tutor_destino = str(tutor_destino or tutor_sel).strip()
-            registro = TUTORIA.setdefault(tutor_destino, estrutura_tutoria_vazia(nome=tutor_destino))
-            existentes = registro.get("alunos", [])
-    
-            # Usa primeiro a base já carregada na sessão. Recarregar o Supabase em toda ação
-            # deixava a página de Tutoria lenta em buscas, exclusões e salvamentos.
-            df_alunos_validacao = df_alunos
-            try:
-                if (not isinstance(df_alunos_validacao, pd.DataFrame) or df_alunos_validacao.empty) and SUPABASE_VALID:
-                    df_alunos_validacao = carregar_alunos()
-            except Exception as e:
-                logger.warning(f"Nao foi possivel recarregar alunos para validacao da tutoria: {e}")
-    
-            estudantes_resolvidos, nao_encontrados = resolver_estudantes_tutoria(novos_estudantes, df_alunos_validacao)
-    
-            bloqueados_por_tutor = []
-            estudantes_liberados = []
-            for estudante_item in estudantes_resolvidos:
-                ja_tem, vinculos = _estudante_ja_tem_tutor(estudante_item, TUTORIA, tutor_permitido=tutor_destino)
-                if ja_tem:
-                    bloqueados_por_tutor.append({
-                        "nome": estudante_item.get("nome", ""),
-                        "serie": estudante_item.get("serie", ""),
-                        "ra": estudante_item.get("ra", ""),
-                        "tutores": ", ".join(sorted({v.get("tutor", "") for v in vinculos if v.get("tutor", "")})),
-                    })
-                    continue
-                estudantes_liberados.append(estudante_item)
-            estudantes_resolvidos = estudantes_liberados
-    
-            chaves_existentes = set()
-            for item in existentes:
-                ra_existente = "".join(ch for ch in str(item.get("ra", "")) if ch.isdigit())
-                nome_existente = normalizar_texto(item.get("nome", ""))
-                serie_existente = turma_para_comparacao(item.get("serie", ""))
-                if ra_existente:
-                    chaves_existentes.add(f"RA|{ra_existente}")
-                chaves_existentes.add(f"NOME|{nome_existente}|{serie_existente}")
-    
-            inseridos = []
-            for item in estudantes_resolvidos:
-                nome = str(item.get("nome", "")).strip()
-                serie = formatar_turma_eletiva(str(item.get("serie", "")).strip())
-                ra = "".join(ch for ch in str(item.get("ra", "")) if ch.isdigit())
-                if not nome:
-                    continue
-    
-                chave_ra = f"RA|{ra}" if ra else ""
-                chave_nome = f"NOME|{normalizar_texto(nome)}|{turma_para_comparacao(serie)}"
-                if chave_ra and chave_ra in chaves_existentes:
-                    continue
-                if chave_nome in chaves_existentes:
-                    continue
-    
-                novo_registro = {
-                    "nome": nome,
-                    "serie": serie,
-                    "ra": ra,
-                    "nome_digitado": item.get("nome_digitado", ""),
-                    "serie_digitada": item.get("serie_digitada", ""),
-                    "score": item.get("score", 0),
-                    "status_busca": item.get("status_busca", ""),
-                }
-                existentes.append(novo_registro)
-                inseridos.append(novo_registro)
-                if chave_ra:
-                    chaves_existentes.add(chave_ra)
-                chaves_existentes.add(chave_nome)
-    
-            df_ok, df_pendentes = montar_validacao_visual_tutoria(estudantes_resolvidos, nao_encontrados)
-            st.session_state["tutoria_validacao_ultimo"] = {
-                "responsavel": tutor_destino,
-                "encontrados": df_ok.to_dict("records") if not df_ok.empty else [],
-                "pendentes": df_pendentes.to_dict("records") if not df_pendentes.empty else [],
-                "pendentes_raw": nao_encontrados,
+                        st.success(f"Estudante localizado em {len(vinculos_encontrados)} lista(s) de tutoria.")
+                    else:
+                        linhas_resultado.append({
+                            "Estudante": item_pesquisa["nome"],
+                            "Turma": item_pesquisa["serie"],
+                            "RA": item_pesquisa["ra"],
+                            "Situação": str(aluno_pesquisa.get("situacao", "Ativo") or "Ativo").strip(),
+                            "Status na Tutoria": "Sem tutor",
+                            "Tutor(a)/Responsável": "-",
+                            "Perfil": "-",
+                            "Espaço": "-",
+                            "Horário": "-",
+                            "Dia": "-",
+                        })
+                        st.warning("Este estudante ativo ainda não aparece vinculado a nenhum responsável na Tutoria.")
+                    st.dataframe(pd.DataFrame(linhas_resultado), use_container_width=True, hide_index=True)
+
+    # TUTORIA - GERENCIAR LISTA ATUAL DE ESTUDANTES
+    # ======================================================
+    # Este bloco fica visivel na pagina principal de Tutoria.
+    # Ele permite editar, remover estudante individualmente e limpar a lista inteira
+    # do responsavel selecionado.
+
+    def _apagar_registro_supabase_tutoria(tutor_nome: str, nome_aluno: str = "", serie: str = "", ra: str = "") -> bool:
+        """Exclui o vínculo selecionado também no Supabase."""
+        ok, msg = _excluir_registro_tutoria_supabase(tutor_nome, nome_aluno, serie, ra)
+        if not ok:
+            st.session_state["tutoria_responsaveis_sync_warning"] = msg
+        return ok
+
+    st.markdown("---")
+    st.subheader("📋 Estudantes da lista selecionada")
+    st.caption("Ações de editar, excluir estudante e limpar lista ficam em uma única área mais abaixo, evitando duplicidade e poluição visual.")
+
+    alunos_raw = normalizar_alunos_tutoria(tutor_info.get("alunos", []))
+    if tutor_sel not in TUTORIA:
+        TUTORIA[tutor_sel] = estrutura_tutoria_vazia(nome=tutor_sel)
+    TUTORIA[tutor_sel]["alunos"] = alunos_raw
+
+    if alunos_raw:
+        df_lista_atual = pd.DataFrame([
+            {
+                "Nº": idx + 1,
+                "Nome": str(aluno.get("nome", "")).strip(),
+                "Turma": formatar_turma_eletiva(str(aluno.get("serie", "")).strip()),
+                "RA": "".join(ch for ch in str(aluno.get("ra", "")) if ch.isdigit()),
             }
-    
-            if nao_encontrados:
-                st.warning(
-                    "Alguns estudantes ficaram para conferência manual. Confira se existem no Supabase e se a turma está correta: "
-                    + ", ".join([f"{a['nome']} ({a['serie']})".strip() for a in nao_encontrados[:10]])
-                )
-    
-            if bloqueados_por_tutor:
-                nomes_bloqueados = ", ".join([
-                    f"{a['nome']} ({a['serie']}) já está com {a['tutores']}"
-                    for a in bloqueados_por_tutor[:10]
-                ])
-                st.warning("Estudantes não inseridos porque já possuem tutor: " + nomes_bloqueados)
-                st.session_state["tutoria_bloqueados_ultimo"] = bloqueados_por_tutor
-    
-            if not inseridos:
-                return 0
-    
-            registro["alunos"] = existentes
-            TUTORIA[tutor_destino] = registro
-            _salvar_estado_tutoria("local")
-    
-            if SUPABASE_VALID:
-                registros = [
-                    {
-                        "professora": tutor_destino,
-                        "nome_aluno": item["nome"],
-                        "serie": item["serie"],
-                        "origem": origem
-                    }
-                    for item in inseridos
-                ]
-                try:
-                    _supabase_request("POST", "tutoria", json=registros)
-                except Exception as e:
-                    st.session_state["tutoria_feedback"] = {
-                        "tipo": "warning",
-                        "msg": (
-                            f"{len(inseridos)} estudante(s) foram salvos localmente para {tutor_destino}, "
-                            f"mas a sincronização com o Supabase falhou. {mensagem_erro_tutoria_supabase(e)}"
-                        )
-                    }
-    
-            return len(inseridos)
-    
-        st.markdown("---")
-        st.subheader("📝 Cadastro em Lista por Responsável")
-        st.caption("Escolha o responsável e cole a lista inteira, como na eletiva.")
-    
-        validacao_anterior = st.session_state.get("tutoria_validacao_ultimo")
-        if validacao_anterior:
-            with st.expander("🔎 Validação da última lista enviada", expanded=True):
-                st.caption(f"Responsável: {validacao_anterior.get('responsavel', '')}")
-                encontrados_df = pd.DataFrame(validacao_anterior.get("encontrados", []))
-                pendentes_df = pd.DataFrame(validacao_anterior.get("pendentes", []))
-                if not encontrados_df.empty:
-                    st.success(f"{len(encontrados_df)} estudante(s) encontrados no Supabase e validados pela turma/nome aproximado.")
-                    st.dataframe(encontrados_df, use_container_width=True, hide_index=True)
-                if not pendentes_df.empty:
-                    st.warning(f"{len(pendentes_df)} estudante(s) precisam de conferência manual.")
-                    st.dataframe(pendentes_df, use_container_width=True, hide_index=True)
-    
-                    pendentes_raw = validacao_anterior.get("pendentes_raw", []) or []
-                    selecoes_manuais = []
-                    if pendentes_raw:
-                        st.markdown("**Selecionar manualmente estudantes não encontrados**")
-                        st.caption("Escolha uma sugestão apenas quando tiver certeza de que corresponde ao estudante digitado.")
-                        for idx, pend in enumerate(pendentes_raw):
-                            sugestoes = pend.get("sugestoes", []) or []
-                            if not sugestoes:
-                                st.info(f"Sem sugestão próxima para: {pend.get('nome', '')} ({pend.get('serie', '')})")
-                                continue
-    
-                            opcoes = ["Não adicionar"]
-                            mapa_sugestoes = {"Não adicionar": None}
-                            for s in sugestoes:
-                                confianca = round(float(s.get("score", 0) or 0) * 100)
-                                label = f"{s.get('nome', '')} — {s.get('serie', '')} — RA {s.get('ra', '')} — {confianca}%"
-                                opcoes.append(label)
-                                mapa_sugestoes[label] = {
-                                    "nome": s.get("nome", ""),
-                                    "serie": s.get("serie", ""),
-                                    "ra": s.get("ra", ""),
-                                }
-    
-                            escolha = st.selectbox(
-                                f"{pend.get('nome', '')} ({pend.get('serie', '')})",
-                                opcoes,
-                                key=f"tutoria_conferencia_manual_{idx}_{gerar_chave_segura(pend.get('nome', ''))}"
-                            )
-                            if mapa_sugestoes.get(escolha):
-                                selecoes_manuais.append(mapa_sugestoes[escolha])
-    
-                        if st.button("✅ Adicionar selecionados manualmente", key="tutoria_btn_add_conferencia_manual", type="primary"):
-                            if not selecoes_manuais:
-                                st.warning("Nenhuma sugestão foi selecionada para adicionar.")
-                            else:
-                                qtd_manual = _adicionar_estudantes_tutoria(
-                                    selecoes_manuais,
-                                    origem="conferencia_manual",
-                                    tutor_destino=validacao_anterior.get("responsavel", tutor_sel)
-                                )
-                                if qtd_manual > 0:
-                                    st.success(f"{qtd_manual} estudante(s) adicionados por conferência manual.")
-                                    st.rerun()
-                                else:
-                                    st.warning("Os estudantes selecionados já estavam na lista ou não puderam ser adicionados.")
-                if st.button("Limpar validação exibida", key="tutoria_limpar_validacao_ultimo"):
-                    st.session_state.pop("tutoria_validacao_ultimo", None)
-                    st.rerun()
-        col_lista1, col_lista2 = st.columns([2, 1])
-        with col_lista1:
-            # Campo somente informativo.
-            # Nao usar st.text_input com key fixa aqui, porque o Streamlit preserva
-            # o valor antigo e pode mostrar outro responsavel.
-            st.markdown("<div style='font-size:0.82rem;font-weight:700;color:#54467a;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.25rem;'>Responsável da lista</div>", unsafe_allow_html=True)
-            st.markdown(
-                f"""
-                <div style="
-                    background:#ffffff;
-                    border:1px solid rgba(148,163,184,0.30);
-                    border-radius:18px;
-                    padding:0.72rem 0.95rem;
-                    min-height:44px;
-                    color:#2b2140;
-                    box-shadow:0 10px 22px rgba(15,23,42,0.05);
-                ">{html.escape(str(tutor_sel))}</div>
-                """,
-                unsafe_allow_html=True
-            )
-            tutor_lista_lote = tutor_sel
-        with col_lista2:
-            serie_padrao_lote = st.text_input(
-                "Turma padrão",
-                key="tutoria_serie_padrao_lote",
-                placeholder="Ex: 6º Ano A"
-            )
-        lista_lote = st.text_area(
-            "Cole a lista para esse responsável. Opcional: Nome;Turma",
-            key="tutoria_lista_lote_professor",
-            height=160,
-            placeholder="Maria Silva; 7A\nJoão Santos; 8B\nAna Souza"
-        )
-        if st.button("✅ Registrar Lista do Responsável", key="tutoria_btn_lista_lote_professor", type="primary"):
-            try:
-                novos = []
-                for linha in lista_lote.splitlines():
-                    item = _normalizar_linha_lista_tutoria(linha, serie_padrao=serie_padrao_lote)
-                    if item:
-                        novos.append(item)
-                qtd = _adicionar_estudantes_tutoria(novos, origem="lista_por_professor", tutor_destino=tutor_lista_lote)
-                if qtd > 0:
-                    st.success(f"{qtd} estudante(s) adicionados para {tutor_lista_lote}.")
-                    st.rerun()
-                else:
-                    st.warning("Nenhum estudante novo válido foi encontrado nessa lista.")
-            except Exception as e:
-                st.error(f"Erro ao registrar lista do responsável: {e}")
-    
-        # ======================================================
-        # TUTORIA - INSERIR ESTUDANTES
-        # Objetivo: buscar estudantes ativos do Supabase por nome e/ou sala,
-        # montar uma lista temporaria, permitir remover itens e salvar somente
-        # quando o usuario confirmar.
-        # ======================================================
-        st.markdown("---")
-    if secao_tutoria == "Inserir Estudantes na Tutoria":
-        # Seção carregada sob demanda para reduzir processamento da página de Tutoria.
+            for idx, aluno in enumerate(alunos_raw)
+        ])
+        st.dataframe(df_lista_atual, use_container_width=True, hide_index=True)
+    else:
+        st.info("Este responsável ainda não possui estudantes vinculados. Use a área de cadastro abaixo para inserir estudantes.")
+    def _adicionar_estudantes_tutoria(novos_estudantes: list, origem: str, tutor_destino: str | None = None):
+        tutor_destino = str(tutor_destino or tutor_sel).strip()
+        registro = TUTORIA.setdefault(tutor_destino, estrutura_tutoria_vazia(nome=tutor_destino))
+        existentes = registro.get("alunos", [])
 
-        st.subheader("➕ Inserir Estudantes na Tutoria")
-        st.caption("Busque por estudante, por sala ou pelos dois. Adicione na lista temporária, confira e depois salve.")
-    
-        chave_lista_temp = f"tutoria_lista_temp_{gerar_chave_segura(tutor_sel)}"
-        if chave_lista_temp not in st.session_state:
-            st.session_state[chave_lista_temp] = []
-    
-        def _chave_aluno_temp(item: dict) -> str:
+        # Usa primeiro a base já carregada na sessão. Recarregar o Supabase em toda ação
+        # deixava a página de Tutoria lenta em buscas, exclusões e salvamentos.
+        df_alunos_validacao = df_alunos
+        try:
+            if (not isinstance(df_alunos_validacao, pd.DataFrame) or df_alunos_validacao.empty) and SUPABASE_VALID:
+                df_alunos_validacao = carregar_alunos()
+        except Exception as e:
+            logger.warning(f"Nao foi possivel recarregar alunos para validacao da tutoria: {e}")
+
+        estudantes_resolvidos, nao_encontrados = resolver_estudantes_tutoria(novos_estudantes, df_alunos_validacao)
+
+        bloqueados_por_tutor = []
+        estudantes_liberados = []
+        for estudante_item in estudantes_resolvidos:
+            ja_tem, vinculos = _estudante_ja_tem_tutor(estudante_item, TUTORIA, tutor_permitido=tutor_destino)
+            if ja_tem:
+                bloqueados_por_tutor.append({
+                    "nome": estudante_item.get("nome", ""),
+                    "serie": estudante_item.get("serie", ""),
+                    "ra": estudante_item.get("ra", ""),
+                    "tutores": ", ".join(sorted({v.get("tutor", "") for v in vinculos if v.get("tutor", "")})),
+                })
+                continue
+            estudantes_liberados.append(estudante_item)
+        estudantes_resolvidos = estudantes_liberados
+
+        chaves_existentes = set()
+        for item in existentes:
+            ra_existente = "".join(ch for ch in str(item.get("ra", "")) if ch.isdigit())
+            nome_existente = normalizar_texto(item.get("nome", ""))
+            serie_existente = turma_para_comparacao(item.get("serie", ""))
+            if ra_existente:
+                chaves_existentes.add(f"RA|{ra_existente}")
+            chaves_existentes.add(f"NOME|{nome_existente}|{serie_existente}")
+
+        inseridos = []
+        for item in estudantes_resolvidos:
+            nome = str(item.get("nome", "")).strip()
+            serie = formatar_turma_eletiva(str(item.get("serie", "")).strip())
             ra = "".join(ch for ch in str(item.get("ra", "")) if ch.isdigit())
-            nome = normalizar_texto(item.get("nome", ""))
-            turma = normalizar_texto(formatar_turma_eletiva(item.get("serie", item.get("turma", ""))))
-            return f"RA:{ra}" if ra else f"NOME:{nome}|TURMA:{turma}"
-    
-        def _adicionar_na_lista_temp(itens: list[dict]) -> int:
-            existentes = {_chave_aluno_temp(item) for item in st.session_state[chave_lista_temp]}
-            adicionados = 0
-            bloqueados = []
-            for item in itens or []:
-                nome = str(item.get("nome", "")).strip()
-                turma = formatar_turma_eletiva(str(item.get("serie", item.get("turma", ""))).strip())
-                ra = "".join(ch for ch in str(item.get("ra", "")) if ch.isdigit())
-                if not nome:
-                    continue
-                novo = {"nome": nome, "serie": turma, "ra": ra}
-                ja_tem, vinculos = _estudante_ja_tem_tutor(novo, TUTORIA)
-                if ja_tem:
-                    bloqueados.append({
-                        "nome": nome,
-                        "serie": turma,
-                        "ra": ra,
-                        "tutores": ", ".join(sorted({v.get("tutor", "") for v in vinculos if v.get("tutor", "")})),
-                    })
-                    continue
-                chave = _chave_aluno_temp(novo)
-                if chave in existentes:
-                    continue
-                st.session_state[chave_lista_temp].append(novo)
-                existentes.add(chave)
-                adicionados += 1
-            if bloqueados:
-                st.session_state["tutoria_bloqueados_temp"] = bloqueados
-                st.warning(
-                    "Estudantes não adicionados porque já estão em outra lista: "
-                    + ", ".join([f"{b['nome']} ({b['serie']}) — {b['tutores']}" for b in bloqueados[:10]])
-                )
-            return adicionados
-    
-        # ------------------------------------------------------
-        # 1) Busca no cadastro oficial de alunos ativos
-        # ------------------------------------------------------
-        st.markdown("#### 🔎 Buscar no cadastro oficial")
-        if df_alunos.empty:
-            st.info("Não há alunos carregados do Supabase para buscar.")
-        else:
-            base_busca = preparar_base_alunos_ativos_tutoria(df_alunos).copy()
-            if base_busca.empty:
-                st.warning("Nenhum estudante ativo foi encontrado na tabela de alunos.")
-            else:
-                base_busca["nome"] = base_busca["nome"].astype(str)
-                if "turma" not in base_busca.columns:
-                    base_busca["turma"] = ""
-                base_busca["turma"] = base_busca["turma"].astype(str)
-                base_busca["turma_padrao"] = base_busca["turma"].apply(formatar_turma_eletiva)
-    
-                turmas_opcoes = sorted([t for t in base_busca["turma_padrao"].dropna().unique().tolist() if str(t).strip()])
-                col_busca_nome, col_busca_turma = st.columns([2, 1])
-                with col_busca_nome:
-                    termo_busca = st.text_input(
-                        "Buscar estudante por nome",
-                        key="tutoria_busca_nome_cadastro",
-                        placeholder="Ex: Jameson, Henzo, Alice"
-                    )
-                with col_busca_turma:
-                    filtro_turma_busca = st.selectbox(
-                        "Buscar por sala/turma",
-                        ["Todas"] + turmas_opcoes,
-                        key="tutoria_busca_turma_cadastro"
-                    )
-    
-                df_resultado = base_busca.copy()
-                if filtro_turma_busca != "Todas":
-                    df_resultado = df_resultado[df_resultado["turma_padrao"] == filtro_turma_busca]
-    
-                if termo_busca.strip():
-                    termo_norm = normalizar_texto(termo_busca)
-                    try:
-                        termo_fon = normalizar_nome_fonetico(termo_busca)
-                    except Exception:
-                        termo_fon = termo_norm
-    
-                    def _combina_nome_busca(nome):
-                        nome_norm = normalizar_texto(nome)
-                        try:
-                            nome_fon = normalizar_nome_fonetico(nome)
-                        except Exception:
-                            nome_fon = nome_norm
-                        return (
-                            termo_norm in nome_norm
-                            or termo_fon in nome_fon
-                            or SequenceMatcher(None, termo_norm, nome_norm).ratio() >= 0.55
-                            or SequenceMatcher(None, termo_fon, nome_fon).ratio() >= 0.55
-                        )
-    
-                    df_resultado = df_resultado[df_resultado["nome"].apply(_combina_nome_busca)]
-    
-                df_resultado = df_resultado.drop_duplicates(subset=["nome", "turma_padrao", "ra"])
-                df_resultado = df_resultado.sort_values(["nome", "turma_padrao"], kind="stable")
-    
-                if not df_resultado.empty:
-                    def _linha_disponivel_para_tutoria(linha):
-                        candidato = {
-                            "nome": linha.get("nome", ""),
-                            "serie": linha.get("turma_padrao", linha.get("turma", "")),
-                            "ra": linha.get("ra", ""),
-                        }
-                        ja_tem, _ = _estudante_ja_tem_tutor(candidato, TUTORIA)
-                        return not ja_tem
-    
-                    total_antes_disponibilidade = len(df_resultado)
-                    df_resultado = df_resultado[df_resultado.apply(_linha_disponivel_para_tutoria, axis=1)]
-                    total_ocultos = total_antes_disponibilidade - len(df_resultado)
-                    if total_ocultos > 0:
-                        st.info(f"{total_ocultos} estudante(s) foram ocultados porque já possuem tutor em outra lista.")
-    
-                df_resultado = df_resultado.head(80)
-    
-                mapa_opcoes = {}
-                opcoes = []
-                for _, linha in df_resultado.iterrows():
-                    nome = str(linha.get("nome", "")).strip()
-                    turma = formatar_turma_eletiva(str(linha.get("turma_padrao", linha.get("turma", ""))).strip())
-                    ra = "".join(ch for ch in str(linha.get("ra", "")) if ch.isdigit())
-                    label = f"{nome} — {turma}" if turma else nome
-                    if ra:
-                        label = f"{label} — RA {ra}"
-                    opcoes.append(label)
-                    mapa_opcoes[label] = {"nome": nome, "serie": turma, "ra": ra}
-    
-                selecionados = st.multiselect(
-                    "Selecione estudantes para inserir na lista temporária",
-                    opcoes,
-                    key="tutoria_busca_cadastro_selecionados"
-                )
-                if selecionados:
-                    qtd_auto = _adicionar_na_lista_temp([mapa_opcoes[item] for item in selecionados if item in mapa_opcoes])
-                    if qtd_auto:
-                        st.success(f"{qtd_auto} estudante(s) adicionados automaticamente à lista temporária.")
-    
-                col_add1, col_add2 = st.columns([1, 2])
-                with col_add1:
-                    if st.button("➕ Reprocessar selecionados", key="tutoria_btn_temp_add_busca", type="primary", use_container_width=True):
-                        qtd_add = _adicionar_na_lista_temp([mapa_opcoes[item] for item in selecionados])
-                        if qtd_add:
-                            st.success(f"{qtd_add} estudante(s) adicionados à lista temporária.")
-                        else:
-                            st.info("Nenhum estudante novo foi adicionado à lista temporária.")
-                with col_add2:
-                    st.caption(f"Resultados exibidos: {len(df_resultado)} | Na lista temporária: {len(st.session_state[chave_lista_temp])}")
-    
-        # ------------------------------------------------------
-        # 2) Colar lista quando houver relacao pronta
-        # ------------------------------------------------------
-        with st.expander("📋 Colar lista pronta para adicionar à lista temporária", expanded=False):
-            st.caption("Aceita formatos como: '1 Alice Elizabete 9 A', 'Alice Elizabete;9A' ou 'Alice Elizabete 9º A'.")
-            serie_padrao = st.text_input("Turma padrão opcional", key="tutoria_temp_serie_padrao", placeholder="Ex: 9º A")
-            lista_colada = st.text_area(
-                "Cole a lista aqui",
-                key="tutoria_temp_lista_colada",
-                height=150,
-                placeholder="1 Alice Elizabete 9 A\n2 Allana 9A\n3 Emanuelle 9B"
-            )
-            if st.button("➕ Adicionar lista colada", key="tutoria_btn_temp_add_colada", use_container_width=True):
-                novos = []
-                for linha in lista_colada.splitlines():
-                    item = _normalizar_linha_lista_tutoria(linha, serie_padrao=serie_padrao)
-                    if item:
-                        encontrado = buscar_estudante_ativo_mais_proximo(item.get("nome", ""), item.get("serie", ""), df_alunos)
-                        novos.append(encontrado if encontrado else item)
-                qtd_add = _adicionar_na_lista_temp(novos)
-                if qtd_add:
-                    st.success(f"{qtd_add} estudante(s) adicionados à lista temporária.")
-                else:
-                    st.warning("Nenhum estudante novo foi adicionado. Verifique se já estão na lista ou se os dados estão vazios.")
-    
-        # ------------------------------------------------------
-        # 3) Lista temporaria com opcao de remover antes de salvar
-        # ------------------------------------------------------
-        st.markdown("#### 📌 Lista temporária para salvar")
-        lista_temp = st.session_state[chave_lista_temp]
-        if not lista_temp:
-            st.info("Nenhum estudante na lista temporária. Busque por nome/sala ou cole uma lista para começar.")
-        else:
-            df_temp = pd.DataFrame(lista_temp)
-            if "serie" in df_temp.columns:
-                df_temp["serie"] = df_temp["serie"].apply(formatar_turma_eletiva)
-            if "nome" in df_temp.columns:
-                df_temp = df_temp.sort_values(["nome"], key=lambda s: s.map(normalizar_texto), kind="stable").reset_index(drop=True)
-            st.dataframe(
-                df_temp.rename(columns={"nome": "Estudante", "serie": "Turma", "ra": "RA"}),
-                use_container_width=True,
-                hide_index=True
-            )
-    
-            remover_opcoes = []
-            remover_mapa = {}
-            for idx, item in enumerate(lista_temp):
-                label = f"{idx + 1}. {item.get('nome', '')} — {formatar_turma_eletiva(item.get('serie', ''))}"
-                remover_opcoes.append(label)
-                remover_mapa[label] = idx
-    
-            col_remover, col_limpar = st.columns([2, 1])
-            with col_remover:
-                itens_remover = st.multiselect("Selecionar estudantes para remover da lista temporária", remover_opcoes, key="tutoria_temp_remover")
-                if st.button("➖ Remover selecionados", key="tutoria_btn_temp_remover", use_container_width=True):
-                    if not itens_remover:
-                        st.info("Selecione pelo menos um estudante para remover.")
-                    else:
-                        indices = sorted([remover_mapa[item] for item in itens_remover], reverse=True)
-                        for idx in indices:
-                            if 0 <= idx < len(st.session_state[chave_lista_temp]):
-                                st.session_state[chave_lista_temp].pop(idx)
-                        st.rerun()
-            with col_limpar:
-                st.write("")
-                st.write("")
-                if st.button("🧹 Limpar lista", key="tutoria_btn_temp_limpar", use_container_width=True):
-                    st.session_state[chave_lista_temp] = []
-                    st.rerun()
-    
-        # ------------------------------------------------------
-        # 4) Botao principal de salvamento
-        # ------------------------------------------------------
-        if st.button("💾 Salvar lista na tutoria", key="tutoria_btn_temp_salvar", type="primary", use_container_width=True):
-            if not st.session_state[chave_lista_temp]:
-                st.warning("Adicione pelo menos um estudante antes de salvar.")
-            else:
-                try:
-                    qtd = _adicionar_estudantes_tutoria(
-                        st.session_state[chave_lista_temp],
-                        origem="busca_por_nome_sala",
-                        tutor_destino=tutor_sel
-                    )
-                    if qtd > 0:
-                        st.session_state[chave_lista_temp] = []
-                        st.success(f"{qtd} estudante(s) salvos na lista de {tutor_sel}.")
-                        st.rerun()
-                    else:
-                        st.info("Nenhum estudante novo foi salvo. Eles podem já estar na lista do responsável.")
-                except Exception as e:
-                    st.error(f"Erro ao salvar lista na tutoria: {e}")
-    
-        with st.expander("☁️ Salvamento em lote das listas", expanded=False):
-            st.caption("Use este botão para reenviar todas as listas atuais da Tutoria ao Supabase, evitando salvar responsável por responsável.")
-            if st.button("☁️ Salvar todas as listas no Supabase agora", key="tutoria_salvar_lote_area_principal", type="primary", use_container_width=True):
-                ok_lote, msg_lote = sincronizar_tutoria_listas_supabase(TUTORIA)
-                st.success(msg_lote) if ok_lote else st.warning(msg_lote)
-    
-        df_tutoria = montar_dataframe_tutoria(tutor_sel, df_alunos, TUTORIA)
-        total = len(df_tutoria)
-        if not df_tutoria.empty and "Status" in df_tutoria.columns:
-            encontrados = len(df_tutoria[df_tutoria["Status"] == "Encontrado"])
-            nao_encontrados = len(df_tutoria[df_tutoria["Status"] == "Não encontrado"])
-        else:
-            encontrados = 0
-            nao_encontrados = 0
-    
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Total", total)
-        with col2:
-            st.metric("Encontrados", encontrados)
-        with col3:
-            st.metric("Não Encontrados", nao_encontrados)
-    
-        busca_nome = st.text_input("🔍 Buscar estudante na tutoria", placeholder="Digite parte do nome", key="tutoria_busca_estudante")
-        filtro_status = st.selectbox("Filtrar por status", ["Todos", "Encontrado", "Não encontrado"], key="tutoria_filtro_status")
-        df_view = df_tutoria.copy()
-        if busca_nome:
-            df_view = df_view[df_view["Nome"].str.contains(busca_nome, case=False, na=False)]
-        if filtro_status != "Todos":
-            df_view = df_view[df_view["Status"] == filtro_status]
-        if not df_view.empty and "Nome" in df_view.columns:
-            df_view = df_view.sort_values(["Nome"], key=lambda s: s.map(normalizar_texto), kind="stable").reset_index(drop=True)
-    
-        st.markdown("---")
-    if secao_tutoria == "Imprimir Lista da Tutoria":
-        # Seção carregada sob demanda para reduzir processamento da página de Tutoria.
+            if not nome:
+                continue
 
-        st.subheader("📋 Estudantes da Tutoria")
-        colunas_visiveis = [
-            "Professor(a)", "Nome", "Turma", "Espaço", "Horário", "Dia",
-            "Aluno Cadastrado", "RA", "Turma no Sistema", "Situação", "Status"
-        ]
-        colunas_visiveis = [c for c in colunas_visiveis if c in df_view.columns]
-        st.dataframe(df_view[colunas_visiveis], use_container_width=True, hide_index=True)
-    
-        st.markdown("---")
-        st.subheader("🖨️ Imprimir Lista da Tutoria")
-    
-        with st.expander("📦 Exportar impressões em lote", expanded=False):
-            st.caption("Gera um arquivo ZIP com PDFs separados. Use para imprimir todos os responsáveis ou todas as turmas de uma vez.")
-            col_lote_pdf1, col_lote_pdf2 = st.columns(2)
-            with col_lote_pdf1:
-                if st.button("📦 Gerar ZIP por Professor(a)", key="tutoria_zip_professores", use_container_width=True):
-                    st.session_state["tutoria_zip_professores_bytes"] = gerar_zip_tutoria_por_professores(TUTORIA, df_alunos).getvalue()
-                if st.session_state.get("tutoria_zip_professores_bytes"):
-                    st.download_button(
-                        "⬇️ Baixar ZIP por Professor(a)",
-                        data=st.session_state["tutoria_zip_professores_bytes"],
-                        file_name=f"Tutoria_Professores_Lote_{datetime.now().strftime('%Y%m%d_%H%M')}.zip",
-                        mime="application/zip",
-                        key="download_zip_tutoria_professores",
-                        use_container_width=True,
-                    )
-            with col_lote_pdf2:
-                if st.button("📦 Gerar ZIP por Turma", key="tutoria_zip_turmas", use_container_width=True):
-                    st.session_state["tutoria_zip_turmas_bytes"] = gerar_zip_tutoria_por_turmas(TUTORIA, df_alunos).getvalue()
-                if st.session_state.get("tutoria_zip_turmas_bytes"):
-                    st.download_button(
-                        "⬇️ Baixar ZIP por Turma",
-                        data=st.session_state["tutoria_zip_turmas_bytes"],
-                        file_name=f"Tutoria_Turmas_Lote_{datetime.now().strftime('%Y%m%d_%H%M')}.zip",
-                        mime="application/zip",
-                        key="download_zip_tutoria_turmas",
-                        use_container_width=True,
-                    )
-    
-        modo_impressao = st.radio("Tipo de impressão", ["Por Professor(a)", "Por Turma"], horizontal=True, key="tutoria_modo_impressao")
-    
-        if modo_impressao == "Por Professor(a)":
-            tutores_lista = sorted(TUTORIA.keys())
-            tutor_impressao = st.selectbox(
-                "Professor(a) para imprimir",
-                tutores_lista,
-                index=tutores_lista.index(tutor_sel) if tutor_sel in tutores_lista else 0,
-                key="tutoria_tutor_impressao"
+            chave_ra = f"RA|{ra}" if ra else ""
+            chave_nome = f"NOME|{normalizar_texto(nome)}|{turma_para_comparacao(serie)}"
+            if chave_ra and chave_ra in chaves_existentes:
+                continue
+            if chave_nome in chaves_existentes:
+                continue
+
+            novo_registro = {
+                "nome": nome,
+                "serie": serie,
+                "ra": ra,
+                "nome_digitado": item.get("nome_digitado", ""),
+                "serie_digitada": item.get("serie_digitada", ""),
+                "score": item.get("score", 0),
+                "status_busca": item.get("status_busca", ""),
+            }
+            existentes.append(novo_registro)
+            inseridos.append(novo_registro)
+            if chave_ra:
+                chaves_existentes.add(chave_ra)
+            chaves_existentes.add(chave_nome)
+
+        df_ok, df_pendentes = montar_validacao_visual_tutoria(estudantes_resolvidos, nao_encontrados)
+        st.session_state["tutoria_validacao_ultimo"] = {
+            "responsavel": tutor_destino,
+            "encontrados": df_ok.to_dict("records") if not df_ok.empty else [],
+            "pendentes": df_pendentes.to_dict("records") if not df_pendentes.empty else [],
+            "pendentes_raw": nao_encontrados,
+        }
+
+        if nao_encontrados:
+            st.warning(
+                "Alguns estudantes ficaram para conferência manual. Confira se existem no Supabase e se a turma está correta: "
+                + ", ".join([f"{a['nome']} ({a['serie']})".strip() for a in nao_encontrados[:10]])
             )
-            df_imp = montar_dataframe_tutoria(tutor_impressao, df_alunos, TUTORIA)
-            if st.button("Gerar PDF por Professor(a)", type="primary", key="btn_pdf_tutoria_tutor"):
-                if df_imp.empty:
-                    st.warning("Não há estudantes para imprimir nesse professor(a).")
+
+        if bloqueados_por_tutor:
+            nomes_bloqueados = ", ".join([
+                f"{a['nome']} ({a['serie']}) já está com {a['tutores']}"
+                for a in bloqueados_por_tutor[:10]
+            ])
+            st.warning("Estudantes não inseridos porque já possuem tutor: " + nomes_bloqueados)
+            st.session_state["tutoria_bloqueados_ultimo"] = bloqueados_por_tutor
+
+        if not inseridos:
+            return 0
+
+        registro["alunos"] = existentes
+        TUTORIA[tutor_destino] = registro
+        _salvar_estado_tutoria("local")
+
+        if SUPABASE_VALID:
+            registros = [
+                {
+                    "professora": tutor_destino,
+                    "nome_aluno": item["nome"],
+                    "serie": item["serie"],
+                    "origem": origem
+                }
+                for item in inseridos
+            ]
+            try:
+                _supabase_request("POST", "tutoria", json=registros)
+            except Exception as e:
+                st.session_state["tutoria_feedback"] = {
+                    "tipo": "warning",
+                    "msg": (
+                        f"{len(inseridos)} estudante(s) foram salvos localmente para {tutor_destino}, "
+                        f"mas a sincronização com o Supabase falhou. {mensagem_erro_tutoria_supabase(e)}"
+                    )
+                }
+
+        return len(inseridos)
+
+    st.markdown("---")
+    st.subheader("📝 Cadastro em Lista por Responsável")
+    st.caption("Escolha o responsável e cole a lista inteira, como na eletiva.")
+
+    validacao_anterior = st.session_state.get("tutoria_validacao_ultimo")
+    if validacao_anterior:
+        with st.expander("🔎 Validação da última lista enviada", expanded=True):
+            st.caption(f"Responsável: {validacao_anterior.get('responsavel', '')}")
+            encontrados_df = pd.DataFrame(validacao_anterior.get("encontrados", []))
+            pendentes_df = pd.DataFrame(validacao_anterior.get("pendentes", []))
+            if not encontrados_df.empty:
+                st.success(f"{len(encontrados_df)} estudante(s) encontrados no Supabase e validados pela turma/nome aproximado.")
+                st.dataframe(encontrados_df, use_container_width=True, hide_index=True)
+            if not pendentes_df.empty:
+                st.warning(f"{len(pendentes_df)} estudante(s) precisam de conferência manual.")
+                st.dataframe(pendentes_df, use_container_width=True, hide_index=True)
+
+                pendentes_raw = validacao_anterior.get("pendentes_raw", []) or []
+                selecoes_manuais = []
+                if pendentes_raw:
+                    st.markdown("**Selecionar manualmente estudantes não encontrados**")
+                    st.caption("Escolha uma sugestão apenas quando tiver certeza de que corresponde ao estudante digitado.")
+                    for idx, pend in enumerate(pendentes_raw):
+                        sugestoes = pend.get("sugestoes", []) or []
+                        if not sugestoes:
+                            st.info(f"Sem sugestão próxima para: {pend.get('nome', '')} ({pend.get('serie', '')})")
+                            continue
+
+                        opcoes = ["Não adicionar"]
+                        mapa_sugestoes = {"Não adicionar": None}
+                        for s in sugestoes:
+                            confianca = round(float(s.get("score", 0) or 0) * 100)
+                            label = f"{s.get('nome', '')} — {s.get('serie', '')} — RA {s.get('ra', '')} — {confianca}%"
+                            opcoes.append(label)
+                            mapa_sugestoes[label] = {
+                                "nome": s.get("nome", ""),
+                                "serie": s.get("serie", ""),
+                                "ra": s.get("ra", ""),
+                            }
+
+                        escolha = st.selectbox(
+                            f"{pend.get('nome', '')} ({pend.get('serie', '')})",
+                            opcoes,
+                            key=f"tutoria_conferencia_manual_{idx}_{gerar_chave_segura(pend.get('nome', ''))}"
+                        )
+                        if mapa_sugestoes.get(escolha):
+                            selecoes_manuais.append(mapa_sugestoes[escolha])
+
+                    if st.button("✅ Adicionar selecionados manualmente", key="tutoria_btn_add_conferencia_manual", type="primary"):
+                        if not selecoes_manuais:
+                            st.warning("Nenhuma sugestão foi selecionada para adicionar.")
+                        else:
+                            qtd_manual = _adicionar_estudantes_tutoria(
+                                selecoes_manuais,
+                                origem="conferencia_manual",
+                                tutor_destino=validacao_anterior.get("responsavel", tutor_sel)
+                            )
+                            if qtd_manual > 0:
+                                st.success(f"{qtd_manual} estudante(s) adicionados por conferência manual.")
+                                st.rerun()
+                            else:
+                                st.warning("Os estudantes selecionados já estavam na lista ou não puderam ser adicionados.")
+            if st.button("Limpar validação exibida", key="tutoria_limpar_validacao_ultimo"):
+                st.session_state.pop("tutoria_validacao_ultimo", None)
+                st.rerun()
+    col_lista1, col_lista2 = st.columns([2, 1])
+    with col_lista1:
+        # Campo somente informativo.
+        # Nao usar st.text_input com key fixa aqui, porque o Streamlit preserva
+        # o valor antigo e pode mostrar outro responsavel.
+        st.markdown("<div style='font-size:0.82rem;font-weight:700;color:#54467a;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.25rem;'>Responsável da lista</div>", unsafe_allow_html=True)
+        st.markdown(
+            f"""
+            <div style="
+                background:#ffffff;
+                border:1px solid rgba(148,163,184,0.30);
+                border-radius:18px;
+                padding:0.72rem 0.95rem;
+                min-height:44px;
+                color:#2b2140;
+                box-shadow:0 10px 22px rgba(15,23,42,0.05);
+            ">{html.escape(str(tutor_sel))}</div>
+            """,
+            unsafe_allow_html=True
+        )
+        tutor_lista_lote = tutor_sel
+    with col_lista2:
+        serie_padrao_lote = st.text_input(
+            "Turma padrão",
+            key="tutoria_serie_padrao_lote",
+            placeholder="Ex: 6º Ano A"
+        )
+    lista_lote = st.text_area(
+        "Cole a lista para esse responsável. Opcional: Nome;Turma",
+        key="tutoria_lista_lote_professor",
+        height=160,
+        placeholder="Maria Silva; 7A\nJoão Santos; 8B\nAna Souza"
+    )
+    if st.button("✅ Registrar Lista do Responsável", key="tutoria_btn_lista_lote_professor", type="primary"):
+        try:
+            novos = []
+            for linha in lista_lote.splitlines():
+                item = _normalizar_linha_lista_tutoria(linha, serie_padrao=serie_padrao_lote)
+                if item:
+                    novos.append(item)
+            qtd = _adicionar_estudantes_tutoria(novos, origem="lista_por_professor", tutor_destino=tutor_lista_lote)
+            if qtd > 0:
+                st.success(f"{qtd} estudante(s) adicionados para {tutor_lista_lote}.")
+                st.rerun()
+            else:
+                st.warning("Nenhum estudante novo válido foi encontrado nessa lista.")
+        except Exception as e:
+            st.error(f"Erro ao registrar lista do responsável: {e}")
+
+    # ======================================================
+    # TUTORIA - INSERIR ESTUDANTES
+    # Objetivo: buscar estudantes ativos do Supabase por nome e/ou sala,
+    # montar uma lista temporaria, permitir remover itens e salvar somente
+    # quando o usuario confirmar.
+    # ======================================================
+    st.markdown("---")
+    st.subheader("➕ Inserir Estudantes na Tutoria")
+    st.caption("Busque por estudante, por sala ou pelos dois. Adicione na lista temporária, confira e depois salve.")
+
+    chave_lista_temp = f"tutoria_lista_temp_{gerar_chave_segura(tutor_sel)}"
+    if chave_lista_temp not in st.session_state:
+        st.session_state[chave_lista_temp] = []
+
+    def _chave_aluno_temp(item: dict) -> str:
+        ra = "".join(ch for ch in str(item.get("ra", "")) if ch.isdigit())
+        nome = normalizar_texto(item.get("nome", ""))
+        turma = normalizar_texto(formatar_turma_eletiva(item.get("serie", item.get("turma", ""))))
+        return f"RA:{ra}" if ra else f"NOME:{nome}|TURMA:{turma}"
+
+    def _adicionar_na_lista_temp(itens: list[dict]) -> int:
+        existentes = {_chave_aluno_temp(item) for item in st.session_state[chave_lista_temp]}
+        adicionados = 0
+        bloqueados = []
+        for item in itens or []:
+            nome = str(item.get("nome", "")).strip()
+            turma = formatar_turma_eletiva(str(item.get("serie", item.get("turma", ""))).strip())
+            ra = "".join(ch for ch in str(item.get("ra", "")) if ch.isdigit())
+            if not nome:
+                continue
+            novo = {"nome": nome, "serie": turma, "ra": ra}
+            ja_tem, vinculos = _estudante_ja_tem_tutor(novo, TUTORIA)
+            if ja_tem:
+                bloqueados.append({
+                    "nome": nome,
+                    "serie": turma,
+                    "ra": ra,
+                    "tutores": ", ".join(sorted({v.get("tutor", "") for v in vinculos if v.get("tutor", "")})),
+                })
+                continue
+            chave = _chave_aluno_temp(novo)
+            if chave in existentes:
+                continue
+            st.session_state[chave_lista_temp].append(novo)
+            existentes.add(chave)
+            adicionados += 1
+        if bloqueados:
+            st.session_state["tutoria_bloqueados_temp"] = bloqueados
+            st.warning(
+                "Estudantes não adicionados porque já estão em outra lista: "
+                + ", ".join([f"{b['nome']} ({b['serie']}) — {b['tutores']}" for b in bloqueados[:10]])
+            )
+        return adicionados
+
+    # ------------------------------------------------------
+    # 1) Busca no cadastro oficial de alunos ativos
+    # ------------------------------------------------------
+    st.markdown("#### 🔎 Buscar no cadastro oficial")
+    if df_alunos.empty:
+        st.info("Não há alunos carregados do Supabase para buscar.")
+    else:
+        base_busca = preparar_base_alunos_ativos_tutoria(df_alunos).copy()
+        if base_busca.empty:
+            st.warning("Nenhum estudante ativo foi encontrado na tabela de alunos.")
+        else:
+            base_busca["nome"] = base_busca["nome"].astype(str)
+            if "turma" not in base_busca.columns:
+                base_busca["turma"] = ""
+            base_busca["turma"] = base_busca["turma"].astype(str)
+            base_busca["turma_padrao"] = base_busca["turma"].apply(formatar_turma_eletiva)
+
+            turmas_opcoes = sorted([t for t in base_busca["turma_padrao"].dropna().unique().tolist() if str(t).strip()])
+            col_busca_nome, col_busca_turma = st.columns([2, 1])
+            with col_busca_nome:
+                termo_busca = st.text_input(
+                    "Buscar estudante por nome",
+                    key="tutoria_busca_nome_cadastro",
+                    placeholder="Ex: Jameson, Henzo, Alice"
+                )
+            with col_busca_turma:
+                filtro_turma_busca = st.selectbox(
+                    "Buscar por sala/turma",
+                    ["Todas"] + turmas_opcoes,
+                    key="tutoria_busca_turma_cadastro"
+                )
+
+            df_resultado = base_busca.copy()
+            if filtro_turma_busca != "Todas":
+                df_resultado = df_resultado[df_resultado["turma_padrao"] == filtro_turma_busca]
+
+            if termo_busca.strip():
+                termo_norm = normalizar_texto(termo_busca)
+                try:
+                    termo_fon = normalizar_nome_fonetico(termo_busca)
+                except Exception:
+                    termo_fon = termo_norm
+
+                def _combina_nome_busca(nome):
+                    nome_norm = normalizar_texto(nome)
+                    try:
+                        nome_fon = normalizar_nome_fonetico(nome)
+                    except Exception:
+                        nome_fon = nome_norm
+                    return (
+                        termo_norm in nome_norm
+                        or termo_fon in nome_fon
+                        or SequenceMatcher(None, termo_norm, nome_norm).ratio() >= 0.55
+                        or SequenceMatcher(None, termo_fon, nome_fon).ratio() >= 0.55
+                    )
+
+                df_resultado = df_resultado[df_resultado["nome"].apply(_combina_nome_busca)]
+
+            df_resultado = df_resultado.drop_duplicates(subset=["nome", "turma_padrao", "ra"])
+            df_resultado = df_resultado.sort_values(["nome", "turma_padrao"], kind="stable")
+
+            if not df_resultado.empty:
+                def _linha_disponivel_para_tutoria(linha):
+                    candidato = {
+                        "nome": linha.get("nome", ""),
+                        "serie": linha.get("turma_padrao", linha.get("turma", "")),
+                        "ra": linha.get("ra", ""),
+                    }
+                    ja_tem, _ = _estudante_ja_tem_tutor(candidato, TUTORIA)
+                    return not ja_tem
+
+                total_antes_disponibilidade = len(df_resultado)
+                df_resultado = df_resultado[df_resultado.apply(_linha_disponivel_para_tutoria, axis=1)]
+                total_ocultos = total_antes_disponibilidade - len(df_resultado)
+                if total_ocultos > 0:
+                    st.info(f"{total_ocultos} estudante(s) foram ocultados porque já possuem tutor em outra lista.")
+
+            df_resultado = df_resultado.head(80)
+
+            mapa_opcoes = {}
+            opcoes = []
+            for _, linha in df_resultado.iterrows():
+                nome = str(linha.get("nome", "")).strip()
+                turma = formatar_turma_eletiva(str(linha.get("turma_padrao", linha.get("turma", ""))).strip())
+                ra = "".join(ch for ch in str(linha.get("ra", "")) if ch.isdigit())
+                label = f"{nome} — {turma}" if turma else nome
+                if ra:
+                    label = f"{label} — RA {ra}"
+                opcoes.append(label)
+                mapa_opcoes[label] = {"nome": nome, "serie": turma, "ra": ra}
+
+            selecionados = st.multiselect(
+                "Selecione estudantes para inserir na lista temporária",
+                opcoes,
+                key="tutoria_busca_cadastro_selecionados"
+            )
+            if selecionados:
+                qtd_auto = _adicionar_na_lista_temp([mapa_opcoes[item] for item in selecionados if item in mapa_opcoes])
+                if qtd_auto:
+                    st.success(f"{qtd_auto} estudante(s) adicionados automaticamente à lista temporária.")
+
+            col_add1, col_add2 = st.columns([1, 2])
+            with col_add1:
+                if st.button("➕ Reprocessar selecionados", key="tutoria_btn_temp_add_busca", type="primary", use_container_width=True):
+                    qtd_add = _adicionar_na_lista_temp([mapa_opcoes[item] for item in selecionados])
+                    if qtd_add:
+                        st.success(f"{qtd_add} estudante(s) adicionados à lista temporária.")
+                    else:
+                        st.info("Nenhum estudante novo foi adicionado à lista temporária.")
+            with col_add2:
+                st.caption(f"Resultados exibidos: {len(df_resultado)} | Na lista temporária: {len(st.session_state[chave_lista_temp])}")
+
+    # ------------------------------------------------------
+    # 2) Colar lista quando houver relacao pronta
+    # ------------------------------------------------------
+    with st.expander("📋 Colar lista pronta para adicionar à lista temporária", expanded=False):
+        st.caption("Aceita formatos como: '1 Alice Elizabete 9 A', 'Alice Elizabete;9A' ou 'Alice Elizabete 9º A'.")
+        serie_padrao = st.text_input("Turma padrão opcional", key="tutoria_temp_serie_padrao", placeholder="Ex: 9º A")
+        lista_colada = st.text_area(
+            "Cole a lista aqui",
+            key="tutoria_temp_lista_colada",
+            height=150,
+            placeholder="1 Alice Elizabete 9 A\n2 Allana 9A\n3 Emanuelle 9B"
+        )
+        if st.button("➕ Adicionar lista colada", key="tutoria_btn_temp_add_colada", use_container_width=True):
+            novos = []
+            for linha in lista_colada.splitlines():
+                item = _normalizar_linha_lista_tutoria(linha, serie_padrao=serie_padrao)
+                if item:
+                    encontrado = buscar_estudante_ativo_mais_proximo(item.get("nome", ""), item.get("serie", ""), df_alunos)
+                    novos.append(encontrado if encontrado else item)
+            qtd_add = _adicionar_na_lista_temp(novos)
+            if qtd_add:
+                st.success(f"{qtd_add} estudante(s) adicionados à lista temporária.")
+            else:
+                st.warning("Nenhum estudante novo foi adicionado. Verifique se já estão na lista ou se os dados estão vazios.")
+
+    # ------------------------------------------------------
+    # 3) Lista temporaria com opcao de remover antes de salvar
+    # ------------------------------------------------------
+    st.markdown("#### 📌 Lista temporária para salvar")
+    lista_temp = st.session_state[chave_lista_temp]
+    if not lista_temp:
+        st.info("Nenhum estudante na lista temporária. Busque por nome/sala ou cole uma lista para começar.")
+    else:
+        df_temp = pd.DataFrame(lista_temp)
+        if "serie" in df_temp.columns:
+            df_temp["serie"] = df_temp["serie"].apply(formatar_turma_eletiva)
+        if "nome" in df_temp.columns:
+            df_temp = df_temp.sort_values(["nome"], key=lambda s: s.map(normalizar_texto), kind="stable").reset_index(drop=True)
+        st.dataframe(
+            df_temp.rename(columns={"nome": "Estudante", "serie": "Turma", "ra": "RA"}),
+            use_container_width=True,
+            hide_index=True
+        )
+
+        remover_opcoes = []
+        remover_mapa = {}
+        for idx, item in enumerate(lista_temp):
+            label = f"{idx + 1}. {item.get('nome', '')} — {formatar_turma_eletiva(item.get('serie', ''))}"
+            remover_opcoes.append(label)
+            remover_mapa[label] = idx
+
+        col_remover, col_limpar = st.columns([2, 1])
+        with col_remover:
+            itens_remover = st.multiselect("Selecionar estudantes para remover da lista temporária", remover_opcoes, key="tutoria_temp_remover")
+            if st.button("➖ Remover selecionados", key="tutoria_btn_temp_remover", use_container_width=True):
+                if not itens_remover:
+                    st.info("Selecione pelo menos um estudante para remover.")
                 else:
-                    pdf = gerar_pdf_tutoria(f"Professor(a): {tutor_impressao}", df_imp)
+                    indices = sorted([remover_mapa[item] for item in itens_remover], reverse=True)
+                    for idx in indices:
+                        if 0 <= idx < len(st.session_state[chave_lista_temp]):
+                            st.session_state[chave_lista_temp].pop(idx)
+                    st.rerun()
+        with col_limpar:
+            st.write("")
+            st.write("")
+            if st.button("🧹 Limpar lista", key="tutoria_btn_temp_limpar", use_container_width=True):
+                st.session_state[chave_lista_temp] = []
+                st.rerun()
+
+    # ------------------------------------------------------
+    # 4) Botao principal de salvamento
+    # ------------------------------------------------------
+    if st.button("💾 Salvar lista na tutoria", key="tutoria_btn_temp_salvar", type="primary", use_container_width=True):
+        if not st.session_state[chave_lista_temp]:
+            st.warning("Adicione pelo menos um estudante antes de salvar.")
+        else:
+            try:
+                qtd = _adicionar_estudantes_tutoria(
+                    st.session_state[chave_lista_temp],
+                    origem="busca_por_nome_sala",
+                    tutor_destino=tutor_sel
+                )
+                if qtd > 0:
+                    st.session_state[chave_lista_temp] = []
+                    st.success(f"{qtd} estudante(s) salvos na lista de {tutor_sel}.")
+                    st.rerun()
+                else:
+                    st.info("Nenhum estudante novo foi salvo. Eles podem já estar na lista do responsável.")
+            except Exception as e:
+                st.error(f"Erro ao salvar lista na tutoria: {e}")
+
+    with st.expander("☁️ Salvamento em lote das listas", expanded=False):
+        st.caption("Use este botão para reenviar todas as listas atuais da Tutoria ao Supabase, evitando salvar responsável por responsável.")
+        if st.button("☁️ Salvar todas as listas no Supabase agora", key="tutoria_salvar_lote_area_principal", type="primary", use_container_width=True):
+            ok_lote, msg_lote = sincronizar_tutoria_listas_supabase(TUTORIA)
+            st.success(msg_lote) if ok_lote else st.warning(msg_lote)
+
+    df_tutoria = montar_dataframe_tutoria(tutor_sel, df_alunos, TUTORIA)
+    total = len(df_tutoria)
+    if not df_tutoria.empty and "Status" in df_tutoria.columns:
+        encontrados = len(df_tutoria[df_tutoria["Status"] == "Encontrado"])
+        nao_encontrados = len(df_tutoria[df_tutoria["Status"] == "Não encontrado"])
+    else:
+        encontrados = 0
+        nao_encontrados = 0
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Total", total)
+    with col2:
+        st.metric("Encontrados", encontrados)
+    with col3:
+        st.metric("Não Encontrados", nao_encontrados)
+
+    busca_nome = st.text_input("🔍 Buscar estudante na tutoria", placeholder="Digite parte do nome", key="tutoria_busca_estudante")
+    filtro_status = st.selectbox("Filtrar por status", ["Todos", "Encontrado", "Não encontrado"], key="tutoria_filtro_status")
+    df_view = df_tutoria.copy()
+    if busca_nome:
+        df_view = df_view[df_view["Nome"].str.contains(busca_nome, case=False, na=False)]
+    if filtro_status != "Todos":
+        df_view = df_view[df_view["Status"] == filtro_status]
+    if not df_view.empty and "Nome" in df_view.columns:
+        df_view = df_view.sort_values(["Nome"], key=lambda s: s.map(normalizar_texto), kind="stable").reset_index(drop=True)
+
+    st.markdown("---")
+    st.subheader("📋 Estudantes da Tutoria")
+    colunas_visiveis = [
+        "Professor(a)", "Nome", "Turma", "Espaço", "Horário", "Dia",
+        "Aluno Cadastrado", "RA", "Turma no Sistema", "Situação", "Status"
+    ]
+    colunas_visiveis = [c for c in colunas_visiveis if c in df_view.columns]
+    st.dataframe(df_view[colunas_visiveis], use_container_width=True, hide_index=True)
+
+    st.markdown("---")
+    st.subheader("🖨️ Imprimir Lista da Tutoria")
+
+    with st.expander("📦 Exportar impressões em lote", expanded=False):
+        st.caption("Gera um arquivo ZIP com PDFs separados. Use para imprimir todos os responsáveis ou todas as turmas de uma vez.")
+        col_lote_pdf1, col_lote_pdf2 = st.columns(2)
+        with col_lote_pdf1:
+            if st.button("📦 Gerar ZIP por Professor(a)", key="tutoria_zip_professores", use_container_width=True):
+                st.session_state["tutoria_zip_professores_bytes"] = gerar_zip_tutoria_por_professores(TUTORIA, df_alunos).getvalue()
+            if st.session_state.get("tutoria_zip_professores_bytes"):
+                st.download_button(
+                    "⬇️ Baixar ZIP por Professor(a)",
+                    data=st.session_state["tutoria_zip_professores_bytes"],
+                    file_name=f"Tutoria_Professores_Lote_{datetime.now().strftime('%Y%m%d_%H%M')}.zip",
+                    mime="application/zip",
+                    key="download_zip_tutoria_professores",
+                    use_container_width=True,
+                )
+        with col_lote_pdf2:
+            if st.button("📦 Gerar ZIP por Turma", key="tutoria_zip_turmas", use_container_width=True):
+                st.session_state["tutoria_zip_turmas_bytes"] = gerar_zip_tutoria_por_turmas(TUTORIA, df_alunos).getvalue()
+            if st.session_state.get("tutoria_zip_turmas_bytes"):
+                st.download_button(
+                    "⬇️ Baixar ZIP por Turma",
+                    data=st.session_state["tutoria_zip_turmas_bytes"],
+                    file_name=f"Tutoria_Turmas_Lote_{datetime.now().strftime('%Y%m%d_%H%M')}.zip",
+                    mime="application/zip",
+                    key="download_zip_tutoria_turmas",
+                    use_container_width=True,
+                )
+
+    modo_impressao = st.radio("Tipo de impressão", ["Por Professor(a)", "Por Turma"], horizontal=True, key="tutoria_modo_impressao")
+
+    if modo_impressao == "Por Professor(a)":
+        tutores_lista = sorted(TUTORIA.keys())
+        tutor_impressao = st.selectbox(
+            "Professor(a) para imprimir",
+            tutores_lista,
+            index=tutores_lista.index(tutor_sel) if tutor_sel in tutores_lista else 0,
+            key="tutoria_tutor_impressao"
+        )
+        df_imp = montar_dataframe_tutoria(tutor_impressao, df_alunos, TUTORIA)
+        if st.button("Gerar PDF por Professor(a)", type="primary", key="btn_pdf_tutoria_tutor"):
+            if df_imp.empty:
+                st.warning("Não há estudantes para imprimir nesse professor(a).")
+            else:
+                pdf = gerar_pdf_tutoria(f"Professor(a): {tutor_impressao}", df_imp)
+                st.download_button(
+                    "Baixar PDF",
+                    data=pdf,
+                    file_name=f"Tutoria_Tutor_{gerar_chave_segura(tutor_impressao)}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                    mime="application/pdf",
+                    key="download_pdf_tutoria_tutor"
+                )
+    else:
+        frames = []
+        for tutor_item in sorted(TUTORIA.keys()):
+            df_tmp = montar_dataframe_tutoria(tutor_item, df_alunos, TUTORIA)
+            if not df_tmp.empty:
+                frames.append(df_tmp)
+        df_geral_tutoria = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+        turmas_tutoria = sorted([t for t in df_geral_tutoria.get("Turma", pd.Series(dtype=str)).dropna().astype(str).str.strip().unique().tolist() if t])
+        if not turmas_tutoria:
+            st.info("Não há turmas de tutoria para imprimir.")
+        else:
+            turma_impressao = st.selectbox("Turma da Tutoria", turmas_tutoria, key="tutoria_turma_impressao", format_func=_formatar_opcao_turma_select)
+            df_imp = df_geral_tutoria[df_geral_tutoria["Turma"].astype(str).str.strip() == str(turma_impressao).strip()].copy()
+            if st.button("Gerar PDF por Turma", type="primary", key="btn_pdf_tutoria_turma"):
+                if df_imp.empty:
+                    st.warning("Não há estudantes para imprimir nessa turma.")
+                else:
+                    pdf = gerar_pdf_tutoria(f"Turma: {turma_impressao}", df_imp)
                     st.download_button(
                         "Baixar PDF",
                         data=pdf,
-                        file_name=f"Tutoria_Tutor_{gerar_chave_segura(tutor_impressao)}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                        file_name=f"Tutoria_Turma_{gerar_chave_segura(turma_impressao)}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
                         mime="application/pdf",
-                        key="download_pdf_tutoria_tutor"
+                        key="download_pdf_tutoria_turma"
                     )
-        else:
-            frames = []
-            for tutor_item in sorted(TUTORIA.keys()):
-                df_tmp = montar_dataframe_tutoria(tutor_item, df_alunos, TUTORIA)
-                if not df_tmp.empty:
-                    frames.append(df_tmp)
-            df_geral_tutoria = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
-            turmas_tutoria = sorted([t for t in df_geral_tutoria.get("Turma", pd.Series(dtype=str)).dropna().astype(str).str.strip().unique().tolist() if t])
-            if not turmas_tutoria:
-                st.info("Não há turmas de tutoria para imprimir.")
-            else:
-                turma_impressao = st.selectbox("Turma da Tutoria", turmas_tutoria, key="tutoria_turma_impressao", format_func=_formatar_opcao_turma_select)
-                df_imp = df_geral_tutoria[df_geral_tutoria["Turma"].astype(str).str.strip() == str(turma_impressao).strip()].copy()
-                if st.button("Gerar PDF por Turma", type="primary", key="btn_pdf_tutoria_turma"):
-                    if df_imp.empty:
-                        st.warning("Não há estudantes para imprimir nessa turma.")
-                    else:
-                        pdf = gerar_pdf_tutoria(f"Turma: {turma_impressao}", df_imp)
-                        st.download_button(
-                            "Baixar PDF",
-                            data=pdf,
-                            file_name=f"Tutoria_Turma_{gerar_chave_segura(turma_impressao)}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-                            mime="application/pdf",
-                            key="download_pdf_tutoria_turma"
-                        )
-    
-        st.markdown("---")
-    if secao_tutoria == "Estudantes Sem Tutor":
-        # Seção carregada sob demanda para reduzir processamento da página de Tutoria.
 
-        st.subheader("🔎 Estudantes Sem Tutor")
-        st.caption("Mostra estudantes ativos do Supabase que ainda não aparecem em nenhuma lista de tutoria. É possível ver no geral ou por sala.")
-    
-        if not df_alunos.empty and "nome" in df_alunos.columns and "turma" in df_alunos.columns:
-            base_ativa_tutoria = preparar_base_alunos_ativos_tutoria(df_alunos)
-    
-            frames = []
-            for tutor_item in sorted(TUTORIA.keys()):
-                df_tmp = montar_dataframe_tutoria(tutor_item, df_alunos, TUTORIA)
-                if not df_tmp.empty:
-                    frames.append(df_tmp)
-            df_geral_tutoria = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
-    
-            vinculados = set()
-            if not df_geral_tutoria.empty:
-                df_vinc = df_geral_tutoria[
-                    (df_geral_tutoria["Status"] == "Encontrado")
-                    & (df_geral_tutoria["Aluno Cadastrado"].astype(str).str.strip() != "")
-                    & (df_geral_tutoria["Professor(a)"].astype(str).str.strip() != "")
-                ].copy()
-                for _, r in df_vinc.iterrows():
-                    ra_vinc = "".join(ch for ch in str(r.get("RA", "")) if ch.isdigit())
-                    if ra_vinc:
-                        vinculados.add(("RA", ra_vinc))
-                    vinculados.add((
-                        "NOME_TURMA",
-                        normalizar_texto(r.get("Aluno Cadastrado", "")),
-                        turma_para_comparacao(r.get("Turma no Sistema", ""))
-                    ))
-    
-            sem_tutor = []
-            for _, aluno in base_ativa_tutoria.iterrows():
-                ra = "".join(ch for ch in str(aluno.get("ra", "")) if ch.isdigit())
-                chave_ra = ("RA", ra) if ra else None
-                chave_nome_turma = (
+    st.markdown("---")
+    st.subheader("🔎 Estudantes Sem Tutor")
+    st.caption("Mostra estudantes ativos do Supabase que ainda não aparecem em nenhuma lista de tutoria. É possível ver no geral ou por sala.")
+
+    if not df_alunos.empty and "nome" in df_alunos.columns and "turma" in df_alunos.columns:
+        base_ativa_tutoria = preparar_base_alunos_ativos_tutoria(df_alunos)
+
+        frames = []
+        for tutor_item in sorted(TUTORIA.keys()):
+            df_tmp = montar_dataframe_tutoria(tutor_item, df_alunos, TUTORIA)
+            if not df_tmp.empty:
+                frames.append(df_tmp)
+        df_geral_tutoria = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+
+        vinculados = set()
+        if not df_geral_tutoria.empty:
+            df_vinc = df_geral_tutoria[
+                (df_geral_tutoria["Status"] == "Encontrado")
+                & (df_geral_tutoria["Aluno Cadastrado"].astype(str).str.strip() != "")
+                & (df_geral_tutoria["Professor(a)"].astype(str).str.strip() != "")
+            ].copy()
+            for _, r in df_vinc.iterrows():
+                ra_vinc = "".join(ch for ch in str(r.get("RA", "")) if ch.isdigit())
+                if ra_vinc:
+                    vinculados.add(("RA", ra_vinc))
+                vinculados.add((
                     "NOME_TURMA",
-                    normalizar_texto(aluno.get("nome", "")),
-                    turma_para_comparacao(aluno.get("turma", ""))
-                )
-                if (chave_ra and chave_ra in vinculados) or chave_nome_turma in vinculados:
-                    continue
-    
-                turma_aluno = formatar_turma_eletiva(aluno.get("turma", ""))
-                sem_tutor.append({
-                    "Nome": aluno.get("nome", ""),
-                    "Turma": turma_aluno,
-                    "Etapa": classificar_etapa_tutoria(turma_aluno),
-                    "Turno": classificar_turno_tutoria(turma_aluno),
-                    "RA": aluno.get("ra", ""),
-                    "Situação": aluno.get("situacao", aluno.get("situação", aluno.get("status", ""))),
-                })
-    
-            df_sem_tutor = pd.DataFrame(sem_tutor)
-            if not df_sem_tutor.empty:
-                df_sem_tutor["ordem_turma"] = df_sem_tutor["Turma"].apply(ordenar_turma_tutoria)
-                df_sem_tutor = df_sem_tutor.sort_values(["Turno", "ordem_turma", "Nome"]).drop(columns=["ordem_turma"]).reset_index(drop=True)
-    
-            total_ativos = len(base_ativa_tutoria)
-            total_sem_tutor = len(df_sem_tutor)
-            total_com_tutor = max(total_ativos - total_sem_tutor, 0)
-    
-            ativos_turno1 = int((base_ativa_tutoria["turma"].apply(classificar_turno_tutoria) == "Turno 1").sum()) if not base_ativa_tutoria.empty else 0
-            ativos_turno2 = int((base_ativa_tutoria["turma"].apply(classificar_turno_tutoria) == "Turno 2").sum()) if not base_ativa_tutoria.empty else 0
-            sem_turno1 = int((df_sem_tutor["Turno"] == "Turno 1").sum()) if not df_sem_tutor.empty else 0
-            sem_turno2 = int((df_sem_tutor["Turno"] == "Turno 2").sum()) if not df_sem_tutor.empty else 0
-            com_turno1 = max(ativos_turno1 - sem_turno1, 0)
-            com_turno2 = max(ativos_turno2 - sem_turno2, 0)
-    
-            col_st1, col_st2, col_st3 = st.columns(3)
-            col_st1.metric("Ativos no Supabase", total_ativos)
-            col_st2.metric("Com tutor", total_com_tutor)
-            col_st3.metric("Sem tutor", total_sem_tutor)
-    
-            col_st4, col_st5, col_st6, col_st7 = st.columns(4)
-            col_st4.metric("Com tutor - Turno 1", com_turno1)
-            col_st5.metric("Sem tutor - Turno 1", sem_turno1)
-            col_st6.metric("Com tutor - Turno 2", com_turno2)
-            col_st7.metric("Sem tutor - Turno 2", sem_turno2)
-    
-            aba_geral_sem_tutor, aba_turno_sem_tutor, aba_sala_sem_tutor = st.tabs(["📌 Geral", "🕒 Por turno/etapa", "🏫 Por sala"])
-    
-            with aba_geral_sem_tutor:
-                if df_sem_tutor.empty:
-                    st.success("Todos os estudantes ativos já possuem tutor cadastrado.")
-                else:
-                    col_f1, col_f2 = st.columns(2)
-                    with col_f1:
-                        filtro_turno_geral = st.selectbox(
-                            "Filtrar por turno",
-                            ["Todos"] + sorted(df_sem_tutor["Turno"].dropna().unique().tolist()),
-                            key="sem_tutor_filtro_turno_geral"
-                        )
-                    with col_f2:
-                        filtro_etapa_geral = st.selectbox(
-                            "Filtrar por etapa",
-                            ["Todas"] + sorted(df_sem_tutor["Etapa"].dropna().unique().tolist()),
-                            key="sem_tutor_filtro_etapa_geral"
-                        )
-                    df_sem_tutor_exibir = df_sem_tutor.copy()
-                    if filtro_turno_geral != "Todos":
-                        df_sem_tutor_exibir = df_sem_tutor_exibir[df_sem_tutor_exibir["Turno"] == filtro_turno_geral]
-                    if filtro_etapa_geral != "Todas":
-                        df_sem_tutor_exibir = df_sem_tutor_exibir[df_sem_tutor_exibir["Etapa"] == filtro_etapa_geral]
-                    st.markdown(f"**Total exibido:** {len(df_sem_tutor_exibir)} estudante(s)")
-                    st.dataframe(df_sem_tutor_exibir, use_container_width=True, hide_index=True)
-                    csv_sem_tutor = df_sem_tutor_exibir.to_csv(index=False).encode("utf-8-sig")
-                    st.download_button(
-                        "⬇️ Baixar lista geral em CSV",
-                        data=csv_sem_tutor,
-                        file_name=f"estudantes_sem_tutor_geral_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                        mime="text/csv",
-                        key="download_sem_tutor_geral_csv"
-                    )
-    
-                    pdf_sem_tutor_geral = gerar_pdf_estudantes_sem_tutor(
-                        f"Geral | Turno: {filtro_turno_geral} | Etapa: {filtro_etapa_geral}",
-                        df_sem_tutor_exibir
-                    )
-                    st.download_button(
-                        "🖨️ Baixar lista geral em PDF",
-                        data=pdf_sem_tutor_geral,
-                        file_name=f"estudantes_sem_tutor_geral_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-                        mime="application/pdf",
-                        key="download_sem_tutor_geral_pdf"
-                    )
-    
-    
-            with aba_turno_sem_tutor:
-                if df_sem_tutor.empty:
-                    st.success("Não há estudantes sem tutor para agrupar por turno.")
-                else:
-                    resumo_turno = (
-                        df_sem_tutor.groupby(["Turno", "Etapa"])
-                        .size()
-                        .reset_index(name="Sem tutor")
-                        .sort_values(["Turno", "Etapa"])
-                    )
-                    st.dataframe(resumo_turno, use_container_width=True, hide_index=True)
-    
-                    turno_sel = st.selectbox(
-                        "Selecionar turno para detalhar",
-                        ["Todos", "Turno 1", "Turno 2", "Sem turno definido"],
-                        key="sem_tutor_turno_detalhe"
-                    )
-                    df_turno = df_sem_tutor if turno_sel == "Todos" else df_sem_tutor[df_sem_tutor["Turno"] == turno_sel]
-    
-                    resumo_turma_turno = (
-                        df_turno.groupby(["Turno", "Etapa", "Turma"])
-                        .size()
-                        .reset_index(name="Sem tutor")
-                        .sort_values(["Turno", "Turma"])
-                    ) if not df_turno.empty else pd.DataFrame()
-    
-                    st.markdown("**Resumo por turma dentro do turno selecionado:**")
-                    st.dataframe(resumo_turma_turno, use_container_width=True, hide_index=True)
-                    st.markdown(f"**Total no detalhe:** {len(df_turno)} estudante(s)")
-                    st.dataframe(df_turno, use_container_width=True, hide_index=True)
-    
-                    csv_turno = df_turno.to_csv(index=False).encode("utf-8-sig")
-                    st.download_button(
-                        "⬇️ Baixar turno selecionado em CSV",
-                        data=csv_turno,
-                        file_name=f"estudantes_sem_tutor_{gerar_chave_segura(turno_sel)}_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                        mime="text/csv",
-                        key="download_sem_tutor_turno_csv"
-                    )
-    
-                    pdf_sem_tutor_turno = gerar_pdf_estudantes_sem_tutor(
-                        f"Turno/Etapa | {turno_sel}",
-                        df_turno
-                    )
-                    st.download_button(
-                        "🖨️ Baixar turno selecionado em PDF",
-                        data=pdf_sem_tutor_turno,
-                        file_name=f"estudantes_sem_tutor_{gerar_chave_segura(turno_sel)}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-                        mime="application/pdf",
-                        key="download_sem_tutor_turno_pdf"
-                    )
-    
-            with aba_sala_sem_tutor:
-                if df_sem_tutor.empty:
-                    st.success("Não há estudantes sem tutor para agrupar por sala.")
-                else:
-                    turmas_sem_tutor = sorted(df_sem_tutor["Turma"].dropna().astype(str).unique().tolist(), key=ordenar_turma_tutoria)
-                    turma_sem_tutor_sel = st.selectbox(
-                        "Selecione a sala/turma",
-                        options=["Todas"] + turmas_sem_tutor,
-                        key="turma_sem_tutor_select",
-                        format_func=lambda t: "Todas" if t == "Todas" else _formatar_opcao_turma_select(t)
-                    )
-    
-                    resumo_sem_tutor = (
-                        df_sem_tutor.groupby(["Turno", "Etapa", "Turma"])
-                        .size()
-                        .reset_index(name="Sem tutor")
-                        .sort_values(["Turno", "Turma"])
-                    )
-                    st.dataframe(resumo_sem_tutor, use_container_width=True, hide_index=True)
-    
-                    if turma_sem_tutor_sel == "Todas":
-                        df_sala = df_sem_tutor
-                    else:
-                        df_sala = df_sem_tutor[df_sem_tutor["Turma"] == turma_sem_tutor_sel]
-    
-                    st.markdown(f"**Total exibido:** {len(df_sala)} estudante(s)")
-                    st.dataframe(df_sala, use_container_width=True, hide_index=True)
-    
-                    csv_sala = df_sala.to_csv(index=False).encode("utf-8-sig")
-                    nome_arquivo_sala = gerar_chave_segura(turma_sem_tutor_sel) if turma_sem_tutor_sel != "Todas" else "TODAS"
-                    st.download_button(
-                        "⬇️ Baixar sala selecionada em CSV",
-                        data=csv_sala,
-                        file_name=f"estudantes_sem_tutor_{nome_arquivo_sala}_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                        mime="text/csv",
-                        key="download_sem_tutor_sala_csv"
-                    )
-    
-                    pdf_sem_tutor_sala = gerar_pdf_estudantes_sem_tutor(
-                        f"Sala/Turma: {turma_sem_tutor_sel}",
-                        df_sala
-                    )
-                    st.download_button(
-                        "🖨️ Baixar sala selecionada em PDF",
-                        data=pdf_sem_tutor_sala,
-                        file_name=f"estudantes_sem_tutor_{nome_arquivo_sala}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-                        mime="application/pdf",
-                        key="download_sem_tutor_sala_pdf"
-                    )
-        else:
-            st.info("Para mostrar estudantes sem tutor, a tabela de alunos precisa ter pelo menos as colunas nome e turma.")
-    
-        if alunos_raw:
-            st.markdown("---")
-    if secao_tutoria == "Editar ou Excluir Estudante":
-        # Seção carregada sob demanda para reduzir processamento da página de Tutoria.
+                    normalizar_texto(r.get("Aluno Cadastrado", "")),
+                    turma_para_comparacao(r.get("Turma no Sistema", ""))
+                ))
 
-            st.subheader("✏️ Editar ou Excluir Estudante")
-            alunos_raw = sorted(alunos_raw, key=lambda a: normalizar_texto(a.get("nome", "")))
-            TUTORIA[tutor_sel]["alunos"] = alunos_raw
-    
-            # A seleção para edição também respeita a regra da Tutoria: mostrar somente estudantes ativos.
-            df_ativos_tutor_edicao = montar_dataframe_tutoria(tutor_sel, df_alunos, TUTORIA)
-            chaves_ativas_edicao = set()
-            if not df_ativos_tutor_edicao.empty:
-                for _, r in df_ativos_tutor_edicao.iterrows():
-                    ra_ok = "".join(ch for ch in str(r.get("RA", "")) if ch.isdigit())
-                    if ra_ok:
-                        chaves_ativas_edicao.add(("RA", ra_ok))
-                    nome_ok = normalizar_texto(r.get("Nome", "") or r.get("Aluno Cadastrado", ""))
-                    turma_ok = turma_para_comparacao(r.get("Turma", "") or r.get("Turma no Sistema", ""))
-                    if nome_ok:
-                        chaves_ativas_edicao.add(("NOME_TURMA", nome_ok, turma_ok))
-    
-            alunos_edicao = []
-            for idx_original, a in enumerate(alunos_raw):
-                ra_item = "".join(ch for ch in str(a.get("ra", "")) if ch.isdigit())
-                nome_item = normalizar_texto(a.get("nome", ""))
-                turma_item = turma_para_comparacao(a.get("serie", ""))
-                if (ra_item and ("RA", ra_item) in chaves_ativas_edicao) or (("NOME_TURMA", nome_item, turma_item) in chaves_ativas_edicao):
-                    alunos_edicao.append((idx_original, a))
-    
-            if not alunos_edicao:
-                st.info("Não há estudante ativo para editar ou excluir neste responsável.")
+        sem_tutor = []
+        for _, aluno in base_ativa_tutoria.iterrows():
+            ra = "".join(ch for ch in str(aluno.get("ra", "")) if ch.isdigit())
+            chave_ra = ("RA", ra) if ra else None
+            chave_nome_turma = (
+                "NOME_TURMA",
+                normalizar_texto(aluno.get("nome", "")),
+                turma_para_comparacao(aluno.get("turma", ""))
+            )
+            if (chave_ra and chave_ra in vinculados) or chave_nome_turma in vinculados:
+                continue
+
+            turma_aluno = formatar_turma_eletiva(aluno.get("turma", ""))
+            sem_tutor.append({
+                "Nome": aluno.get("nome", ""),
+                "Turma": turma_aluno,
+                "Etapa": classificar_etapa_tutoria(turma_aluno),
+                "Turno": classificar_turno_tutoria(turma_aluno),
+                "RA": aluno.get("ra", ""),
+                "Situação": aluno.get("situacao", aluno.get("situação", aluno.get("status", ""))),
+            })
+
+        df_sem_tutor = pd.DataFrame(sem_tutor)
+        if not df_sem_tutor.empty:
+            df_sem_tutor["ordem_turma"] = df_sem_tutor["Turma"].apply(ordenar_turma_tutoria)
+            df_sem_tutor = df_sem_tutor.sort_values(["Turno", "ordem_turma", "Nome"]).drop(columns=["ordem_turma"]).reset_index(drop=True)
+
+        total_ativos = len(base_ativa_tutoria)
+        total_sem_tutor = len(df_sem_tutor)
+        total_com_tutor = max(total_ativos - total_sem_tutor, 0)
+
+        ativos_turno1 = int((base_ativa_tutoria["turma"].apply(classificar_turno_tutoria) == "Turno 1").sum()) if not base_ativa_tutoria.empty else 0
+        ativos_turno2 = int((base_ativa_tutoria["turma"].apply(classificar_turno_tutoria) == "Turno 2").sum()) if not base_ativa_tutoria.empty else 0
+        sem_turno1 = int((df_sem_tutor["Turno"] == "Turno 1").sum()) if not df_sem_tutor.empty else 0
+        sem_turno2 = int((df_sem_tutor["Turno"] == "Turno 2").sum()) if not df_sem_tutor.empty else 0
+        com_turno1 = max(ativos_turno1 - sem_turno1, 0)
+        com_turno2 = max(ativos_turno2 - sem_turno2, 0)
+
+        col_st1, col_st2, col_st3 = st.columns(3)
+        col_st1.metric("Ativos no Supabase", total_ativos)
+        col_st2.metric("Com tutor", total_com_tutor)
+        col_st3.metric("Sem tutor", total_sem_tutor)
+
+        col_st4, col_st5, col_st6, col_st7 = st.columns(4)
+        col_st4.metric("Com tutor - Turno 1", com_turno1)
+        col_st5.metric("Sem tutor - Turno 1", sem_turno1)
+        col_st6.metric("Com tutor - Turno 2", com_turno2)
+        col_st7.metric("Sem tutor - Turno 2", sem_turno2)
+
+        aba_geral_sem_tutor, aba_turno_sem_tutor, aba_sala_sem_tutor = st.tabs(["📌 Geral", "🕒 Por turno/etapa", "🏫 Por sala"])
+
+        with aba_geral_sem_tutor:
+            if df_sem_tutor.empty:
+                st.success("Todos os estudantes ativos já possuem tutor cadastrado.")
             else:
-                opcoes_estudantes = [f"{a.get('nome', '').strip()} — {a.get('serie', '').strip()}".strip(" —") for _, a in alunos_edicao]
-                idx_sel = st.selectbox(
-                    "Selecione o estudante",
-                    options=list(range(len(opcoes_estudantes))),
-                    format_func=lambda i: opcoes_estudantes[i],
-                    key="tutoria_idx_edicao"
+                col_f1, col_f2 = st.columns(2)
+                with col_f1:
+                    filtro_turno_geral = st.selectbox(
+                        "Filtrar por turno",
+                        ["Todos"] + sorted(df_sem_tutor["Turno"].dropna().unique().tolist()),
+                        key="sem_tutor_filtro_turno_geral"
+                    )
+                with col_f2:
+                    filtro_etapa_geral = st.selectbox(
+                        "Filtrar por etapa",
+                        ["Todas"] + sorted(df_sem_tutor["Etapa"].dropna().unique().tolist()),
+                        key="sem_tutor_filtro_etapa_geral"
+                    )
+                df_sem_tutor_exibir = df_sem_tutor.copy()
+                if filtro_turno_geral != "Todos":
+                    df_sem_tutor_exibir = df_sem_tutor_exibir[df_sem_tutor_exibir["Turno"] == filtro_turno_geral]
+                if filtro_etapa_geral != "Todas":
+                    df_sem_tutor_exibir = df_sem_tutor_exibir[df_sem_tutor_exibir["Etapa"] == filtro_etapa_geral]
+                st.markdown(f"**Total exibido:** {len(df_sem_tutor_exibir)} estudante(s)")
+                st.dataframe(df_sem_tutor_exibir, use_container_width=True, hide_index=True)
+                csv_sem_tutor = df_sem_tutor_exibir.to_csv(index=False).encode("utf-8-sig")
+                st.download_button(
+                    "⬇️ Baixar lista geral em CSV",
+                    data=csv_sem_tutor,
+                    file_name=f"estudantes_sem_tutor_geral_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                    mime="text/csv",
+                    key="download_sem_tutor_geral_csv"
                 )
-    
-                idx_real, estudante_sel = alunos_edicao[idx_sel]
-                nome_antigo = str(estudante_sel.get("nome", "")).strip()
-                serie_antiga = str(estudante_sel.get("serie", "")).strip()
-                ra_antigo = "".join(ch for ch in str(estudante_sel.get("ra", "")) if ch.isdigit())
-                col_ed1, col_ed2 = st.columns(2)
-                with col_ed1:
-                    novo_nome = st.text_input("Nome", value=nome_antigo, key=f"tutoria_nome_edit_{idx_sel}")
-                with col_ed2:
-                    nova_serie = st.text_input("Turma", value=serie_antiga, key=f"tutoria_serie_edit_{idx_sel}")
-    
-                col_btn1, col_btn2 = st.columns(2)
-                with col_btn1:
-                    if st.button("✅ Editar Estudante", type="primary", key="btn_editar_estudante_tutoria"):
-                        novo_nome = novo_nome.strip()
-                        nova_serie = formatar_turma_eletiva(nova_serie.strip())
-                        if not novo_nome:
-                            st.warning("Informe um nome válido para salvar.")
-                        else:
-                            try:
-                                TUTORIA[tutor_sel]["alunos"][idx_real] = {"nome": novo_nome, "serie": nova_serie, "ra": ra_antigo}
-                                _salvar_estado_tutoria("edicao")
-                                if SUPABASE_VALID:
-                                    _apagar_registro_supabase_tutoria(tutor_sel, nome_antigo, serie_antiga, ra_antigo)
-                                    _supabase_request("POST", "tutoria", json=[{
-                                        "professora": tutor_sel,
-                                        "nome_aluno": novo_nome,
-                                        "serie": nova_serie,
-                                        "ra": ra_antigo,
-                                        "origem": "edicao_manual"
-                                    }])
-                                    _limpar_cache_tutoria_apos_mutacao()
-                                st.success("✅ Estudante atualizado com sucesso.")
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"Erro ao editar estudante: {e}")
-    
-                with col_btn2:
-                    confirmar_exc = st.checkbox("Confirmar exclusão", key=f"confirmar_exclusao_tutoria_{idx_sel}")
-                    if st.button("🗑️ Excluir Estudante", type="secondary", key="btn_excluir_estudante_tutoria"):
-                        if not confirmar_exc:
-                            st.warning("Marque a confirmação para excluir.")
-                        else:
-                            try:
-                                removido = TUTORIA[tutor_sel]["alunos"].pop(idx_real)
-                                if SUPABASE_VALID:
-                                    ok_del = _apagar_registro_supabase_tutoria(
-                                        tutor_sel,
-                                        str(removido.get("nome", "")),
-                                        str(removido.get("serie", "")),
-                                        str(removido.get("ra", "")),
-                                    )
-                                    if not ok_del:
-                                        st.warning("O estudante foi removido da tela, mas houve falha ao excluir no Supabase. Verifique o aviso acima.")
-                                _salvar_estado_tutoria("exclusao_individual")
-                                st.success("✅ Estudante excluído com sucesso.")
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"Erro ao excluir estudante: {e}")
-    
-            st.markdown("---")
-            st.subheader("🧹 Limpeza em Massa")
-            confirmar_excluir_todos = st.checkbox(f"Confirmo excluir todos os estudantes do professor {tutor_sel}", key=f"confirmar_excluir_todos_tutoria_{gerar_chave_segura(tutor_sel)}")
-            if st.button("🗑️ Excluir Todos os Alunos da Tutoria", type="secondary", key="btn_excluir_todos_tutoria"):
-                if not confirmar_excluir_todos:
-                    st.warning("Marque a confirmação para excluir todos.")
+
+                pdf_sem_tutor_geral = gerar_pdf_estudantes_sem_tutor(
+                    f"Geral | Turno: {filtro_turno_geral} | Etapa: {filtro_etapa_geral}",
+                    df_sem_tutor_exibir
+                )
+                st.download_button(
+                    "🖨️ Baixar lista geral em PDF",
+                    data=pdf_sem_tutor_geral,
+                    file_name=f"estudantes_sem_tutor_geral_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                    mime="application/pdf",
+                    key="download_sem_tutor_geral_pdf"
+                )
+
+
+        with aba_turno_sem_tutor:
+            if df_sem_tutor.empty:
+                st.success("Não há estudantes sem tutor para agrupar por turno.")
+            else:
+                resumo_turno = (
+                    df_sem_tutor.groupby(["Turno", "Etapa"])
+                    .size()
+                    .reset_index(name="Sem tutor")
+                    .sort_values(["Turno", "Etapa"])
+                )
+                st.dataframe(resumo_turno, use_container_width=True, hide_index=True)
+
+                turno_sel = st.selectbox(
+                    "Selecionar turno para detalhar",
+                    ["Todos", "Turno 1", "Turno 2", "Sem turno definido"],
+                    key="sem_tutor_turno_detalhe"
+                )
+                df_turno = df_sem_tutor if turno_sel == "Todos" else df_sem_tutor[df_sem_tutor["Turno"] == turno_sel]
+
+                resumo_turma_turno = (
+                    df_turno.groupby(["Turno", "Etapa", "Turma"])
+                    .size()
+                    .reset_index(name="Sem tutor")
+                    .sort_values(["Turno", "Turma"])
+                ) if not df_turno.empty else pd.DataFrame()
+
+                st.markdown("**Resumo por turma dentro do turno selecionado:**")
+                st.dataframe(resumo_turma_turno, use_container_width=True, hide_index=True)
+                st.markdown(f"**Total no detalhe:** {len(df_turno)} estudante(s)")
+                st.dataframe(df_turno, use_container_width=True, hide_index=True)
+
+                csv_turno = df_turno.to_csv(index=False).encode("utf-8-sig")
+                st.download_button(
+                    "⬇️ Baixar turno selecionado em CSV",
+                    data=csv_turno,
+                    file_name=f"estudantes_sem_tutor_{gerar_chave_segura(turno_sel)}_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                    mime="text/csv",
+                    key="download_sem_tutor_turno_csv"
+                )
+
+                pdf_sem_tutor_turno = gerar_pdf_estudantes_sem_tutor(
+                    f"Turno/Etapa | {turno_sel}",
+                    df_turno
+                )
+                st.download_button(
+                    "🖨️ Baixar turno selecionado em PDF",
+                    data=pdf_sem_tutor_turno,
+                    file_name=f"estudantes_sem_tutor_{gerar_chave_segura(turno_sel)}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                    mime="application/pdf",
+                    key="download_sem_tutor_turno_pdf"
+                )
+
+        with aba_sala_sem_tutor:
+            if df_sem_tutor.empty:
+                st.success("Não há estudantes sem tutor para agrupar por sala.")
+            else:
+                turmas_sem_tutor = sorted(df_sem_tutor["Turma"].dropna().astype(str).unique().tolist(), key=ordenar_turma_tutoria)
+                turma_sem_tutor_sel = st.selectbox(
+                    "Selecione a sala/turma",
+                    options=["Todas"] + turmas_sem_tutor,
+                    key="turma_sem_tutor_select",
+                    format_func=lambda t: "Todas" if t == "Todas" else _formatar_opcao_turma_select(t)
+                )
+
+                resumo_sem_tutor = (
+                    df_sem_tutor.groupby(["Turno", "Etapa", "Turma"])
+                    .size()
+                    .reset_index(name="Sem tutor")
+                    .sort_values(["Turno", "Turma"])
+                )
+                st.dataframe(resumo_sem_tutor, use_container_width=True, hide_index=True)
+
+                if turma_sem_tutor_sel == "Todas":
+                    df_sala = df_sem_tutor
                 else:
-                    try:
-                        TUTORIA[tutor_sel]["alunos"] = []
-                        if SUPABASE_VALID:
-                            ok_del, msg_del = _excluir_lista_tutoria_supabase(tutor_sel)
-                            if not ok_del:
-                                st.warning(msg_del)
-                        _salvar_estado_tutoria("exclusao_lista_professor")
-                        st.success("✅ Todos os estudantes da tutoria do professor selecionado foram excluídos.")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Erro ao excluir todos os estudantes: {e}")
-    
-    # ======================================================
-    # PÁGINA 🏫 MAPA DA SALA (COMPLETA)
-    # ======================================================
-    
+                    df_sala = df_sem_tutor[df_sem_tutor["Turma"] == turma_sem_tutor_sel]
+
+                st.markdown(f"**Total exibido:** {len(df_sala)} estudante(s)")
+                st.dataframe(df_sala, use_container_width=True, hide_index=True)
+
+                csv_sala = df_sala.to_csv(index=False).encode("utf-8-sig")
+                nome_arquivo_sala = gerar_chave_segura(turma_sem_tutor_sel) if turma_sem_tutor_sel != "Todas" else "TODAS"
+                st.download_button(
+                    "⬇️ Baixar sala selecionada em CSV",
+                    data=csv_sala,
+                    file_name=f"estudantes_sem_tutor_{nome_arquivo_sala}_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                    mime="text/csv",
+                    key="download_sem_tutor_sala_csv"
+                )
+
+                pdf_sem_tutor_sala = gerar_pdf_estudantes_sem_tutor(
+                    f"Sala/Turma: {turma_sem_tutor_sel}",
+                    df_sala
+                )
+                st.download_button(
+                    "🖨️ Baixar sala selecionada em PDF",
+                    data=pdf_sem_tutor_sala,
+                    file_name=f"estudantes_sem_tutor_{nome_arquivo_sala}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                    mime="application/pdf",
+                    key="download_sem_tutor_sala_pdf"
+                )
+    else:
+        st.info("Para mostrar estudantes sem tutor, a tabela de alunos precisa ter pelo menos as colunas nome e turma.")
+
+    if alunos_raw:
+        st.markdown("---")
+        st.subheader("✏️ Editar ou Excluir Estudante")
+        alunos_raw = sorted(alunos_raw, key=lambda a: normalizar_texto(a.get("nome", "")))
+        TUTORIA[tutor_sel]["alunos"] = alunos_raw
+
+        # A seleção para edição também respeita a regra da Tutoria: mostrar somente estudantes ativos.
+        df_ativos_tutor_edicao = montar_dataframe_tutoria(tutor_sel, df_alunos, TUTORIA)
+        chaves_ativas_edicao = set()
+        if not df_ativos_tutor_edicao.empty:
+            for _, r in df_ativos_tutor_edicao.iterrows():
+                ra_ok = "".join(ch for ch in str(r.get("RA", "")) if ch.isdigit())
+                if ra_ok:
+                    chaves_ativas_edicao.add(("RA", ra_ok))
+                nome_ok = normalizar_texto(r.get("Nome", "") or r.get("Aluno Cadastrado", ""))
+                turma_ok = turma_para_comparacao(r.get("Turma", "") or r.get("Turma no Sistema", ""))
+                if nome_ok:
+                    chaves_ativas_edicao.add(("NOME_TURMA", nome_ok, turma_ok))
+
+        alunos_edicao = []
+        for idx_original, a in enumerate(alunos_raw):
+            ra_item = "".join(ch for ch in str(a.get("ra", "")) if ch.isdigit())
+            nome_item = normalizar_texto(a.get("nome", ""))
+            turma_item = turma_para_comparacao(a.get("serie", ""))
+            if (ra_item and ("RA", ra_item) in chaves_ativas_edicao) or (("NOME_TURMA", nome_item, turma_item) in chaves_ativas_edicao):
+                alunos_edicao.append((idx_original, a))
+
+        if not alunos_edicao:
+            st.info("Não há estudante ativo para editar ou excluir neste responsável.")
+        else:
+            opcoes_estudantes = [f"{a.get('nome', '').strip()} — {a.get('serie', '').strip()}".strip(" —") for _, a in alunos_edicao]
+            idx_sel = st.selectbox(
+                "Selecione o estudante",
+                options=list(range(len(opcoes_estudantes))),
+                format_func=lambda i: opcoes_estudantes[i],
+                key="tutoria_idx_edicao"
+            )
+
+            idx_real, estudante_sel = alunos_edicao[idx_sel]
+            nome_antigo = str(estudante_sel.get("nome", "")).strip()
+            serie_antiga = str(estudante_sel.get("serie", "")).strip()
+            ra_antigo = "".join(ch for ch in str(estudante_sel.get("ra", "")) if ch.isdigit())
+            col_ed1, col_ed2 = st.columns(2)
+            with col_ed1:
+                novo_nome = st.text_input("Nome", value=nome_antigo, key=f"tutoria_nome_edit_{idx_sel}")
+            with col_ed2:
+                nova_serie = st.text_input("Turma", value=serie_antiga, key=f"tutoria_serie_edit_{idx_sel}")
+
+            col_btn1, col_btn2 = st.columns(2)
+            with col_btn1:
+                if st.button("✅ Editar Estudante", type="primary", key="btn_editar_estudante_tutoria"):
+                    novo_nome = novo_nome.strip()
+                    nova_serie = formatar_turma_eletiva(nova_serie.strip())
+                    if not novo_nome:
+                        st.warning("Informe um nome válido para salvar.")
+                    else:
+                        try:
+                            TUTORIA[tutor_sel]["alunos"][idx_real] = {"nome": novo_nome, "serie": nova_serie, "ra": ra_antigo}
+                            _salvar_estado_tutoria("edicao")
+                            if SUPABASE_VALID:
+                                _apagar_registro_supabase_tutoria(tutor_sel, nome_antigo, serie_antiga, ra_antigo)
+                                _supabase_request("POST", "tutoria", json=[{
+                                    "professora": tutor_sel,
+                                    "nome_aluno": novo_nome,
+                                    "serie": nova_serie,
+                                    "ra": ra_antigo,
+                                    "origem": "edicao_manual"
+                                }])
+                                _limpar_cache_tutoria_apos_mutacao()
+                            st.success("✅ Estudante atualizado com sucesso.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Erro ao editar estudante: {e}")
+
+            with col_btn2:
+                confirmar_exc = st.checkbox("Confirmar exclusão", key=f"confirmar_exclusao_tutoria_{idx_sel}")
+                if st.button("🗑️ Excluir Estudante", type="secondary", key="btn_excluir_estudante_tutoria"):
+                    if not confirmar_exc:
+                        st.warning("Marque a confirmação para excluir.")
+                    else:
+                        try:
+                            removido = TUTORIA[tutor_sel]["alunos"].pop(idx_real)
+                            if SUPABASE_VALID:
+                                ok_del = _apagar_registro_supabase_tutoria(
+                                    tutor_sel,
+                                    str(removido.get("nome", "")),
+                                    str(removido.get("serie", "")),
+                                    str(removido.get("ra", "")),
+                                )
+                                if not ok_del:
+                                    st.warning("O estudante foi removido da tela, mas houve falha ao excluir no Supabase. Verifique o aviso acima.")
+                            _salvar_estado_tutoria("exclusao_individual")
+                            st.success("✅ Estudante excluído com sucesso.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Erro ao excluir estudante: {e}")
+
+        st.markdown("---")
+        st.subheader("🧹 Limpeza em Massa")
+        confirmar_excluir_todos = st.checkbox(f"Confirmo excluir todos os estudantes do professor {tutor_sel}", key=f"confirmar_excluir_todos_tutoria_{gerar_chave_segura(tutor_sel)}")
+        if st.button("🗑️ Excluir Todos os Alunos da Tutoria", type="secondary", key="btn_excluir_todos_tutoria"):
+            if not confirmar_excluir_todos:
+                st.warning("Marque a confirmação para excluir todos.")
+            else:
+                try:
+                    TUTORIA[tutor_sel]["alunos"] = []
+                    if SUPABASE_VALID:
+                        ok_del, msg_del = _excluir_lista_tutoria_supabase(tutor_sel)
+                        if not ok_del:
+                            st.warning(msg_del)
+                    _salvar_estado_tutoria("exclusao_lista_professor")
+                    st.success("✅ Todos os estudantes da tutoria do professor selecionado foram excluídos.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Erro ao excluir todos os estudantes: {e}")
+
+# ======================================================
+# PÁGINA 🏫 MAPA DA SALA (COMPLETA)
+# ======================================================
+
 elif menu == "🗺️ Mapão":
     _render_pagina_mapao()
 
