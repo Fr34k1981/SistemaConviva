@@ -1,0 +1,3275 @@
+{
+  "Jaqueline Fatima De Oliveira": {
+    "nome": "Jaqueline Fatima De Oliveira",
+    "tipo": "Professor(a)",
+    "espaco": "Sala 11",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "FELIPE ISAAC SILVA ROCHA",
+        "serie": "8º Ano A"
+      },
+      {
+        "nome": "RAFAEL LUIZ APARECIDO DE OLIVEIRA",
+        "serie": "8º ano C"
+      },
+      {
+        "nome": "EMILLY EMANUELLY BANDEIRA ALVES DA SILVA",
+        "serie": "6º Ano B"
+      },
+      {
+        "nome": "HENRIQUE SOUSA DE JESUS LIMA",
+        "serie": "6º Ano A"
+      },
+      {
+        "nome": "RICHARD YAGO DA SILVA TELES",
+        "serie": "8º ano C"
+      },
+      {
+        "nome": "KAMILLY VITORIA ZIRONDI DA ROCHA",
+        "serie": "6º Ano A"
+      },
+      {
+        "nome": "MAYSA DE LIMA BENEDITO",
+        "serie": "6º Ano B"
+      },
+      {
+        "nome": "AGATHA BEATRYZ MEDEIROS DOS SANTOS",
+        "serie": "8º ano C"
+      },
+      {
+        "nome": "GABRYELLA SOPHIA PEREIRA ALBUQUERQUE",
+        "serie": "6º Ano B"
+      },
+      {
+        "nome": "GABRIEL VIEIRA NASCIMENTO",
+        "serie": "8º Ano A"
+      },
+      {
+        "nome": "PEDRO HENRIQUE FEITOSA DE MENEZES",
+        "serie": "8º Ano A"
+      },
+      {
+        "nome": "GABRIEL LOPES VICTOR",
+        "serie": "8º ano B"
+      },
+      {
+        "nome": "RIQUELME BULGURLU",
+        "serie": "8º ano B"
+      },
+      {
+        "nome": "GABRIEL GOMES NASCIMENTO",
+        "serie": "8º ano B"
+      },
+      {
+        "nome": "BRAYAN THOMAS BUENO PEREIRA",
+        "serie": "9º Ano A"
+      },
+      {
+        "nome": "NATANAEL DA CONCEICAO DUARTE",
+        "serie": "8º Ano A"
+      },
+      {
+        "nome": "RAISSA AVELINO VIEIRA HENRIQUE",
+        "serie": "8º ano C"
+      }
+    ]
+  },
+  "Aleandro Ferreira dos Santos": {
+    "nome": "Aleandro Ferreira dos Santos",
+    "tipo": "Professor/  CGPC",
+    "espaco": "Coordenação",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "RAFAELLE HILLARY DE OLIVEIRA SOUZA",
+        "serie": "8º ano B"
+      },
+      {
+        "nome": "OSVALDO PEDRO DA CRUZ NETO",
+        "serie": "7º Ano C"
+      },
+      {
+        "nome": "RIQUELME SANCHES PAULO",
+        "serie": "7º Ano B"
+      },
+      {
+        "nome": "ALICE ANDRADE OLIVEIRA",
+        "serie": "9º Ano A"
+      },
+      {
+        "nome": "LUCAS RAIMUNDO BORGES DE MELO (ANA PAULA RAIMUNDO BORGES DE MELO)",
+        "serie": "9º Ano A"
+      },
+      {
+        "nome": "LUCAS PEREIRA DE ASSUNÇÃO",
+        "serie": "8º ano B"
+      }
+    ]
+  },
+  "Solange Aparecida Da Silva Oliveira": {
+    "nome": "Solange Aparecida Da Silva Oliveira",
+    "tipo": "Professor(a)",
+    "espaco": "Sala 10",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "ITALLO MARQUES DOS SANTOS",
+        "serie": "7º Ano A"
+      },
+      {
+        "nome": "HEYTOR MURILO MOREIRA DO NASCIMENTO",
+        "serie": "7º Ano C"
+      },
+      {
+        "nome": "LEONARDO HENRIQUE DOS SANTOS LORENZI",
+        "serie": "7º Ano C"
+      },
+      {
+        "nome": "KAWE GABRYEL DOS SANTOS ESTEVAO",
+        "serie": "6º Ano B"
+      },
+      {
+        "nome": "SOPHIA NABOR DOS SANTOS",
+        "serie": "6º Ano B"
+      },
+      {
+        "nome": "ALESSANDRO DOMINGUES LOPES",
+        "serie": "6º Ano B"
+      },
+      {
+        "nome": "YASMIN CRISTINA BRAGA DE LIMA",
+        "serie": "8º Ano A"
+      },
+      {
+        "nome": "ISABELLA FERNANDA CABRAL DOS SANTOS",
+        "serie": "8º Ano A"
+      },
+      {
+        "nome": "ANA KAROLINA FERREIRA PIRES CORDEIRO",
+        "serie": "8º ano C"
+      },
+      {
+        "nome": "BRENDA NICOLE DA SILVA PAIVA",
+        "serie": "8º ano C"
+      },
+      {
+        "nome": "MARIANE DE OLIVEIRA SOUZA",
+        "serie": "8º ano C"
+      },
+      {
+        "nome": "KAUAN GUSTAVO ANDRADE DOS SANTOS",
+        "serie": "8º ano C"
+      },
+      {
+        "nome": "GUSTAVO BATISTA DE JESUS",
+        "serie": "7º Ano B"
+      },
+      {
+        "nome": "RAYSSON FELIPE DA SILVA SANTOS",
+        "serie": "6º Ano A"
+      },
+      {
+        "nome": "WILLIAN GABRIEL MORAES DE ALMEIDA",
+        "serie": "6º Ano A"
+      },
+      {
+        "nome": "PEDRO LOURENCO DE MORAES",
+        "serie": "9º Ano C"
+      }
+    ]
+  },
+  "Fagna Rodrigues Souza": {
+    "nome": "Fagna Rodrigues Souza",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "GEOVANNA OLIVEIRA DOS SANTOS MAIOLA",
+        "serie": "8º Ano A"
+      },
+      {
+        "nome": "CAUA GONCALVES DA SILVA",
+        "serie": "8º Ano A"
+      },
+      {
+        "nome": "ISABELLY RIBEIRO PEREIRA DOS SANTOS",
+        "serie": "8º Ano A"
+      },
+      {
+        "nome": "RAFAELLA PINTO DA SILVA",
+        "serie": "8º Ano A"
+      },
+      {
+        "nome": "DAVID OLIVEIRA DA SILVA",
+        "serie": "8º Ano A"
+      },
+      {
+        "nome": "MIGUEL ALVES ALBANO",
+        "serie": "8º ano B"
+      },
+      {
+        "nome": "VITORIA EDUARDA MATOS GUIMARAES",
+        "serie": "8º ano B"
+      },
+      {
+        "nome": "BIANCA COELHO FERNANDES",
+        "serie": "8º ano C"
+      },
+      {
+        "nome": "DAVI LUCAS DOS SANTOS SILVA",
+        "serie": "8º ano C"
+      },
+      {
+        "nome": "ANDREILYS VALERIA ANGULO ACUNA",
+        "serie": "8º ano C"
+      },
+      {
+        "nome": "YURI NASCIMENTO SILVA",
+        "serie": "8º ano C"
+      },
+      {
+        "nome": "MATHEUS DE LIMA RIBEIRO",
+        "serie": "8º ano C"
+      },
+      {
+        "nome": "ANA PAULA FERREIRA DA SILVA DE JESUS",
+        "serie": "8º ano C"
+      },
+      {
+        "nome": "MIGUEL CHAGAS DOS SANTOS",
+        "serie": "8º ano C"
+      },
+      {
+        "nome": "SAMUEL VINICIUS RAMOS DE OLIVEIRA",
+        "serie": "9º Ano A"
+      },
+      {
+        "nome": "KEVEN ALMEIDA VIANA",
+        "serie": "9º Ano B"
+      },
+      {
+        "nome": "MARCO ANTONIO MARTINS DE CAMARGO",
+        "serie": "9º Ano B"
+      },
+      {
+        "nome": "JULIA PEREIRA DOS SANTOS SOUZA",
+        "serie": "9º Ano B"
+      },
+      {
+        "nome": "VITOR ITALO RODRIGUES DE LIMA",
+        "serie": "9º Ano C"
+      },
+      {
+        "nome": "KAUA ALVES LEITE",
+        "serie": "9º Ano B"
+      },
+      {
+        "nome": "NICOLLAS QUEIROZ DE CASTRO",
+        "serie": "9º Ano A"
+      },
+      {
+        "nome": "KAUANY SILVA DE JESUS",
+        "serie": "9º Ano A"
+      },
+      {
+        "nome": "ISABELLY ALVES LEITE",
+        "serie": "9º Ano B"
+      },
+      {
+        "nome": "SIDYELIS VALENTINA FRANCO ACUNA",
+        "serie": "9º Ano A"
+      },
+      {
+        "nome": "DAVI FERREIRA TOMAS",
+        "serie": "8º ano B"
+      }
+    ]
+  },
+  "Lucineide Da Silva Costa": {
+    "nome": "Lucineide Da Silva Costa",
+    "tipo": "Professor(a)",
+    "espaco": "Pátio",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "KAMILLY VICTORIA DOS SANTOS SILVA",
+        "serie": "7º Ano C"
+      },
+      {
+        "nome": "MIKAELLY APARECIDA DIAS",
+        "serie": "7º Ano C"
+      },
+      {
+        "nome": "MELISSA RIBEIRO CARDOZO",
+        "serie": "8º Ano A"
+      },
+      {
+        "nome": "ALANA SOPHIA FERREIRA BATISTA",
+        "serie": "8º ano C"
+      },
+      {
+        "nome": "EDUARDA NICOLLY MOREIRA DE AZEVEDO",
+        "serie": "8º ano C"
+      },
+      {
+        "nome": "CAIO GUILHERME CUSTODIO",
+        "serie": "8º ano C"
+      },
+      {
+        "nome": "DANIEL MARTINS GOMES",
+        "serie": "8º ano C"
+      },
+      {
+        "nome": "JÚLIA BASTOS BERALDO",
+        "serie": "9º Ano A"
+      },
+      {
+        "nome": "LORENA MACIEL LOURENÇO",
+        "serie": "9º Ano A"
+      },
+      {
+        "nome": "VITORIA DA SILVA COSTA DE ANDRADE",
+        "serie": "9º Ano C"
+      },
+      {
+        "nome": "KAMILLY SOFIA PORTO BARROS",
+        "serie": "7º Ano C"
+      },
+      {
+        "nome": "MAIARA FRANCINE VIEIRA GUEDES",
+        "serie": "7º Ano A"
+      },
+      {
+        "nome": "ANA BEATRIZ DA SILVA ROCHA",
+        "serie": "8º Ano A"
+      },
+      {
+        "nome": "THAUANY VITORIA DE OLIVEIRA",
+        "serie": "8º Ano A"
+      },
+      {
+        "nome": "KAIQUE EMANUEL BATISTA LAU",
+        "serie": "8º ano C"
+      }
+    ]
+  },
+  "Lourdes Juliao Soares": {
+    "nome": "Lourdes Juliao Soares",
+    "tipo": "Professor(a)",
+    "espaco": "Sala 6",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "LORENA VITORIA CORTE LIMA",
+        "serie": "6º Ano A"
+      },
+      {
+        "nome": "CAROLINE VITORIA DE SOUZA SANTOS",
+        "serie": "3º Ano A - TEC"
+      },
+      {
+        "nome": "DAVI FERREIRA DE ALMEIDA",
+        "serie": "3º Ano A - TEC"
+      },
+      {
+        "nome": "JULIA DA CRUZ ALMEIDA",
+        "serie": "3º Ano A - TEC"
+      },
+      {
+        "nome": "ENZO MILITINA ALMEIDA",
+        "serie": "6º Ano A"
+      },
+      {
+        "nome": "GUILHERME LOPES PEREIRA",
+        "serie": "3º Ano B - TEC"
+      },
+      {
+        "nome": "ANA CAROLINE SANTOS TRINDADE",
+        "serie": "3º Ano A - TEC"
+      },
+      {
+        "nome": "PAULO HENRIQUE AMAURI DE ARAUJO",
+        "serie": "3º Ano B - TEC"
+      },
+      {
+        "nome": "JUAN VICTOR JESUS DOS SANTOS",
+        "serie": "3º Ano B - TEC"
+      },
+      {
+        "nome": "EVELYN CRISTINA DE SOUZA",
+        "serie": "3º Ano A - TEC"
+      },
+      {
+        "nome": "ISADORA CASTRO SOUZA",
+        "serie": "6º Ano A"
+      },
+      {
+        "nome": "JOSÉ ALYSSON ZACARIAS DA SILVA",
+        "serie": "3º Ano B - TEC"
+      },
+      {
+        "nome": "CAMILY VITORIA GOMES ALVES",
+        "serie": "9º Ano A"
+      },
+      {
+        "nome": "CAUÂ HENRIQUE DA SILVA SANTOS",
+        "serie": "9º Ano A"
+      },
+      {
+        "nome": "ANA BEATRIZ DA SILVA ROCHA",
+        "serie": "8º Ano A"
+      },
+      {
+        "nome": "THAUANY VITORIA DE OLIVEIRA",
+        "serie": "8º Ano A"
+      },
+      {
+        "nome": "RACHELLE CHRISTINA MACIEL DA SILVA",
+        "serie": "3º Ano A - TEC"
+      },
+      {
+        "nome": "RAYSSA NASCIMENTO DE ALCANTARA",
+        "serie": "3º Ano A - TEC"
+      },
+      {
+        "nome": "VALQUIRIA DE SOUZA CERQUEIRA",
+        "serie": "3º Ano A - TEC"
+      }
+    ]
+  },
+  "Elaine Lemos Da Silva": {
+    "nome": "Elaine Lemos Da Silva",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "IONARA SILVA IBANEZ",
+        "serie": "3º Ano B - TEC"
+      },
+      {
+        "nome": "AGNER DE JESUS VALENCA",
+        "serie": "9º Ano A"
+      },
+      {
+        "nome": "GUSTAVO DE OLIVEIRA",
+        "serie": "9º Ano A"
+      },
+      {
+        "nome": "ANA BEATRIZ VAZ DE SOUZA NEVES",
+        "serie": "6º Ano A"
+      },
+      {
+        "nome": "BEATRIZ PEREIRA MAIA",
+        "serie": "9º Ano A"
+      },
+      {
+        "nome": "PEDRO HENRIQUE DA SILVA SANTOS",
+        "serie": "6º Ano B"
+      },
+      {
+        "nome": "HENRIQUE ALVES FELIX",
+        "serie": "8º ano B"
+      },
+      {
+        "nome": "MARIA HELOISA SOUSA DOS SANTOS",
+        "serie": "9º Ano C"
+      },
+      {
+        "nome": "KAUAN RIQUELME LEAL ZANOVELLI RODRIGUES",
+        "serie": "9º Ano A"
+      },
+      {
+        "nome": "VICTOR HUGO MATOS GUIMARAES",
+        "serie": "8º ano B"
+      },
+      {
+        "nome": "MARIANA HERRERA DE JESUS",
+        "serie": "3º Ano B - TEC"
+      },
+      {
+        "nome": "PEDRO HENRIQUE RAMOS COSTA BRASIL",
+        "serie": "7º Ano B"
+      },
+      {
+        "nome": "ICARO LEMOS SILVA",
+        "serie": "8º ano C"
+      },
+      {
+        "nome": "BRAYAN MEDEIROS DOS SANTOS",
+        "serie": "6º Ano B"
+      },
+      {
+        "nome": "GUILHERME GABINO FERRO CAFFE",
+        "serie": "6º Ano A"
+      },
+      {
+        "nome": "JULIO CESAR MOIZES DA COSTA",
+        "serie": "8º ano B"
+      },
+      {
+        "nome": "GRAZIELE SANTANA FONCECA",
+        "serie": "9º Ano A"
+      },
+      {
+        "nome": "KETHELLYN VITORIA DO NASCIMENTO LOURENÇONI",
+        "serie": "9º Ano A"
+      }
+    ]
+  },
+  "Itatiara Conceição Da Silva Cavalcante": {
+    "nome": "Itatiara Conceição Da Silva Cavalcante",
+    "tipo": "Professor(a)",
+    "espaco": "Pátio",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "RAFAEL CECILIO SILVA DO NASCIMENTO",
+        "serie": "8º ano B"
+      },
+      {
+        "nome": "ANA CAROLINE SANTOS ARAÇA",
+        "serie": "9º Ano A"
+      },
+      {
+        "nome": "GABRIEL FERNANDES SIQUEIRA DE OLIVEIRA",
+        "serie": "9º Ano A"
+      },
+      {
+        "nome": "CAIO OLIVEIRA SANTOS",
+        "serie": "9º Ano C"
+      },
+      {
+        "nome": "LAIZA MOREIRA DE LIMA",
+        "serie": "7º Ano C"
+      },
+      {
+        "nome": "FELIPE OLIVEIRA AQUINO",
+        "serie": "9º Ano C"
+      },
+      {
+        "nome": "GABRIEL COSTA MIRANDA RODRIGUES",
+        "serie": "9º Ano A"
+      },
+      {
+        "nome": "THALES MENDES PEREIRA",
+        "serie": "9º Ano B"
+      },
+      {
+        "nome": "ALICE ELISABETE RODRIGUES DE MORAIS",
+        "serie": "9º Ano A"
+      },
+      {
+        "nome": "JAMESON LUIGI DE SOUZA SANTIAGO",
+        "serie": "9º Ano C"
+      },
+      {
+        "nome": "GUILHERME OLIVEIRA DOS SANTOS MAIOLA",
+        "serie": "9º Ano C"
+      },
+      {
+        "nome": "ISABELLY ALVINO ALEXANDRE",
+        "serie": "9º Ano A"
+      },
+      {
+        "nome": "GABRIEL DE LIMA PAZETTO",
+        "serie": "9º Ano B"
+      },
+      {
+        "nome": "HENZO MIGUEL DIAS COELHO",
+        "serie": "9º Ano C"
+      },
+      {
+        "nome": "YASMIN VITORIA CAETANO DOS SANTOS",
+        "serie": "8º ano C"
+      },
+      {
+        "nome": "GUILHERME ISRAEL VINHOLA",
+        "serie": "9º Ano A"
+      },
+      {
+        "nome": "GABRIELA MONTINO CORDEIRO",
+        "serie": "8º ano B"
+      },
+      {
+        "nome": "ALLANA SOUZA FAUSTINO",
+        "serie": "8º ano B"
+      },
+      {
+        "nome": "SARA LOURENCO DE LIMA",
+        "serie": "9º Ano C"
+      }
+    ]
+  },
+  "Patricia Martins Cordeiro": {
+    "nome": "Patricia Martins Cordeiro",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "ARTHUR BALBINO DA SILVA",
+        "serie": "7º Ano A"
+      },
+      {
+        "nome": "PABLO SANTOS SOUSA",
+        "serie": "9º Ano C"
+      },
+      {
+        "nome": "ADRIELE DOMINGUES LOPES",
+        "serie": "9º Ano B"
+      },
+      {
+        "nome": "LUCAS DE SOUZA VILARIM",
+        "serie": "9º Ano C"
+      },
+      {
+        "nome": "JAIR COSTA BRASIL NETO",
+        "serie": "9º Ano C"
+      },
+      {
+        "nome": "CRYSTAL KETELYN PEDROSO FRANCISCO",
+        "serie": "9º Ano B"
+      },
+      {
+        "nome": "ALICE FERREIRA GOMES",
+        "serie": "7º Ano B"
+      },
+      {
+        "nome": "LUCAS OLIVEIRA TOSTA",
+        "serie": "9º Ano C"
+      },
+      {
+        "nome": "HENRY GABRIEL DA SILVA",
+        "serie": "7º Ano A"
+      },
+      {
+        "nome": "ANA VITORIA OLIVEIRA DE SOUZA",
+        "serie": "7º Ano A"
+      },
+      {
+        "nome": "MATHEUS DANTAS SANTOS",
+        "serie": "7º Ano A"
+      },
+      {
+        "nome": "YURI HENRIQUE SOUZA DA SILVA",
+        "serie": "7º Ano A"
+      },
+      {
+        "nome": "IZAQUI BONFIM SILVA",
+        "serie": "7º Ano A"
+      },
+      {
+        "nome": "GABRIEL DOS SANTOS SILVA",
+        "serie": "8º ano B"
+      },
+      {
+        "nome": "TALITA LUANA DOS SANTOS SILVA",
+        "serie": "9º Ano C"
+      },
+      {
+        "nome": "HELOISA ALVES BARROS",
+        "serie": "9º Ano B"
+      },
+      {
+        "nome": "VINICIUS DE JESUS CORREA SILVA",
+        "serie": "8º ano C"
+      },
+      {
+        "nome": "MARIA LAYSLA DOS SANTOS AMERICO",
+        "serie": "9º Ano B"
+      },
+      {
+        "nome": "RICHARD HENRIQUE OLIVEIRA DA SILVA",
+        "serie": "7º Ano A"
+      }
+    ]
+  },
+  "Rosangela Cavalcanti Dos Passos Galdino": {
+    "nome": "Rosangela Cavalcanti Dos Passos Galdino",
+    "tipo": "Professor(a)",
+    "espaco": "Sala 9",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "LAURA LIMA LAURENTINO",
+        "serie": "6º Ano A"
+      },
+      {
+        "nome": "SAMUEL MENDES DE OLIVEIRA SILVA",
+        "serie": "6º Ano B"
+      },
+      {
+        "nome": "RICHARD SANTOS SILVA DE SALES",
+        "serie": "6º Ano A"
+      },
+      {
+        "nome": "MARIA JULIA GOMES CARDOSO",
+        "serie": "6º Ano A"
+      },
+      {
+        "nome": "DEREK SOUSA DE AZEVEDO",
+        "serie": "6º Ano A"
+      },
+      {
+        "nome": "CAUA LUIZ TORRES CABRAL",
+        "serie": "6º Ano A"
+      },
+      {
+        "nome": "NICOLLAS KEVYN DA SILVA MARTINS",
+        "serie": "6º Ano A"
+      },
+      {
+        "nome": "JHONATAN OLIVEIRA PONTES",
+        "serie": "7º Ano B"
+      },
+      {
+        "nome": "TIAGO MATHEUS MONTE",
+        "serie": "7º Ano A"
+      },
+      {
+        "nome": "VINICIUS DOS SANTOS VIEIRA LIMA",
+        "serie": "6º Ano B"
+      },
+      {
+        "nome": "GUSTAVO SANTANA NASCIMENTO",
+        "serie": "6º Ano B"
+      },
+      {
+        "nome": "BEATRIZ DA SILVA SOUSA",
+        "serie": "7º Ano A"
+      },
+      {
+        "nome": "GABRIEL GONÇALVES DE LIMA",
+        "serie": "7º Ano A"
+      },
+      {
+        "nome": "JULIA BEATRIZ BASTOS DA SILVA",
+        "serie": "7º Ano C"
+      },
+      {
+        "nome": "ERICK GRACIA DE SOUZA CERQUEIRA",
+        "serie": "6º Ano B"
+      },
+      {
+        "nome": "GABRIEL MARQUES CAVALCANTE",
+        "serie": "6º Ano A"
+      }
+    ]
+  },
+  "Erika Paula Viana Watanabe": {
+    "nome": "Erika Paula Viana Watanabe",
+    "tipo": "Vice-Diretora",
+    "espaco": "Informática",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "GIOVANNA DE OLIVEIRA",
+        "serie": "9º Ano C"
+      },
+      {
+        "nome": "MANOELA MOREIRA DE ARAUJO MARTINS",
+        "serie": "9º Ano C"
+      },
+      {
+        "nome": "LAIS FARIA CARVALHO",
+        "serie": "9º Ano B"
+      },
+      {
+        "nome": "RHIANNA DE SOUZA MARTINS",
+        "serie": "9º Ano B"
+      },
+      {
+        "nome": "LETICIA CONCEIÇÃO DOS SANTOS",
+        "serie": "7º Ano B"
+      },
+      {
+        "nome": "ISABELLY DANTAS DA SILVA",
+        "serie": "1º Ano D"
+      },
+      {
+        "nome": "ISABELE CRISTINA LEITE HONORIO DA SILVA",
+        "serie": "9º Ano C"
+      }
+    ]
+  },
+  "Igor Ferreira": {
+    "nome": "Igor Ferreira",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "BRIAN SANTOS FERREIRA",
+        "serie": "6º Ano B"
+      },
+      {
+        "nome": "CLARA KEVELLYN BARBOSA DE SOUSA",
+        "serie": "7º Ano A"
+      },
+      {
+        "nome": "KAUANY VITORIA EMIDIO",
+        "serie": "7º Ano C"
+      },
+      {
+        "nome": "KAUÃ SOUZA DOS SANTOS",
+        "serie": "7º Ano C"
+      },
+      {
+        "nome": "KAUAN FIDELES DA SILVA",
+        "serie": "8º Ano A"
+      },
+      {
+        "nome": "RAFAEL MOREIRA DOS SANTOS",
+        "serie": "8º Ano A"
+      },
+      {
+        "nome": "GUILHERME CARVALHO DE SOUSA",
+        "serie": "8º Ano A"
+      },
+      {
+        "nome": "PAULO HENRIQUE GUIMARAES DOS SANTOS",
+        "serie": "8º ano B"
+      },
+      {
+        "nome": "DOUGLAS GABRIEL SOUZA FREIRE SILVA",
+        "serie": "9º Ano A"
+      },
+      {
+        "nome": "MANOELA DE OLIVEIRA",
+        "serie": "8º Ano A"
+      },
+      {
+        "nome": "MATHEUS LOURENCO VIEIRA DA SILVA",
+        "serie": "8º Ano A"
+      },
+      {
+        "nome": "YASMIM FERREIRA DE ALMEIDA",
+        "serie": "8º ano B"
+      },
+      {
+        "nome": "DAVI DOS SANTOS CORREIA",
+        "serie": "8º Ano A"
+      },
+      {
+        "nome": "DANILO HENRIQUE PADAVINI",
+        "serie": "9º Ano B"
+      },
+      {
+        "nome": "IGOR PABLO GRUER",
+        "serie": "8º ano C"
+      },
+      {
+        "nome": "ADRINY MOREIRA DE MELO",
+        "serie": "8º ano B"
+      },
+      {
+        "nome": "JAMILY NICOLY CARDOSO DE AGUIAR",
+        "serie": "9º Ano C"
+      },
+      {
+        "nome": "WANDREL RODRIGO NASCIMENTO DA CRUZ",
+        "serie": "9º Ano A"
+      },
+      {
+        "nome": "KAUANY VITORIA ROSA SANTOS",
+        "serie": "7º Ano C"
+      }
+    ]
+  },
+  "Rosemeire Reis Santana": {
+    "nome": "Rosemeire Reis Santana",
+    "tipo": "Professor(a)",
+    "espaco": "Sala 8",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "EMILLY VITÓRIA GOMES ALVES",
+        "serie": "7º Ano B"
+      },
+      {
+        "nome": "GIULIA SANTANA BARBOSA",
+        "serie": "7º Ano B"
+      },
+      {
+        "nome": "KAUANY VITORIA PEREIRA DOS SANTOS",
+        "serie": "6º Ano A"
+      },
+      {
+        "nome": "IAGO RYAN AVELINO VIEIRA HENRIQUE",
+        "serie": "6º Ano A"
+      },
+      {
+        "nome": "MARIA CLARA SANTOS",
+        "serie": "6º Ano A"
+      },
+      {
+        "nome": "JULIA RODRIGUES DE BRITO",
+        "serie": "6º Ano A"
+      },
+      {
+        "nome": "RYAN LEONARDO DE CASTRO GARCIA",
+        "serie": "6º Ano A"
+      },
+      {
+        "nome": "MARIA JULIA FERREIRA DA ROCHA",
+        "serie": "6º Ano B"
+      },
+      {
+        "nome": "HELENA DE SOUSA FERREIRA",
+        "serie": "6º Ano B"
+      },
+      {
+        "nome": "MARIA CLARA DA SILVA",
+        "serie": "9º Ano B"
+      },
+      {
+        "nome": "KAROLAYNE PAULA DE JESUS",
+        "serie": "7º Ano A"
+      },
+      {
+        "nome": "BRENDA NASCIMENTO BARBOSA",
+        "serie": "8º ano B"
+      },
+      {
+        "nome": "EMILY EDUARDA FELINTRO DA SILVA DOS SANTOS",
+        "serie": "8º ano B"
+      },
+      {
+        "nome": "ESTER DOS SANTOS DE JESUS",
+        "serie": "6º Ano B"
+      },
+      {
+        "nome": "KAYLA KHIMBERLY VILCA DA SILVA",
+        "serie": "6º Ano A"
+      },
+      {
+        "nome": "ELOAH DE FRANÇA DOS SANTOS",
+        "serie": "7º Ano B"
+      }
+    ]
+  },
+  "Anderson Do Nascimento Belisiario": {
+    "nome": "Anderson Do Nascimento Belisiario",
+    "tipo": "Professor(a)",
+    "espaco": "Sala de vídeo",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "NATHALIA SOARES ALMEIDA",
+        "serie": "3º Ano A - TEC"
+      },
+      {
+        "nome": "ISABELLY ALVES BRUNES",
+        "serie": "3º Ano A - TEC"
+      },
+      {
+        "nome": "BRIGIDA LARISSA VALDIVINO DA SILVA",
+        "serie": "3º Ano A - TEC"
+      },
+      {
+        "nome": "VITORIA FERREIRA DE ANDRADE",
+        "serie": "3º Ano A - TEC"
+      },
+      {
+        "nome": "MILENA DE JESUS ALMEIDA",
+        "serie": "3º Ano A - TEC"
+      },
+      {
+        "nome": "JOÃO GABRIEL ARAUJO SIMÃO",
+        "serie": "3º Ano B - TEC"
+      },
+      {
+        "nome": "KAUAN WILLIAN DE MOURA SILVA",
+        "serie": "7º Ano B"
+      },
+      {
+        "nome": "NICOLY DA CRUZ SILVA",
+        "serie": "3º Ano A - TEC"
+      },
+      {
+        "nome": "VITORIA CRISTINA MARTINS DA SILVA",
+        "serie": "3º Ano B - TEC"
+      },
+      {
+        "nome": "CAUE BELAU DOS SANTOS",
+        "serie": "3º Ano B - TEC"
+      },
+      {
+        "nome": "CAUA APARECIDO SILVA VIANA",
+        "serie": "3º Ano A - TEC"
+      },
+      {
+        "nome": "GABRIEL SOARES DOS SANTOS",
+        "serie": "3º Ano A - TEC"
+      },
+      {
+        "nome": "FATIMA LOURENCO DE LIMA",
+        "serie": "3º Ano A - TEC"
+      },
+      {
+        "nome": "ISAQUE YURI ROCHA DA SILVA",
+        "serie": "3º Ano B - TEC"
+      }
+    ]
+  },
+  "Shirley De Araujo Ribas": {
+    "nome": "Shirley De Araujo Ribas",
+    "tipo": "Professor(a)",
+    "espaco": "Sala 7",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "ROBERT SANTOS SANTIAGO",
+        "serie": "8º ano B"
+      },
+      {
+        "nome": "RICHARD LUIZ SILVA CARVALHO",
+        "serie": "9º Ano B"
+      },
+      {
+        "nome": "EDUARDO ERICK HENRIQUE AFONSO DA SILVA",
+        "serie": "9º Ano C"
+      },
+      {
+        "nome": "JOAO VITOR FERREIRA SANTOS",
+        "serie": "8º ano B"
+      },
+      {
+        "nome": "KETLYN EMILIA BRAGA DE LIMA",
+        "serie": "9º Ano C"
+      },
+      {
+        "nome": "CARLOS EDUARDO DOS SANTOS LORENZI",
+        "serie": "9º Ano C"
+      },
+      {
+        "nome": "BEATRIZ VIEIRA DE OLIVEIRA",
+        "serie": "8º ano C"
+      },
+      {
+        "nome": "DANIEL GONCALVES DE SOUZA",
+        "serie": "8º ano C"
+      },
+      {
+        "nome": "SAMUEL DE ALMEIDA SOUZA",
+        "serie": "8º ano B"
+      },
+      {
+        "nome": "PIETRO SANTOS MARQUES",
+        "serie": "8º ano C"
+      },
+      {
+        "nome": "GUILHERME GODOY PEREIRA VITOR",
+        "serie": "9º Ano B"
+      },
+      {
+        "nome": "GUILHERME LEITE SOUZA CRUZ",
+        "serie": "9º Ano C"
+      },
+      {
+        "nome": "JUAN VITOR MELO FERREIRA",
+        "serie": "9º Ano A"
+      },
+      {
+        "nome": "PIETRO LOPES DA SILVA",
+        "serie": "9º Ano C"
+      },
+      {
+        "nome": "CAIQUE WILSON DE AZEVEDO SIQUEIRA",
+        "serie": "9º Ano B"
+      }
+    ]
+  },
+  "Veronica Brandao Ribeiro Dos Santos": {
+    "nome": "Veronica Brandao Ribeiro Dos Santos",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "DAMIR QUISPE MAMANI",
+        "serie": "6º Ano A"
+      },
+      {
+        "nome": "DÔMINIC SOUSA DE AZEVEDO",
+        "serie": "6º Ano A"
+      },
+      {
+        "nome": "KEMILLY LOHAYNE ASSIS ENDO",
+        "serie": "6º Ano A"
+      },
+      {
+        "nome": "MATHEUS CANDIDO LIMA",
+        "serie": "6º Ano A"
+      },
+      {
+        "nome": "MIGUEL SANTIAGO RAMOS DE SOUZA",
+        "serie": "6º Ano A"
+      },
+      {
+        "nome": "NATAN ALMEIDA PRADO",
+        "serie": "6º Ano A"
+      },
+      {
+        "nome": "ENZO RODRIGUES SANTOS CARVALHO",
+        "serie": "6º Ano B"
+      },
+      {
+        "nome": "MIGUEL FABRICIO DE OLIVEIRA QUEIROZ",
+        "serie": "6º Ano B"
+      },
+      {
+        "nome": "DAVI ALVES SERAFIM",
+        "serie": "6º Ano B"
+      },
+      {
+        "nome": "ARIEL MARIANO DE JESUS",
+        "serie": "7º Ano C"
+      },
+      {
+        "nome": "DIOGO HENRIQUE RAPOSO SANTOS",
+        "serie": "7º Ano A"
+      },
+      {
+        "nome": "PAULO CÉSAR MILITINO DE SOUZA",
+        "serie": "7º Ano A"
+      },
+      {
+        "nome": "PIETRO JORGE SANTANA DA COSTA",
+        "serie": "7º Ano A"
+      },
+      {
+        "nome": "DANIEL DAVY OLIVEIRA QUISPE",
+        "serie": "7º Ano B"
+      },
+      {
+        "nome": "GUSTAVO RODRIGUES LEONARDO",
+        "serie": "7º Ano B"
+      },
+      {
+        "nome": "DAVI LUCIANO SAVOIA ALVES",
+        "serie": "7º Ano C"
+      },
+      {
+        "nome": "IARA VITORIA RODRIGUES DE LIMA",
+        "serie": "7º Ano C"
+      },
+      {
+        "nome": "KIMBERLYN CHRISTINA MACIEL DA SILVA",
+        "serie": "7º Ano C"
+      },
+      {
+        "nome": "PEDRO HENRIQUE GONCALVES SILVA",
+        "serie": "7º Ano C"
+      },
+      {
+        "nome": "RYAN SILVA BRAZ",
+        "serie": "7º Ano C"
+      },
+      {
+        "nome": "TAILA VITORIA SANTOS LORENZI",
+        "serie": "7º Ano C"
+      }
+    ]
+  },
+  "Fernanda Fiuza De Oliveira": {
+    "nome": "Fernanda Fiuza De Oliveira",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "DAVI LUCCA CARDOZO DOS SANTOS",
+        "serie": "7º Ano A"
+      },
+      {
+        "nome": "NICOLAS DE SALLES PIRES",
+        "serie": "7º Ano C"
+      },
+      {
+        "nome": "BRAYAN NASCIMENTO DA SILVA",
+        "serie": "7º Ano C"
+      },
+      {
+        "nome": "DIOGO CAVALCANTI ZANINI",
+        "serie": "7º Ano A"
+      },
+      {
+        "nome": "MARIA HELENA ASSUNCAO DA SILVA",
+        "serie": "7º Ano A"
+      },
+      {
+        "nome": "HENRIQUE GODOY PEREIRA VITOR",
+        "serie": "6º Ano B"
+      },
+      {
+        "nome": "LUCAS GABRIEL SILVA DOS SANTOS",
+        "serie": "7º Ano C"
+      },
+      {
+        "nome": "JOAO VITOR MILITINA BARBOSA",
+        "serie": "6º Ano B"
+      },
+      {
+        "nome": "MANOEL DE SOUZA VILARIM",
+        "serie": "6º Ano A"
+      },
+      {
+        "nome": "DAVI LUIZ ALEXANDRINO ALVES DOS SANTOS",
+        "serie": "7º Ano A"
+      },
+      {
+        "nome": "MIGUEL CAMPIONI COSTA",
+        "serie": "7º Ano A"
+      },
+      {
+        "nome": "ALICE SANTOS RIBEIRO",
+        "serie": "7º Ano A"
+      },
+      {
+        "nome": "FILIPPE THIAGO OLIVEIRA DE FREITAS",
+        "serie": "7º Ano B"
+      },
+      {
+        "nome": "ENZO MIGUEL RIBEIRO DOS SANTOS LIMA",
+        "serie": "7º Ano C"
+      },
+      {
+        "nome": "YURI BOSNICH BARBOSA",
+        "serie": "7º Ano C"
+      },
+      {
+        "nome": "LUAN LORENZO LOPES OLIVEIRA",
+        "serie": "7º Ano B"
+      },
+      {
+        "nome": "RYAN HENRIQUE DA SILVA TELES",
+        "serie": "7º Ano C"
+      },
+      {
+        "nome": "GUILHERME OLIVEIRA DE FREITAS",
+        "serie": "6º Ano B"
+      },
+      {
+        "nome": "SOPHIA FERREIRA SANTOS",
+        "serie": "7º Ano B"
+      }
+    ]
+  },
+  "Guilherme Costa Brito": {
+    "nome": "Guilherme Costa Brito",
+    "tipo": "Professor(a)",
+    "espaco": "Pátio",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "NICOLAS DOS SANTOS NASCIMENTO",
+        "serie": "3º Ano A - TEC"
+      },
+      {
+        "nome": "KAIQUE LIMA DIAS",
+        "serie": "3º Ano B - TEC"
+      },
+      {
+        "nome": "LAVINIA DA GRACA JUVENAL DA SILVA",
+        "serie": "3º Ano A - TEC"
+      },
+      {
+        "nome": "KAUE DA SILVA LEMES",
+        "serie": "3º Ano A - TEC"
+      },
+      {
+        "nome": "JEFFERSON CAIO DE JESUS LAVOR",
+        "serie": "3º Ano B - TEC"
+      },
+      {
+        "nome": "LEANDRO OLIVEIRA DOS SANTOS",
+        "serie": "9º Ano A"
+      },
+      {
+        "nome": "MURILO COSTA BARROS",
+        "serie": "3º Ano B - TEC"
+      },
+      {
+        "nome": "MATHEUS DUARTE BARROS",
+        "serie": "3º Ano A - TEC"
+      },
+      {
+        "nome": "NATHAN DA SILVA LOPES",
+        "serie": "3º Ano A - TEC"
+      },
+      {
+        "nome": "FELIPE GABRIEL BEVILACQUA BELMONTE",
+        "serie": "3º Ano A - TEC"
+      },
+      {
+        "nome": "SAMUEL DA SILVA RODRIGUES",
+        "serie": "3º Ano B - TEC"
+      },
+      {
+        "nome": "EDUARDO PASSINATO DE SOUZA",
+        "serie": "3º Ano B - TEC"
+      },
+      {
+        "nome": "RODNEY FELIPE DA SILVA SANTOS",
+        "serie": "3º Ano B - TEC"
+      },
+      {
+        "nome": "CAUÃ ALVES SERAFIM",
+        "serie": "3º Ano B - TEC"
+      },
+      {
+        "nome": "BRENDA DE JESUS CORREA SILVA",
+        "serie": "9º Ano C"
+      },
+      {
+        "nome": "BRENNDA ARAUJO SANTOS",
+        "serie": "9º Ano C"
+      },
+      {
+        "nome": "LEANDRO NEVES FELIX MOREIRA",
+        "serie": "3º Ano B - TEC"
+      },
+      {
+        "nome": "NIKOLAS EDUARDO MOREIRA DE SOUZA",
+        "serie": "3º Ano A - TEC"
+      },
+      {
+        "nome": "LUCAS RAYNER DA SILVA",
+        "serie": "3º Ano C"
+      },
+      {
+        "nome": "LUCAS MENESES SANTOS",
+        "serie": "3º Ano B - TEC"
+      },
+      {
+        "nome": "LUCAS DA CRUZ FERNANDES PIRES",
+        "serie": "1º Ano C"
+      },
+      {
+        "nome": "MURILLO DE MORAES SILVA",
+        "serie": "7º Ano A"
+      }
+    ]
+  },
+  "Patrocinio Geovana Nascimentodo Carmo": {
+    "nome": "Patrocinio Geovana Nascimentodo Carmo",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "JOÃO PEDRO FAUSTINO DE SOUZA",
+        "serie": "8º ano B"
+      },
+      {
+        "nome": "YASMIM CONCEICAO DE OLIVEIRA CRUZ",
+        "serie": "6º Ano B"
+      },
+      {
+        "nome": "ALICE MARQUES SANTOS",
+        "serie": "8º ano C"
+      },
+      {
+        "nome": "NICOLAS FABIANO MOREIRA DOS SANTOS",
+        "serie": "9º Ano B"
+      },
+      {
+        "nome": "ARTHUR GUILHERME ZIRONDI DA ROCHA",
+        "serie": "7º Ano B"
+      },
+      {
+        "nome": "RAQUEL VITORIA ALVES DE LIMA",
+        "serie": "7º Ano A"
+      },
+      {
+        "nome": "PIETRO GABRIEL ANDRADE FREIRE DA SILVA",
+        "serie": "8º ano B"
+      },
+      {
+        "nome": "BEATRIZ MONALISA DO CARMO BORGES",
+        "serie": "8º ano C"
+      },
+      {
+        "nome": "ISABELLY MARQUES DOS SANTOS",
+        "serie": "8º Ano A"
+      },
+      {
+        "nome": "MIGUEL ARONI DE SANTANA",
+        "serie": "9º Ano C"
+      }
+    ]
+  },
+  "Silvana De Souza Oliveira Santos": {
+    "nome": "Silvana De Souza Oliveira Santos",
+    "tipo": "Professor(a)",
+    "espaco": "Sala 11",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "ANA KAROLINE SANTANA DA SILVA",
+        "serie": "9º Ano C"
+      },
+      {
+        "nome": "MARIA EDUARDA DOS SANTOS MOREIRA",
+        "serie": "9º Ano C"
+      },
+      {
+        "nome": "LUCAS ROBERTO BARBOSA ALVES",
+        "serie": "9º Ano B"
+      },
+      {
+        "nome": "YURI BARBOSA DOS SANTOS FEITOSA",
+        "serie": "9º Ano C"
+      },
+      {
+        "nome": "GABRIEL RODRIGUES LOUREIRO",
+        "serie": "9º Ano B"
+      },
+      {
+        "nome": "JAMES VINICIUS FELIPE GOMES",
+        "serie": "9º Ano C"
+      },
+      {
+        "nome": "SIBELLY LUZIA RODRIGUES SANTOS NUNES",
+        "serie": "9º Ano B"
+      },
+      {
+        "nome": "IGOR LUCAS BARROS SANTOS",
+        "serie": "9º Ano B"
+      },
+      {
+        "nome": "LUCAS VIEIRA DOS SANTOS LIRA",
+        "serie": "9º Ano B"
+      },
+      {
+        "nome": "MARIANA FERNANDA VIEIRA GUEDES",
+        "serie": "9º Ano B"
+      },
+      {
+        "nome": "NATALIA PEREIRA GONZAGA",
+        "serie": "9º Ano B"
+      },
+      {
+        "nome": "SILLAS CAROLINO DO CARMO BORGES",
+        "serie": "9º Ano C"
+      },
+      {
+        "nome": "KAUAN MACIEL SANTOS",
+        "serie": "9º Ano B"
+      },
+      {
+        "nome": "KAIO BARBOSA DE SOUZA",
+        "serie": "9º Ano A"
+      },
+      {
+        "nome": "RICHARD HENRIQUE DE LIMA GONCALVES",
+        "serie": "9º Ano B"
+      },
+      {
+        "nome": "ALICE LOPES PEREIRA",
+        "serie": "9º Ano C"
+      },
+      {
+        "nome": "ISABELE CRISTINA LEITE HONORIO DA SILVA",
+        "serie": "9º Ano C"
+      },
+      {
+        "nome": "MAICON HENRIQUE XAVIER PEREIRA",
+        "serie": "9º Ano C"
+      }
+    ]
+  },
+  "Renan Lourenco Da Silva": {
+    "nome": "Renan Lourenco Da Silva",
+    "tipo": "Diretor",
+    "espaco": "Direção",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "THALLES LEONARDO MAGALHAES",
+        "serie": "8º ano B"
+      },
+      {
+        "nome": "NATALLY FERNANDA PONTES",
+        "serie": "8º ano C"
+      },
+      {
+        "nome": "YASMIN VITORIA DOS SANTOS OLIVEIRA",
+        "serie": "3º Ano B - TEC"
+      },
+      {
+        "nome": "RIAN OLIVEIRA RUFINO",
+        "serie": "3º Ano A - TEC"
+      },
+      {
+        "nome": "PAULO HENRIQUE ASSUMPÇÃO DE OLIVEIRA COSTA",
+        "serie": "7º Ano B"
+      },
+      {
+        "nome": "RUAN SILVA DE JESUS",
+        "serie": "9º Ano C"
+      },
+      {
+        "nome": "KAUANY DA SILVA MARTINS",
+        "serie": "3º Ano A - TEC"
+      },
+      {
+        "nome": "KAUANY REBECA VITOR DE SOUZA",
+        "serie": "9º Ano A"
+      }
+    ]
+  },
+  "Jaqueline": {
+    "nome": "Jaqueline",
+    "tipo": "Professor(a)",
+    "espaco": "Sala 11",
+    "horario": "13:10 AS 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "Erick Garcia",
+        "serie": "6º B"
+      },
+      {
+        "nome": "Gabriella Sophia",
+        "serie": "6º B"
+      },
+      {
+        "nome": "Maysa De Lima",
+        "serie": "6º B"
+      },
+      {
+        "nome": "Kamilly",
+        "serie": "6º A"
+      },
+      {
+        "nome": "Agatha",
+        "serie": "8º C"
+      },
+      {
+        "nome": "Emily Emanuelly",
+        "serie": "6º B"
+      },
+      {
+        "nome": "Riguelme",
+        "serie": "8º B"
+      },
+      {
+        "nome": "Yasmim Ferreira",
+        "serie": "8º B"
+      },
+      {
+        "nome": "Gabriel Lopes",
+        "serie": "8º B"
+      },
+      {
+        "nome": "Gabriel Vieira",
+        "serie": "8º"
+      },
+      {
+        "nome": "Pedro Henrique",
+        "serie": "8º A"
+      },
+      {
+        "nome": "Brian Tomas",
+        "serie": "9º A"
+      },
+      {
+        "nome": "Rafael Luiz Aparecido",
+        "serie": "8º C"
+      },
+      {
+        "nome": "Davi dos Santos",
+        "serie": "8º A"
+      }
+    ]
+  },
+  "Itatiara Oliveira": {
+    "nome": "Itatiara Oliveira",
+    "tipo": "Professor(a)",
+    "espaco": "Pátio",
+    "horario": "13:10 AS 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "Nome:",
+        "serie": "Turma:"
+      },
+      {
+        "nome": "Alice Elizabete",
+        "serie": "9º A"
+      },
+      {
+        "nome": "Allana",
+        "serie": "9º A"
+      },
+      {
+        "nome": "Emanuelle",
+        "serie": "9º B"
+      },
+      {
+        "nome": "Gabriel Pazetto",
+        "serie": "9º B"
+      },
+      {
+        "nome": "Gabriel Gomes Nascimento",
+        "serie": "9º A"
+      },
+      {
+        "nome": "Gabriel Fernandes",
+        "serie": "9º A"
+      },
+      {
+        "nome": "Isabelly Alvino",
+        "serie": "9º A"
+      },
+      {
+        "nome": "Ana Caroline",
+        "serie": "9º A"
+      },
+      {
+        "nome": "Caio",
+        "serie": "9º C"
+      },
+      {
+        "nome": "Rafael Cecilio",
+        "serie": "8º B"
+      },
+      {
+        "nome": "Thales Mendes",
+        "serie": "9º C"
+      },
+      {
+        "nome": "Isabelly Silva",
+        "serie": "8º C"
+      },
+      {
+        "nome": "Gabriela Montino",
+        "serie": "8º B"
+      },
+      {
+        "nome": "Felipe Oliveira",
+        "serie": "9º C"
+      },
+      {
+        "nome": "Jameson",
+        "serie": "9º C"
+      },
+      {
+        "nome": "Henzo Miguel",
+        "serie": "9º C"
+      },
+      {
+        "nome": "Guilherme Oliveira",
+        "serie": "9º C"
+      },
+      {
+        "nome": "Yasmin vitória",
+        "serie": "8º C"
+      },
+      {
+        "nome": "Laiza",
+        "serie": "7º B"
+      }
+    ]
+  },
+  "Elaine": {
+    "nome": "Elaine",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 AS 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "Jonathan Henrique     ¨",
+        "serie": "6º B"
+      },
+      {
+        "nome": "Safira De Jesus",
+        "serie": "7º A"
+      },
+      {
+        "nome": "Ionara Silva",
+        "serie": "3º B"
+      },
+      {
+        "nome": "Mariana",
+        "serie": "3º B"
+      },
+      {
+        "nome": "Lauryn Araujo",
+        "serie": "3º B"
+      },
+      {
+        "nome": "Pietra Isabella",
+        "serie": "3º B"
+      },
+      {
+        "nome": "Vitoria Cristina",
+        "serie": "3º B"
+      },
+      {
+        "nome": "Henrique Alves",
+        "serie": "8º B"
+      },
+      {
+        "nome": "Maria Heloisa",
+        "serie": "9º C"
+      },
+      {
+        "nome": "Victor Hugo",
+        "serie": "8º B"
+      },
+      {
+        "nome": "Davi Ferreira",
+        "serie": "8º B"
+      },
+      {
+        "nome": "Ana Beatriz",
+        "serie": "6º A"
+      },
+      {
+        "nome": "Kauan Riquelme",
+        "serie": "9º A"
+      },
+      {
+        "nome": "Agner De Jesus",
+        "serie": "9º A"
+      },
+      {
+        "nome": "Gustavo de Oliveira",
+        "serie": "9º A"
+      },
+      {
+        "nome": "Betraiz Pereira",
+        "serie": "9º A"
+      },
+      {
+        "nome": "Kethellyn Vitoria",
+        "serie": "9º A"
+      },
+      {
+        "nome": "Graziele Santana",
+        "serie": "9º A"
+      }
+    ]
+  },
+  "Silvana": {
+    "nome": "Silvana",
+    "tipo": "Professor(a)",
+    "espaco": "Sala 11",
+    "horario": "13:10 AS 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "Nome:",
+        "serie": "Turma:"
+      },
+      {
+        "nome": "Kethellyn Vitória do N. Lourençoni",
+        "serie": "9º A"
+      },
+      {
+        "nome": "Graziele Santana Fonseca",
+        "serie": "9º A"
+      },
+      {
+        "nome": "Gabriel rodrigues",
+        "serie": "9º B"
+      },
+      {
+        "nome": "Igor Lucas",
+        "serie": "9º B"
+      },
+      {
+        "nome": "Lucas Roberto",
+        "serie": "9º B"
+      },
+      {
+        "nome": "Lucas Vieira",
+        "serie": "9º B"
+      },
+      {
+        "nome": "Mariana Fernanda",
+        "serie": "9º B"
+      },
+      {
+        "nome": "Natalia Pereira",
+        "serie": "9º B"
+      },
+      {
+        "nome": "Richard Henrique",
+        "serie": "9º B"
+      },
+      {
+        "nome": "Sibelly Luzia",
+        "serie": "9º B"
+      },
+      {
+        "nome": "Alice Lopes",
+        "serie": "9º C"
+      },
+      {
+        "nome": "Ana Karoline",
+        "serie": "9º C"
+      },
+      {
+        "nome": "James Vinicius",
+        "serie": "9º C"
+      },
+      {
+        "nome": "Sillas Carolino",
+        "serie": "9º C"
+      },
+      {
+        "nome": "Nkicolas Fabian",
+        "serie": "9º B"
+      },
+      {
+        "nome": "Yuri Barbosa",
+        "serie": "9º C"
+      },
+      {
+        "nome": "Maria Eduarda",
+        "serie": "9º C"
+      },
+      {
+        "nome": "Kauan Maciel",
+        "serie": "9º B"
+      },
+      {
+        "nome": "Kaio",
+        "serie": "9º A"
+      }
+    ]
+  },
+  "Lucineide": {
+    "nome": "Lucineide",
+    "tipo": "Professor(a)",
+    "espaco": "Pátio",
+    "horario": "13:10 AS 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "Nomes:",
+        "serie": "Turma:"
+      },
+      {
+        "nome": "Vitória Cristina",
+        "serie": "3º B"
+      },
+      {
+        "nome": "Lauryn araujo",
+        "serie": "3º B"
+      },
+      {
+        "nome": "Melissa Ribeiro",
+        "serie": "8º A"
+      },
+      {
+        "nome": "Emanuelly da Silva",
+        "serie": "8º A"
+      },
+      {
+        "nome": "Alana SophiA",
+        "serie": "8º C"
+      },
+      {
+        "nome": "Eduarda Nicole",
+        "serie": "8º C"
+      },
+      {
+        "nome": "Kaique Emanuel",
+        "serie": "8º C"
+      },
+      {
+        "nome": "Richard Yago",
+        "serie": "8º C"
+      },
+      {
+        "nome": "Caio Guilherme",
+        "serie": "8º C"
+      },
+      {
+        "nome": "Daniel Martins",
+        "serie": "8º C"
+      },
+      {
+        "nome": "Mayara da Cruz",
+        "serie": "8º A"
+      },
+      {
+        "nome": "Julia Bastos",
+        "serie": "9º A"
+      },
+      {
+        "nome": "Lorena Maciel",
+        "serie": "9º A"
+      },
+      {
+        "nome": "Maiara Francine",
+        "serie": "7º A"
+      },
+      {
+        "nome": "Mikaelly Aparecida",
+        "serie": "7º C"
+      },
+      {
+        "nome": "Vitória da Silva",
+        "serie": "9º C"
+      },
+      {
+        "nome": "Wendel Rodrigo",
+        "serie": "9º A"
+      },
+      {
+        "nome": "Kamilly Victoria",
+        "serie": "7º C"
+      }
+    ]
+  },
+  "Solange": {
+    "nome": "Solange",
+    "tipo": "Professor(a)",
+    "espaco": "Sala 10",
+    "horario": "13:10 AS 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "HEITOR N.MOREIRA DO NASCIMENTO",
+        "serie": "7ºC"
+      },
+      {
+        "nome": "KAUÊ GABRIEL DOS SANTOS",
+        "serie": "6ºB"
+      },
+      {
+        "nome": "YASMIM CRISTINA BRAGA DE LIMA",
+        "serie": "8ºA"
+      },
+      {
+        "nome": "ISABELLA FERNANDA CABRAL DOS SANTOS",
+        "serie": "8ºA"
+      },
+      {
+        "nome": "ANA KAROLINA FERREIRA PIRES CORDEIRO",
+        "serie": "8ºC"
+      },
+      {
+        "nome": "BRENDA NICOLE DA SILVA PAIVA",
+        "serie": "8ºC"
+      },
+      {
+        "nome": "LEONARDO HENRIQUE SANTOS",
+        "serie": "7ºC"
+      },
+      {
+        "nome": "MARIANE DE OLIVEIRA SOUZA",
+        "serie": "8ºC"
+      },
+      {
+        "nome": "GUSTAVO BATISTA DE JESUS",
+        "serie": "7ºB"
+      },
+      {
+        "nome": "RAYSSON FELIPE DA CRUZ",
+        "serie": "6ºA"
+      },
+      {
+        "nome": "WILLIAN GABRIEL MORAES DE ALMEIDA",
+        "serie": "6ºA"
+      },
+      {
+        "nome": "EMILY EDUARDA FELINTRO DA S. SANTOS",
+        "serie": "8ºB"
+      },
+      {
+        "nome": "KAUAN GUSTAVO ANDRADE DOS SANTOS",
+        "serie": "8ºC"
+      },
+      {
+        "nome": "Sophia Nabor",
+        "serie": "6º B"
+      },
+      {
+        "nome": "ALESSANDRO",
+        "serie": "6ºB"
+      },
+      {
+        "nome": "ITALO MARQUES DOS SANTOS",
+        "serie": "7ºA"
+      },
+      {
+        "nome": "Ester dos Santos",
+        "serie": "6º A"
+      },
+      {
+        "nome": "Alice Marques",
+        "serie": "8º C"
+      },
+      {
+        "nome": "Esther Rodrigues",
+        "serie": "6º B"
+      }
+    ]
+  },
+  "Aleandro": {
+    "nome": "Aleandro",
+    "tipo": "Professor(a)",
+    "espaco": "Coordenação",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "Alice Andrade",
+        "serie": "9º A"
+      },
+      {
+        "nome": "Lucas Pereira",
+        "serie": "8º B"
+      },
+      {
+        "nome": "Julio",
+        "serie": "8º B"
+      },
+      {
+        "nome": "Rafael",
+        "serie": "8º B"
+      },
+      {
+        "nome": "Osvaldo",
+        "serie": "7º C"
+      },
+      {
+        "nome": "Lucas Pereira",
+        "serie": "9º"
+      }
+    ]
+  },
+  "Igor": {
+    "nome": "Igor",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 AS 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "Turma:",
+        "serie": "5º"
+      },
+      {
+        "nome": "kaua Souza dos Santos",
+        "serie": "7º C"
+      },
+      {
+        "nome": "Jamily Nicoly",
+        "serie": "9º C"
+      },
+      {
+        "nome": "Kauany Vitoria Rosa",
+        "serie": "7º C"
+      },
+      {
+        "nome": "Clara k.",
+        "serie": "7º A"
+      },
+      {
+        "nome": "Kauan Fideli",
+        "serie": "8º A"
+      },
+      {
+        "nome": "Rafael Moreira",
+        "serie": "8º A"
+      },
+      {
+        "nome": "Guilherme Carvalho de Sousa",
+        "serie": "8º A"
+      },
+      {
+        "nome": "Nicollas Kevin",
+        "serie": "6º A"
+      },
+      {
+        "nome": "Brian Santos",
+        "serie": "6º B"
+      },
+      {
+        "nome": "Yasmim Ferreira",
+        "serie": "8º B"
+      },
+      {
+        "nome": "Paulo Henrique",
+        "serie": "8º B"
+      },
+      {
+        "nome": "Douglas",
+        "serie": "9º A"
+      },
+      {
+        "nome": "Brian thoma",
+        "serie": "9º A"
+      },
+      {
+        "nome": "Murilo",
+        "serie": "8º A"
+      },
+      {
+        "nome": "Vitória Cristina",
+        "serie": "3º B"
+      }
+    ]
+  },
+  "Veronica": {
+    "nome": "Veronica",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 AS 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "Nomes:",
+        "serie": "Turma:"
+      },
+      {
+        "nome": "Damir Quispe Mamani",
+        "serie": "6º A"
+      },
+      {
+        "nome": "Daniel Davy Oliveira Quispe",
+        "serie": "7º B"
+      },
+      {
+        "nome": "Davi Alves",
+        "serie": "6º B"
+      },
+      {
+        "nome": "Davi Luciano Savoia Alves",
+        "serie": "7º C"
+      },
+      {
+        "nome": "Davi Luiz Alexandrino Alves dos Santos",
+        "serie": "7º A"
+      },
+      {
+        "nome": "Diogo Henrique Raposo Santos",
+        "serie": "7º A"
+      },
+      {
+        "nome": "Dominic Sousa de Azevedo",
+        "serie": "6º A"
+      },
+      {
+        "nome": "Enzo Rodrigues Santos Carvalho",
+        "serie": "6º B"
+      },
+      {
+        "nome": "Gustavo Rodrigues Leonardo",
+        "serie": "7º B"
+      },
+      {
+        "nome": "Iara Vitoria Rodrigues de Lima",
+        "serie": "7º C"
+      },
+      {
+        "nome": "Kemilly",
+        "serie": "6º A"
+      },
+      {
+        "nome": "Kimberlyn Christina Maciel da Silva",
+        "serie": "7º C"
+      },
+      {
+        "nome": "Matheus Candido Lima",
+        "serie": "6º A"
+      },
+      {
+        "nome": "Miguel Fabricio de Oliveira Queiroz",
+        "serie": "6º B"
+      },
+      {
+        "nome": "Miguel Santiago Ramos de Souza",
+        "serie": "6º A"
+      },
+      {
+        "nome": "Natan Almeida Prado",
+        "serie": "6º A"
+      },
+      {
+        "nome": "Paulo Cesar Militino de Souza",
+        "serie": "7º A"
+      },
+      {
+        "nome": "Pedro Henrique Gonçalves Silva",
+        "serie": "7º C"
+      },
+      {
+        "nome": "Pietro Jorge Santana da Costa",
+        "serie": "7º A"
+      },
+      {
+        "nome": "Ryan Silva Braz",
+        "serie": "7º C"
+      },
+      {
+        "nome": "Taila Vitoria Santos Lorenzi",
+        "serie": "7º C"
+      }
+    ]
+  },
+  "Fagna": {
+    "nome": "Fagna",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 AS 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "Nomes:",
+        "serie": "Turma:"
+      },
+      {
+        "nome": "Natalia",
+        "serie": "9º A"
+      },
+      {
+        "nome": "Kawani",
+        "serie": "9º A"
+      },
+      {
+        "nome": "Kelvin almeida",
+        "serie": "9º B"
+      },
+      {
+        "nome": "Marco Antonio",
+        "serie": "9º B"
+      },
+      {
+        "nome": "David Oliveira",
+        "serie": "8º A"
+      },
+      {
+        "nome": "Geovana Oliveira",
+        "serie": "8ª A"
+      },
+      {
+        "nome": "Caua Gonçalves",
+        "serie": "8ª A"
+      },
+      {
+        "nome": "Alana Oliveira",
+        "serie": "8ª A"
+      },
+      {
+        "nome": "Bianca",
+        "serie": "8ª A"
+      },
+      {
+        "nome": "Isabele Ribeiro",
+        "serie": "8ª A"
+      },
+      {
+        "nome": "Rafaella Silva",
+        "serie": "8ª A"
+      },
+      {
+        "nome": "Bianca",
+        "serie": "8º C"
+      },
+      {
+        "nome": "Davi lucas",
+        "serie": "8º C"
+      },
+      {
+        "nome": "Andreyles valeria",
+        "serie": "8º C"
+      },
+      {
+        "nome": "Yuri",
+        "serie": "8º C"
+      },
+      {
+        "nome": "Sidielys",
+        "serie": "9º A"
+      },
+      {
+        "nome": "Miguel Alves",
+        "serie": "8º B"
+      },
+      {
+        "nome": "Julia Pereira",
+        "serie": "9º B"
+      },
+      {
+        "nome": "Leandro Oliveira",
+        "serie": "9º A"
+      },
+      {
+        "nome": "Samuel vinicius",
+        "serie": "9º A"
+      },
+      {
+        "nome": "Matheus de Lima",
+        "serie": "8º C"
+      },
+      {
+        "nome": "Ana Paula",
+        "serie": "8º C"
+      },
+      {
+        "nome": "Vitoria",
+        "serie": "8º B"
+      },
+      {
+        "nome": "Davi",
+        "serie": "8º B"
+      },
+      {
+        "nome": "Miguel",
+        "serie": "8º C"
+      }
+    ]
+  },
+  "Erika": {
+    "nome": "Erika",
+    "tipo": "Professor(a)",
+    "espaco": "Informática",
+    "horario": "13:10 AS 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "Nomes:",
+        "serie": "Turma:"
+      },
+      {
+        "nome": "Giovanna de Oliveira",
+        "serie": "9º C"
+      },
+      {
+        "nome": "Manuella M. Araujo",
+        "serie": "9º C"
+      },
+      {
+        "nome": "Lais Faria Carvalho",
+        "serie": "9º B"
+      },
+      {
+        "nome": "Rhiana de Souza",
+        "serie": "9º B"
+      },
+      {
+        "nome": "Isabelly",
+        "serie": "9º C"
+      },
+      {
+        "nome": "Leticia Conceição",
+        "serie": "7º B"
+      }
+    ]
+  },
+  "Rose": {
+    "nome": "Rose",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:00 AS 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "Nomes:",
+        "serie": "Turma:"
+      },
+      {
+        "nome": "ANA JULLIA DE ALENCAR BALISTA",
+        "serie": "6º B"
+      },
+      {
+        "nome": "HELENA DE SOUSA FERREIRA",
+        "serie": "6º B"
+      },
+      {
+        "nome": "MAYSA DE LIMA BENEDITO",
+        "serie": "6º B"
+      },
+      {
+        "nome": "EMILLY EMANUELLY BANDEIRA ALVES DA SILVA",
+        "serie": "6º B"
+      },
+      {
+        "nome": "GUSTAVO SANTANA NASCIMENTO",
+        "serie": "6º B"
+      },
+      {
+        "nome": "MARIA CLARA DA SILVA",
+        "serie": "9º B"
+      },
+      {
+        "nome": "EMILLY VITÓRIA GOMES ALVES",
+        "serie": "7º B"
+      },
+      {
+        "nome": "GIULIA SANTANA BARBOSA",
+        "serie": "7º B"
+      },
+      {
+        "nome": "ANA GLORIA SANTOS MARCOS RODRIGUES",
+        "serie": "7º B"
+      },
+      {
+        "nome": "ELOAH DE FRANÇA DOS SANTOS",
+        "serie": "7º B"
+      },
+      {
+        "nome": "ALICE FERREIRA DA SILVA",
+        "serie": "6º A"
+      },
+      {
+        "nome": "KAUANY VITORIA PEREIRA DOS SANTOS",
+        "serie": "6º A"
+      },
+      {
+        "nome": "IAGO RYAN AVELINO VIEIRA HENRIQUE",
+        "serie": "6º A"
+      },
+      {
+        "nome": "Maria Clara Santos",
+        "serie": "6º A"
+      },
+      {
+        "nome": "Julia Rodrigues de Brito",
+        "serie": "6º A"
+      },
+      {
+        "nome": "Ryan Leonardo",
+        "serie": "6º A"
+      },
+      {
+        "nome": "Maria Julia",
+        "serie": "6º B"
+      }
+    ]
+  },
+  "Anderson": {
+    "nome": "Anderson",
+    "tipo": "Professor(a)",
+    "espaco": "Sala de vídeo",
+    "horario": "13:10 AS 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "Nomes:",
+        "serie": "Turma:"
+      },
+      {
+        "nome": "Natalia Soares",
+        "serie": "3º A"
+      },
+      {
+        "nome": "Isabely Brunes",
+        "serie": "3º A"
+      },
+      {
+        "nome": "Brigid Larissa",
+        "serie": "3º A"
+      },
+      {
+        "nome": "Vitoria Ferreira",
+        "serie": "3º A"
+      },
+      {
+        "nome": "Nicole Cruz",
+        "serie": "3º A"
+      },
+      {
+        "nome": "Milena de jesus",
+        "serie": "3º A"
+      },
+      {
+        "nome": "Valquirria de souza",
+        "serie": "3º A"
+      },
+      {
+        "nome": "Raisa Nascimento",
+        "serie": "3º A"
+      },
+      {
+        "nome": "Rocheel Cristina",
+        "serie": "3º A"
+      },
+      {
+        "nome": "ana Beatriz",
+        "serie": "8ºA"
+      },
+      {
+        "nome": "Vinicius",
+        "serie": "6º A"
+      },
+      {
+        "nome": "Vitoria crtistina",
+        "serie": "3º B"
+      },
+      {
+        "nome": "Matheus Lima",
+        "serie": "8º C"
+      },
+      {
+        "nome": "Kauan Willian",
+        "serie": "7º B"
+      },
+      {
+        "nome": "Kauane da Silva",
+        "serie": "3º A"
+      }
+    ]
+  },
+  "Shirley": {
+    "nome": "Shirley",
+    "tipo": "Professor(a)",
+    "espaco": "Sala 7",
+    "horario": "13:10 as 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "Turma:",
+        "serie": "10º"
+      },
+      {
+        "nome": "ERICK GARCIA",
+        "serie": "6º B"
+      },
+      {
+        "nome": "CARLOS EDUARDO",
+        "serie": "9º C"
+      },
+      {
+        "nome": "BEATRIZ VIEIRA DE OLIVEIRA",
+        "serie": "8º C"
+      },
+      {
+        "nome": "DANIEL GONCALVES DE SOUZA",
+        "serie": "8º C"
+      },
+      {
+        "nome": "ICARO LEMOS DA SILVA",
+        "serie": "8º C"
+      },
+      {
+        "nome": "SAMUEL DE ALMEIDA SOUZA",
+        "serie": "8º B"
+      },
+      {
+        "nome": "JOAO VITOR SANTOS",
+        "serie": "8º B"
+      },
+      {
+        "nome": "RUAN SILVA DE JESUS",
+        "serie": "9º C"
+      },
+      {
+        "nome": "EDUARDO ERICK",
+        "serie": "9º C"
+      },
+      {
+        "nome": "VITORIA EDUARDA",
+        "serie": "8º B"
+      },
+      {
+        "nome": "ROBERT SANTOS",
+        "serie": "8º B"
+      },
+      {
+        "nome": "RICHARD",
+        "serie": "7º A"
+      },
+      {
+        "nome": "DAMIR",
+        "serie": "6º A"
+      },
+      {
+        "nome": "Caique Wilson",
+        "serie": "9º C"
+      },
+      {
+        "nome": "Guilherme Leite",
+        "serie": "9º C"
+      },
+      {
+        "nome": "Ketlyn Emilia",
+        "serie": "9º C"
+      },
+      {
+        "nome": "Richard Luiz",
+        "serie": "9º B"
+      }
+    ]
+  },
+  "Lourdes": {
+    "nome": "Lourdes",
+    "tipo": "Professor(a)",
+    "espaco": "Sala 6",
+    "horario": "13:10 as 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "Julia da  Cruz",
+        "serie": "3º A"
+      },
+      {
+        "nome": "Isadora",
+        "serie": "6º A"
+      }
+    ]
+  },
+  "Geovana": {
+    "nome": "Geovana",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 as 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "Nomes:",
+        "serie": "Turma:"
+      },
+      {
+        "nome": "Yasmim",
+        "serie": "6º B"
+      },
+      {
+        "nome": "Arthur",
+        "serie": "7º B"
+      },
+      {
+        "nome": "Raquel",
+        "serie": "7º A"
+      },
+      {
+        "nome": "Joao Pedro",
+        "serie": "8º B"
+      },
+      {
+        "nome": "Emilly",
+        "serie": "7º C"
+      },
+      {
+        "nome": "Pamela",
+        "serie": "7º A"
+      },
+      {
+        "nome": "Isabelly Marques",
+        "serie": "8º A"
+      },
+      {
+        "nome": "Adriny",
+        "serie": "8º B"
+      },
+      {
+        "nome": "Pietro Gabriel",
+        "serie": "8º B"
+      },
+      {
+        "nome": "Nicolas",
+        "serie": "9º B"
+      },
+      {
+        "nome": "Guilherme Leite",
+        "serie": "9º C"
+      },
+      {
+        "nome": "Vitoria",
+        "serie": "3º A"
+      },
+      {
+        "nome": "Ana Paula",
+        "serie": "8º C"
+      },
+      {
+        "nome": "Alice",
+        "serie": "8º C"
+      },
+      {
+        "nome": "Miguel",
+        "serie": "9º C"
+      }
+    ]
+  },
+  "Rosangela": {
+    "nome": "Rosangela",
+    "tipo": "Professor(a)",
+    "espaco": "Sala 9",
+    "horario": "13:10 as 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "Turma:",
+        "serie": "1º"
+      },
+      {
+        "nome": "Samuel Mendes",
+        "serie": "6ºB"
+      },
+      {
+        "nome": "Arthur",
+        "serie": "6ºA"
+      },
+      {
+        "nome": "Jhonatan Vieira",
+        "serie": "6ºB"
+      },
+      {
+        "nome": "Derek Sousa",
+        "serie": "6ºA"
+      },
+      {
+        "nome": "Cauã",
+        "serie": "6ºA"
+      },
+      {
+        "nome": "Nicollas da Silva",
+        "serie": "6ºA"
+      },
+      {
+        "nome": "Maria Júlia",
+        "serie": "6ºA"
+      },
+      {
+        "nome": "Jhonatan de Oliveira",
+        "serie": "7ºB"
+      },
+      {
+        "nome": "Sophia Ferreira",
+        "serie": "7ºB"
+      },
+      {
+        "nome": "Richard Santos",
+        "serie": "6ºA"
+      },
+      {
+        "nome": "Tiago",
+        "serie": "7ºA"
+      },
+      {
+        "nome": "Guilherme",
+        "serie": "7ºB"
+      },
+      {
+        "nome": "Ryan L. Castro",
+        "serie": "6ºA"
+      },
+      {
+        "nome": "Kayla da Silva",
+        "serie": "6ºA"
+      },
+      {
+        "nome": "Laura",
+        "serie": "6ºA"
+      }
+    ]
+  },
+  "Fernanda": {
+    "nome": "Fernanda",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 as 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "Nomes",
+        "serie": "Turma:"
+      },
+      {
+        "nome": "Henrique Godoi",
+        "serie": "6º B"
+      },
+      {
+        "nome": "Joäo Vitor",
+        "serie": "6º B"
+      },
+      {
+        "nome": "Guilherme Oliveira",
+        "serie": "6º B"
+      },
+      {
+        "nome": "Manoel",
+        "serie": "6º A"
+      },
+      {
+        "nome": "Maria Helena",
+        "serie": "7º A"
+      },
+      {
+        "nome": "Davi Lucca",
+        "serie": "7º A"
+      },
+      {
+        "nome": "Miguel",
+        "serie": "7º A"
+      },
+      {
+        "nome": "Diogo C",
+        "serie": "7º A"
+      },
+      {
+        "nome": "Alice",
+        "serie": "7º A"
+      },
+      {
+        "nome": "Felipe",
+        "serie": "7º B"
+      },
+      {
+        "nome": "Melissa",
+        "serie": "7º B"
+      },
+      {
+        "nome": "Bryan",
+        "serie": "7º C"
+      },
+      {
+        "nome": "Lucas",
+        "serie": "7º C"
+      },
+      {
+        "nome": "Henrique",
+        "serie": "7º C"
+      },
+      {
+        "nome": "Enzo",
+        "serie": "7º C"
+      },
+      {
+        "nome": "Yuri",
+        "serie": "7º C"
+      },
+      {
+        "nome": "Luan Lorenzo",
+        "serie": "7º B"
+      },
+      {
+        "nome": "Sophia Ferreira",
+        "serie": "7º B"
+      },
+      {
+        "nome": "Nicolas de Salles",
+        "serie": "7º C"
+      }
+    ]
+  },
+  "Patricia": {
+    "nome": "Patricia",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 as 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "Turma:",
+        "serie": "Patio"
+      },
+      {
+        "nome": "Riquelme Sanches",
+        "serie": "7º B"
+      },
+      {
+        "nome": "Adriele Domingues Lopes",
+        "serie": "9º B"
+      },
+      {
+        "nome": "Heloisa Alves Barros",
+        "serie": "9º B"
+      },
+      {
+        "nome": "Crystal Ketelyn Pedroso Francisco",
+        "serie": "9º B"
+      },
+      {
+        "nome": "Vinicius Jesus",
+        "serie": "8º C"
+      },
+      {
+        "nome": "Alice Ferreira",
+        "serie": "7º B"
+      },
+      {
+        "nome": "Kimberlliyn Vitoria",
+        "serie": "7º B"
+      },
+      {
+        "nome": "Icaro Santos",
+        "serie": "9º B"
+      },
+      {
+        "nome": "Pablo Santos Souza",
+        "serie": "9º B"
+      },
+      {
+        "nome": "Jair Costa Brasil",
+        "serie": "9º C"
+      },
+      {
+        "nome": "Lucas da Souza Sillvim",
+        "serie": "9º C"
+      },
+      {
+        "nome": "Henry Gabriel",
+        "serie": "7º A"
+      },
+      {
+        "nome": "Arthur Balbino",
+        "serie": "7º A"
+      },
+      {
+        "nome": "Bryan medeiros",
+        "serie": "6º A"
+      },
+      {
+        "nome": "Ana Vitória",
+        "serie": "7º A"
+      },
+      {
+        "nome": "Matheus Dantas",
+        "serie": "7º A"
+      },
+      {
+        "nome": "Yuri Henrique",
+        "serie": "7º A"
+      },
+      {
+        "nome": "Gabriel",
+        "serie": "8º B"
+      }
+    ]
+  },
+  "Guilherme Costa": {
+    "nome": "Guilherme Costa",
+    "tipo": "Professor(a)",
+    "espaco": "Pátio",
+    "horario": "13:10 as 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": [
+      {
+        "nome": "Turma:",
+        "serie": "12º"
+      },
+      {
+        "nome": "Lavinia",
+        "serie": "3º A"
+      },
+      {
+        "nome": "Kauê",
+        "serie": "3º A"
+      },
+      {
+        "nome": "Matheus",
+        "serie": "3º A"
+      },
+      {
+        "nome": "Nathan",
+        "serie": "3º A"
+      },
+      {
+        "nome": "Felipe",
+        "serie": "3º A"
+      },
+      {
+        "nome": "Samuel",
+        "serie": "3º B"
+      },
+      {
+        "nome": "Eduardo",
+        "serie": "3º B"
+      },
+      {
+        "nome": "Jefferson",
+        "serie": "3º B"
+      },
+      {
+        "nome": "Murilo",
+        "serie": "3º B"
+      },
+      {
+        "nome": "Kauique",
+        "serie": "3º B"
+      },
+      {
+        "nome": "Enzo Gabriel",
+        "serie": "9º B"
+      },
+      {
+        "nome": "Lucas",
+        "serie": "3º B"
+      },
+      {
+        "nome": "Laísa",
+        "serie": "7º B"
+      },
+      {
+        "nome": "Rodney",
+        "serie": "3º B"
+      },
+      {
+        "nome": "Kauan",
+        "serie": "3º B"
+      },
+      {
+        "nome": "Brenda",
+        "serie": "9º C"
+      },
+      {
+        "nome": "Brenda Araujo",
+        "serie": "9º C"
+      },
+      {
+        "nome": "Jamile",
+        "serie": "9º C"
+      },
+      {
+        "nome": "Murillo de Moraias",
+        "serie": "7º A"
+      },
+      {
+        "nome": "Nikolas Eduardo",
+        "serie": "3º A"
+      }
+    ]
+  },
+  "Alnei Maria De Moura Nogueira": {
+    "nome": "Alnei Maria De Moura Nogueira",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": []
+  },
+  "Ana Paula De Oliveira Farias": {
+    "nome": "Ana Paula De Oliveira Farias",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": []
+  },
+  "Aureni Caldeira Da Silva": {
+    "nome": "Aureni Caldeira Da Silva",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": []
+  },
+  "Charles Soares Damianovic Bragadin": {
+    "nome": "Charles Soares Damianovic Bragadin",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": []
+  },
+  "Cláudia Cristina Da Silva Aureliano": {
+    "nome": "Cláudia Cristina Da Silva Aureliano",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": []
+  },
+  "Diego Mir De Souza": {
+    "nome": "Diego Mir De Souza",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": []
+  },
+  "Edileia Pereira De Castro Silva": {
+    "nome": "Edileia Pereira De Castro Silva",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": []
+  },
+  "Eleazar Silva": {
+    "nome": "Eleazar Silva",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": []
+  },
+  "Francisca Freire De Oliveira": {
+    "nome": "Francisca Freire De Oliveira",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": []
+  },
+  "Gilberto Marcelino Da Silva": {
+    "nome": "Gilberto Marcelino Da Silva",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": []
+  },
+  "Guilherme Leite Oliveira Silva": {
+    "nome": "Guilherme Leite Oliveira Silva",
+    "tipo": "Professor(a)",
+    "espaco": "Pátio",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": []
+  },
+  "Guilherme Rodrigues De Oliveira": {
+    "nome": "Guilherme Rodrigues De Oliveira",
+    "tipo": "Professor(a)",
+    "espaco": "Pátio",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": []
+  },
+  "Ivan Aspiazu Ariscurinaga": {
+    "nome": "Ivan Aspiazu Ariscurinaga",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": []
+  },
+  "Jose Carvalho Filho": {
+    "nome": "Jose Carvalho Filho",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": []
+  },
+  "Katia Rosangela De Souza Silva": {
+    "nome": "Katia Rosangela De Souza Silva",
+    "tipo": "Professor(a)",
+    "espaco": "Sala 9",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": []
+  },
+  "Luciana Francisca Da Conceicao": {
+    "nome": "Luciana Francisca Da Conceicao",
+    "tipo": "Vice-Diretora",
+    "espaco": "",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": []
+  },
+  "Luciana Meira De Siqueira": {
+    "nome": "Luciana Meira De Siqueira",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": []
+  },
+  "Maria Izabel Ferreira Felix": {
+    "nome": "Maria Izabel Ferreira Felix",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": []
+  },
+  "Orlando Antonio Pagnani Neto": {
+    "nome": "Orlando Antonio Pagnani Neto",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": []
+  },
+  "Paula De Jesus": {
+    "nome": "Paula De Jesus",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": []
+  },
+  "Paula Gomes Santana": {
+    "nome": "Paula Gomes Santana",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": []
+  },
+  "Regina Helena De Oliveira": {
+    "nome": "Regina Helena De Oliveira",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": []
+  },
+  "Regis Atanazio Do Nascimento": {
+    "nome": "Regis Atanazio Do Nascimento",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": []
+  },
+  "Renan Pereira Dos Santos": {
+    "nome": "Renan Pereira Dos Santos",
+    "tipo": "Professor(a)",
+    "espaco": "Direção",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": []
+  },
+  "Rosemeire Tiso": {
+    "nome": "Rosemeire Tiso",
+    "tipo": "Professor(a)",
+    "espaco": "Sala 8",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": []
+  },
+  "Vitor Duarte Da Silva Almeida": {
+    "nome": "Vitor Duarte Da Silva Almeida",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": []
+  },
+  "Viviani De Sousa Gomes": {
+    "nome": "Viviani De Sousa Gomes",
+    "tipo": "Professor(a)",
+    "espaco": "",
+    "horario": "13:10 às 14:00",
+    "dia": "Quartas-feiras",
+    "alunos": []
+  }
+}

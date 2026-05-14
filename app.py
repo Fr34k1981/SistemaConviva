@@ -2671,6 +2671,18 @@ def normalizar_alunos_tutoria(alunos_raw) -> list:
         aluno = {"nome": nome, "serie": serie}
         if ra:
             aluno["ra"] = ra
+        if isinstance(item, dict):
+            for campo_extra in [
+                "manual_fora_base",
+                "origem",
+                "status_busca",
+                "nome_digitado",
+                "serie_digitada",
+                "score",
+                "situacao",
+            ]:
+                if campo_extra in item and item.get(campo_extra) not in [None, ""]:
+                    aluno[campo_extra] = item.get(campo_extra)
         alunos.append(aluno)
     return alunos
 
@@ -2798,6 +2810,17 @@ def mesclar_multiplas_fontes_tutoria(*fontes: dict) -> dict:
                 if chave[0] and chave not in alunos_existentes:
                     resultado[tutor].setdefault("alunos", []).append(aluno)
                     alunos_existentes.add(chave)
+                elif chave[0]:
+                    for aluno_existente in resultado[tutor].get("alunos", []):
+                        chave_existente = (
+                            normalizar_texto(aluno_existente.get("nome", "")),
+                            formatar_turma_eletiva(aluno_existente.get("serie", ""))
+                        )
+                        if chave_existente == chave:
+                            for campo_extra in ["ra", "manual_fora_base", "origem", "status_busca", "situacao"]:
+                                if aluno.get(campo_extra) not in [None, ""]:
+                                    aluno_existente[campo_extra] = aluno.get(campo_extra)
+                            break
     return normalizar_base_tutoria(resultado)
 
 def carregar_tutoria_local(fallback: dict | None = None) -> dict:
@@ -3702,7 +3725,7 @@ def _score_nome_tutoria(nome_digitado: str, nome_base: str) -> float:
 
 def buscar_estudante_ativo_mais_proximo(nome_digitado: str, serie_digitada: str, df_alunos: pd.DataFrame) -> dict | None:
     """Busca o estudante ativo mais proximo no Supabase usando turma como confirmacao forte."""
-    base = preparar_base_alunos_ativos_tutoria(df_alunos)
+    base = preparar_base_estudantes_integrada_tutoria(df_alunos)
     if base.empty:
         return None
 
@@ -6734,15 +6757,169 @@ def montar_dataframe_eletiva(nome_professora: str, df_alunos: pd.DataFrame, elet
             df_final = df_final.sort_values(colunas_ordenacao, kind="stable").reset_index(drop=True)
     return df_final
 
+def preparar_base_estudantes_integrada_tutoria(df_alunos: pd.DataFrame) -> pd.DataFrame:
+    """Base de busca da Tutoria: lista oficial + Mapao + Prova Paulista."""
+    registros = []
+    ordem = 0
+    oficiais_por_nome: dict[str, list[dict]] = {}
+
+    def _limpar_ra(valor) -> str:
+        return "".join(ch for ch in str(valor or "") if ch.isdigit())
+
+    def _situacao_permite_fonte_externa(valor: str) -> bool:
+        texto = normalizar_texto(valor)
+        if not texto:
+            return True
+        if any(m in texto for m in ["BAIX", "INATIV", "DESLIG", "CANCEL", "EVADI", "ABANDON", "NAO COMPAREC"]):
+            return False
+        if "TRANSFER" in texto and "REMANEJ" not in texto:
+            return False
+        return True
+
+    def _add(nome, ra, turma, situacao, fonte, prioridade, ativo=True):
+        nonlocal ordem
+        nome = str(nome or "").strip()
+        turma = formatar_turma_eletiva(str(turma or "").strip())
+        ra = _limpar_ra(ra)
+        if not nome:
+            return
+        nome_norm = normalizar_texto(nome)
+        if ra:
+            chave = f"RA|{ra}"
+        else:
+            oficiais_nome = oficiais_por_nome.get(nome_norm, [])
+            if len(oficiais_nome) == 1 and oficiais_nome[0].get("ra"):
+                chave = f"RA|{oficiais_nome[0].get('ra')}"
+                ra = oficiais_nome[0].get("ra", "")
+            else:
+                chave = f"NOME|{nome_norm}|{turma_para_comparacao(turma)}"
+        registros.append({
+            "nome": nome,
+            "turma": turma,
+            "ra": ra,
+            "situacao": "Ativo" if ativo else str(situacao or "").strip(),
+            "situacao_origem": str(situacao or "").strip(),
+            "fonte_tutoria": fonte,
+            "_chave_integrada": chave,
+            "_prioridade_integrada": prioridade,
+            "_ordem_integrada": ordem,
+        })
+        ordem += 1
+
+    if isinstance(df_alunos, pd.DataFrame) and not df_alunos.empty:
+        base_oficial = df_alunos.copy()
+        for col in ["nome", "turma", "ra", "situacao"]:
+            if col not in base_oficial.columns:
+                base_oficial[col] = ""
+        for _, row in base_oficial.iterrows():
+            nome = str(row.get("nome", "") or "").strip()
+            if not nome:
+                continue
+            oficial = {
+                "nome": nome,
+                "turma": formatar_turma_eletiva(row.get("turma", "")),
+                "ra": _limpar_ra(row.get("ra", "")),
+                "situacao": str(row.get("situacao", "") or "").strip(),
+            }
+            oficiais_por_nome.setdefault(normalizar_texto(nome), []).append(oficial)
+            try:
+                ativo = estudante_ativo(pd.Series(oficial))
+            except Exception:
+                ativo = normalizar_texto(oficial.get("situacao", "")) in {"ATIVO", "ATIVA", ""}
+            if ativo:
+                _add(oficial["nome"], oficial["ra"], oficial["turma"], oficial["situacao"] or "Ativo", "Lista oficial", 70, ativo=True)
+
+    try:
+        df_mapao = _carregar_mapao_local()
+        if isinstance(df_mapao, pd.DataFrame) and not df_mapao.empty:
+            for _, row in df_mapao.iterrows():
+                situacao = str(row.get("Situacao", row.get("SituaÃ§Ã£o", row.get("situacao", ""))) or "").strip()
+                if _situacao_permite_fonte_externa(situacao):
+                    _add(
+                        row.get("Estudante", row.get("nome", row.get("Nome", ""))),
+                        row.get("RA", row.get("ra", "")),
+                        row.get("Turma", row.get("turma", "")),
+                        situacao or "Ativo",
+                        "Mapao",
+                        95,
+                        ativo=True,
+                    )
+    except Exception as e:
+        logger.warning(f"Nao foi possivel integrar Mapao na base da tutoria: {e}")
+
+    try:
+        df_prova = _carregar_prova_paulista_local()
+        if isinstance(df_prova, pd.DataFrame) and not df_prova.empty:
+            for _, row in df_prova.iterrows():
+                _add(
+                    row.get("Estudante", row.get("nome", row.get("Nome", ""))),
+                    row.get("RA", row.get("ra", "")),
+                    row.get("Turma", row.get("turma", "")),
+                    row.get("Situacao", row.get("SituaÃ§Ã£o", row.get("situacao", "Ativo"))),
+                    "Prova Paulista",
+                    90,
+                    ativo=True,
+                )
+    except Exception as e:
+        logger.warning(f"Nao foi possivel integrar Prova Paulista na base da tutoria: {e}")
+
+    if not registros:
+        return pd.DataFrame(columns=["nome", "turma", "ra", "situacao", "nome_norm", "nome_aprox", "turma_norm", "fonte_tutoria"])
+
+    base = pd.DataFrame(registros)
+    fontes = (
+        base.groupby("_chave_integrada")["fonte_tutoria"]
+        .apply(lambda s: ", ".join(sorted({str(v) for v in s if str(v).strip()})))
+        .to_dict()
+    )
+    base = (
+        base.sort_values(["_chave_integrada", "_prioridade_integrada", "_ordem_integrada"], kind="stable")
+        .drop_duplicates("_chave_integrada", keep="last")
+        .copy()
+    )
+    base["fonte_tutoria"] = base["_chave_integrada"].map(fontes).fillna(base["fonte_tutoria"])
+    base["nome"] = base["nome"].astype(str).str.strip()
+    base["turma"] = base["turma"].astype(str).apply(formatar_turma_eletiva)
+    base["ra"] = base["ra"].astype(str).str.replace(r"\D", "", regex=True)
+    base["situacao"] = base["situacao"].replace("", "Ativo")
+    base["nome_norm"] = base["nome"].apply(normalizar_texto)
+    base["nome_aprox"] = base["nome"].apply(_nome_para_busca_aproximada)
+    base["turma_norm"] = base["turma"].apply(turma_para_comparacao)
+    base = base[base["nome"].str.strip() != ""].copy()
+    return base.drop(columns=[c for c in base.columns if c.startswith("_")], errors="ignore").reset_index(drop=True)
+
 def montar_dataframe_tutoria(nome_tutor: str, df_alunos: pd.DataFrame, tutoria_dict: dict) -> pd.DataFrame:
     registro_tutor = obter_registro_tutoria(tutoria_dict, nome_tutor)
+    df_base_tutoria = preparar_base_estudantes_integrada_tutoria(df_alunos)
     df_tutoria = montar_dataframe_eletiva(
         nome_tutor,
-        df_alunos,
+        df_base_tutoria,
         {nome_tutor: registro_tutor.get("alunos", [])}
     )
     if df_tutoria.empty:
         return df_tutoria
+    manuais = {}
+    for item in registro_tutor.get("alunos", []) or []:
+        if not item.get("manual_fora_base"):
+            continue
+        nome = str(item.get("nome", "")).strip()
+        serie = formatar_turma_eletiva(str(item.get("serie", "")).strip())
+        ra = "".join(ch for ch in str(item.get("ra", "")) if ch.isdigit())
+        chave = f"RA|{ra}" if ra else f"NOME|{normalizar_texto(nome)}|{turma_para_comparacao(serie)}"
+        manuais[chave] = {"nome": nome, "serie": serie, "ra": ra}
+    if manuais and "Status" in df_tutoria.columns:
+        for idx, row in df_tutoria.iterrows():
+            ra_linha = "".join(ch for ch in str(row.get("RA", "")) if ch.isdigit())
+            nome_linha = str(row.get("Nome", "")).strip()
+            turma_linha = formatar_turma_eletiva(str(row.get("Turma", "")).strip())
+            chave_linha = f"RA|{ra_linha}" if ra_linha else f"NOME|{normalizar_texto(nome_linha)}|{turma_para_comparacao(turma_linha)}"
+            if chave_linha in manuais and str(row.get("Status", "")).strip() != "Encontrado":
+                manual = manuais[chave_linha]
+                df_tutoria.at[idx, "Status"] = "Manual"
+                df_tutoria.at[idx, "Aluno Cadastrado"] = manual.get("nome", nome_linha)
+                df_tutoria.at[idx, "Turma no Sistema"] = manual.get("serie", turma_linha)
+                df_tutoria.at[idx, "RA"] = manual.get("ra", ra_linha)
+                df_tutoria.at[idx, "SituaÃ§Ã£o"] = "Ativo"
     df_tutoria["Espaço"] = registro_tutor.get("espaco", "")
     df_tutoria["Horário"] = registro_tutor.get("horario", "")
     df_tutoria["Dia"] = registro_tutor.get("dia", "")
@@ -6752,14 +6929,14 @@ def montar_dataframe_tutoria(nome_tutor: str, df_alunos: pd.DataFrame, tutoria_d
     if "Situação" in df_tutoria.columns:
         df_tutoria = df_tutoria[df_tutoria["Situação"].apply(lambda v: normalizar_texto(v) in {"ATIVO", "ATIVA"})].copy()
     if "Status" in df_tutoria.columns:
-        df_tutoria = df_tutoria[df_tutoria["Status"].astype(str).str.strip().eq("Encontrado")].copy()
+        df_tutoria = df_tutoria[df_tutoria["Status"].astype(str).str.strip().isin(["Encontrado", "Manual"])].copy()
     if "Nome" in df_tutoria.columns:
         df_tutoria = df_tutoria.sort_values(["Nome"], kind="stable").reset_index(drop=True)
     return df_tutoria
 
 def _indice_alunos_para_atualizar_turmas(df_alunos: pd.DataFrame) -> tuple[dict, dict]:
     """Monta índices por RA e por nome para atualizar turmas nas listas vinculadas."""
-    base = preparar_base_alunos_ativos_tutoria(df_alunos)
+    base = preparar_base_estudantes_integrada_tutoria(df_alunos)
     por_ra = {}
     por_nome = {}
     if base.empty:
@@ -15076,6 +15253,7 @@ elif "ALUNOS E TURMAS" in normalizar_texto(menu) or "IMPORTAR ALUNOS" in normali
                         atualizados = 0
                         ignorados = 0
                         erros = 0
+                        lista_importada_sucesso = []
 
                         progress = st.progress(0)
                         status = st.empty()
@@ -15133,11 +15311,13 @@ elif "ALUNOS E TURMAS" in normalizar_texto(menu) or "IMPORTAR ALUNOS" in normali
                                 if not existe.empty:
                                     if atualizar_aluno(ra_str, aluno):
                                         atualizados += 1
+                                        lista_importada_sucesso.append(aluno.copy())
                                     else:
                                         erros += 1
                                 else:
                                     if salvar_aluno(aluno):
                                         novos += 1
+                                        lista_importada_sucesso.append(aluno.copy())
                                     else:
                                         erros += 1
 
@@ -15179,6 +15359,13 @@ elif "ALUNOS E TURMAS" in normalizar_texto(menu) or "IMPORTAR ALUNOS" in normali
 
                         if novos + atualizados > 0:
                             carregar_alunos.clear()
+                            if lista_importada_sucesso:
+                                st.session_state["ultima_lista_alunos_atualizada"] = {
+                                    "turma": turma_alunos_padronizada,
+                                    "origem": "Importacao de alunos",
+                                    "data": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                                    "registros": lista_importada_sucesso,
+                                }
                             try:
                                 df_alunos_atualizado = carregar_alunos()
                                 sync_stats = sincronizar_turmas_listas_com_base(df_alunos_atualizado, origem="importacao_alunos")
@@ -15200,6 +15387,20 @@ elif "ALUNOS E TURMAS" in normalizar_texto(menu) or "IMPORTAR ALUNOS" in normali
         sync_msg_importacao = st.session_state.pop("importacao_sync_listas_msg", "")
         if sync_msg_importacao:
             st.success(sync_msg_importacao)
+
+        ultima_lista_atualizada = st.session_state.get("ultima_lista_alunos_atualizada")
+        if ultima_lista_atualizada:
+            registros_ultima_lista = ultima_lista_atualizada.get("registros", [])
+            df_ultima_lista = pd.DataFrame(registros_ultima_lista)
+            if not df_ultima_lista.empty:
+                with st.expander("Nova lista enviada por ultimo", expanded=True):
+                    st.caption(
+                        f"{ultima_lista_atualizada.get('origem', 'Atualizacao')} - "
+                        f"Turma {ultima_lista_atualizada.get('turma', '')} - "
+                        f"{ultima_lista_atualizada.get('data', '')}"
+                    )
+                    colunas_ultima = [c for c in ["ra", "nome", "turma", "situacao"] if c in df_ultima_lista.columns]
+                    st.dataframe(df_ultima_lista[colunas_ultima], use_container_width=True, hide_index=True)
 
         st.markdown("---")
         st.markdown("""
@@ -15436,6 +15637,18 @@ elif "ALUNOS E TURMAS" in normalizar_texto(menu) or "IMPORTAR ALUNOS" in normali
             sync_msg_turma = st.session_state.pop("turma_sync_listas_msg", "")
             if sync_msg_turma:
                 st.success(sync_msg_turma)
+            ultima_lista_turma = st.session_state.get("ultima_lista_alunos_atualizada")
+            if ultima_lista_turma:
+                df_ultima_turma = pd.DataFrame(ultima_lista_turma.get("registros", []))
+                if not df_ultima_turma.empty:
+                    with st.expander("Nova lista atualizada", expanded=True):
+                        st.caption(
+                            f"{ultima_lista_turma.get('origem', 'Atualizacao')} - "
+                            f"Turma {ultima_lista_turma.get('turma', '')} - "
+                            f"{ultima_lista_turma.get('data', '')}"
+                        )
+                        cols_ultima_turma = [c for c in ["ra", "nome", "turma", "situacao"] if c in df_ultima_turma.columns]
+                        st.dataframe(df_ultima_turma[cols_ultima_turma], use_container_width=True, hide_index=True)
             df_config_turmas = carregar_config_turmas()
             mapa_coord_turma = {}
             mapa_updated_turma = {}
@@ -15507,6 +15720,7 @@ elif "ALUNOS E TURMAS" in normalizar_texto(menu) or "IMPORTAR ALUNOS" in normali
                 st.subheader(f"👥 Alunos da Turma {turma}")
                 alunos_turma = df_alunos[df_alunos["turma"] == turma]
                 st.dataframe(alunos_turma[["ra", "nome", "situacao"]], use_container_width=True, hide_index=True)
+                _render_estudantes_fora_da_lista_oficial(turma, df_alunos)
                 if st.button("❌ Fechar Visualização"):
                     st.session_state.turma_selecionada = None
                     st.rerun()
@@ -15625,6 +15839,12 @@ elif "ALUNOS E TURMAS" in normalizar_texto(menu) or "IMPORTAR ALUNOS" in normali
                                     f"e {sync_stats.get('tutoria', 0)} vínculo(s) de tutoria. "
                                     f"Backup local criado antes da alteração."
                                 )
+                                st.session_state["ultima_lista_alunos_atualizada"] = {
+                                    "turma": turma,
+                                    "origem": "Substituicao de turma",
+                                    "data": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                                    "registros": previa[["ra", "nome", "turma", "situacao"]].to_dict("records"),
+                                }
                                 st.session_state.turma_para_substituir = None
                                 st.rerun()
 
@@ -17204,27 +17424,8 @@ elif menu == "🫂 Tutoria":
         return True
 
     def preparar_base_alunos_ativos_tutoria(df_alunos: pd.DataFrame) -> pd.DataFrame:
-        """Prepara a base de estudantes do Supabase para busca inteligente da tutoria."""
-        if df_alunos is None or df_alunos.empty or "nome" not in df_alunos.columns:
-            return pd.DataFrame()
-
-        base = df_alunos.copy()
-        if "turma" not in base.columns:
-            base["turma"] = ""
-        if "ra" not in base.columns:
-            base["ra"] = ""
-        if "situacao" not in base.columns:
-            base["situacao"] = ""
-
-        base["nome"] = base["nome"].astype(str).str.strip()
-        base["turma"] = base["turma"].astype(str).apply(formatar_turma_eletiva)
-        base["ra"] = base["ra"].astype(str).str.replace(r"\D", "", regex=True)
-        base["nome_norm"] = base["nome"].apply(normalizar_texto)
-        base["nome_aprox"] = base["nome"].apply(_nome_para_busca_aproximada)
-        base["turma_norm"] = base["turma"].apply(turma_para_comparacao)
-        base = base[base.apply(estudante_ativo, axis=1)]
-        base = base[base["nome"].str.strip() != ""]
-        return base.reset_index(drop=True)
+        """Prepara a base integrada para busca inteligente da tutoria."""
+        return preparar_base_estudantes_integrada_tutoria(df_alunos)
 
 
     def _score_nome_tutoria(nome_digitado: str, nome_base: str) -> float:
@@ -17635,6 +17836,26 @@ elif menu == "🫂 Tutoria":
     # Esta parte concentra mensagens de fonte de dados e botões de restauração/sincronização.
     # Para deixar a tela pedagógica limpa, ela fica dentro de um expander fechado.
     # Se quiser esconder completamente, troque para False.
+    col_atualizar_tutoria, col_fonte_tutoria = st.columns([1, 2])
+    with col_atualizar_tutoria:
+        if st.button("Atualizar listas da Tutoria", key="tutoria_btn_atualizar_lista_integrada", type="primary", use_container_width=True):
+            try:
+                try:
+                    carregar_alunos.clear()
+                    df_alunos_refresh = carregar_alunos()
+                except Exception:
+                    df_alunos_refresh = df_alunos
+                sync_stats_atualizacao = sincronizar_turmas_listas_com_base(df_alunos_refresh, origem="atualizacao_manual_tutoria")
+                st.session_state["tutoria_responsaveis_sync_warning"] = (
+                    "Listas da Tutoria atualizadas usando Lista oficial, Mapao e Prova Paulista. "
+                    f"{sync_stats_atualizacao.get('tutoria', 0)} vinculo(s) de tutoria ajustado(s)."
+                )
+                st.rerun()
+            except Exception as e:
+                st.warning(f"Nao foi possivel atualizar as listas da Tutoria agora: {e}")
+    with col_fonte_tutoria:
+        st.caption("A atualizacao considera remanejamentos pela lista oficial, Mapao e Prova Paulista antes de buscar ou imprimir a Tutoria.")
+
     EXIBIR_MANUTENCAO_TUTORIA = True
 
     if EXIBIR_MANUTENCAO_TUTORIA:
@@ -18054,12 +18275,96 @@ elif menu == "🫂 Tutoria":
             })
         return pd.DataFrame(linhas)
 
+    def _assinatura_unica_duplicidade_tutoria(item: dict) -> str:
+        ra = "".join(ch for ch in str(item.get("ra", "")) if ch.isdigit())
+        nome = normalizar_texto(item.get("nome", ""))
+        turma = turma_para_comparacao(item.get("serie", ""))
+        return f"RA|{ra}" if ra else f"NOME|{nome}|{turma}"
+
+    def _localizar_duplicidades_detalhadas_tutoria(tutoria_dict: dict) -> list[dict]:
+        grupos = {}
+        for tutor_nome, dados_tutor in normalizar_base_tutoria(tutoria_dict).items():
+            for aluno_item in dados_tutor.get("alunos", []) or []:
+                assinatura = _assinatura_unica_duplicidade_tutoria(aluno_item)
+                if not assinatura or assinatura in {"NOME||"}:
+                    continue
+                grupos.setdefault(assinatura, []).append({
+                    "tutor": tutor_nome,
+                    "nome": str(aluno_item.get("nome", "")).strip(),
+                    "serie": formatar_turma_eletiva(aluno_item.get("serie", "")),
+                    "ra": "".join(ch for ch in str(aluno_item.get("ra", "")) if ch.isdigit()),
+                })
+        duplicados = []
+        for assinatura, vinculos in grupos.items():
+            tutores = sorted({str(v.get("tutor", "")).strip() for v in vinculos if str(v.get("tutor", "")).strip()})
+            if len(tutores) <= 1:
+                continue
+            primeiro = vinculos[0]
+            duplicados.append({
+                "assinatura": assinatura,
+                "nome": primeiro.get("nome", ""),
+                "serie": primeiro.get("serie", ""),
+                "ra": primeiro.get("ra", ""),
+                "tutores": tutores,
+            })
+        return sorted(duplicados, key=lambda d: (normalizar_texto(d.get("nome", "")), d.get("serie", "")))
+
+    def _aplicar_escolhas_duplicidade_tutoria(escolhas: dict[str, str]) -> int:
+        removidos = []
+        manter_por_assinatura = {k: v for k, v in escolhas.items() if k and v}
+        if not manter_por_assinatura:
+            return 0
+        for assinatura, tutor_manter in manter_por_assinatura.items():
+            for tutor_nome, dados_tutor in list(TUTORIA.items()):
+                novos_alunos = []
+                for aluno_item in dados_tutor.get("alunos", []) or []:
+                    if _assinatura_unica_duplicidade_tutoria(aluno_item) == assinatura and str(tutor_nome).strip() != str(tutor_manter).strip():
+                        removidos.append({"tutor": tutor_nome, "item": aluno_item})
+                        continue
+                    novos_alunos.append(aluno_item)
+                TUTORIA[tutor_nome]["alunos"] = novos_alunos
+        if not removidos:
+            return 0
+        _salvar_estado_tutoria("resolver_duplicidade")
+        if SUPABASE_VALID:
+            for removido in removidos:
+                item = removido.get("item", {})
+                _excluir_registro_tutoria_supabase(
+                    removido.get("tutor", ""),
+                    str(item.get("nome", "")),
+                    str(item.get("serie", "")),
+                    str(item.get("ra", "")),
+                )
+        return len(removidos)
+
     duplicidades_tutoria_df = _localizar_duplicidades_tutoria(TUTORIA)
     if not duplicidades_tutoria_df.empty:
         st.warning(f"⚠️ Existem {len(duplicidades_tutoria_df)} estudante(s) em duplicidade nas listas de tutoria.")
         with st.expander("🔁 Ver estudantes em duplicidade", expanded=False):
             st.dataframe(duplicidades_tutoria_df, use_container_width=True, hide_index=True)
-            st.caption("Remova o estudante da lista incorreta antes de tentar vinculá-lo a outro responsável.")
+            duplicidades_detalhadas = _localizar_duplicidades_detalhadas_tutoria(TUTORIA)
+            if duplicidades_detalhadas:
+                st.caption("Escolha com qual responsavel cada estudante deve ficar. O sistema remove o vinculo das demais listas.")
+                escolhas_duplicidade = {}
+                with st.form("form_resolver_duplicidades_tutoria"):
+                    for idx_dup, dup in enumerate(duplicidades_detalhadas[:50]):
+                        label_dup = f"{dup.get('nome', '')} - {dup.get('serie', '')}"
+                        if dup.get("ra"):
+                            label_dup += f" - RA {dup.get('ra')}"
+                        escolha = st.selectbox(
+                            label_dup,
+                            dup.get("tutores", []),
+                            key=f"tutoria_dup_escolha_{idx_dup}_{gerar_chave_segura(dup.get('assinatura', ''))}"
+                        )
+                        escolhas_duplicidade[dup.get("assinatura", "")] = escolha
+                    if st.form_submit_button("Aplicar escolhas de duplicidade", type="primary"):
+                        qtd_removidos_dup = _aplicar_escolhas_duplicidade_tutoria(escolhas_duplicidade)
+                        if qtd_removidos_dup:
+                            st.success(f"Duplicidade resolvida. {qtd_removidos_dup} vinculo(s) removido(s) das listas incorretas.")
+                            st.rerun()
+                        else:
+                            st.info("Nenhuma duplicidade foi alterada.")
+            st.caption("Depois de aplicar a escolha, o estudante fica somente com o responsável selecionado.")
 
     # ======================================================
     # ======================================================
@@ -18289,6 +18594,94 @@ elif menu == "🫂 Tutoria":
 
         return len(inseridos)
 
+    def _adicionar_estudantes_manuais_diretos_tutoria(novos_estudantes: list, origem: str, tutor_destino: str | None = None):
+        tutor_destino = str(tutor_destino or tutor_sel).strip()
+        registro = TUTORIA.setdefault(tutor_destino, estrutura_tutoria_vazia(nome=tutor_destino))
+        existentes = registro.get("alunos", [])
+
+        chaves_existentes = set()
+        for item in existentes:
+            ra_existente = "".join(ch for ch in str(item.get("ra", "")) if ch.isdigit())
+            nome_existente = normalizar_texto(item.get("nome", ""))
+            serie_existente = turma_para_comparacao(item.get("serie", ""))
+            if ra_existente:
+                chaves_existentes.add(f"RA|{ra_existente}")
+            chaves_existentes.add(f"NOME|{nome_existente}|{serie_existente}")
+
+        inseridos = []
+        bloqueados = []
+        for item in novos_estudantes or []:
+            nome = str(item.get("nome", "")).strip()
+            serie = formatar_turma_eletiva(str(item.get("serie", "")).strip())
+            ra = "".join(ch for ch in str(item.get("ra", "")) if ch.isdigit())
+            if not nome:
+                continue
+            novo = {"nome": nome, "serie": serie, "ra": ra}
+            ja_tem, vinculos = _estudante_ja_tem_tutor(novo, TUTORIA, tutor_permitido=tutor_destino)
+            if ja_tem:
+                bloqueados.append({
+                    "nome": nome,
+                    "serie": serie,
+                    "ra": ra,
+                    "tutores": ", ".join(sorted({v.get("tutor", "") for v in vinculos if v.get("tutor", "")})),
+                })
+                continue
+            chave_ra = f"RA|{ra}" if ra else ""
+            chave_nome = f"NOME|{normalizar_texto(nome)}|{turma_para_comparacao(serie)}"
+            if (chave_ra and chave_ra in chaves_existentes) or chave_nome in chaves_existentes:
+                continue
+            novo_registro = {
+                "nome": nome,
+                "serie": serie,
+                "ra": ra,
+                "manual_fora_base": True,
+                "origem": origem,
+                "situacao": "Ativo",
+                "status_busca": "Inserido manualmente fora da base oficial",
+            }
+            existentes.append(novo_registro)
+            inseridos.append(novo_registro)
+            if chave_ra:
+                chaves_existentes.add(chave_ra)
+            chaves_existentes.add(chave_nome)
+
+        if bloqueados:
+            st.session_state["tutoria_bloqueados_ultimo"] = bloqueados
+            st.warning(
+                "Estudantes nao inseridos porque ja aparecem em outra lista. Use a area de duplicidade para escolher com quem ficam: "
+                + ", ".join([f"{b['nome']} ({b['serie']}) - {b['tutores']}" for b in bloqueados[:10]])
+            )
+
+        if not inseridos:
+            return 0
+
+        registro["alunos"] = existentes
+        TUTORIA[tutor_destino] = registro
+        _salvar_estado_tutoria("manual_fora_base")
+
+        if SUPABASE_VALID:
+            try:
+                registros = []
+                for item in inseridos:
+                    registros.append({
+                        "professora": tutor_destino,
+                        "nome_aluno": item.get("nome", ""),
+                        "serie": item.get("serie", ""),
+                        "ra": item.get("ra", ""),
+                        "origem": origem,
+                    })
+                _post_tutoria_lote_com_fallback(registros)
+            except Exception as e:
+                st.session_state["tutoria_feedback"] = {
+                    "tipo": "warning",
+                    "msg": (
+                        f"{len(inseridos)} estudante(s) foram salvos localmente para {tutor_destino}, "
+                        f"mas a sincronizacao com o Supabase falhou. {mensagem_erro_tutoria_supabase(e)}"
+                    )
+                }
+
+        return len(inseridos)
+
     st.markdown("---")
     st.subheader("📝 Cadastro em Lista por Responsável")
     st.caption("Escolha o responsável e cole a lista inteira, como na eletiva.")
@@ -18403,6 +18796,46 @@ elif menu == "🫂 Tutoria":
         except Exception as e:
             st.error(f"Erro ao registrar lista do responsável: {e}")
 
+    with st.expander("Inserir manualmente fora da lista oficial", expanded=False):
+        st.caption("Use quando o estudante ainda nao aparece em nenhuma turma, mas precisa entrar na tutoria do responsavel selecionado.")
+        col_manual_nome, col_manual_turma = st.columns([2, 1])
+        with col_manual_nome:
+            lista_manual_livre = st.text_area(
+                "Estudante(s)",
+                key="tutoria_manual_livre_lista",
+                height=120,
+                placeholder="Maria Silva\nJoao Santos; 8A\nAna Souza"
+            )
+        with col_manual_turma:
+            turma_manual_livre = st.text_input(
+                "Turma padrao opcional",
+                key="tutoria_manual_livre_turma",
+                placeholder="Ex: 8o Ano A"
+            )
+            ra_manual_livre = st.text_input(
+                "RA opcional para linha unica",
+                key="tutoria_manual_livre_ra",
+                placeholder="Somente numeros"
+            )
+        if st.button("Adicionar manualmente na tutoria", key="tutoria_btn_manual_livre", type="primary", use_container_width=True):
+            novos_manuais = []
+            for linha in lista_manual_livre.splitlines():
+                item = _normalizar_linha_lista_tutoria(linha, serie_padrao=turma_manual_livre)
+                if item:
+                    novos_manuais.append(item)
+            if len(novos_manuais) == 1 and ra_manual_livre.strip():
+                novos_manuais[0]["ra"] = "".join(ch for ch in str(ra_manual_livre) if ch.isdigit())
+            qtd_manual_livre = _adicionar_estudantes_manuais_diretos_tutoria(
+                novos_manuais,
+                origem="manual_fora_base",
+                tutor_destino=tutor_sel
+            )
+            if qtd_manual_livre > 0:
+                st.success(f"{qtd_manual_livre} estudante(s) inserido(s) manualmente na tutoria de {tutor_sel}.")
+                st.rerun()
+            else:
+                st.warning("Nenhum estudante manual novo foi inserido.")
+
     # ======================================================
     # TUTORIA - INSERIR ESTUDANTES
     # Objetivo: buscar estudantes ativos do Supabase por nome e/ou sala,
@@ -18460,8 +18893,8 @@ elif menu == "🫂 Tutoria":
     # ------------------------------------------------------
     # 1) Busca no cadastro oficial de alunos ativos
     # ------------------------------------------------------
-    st.markdown("#### 🔎 Buscar no cadastro oficial")
-    if df_alunos.empty:
+    st.markdown("#### 🔎 Buscar na base integrada")
+    if df_alunos.empty and preparar_base_alunos_ativos_tutoria(df_alunos).empty:
         st.info("Não há alunos carregados do Supabase para buscar.")
     else:
         base_busca = preparar_base_alunos_ativos_tutoria(df_alunos).copy()
@@ -18542,9 +18975,12 @@ elif menu == "🫂 Tutoria":
                 nome = str(linha.get("nome", "")).strip()
                 turma = formatar_turma_eletiva(str(linha.get("turma_padrao", linha.get("turma", ""))).strip())
                 ra = "".join(ch for ch in str(linha.get("ra", "")) if ch.isdigit())
+                fonte = str(linha.get("fonte_tutoria", "") or "").strip()
                 label = f"{nome} — {turma}" if turma else nome
                 if ra:
                     label = f"{label} — RA {ra}"
+                if fonte and fonte != "Lista oficial":
+                    label = f"{label} — {fonte}"
                 opcoes.append(label)
                 mapa_opcoes[label] = {"nome": nome, "serie": turma, "ra": ra}
 
@@ -18671,21 +19107,25 @@ elif menu == "🫂 Tutoria":
     total = len(df_tutoria)
     if not df_tutoria.empty and "Status" in df_tutoria.columns:
         encontrados = len(df_tutoria[df_tutoria["Status"] == "Encontrado"])
+        manuais = len(df_tutoria[df_tutoria["Status"] == "Manual"])
         nao_encontrados = len(df_tutoria[df_tutoria["Status"] == "Não encontrado"])
     else:
         encontrados = 0
+        manuais = 0
         nao_encontrados = 0
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric("Total", total)
     with col2:
         st.metric("Encontrados", encontrados)
     with col3:
+        st.metric("Manuais", manuais)
+    with col4:
         st.metric("Não Encontrados", nao_encontrados)
 
     busca_nome = st.text_input("🔍 Buscar estudante na tutoria", placeholder="Digite parte do nome", key="tutoria_busca_estudante")
-    filtro_status = st.selectbox("Filtrar por status", ["Todos", "Encontrado", "Não encontrado"], key="tutoria_filtro_status")
+    filtro_status = st.selectbox("Filtrar por status", ["Todos", "Encontrado", "Manual", "Não encontrado"], key="tutoria_filtro_status")
     df_view = df_tutoria.copy()
     if busca_nome:
         df_view = df_view[df_view["Nome"].str.contains(busca_nome, case=False, na=False)]
@@ -18787,7 +19227,7 @@ elif menu == "🫂 Tutoria":
     st.subheader("🔎 Estudantes Sem Tutor")
     st.caption("Mostra estudantes ativos do Supabase que ainda não aparecem em nenhuma lista de tutoria. É possível ver no geral ou por sala.")
 
-    if not df_alunos.empty and "nome" in df_alunos.columns and "turma" in df_alunos.columns:
+    if (not df_alunos.empty and "nome" in df_alunos.columns and "turma" in df_alunos.columns) or not preparar_base_alunos_ativos_tutoria(df_alunos).empty:
         base_ativa_tutoria = preparar_base_alunos_ativos_tutoria(df_alunos)
 
         frames = []
