@@ -13455,6 +13455,140 @@ def _lp_limpar_ra(valor):
     return texto
 
 
+
+def _lp_extrair_texto_pdf_bytes(bruto: bytes) -> str:
+    """Extrai texto de PDF sem gravar nada no banco. Tenta PyMuPDF e depois pypdf/PyPDF2."""
+    texto = ""
+    try:
+        import fitz  # PyMuPDF
+        with fitz.open(stream=bruto, filetype="pdf") as doc:
+            partes = []
+            for pagina in doc:
+                partes.append(pagina.get_text("text") or "")
+            texto = "\n".join(partes)
+    except Exception:
+        texto = ""
+    if texto.strip():
+        return texto
+    try:
+        try:
+            from pypdf import PdfReader
+        except Exception:
+            from PyPDF2 import PdfReader
+        reader = PdfReader(BytesIO(bruto))
+        partes = []
+        for pagina in reader.pages:
+            try:
+                partes.append(pagina.extract_text() or "")
+            except Exception:
+                pass
+        texto = "\n".join(partes)
+    except Exception:
+        texto = ""
+    return texto
+
+
+def _lp_nome_valido_linha_pdf(nome: str) -> bool:
+    nome_n = _lp_normalizar_texto(nome)
+    if not nome_n or len(nome_n) < 6:
+        return False
+    bloqueios = [
+        "LISTA", "TUTORIA", "TURMA", "PROFESSOR", "RESPONSAVEL", "RESPONSÁVEL",
+        "SECRETARIA", "ESCOLA", "SISTEMA", "CONVIVA", "DATA", "PAGINA", "PÁGINA",
+        "NOME", "ALUNO", "ESTUDANTE", "TOTAL", "ASSINATURA", "COORDENACAO", "COORDENAÇÃO",
+    ]
+    if any(b in nome_n for b in bloqueios):
+        return False
+    # exige pelo menos duas partes para evitar capturar apelidos/cabeçalhos
+    return len([x for x in nome_n.split() if x]) >= 2
+
+
+def _lp_titulo_nome(valor: str) -> str:
+    valor = re.sub(r"\s+", " ", str(valor or "").strip())
+    if not valor:
+        return ""
+    # Mantém siglas muito curtas; melhora nomes em caixa baixa/alta para impressão.
+    partes = []
+    minusculas = {"da", "de", "do", "das", "dos", "e"}
+    for pedaco in valor.split():
+        p = pedaco.strip()
+        if not p:
+            continue
+        if len(p) <= 2 and p.isupper():
+            partes.append(p)
+        elif p.lower() in minusculas:
+            partes.append(p.lower())
+        else:
+            partes.append(p[:1].upper() + p[1:].lower())
+    return " ".join(partes)
+
+
+def _lp_pdf_para_dataframe(bruto: bytes) -> pd.DataFrame:
+    """Transforma PDF de lista de tutoria em tabela editável.
+
+    Procura linhas no padrão: ESTUDANTE | TURMA | RESPONSÁVEL/TUTOR(A).
+    Não salva nada. A tabela final pode ser corrigida manualmente no editor.
+    """
+    texto = _lp_extrair_texto_pdf_bytes(bruto)
+    colunas = ["Nº", "Nome", "RA", "Turma", "Responsável/Tutor(a)", "Situação/Observação"]
+    if not texto.strip():
+        return pd.DataFrame(columns=colunas)
+
+    turma_re = re.compile(
+        r"(?P<turma>\b\d{1,2}\s*[º°oO]?\s*(?:ANO\s*)?[A-Z](?:\s*-\s*TEC)?\b)",
+        flags=re.IGNORECASE,
+    )
+    linhas_saida = []
+    linhas = [re.sub(r"\s+", " ", x).strip() for x in texto.splitlines()]
+    for linha in linhas:
+        if not linha or len(linha) < 8:
+            continue
+        linha_norm = _lp_normalizar_texto(linha)
+        if any(cab in linha_norm for cab in ["NOME DO ALUNO", "FICHA DE", "RENDIMENTO", "COMPONENTE CURRICULAR"]):
+            continue
+        m = turma_re.search(linha)
+        if not m:
+            continue
+        nome = linha[:m.start()].strip(" -|;:\t")
+        turma = m.group("turma").strip()
+        resto = linha[m.end():].strip(" -|;:\t")
+        # Remove números soltos de posição/chamada no começo do nome, se houver.
+        nome = re.sub(r"^\d+\s+", "", nome).strip()
+        if not _lp_nome_valido_linha_pdf(nome):
+            continue
+        # Quando o PDF veio com RA na frente ou atrás, captura e limpa.
+        ra = ""
+        possiveis_ra = re.findall(r"\b\d{8,13}\b", linha)
+        if possiveis_ra:
+            ra = _lp_limpar_ra(possiveis_ra[0])
+            nome = re.sub(r"\b" + re.escape(possiveis_ra[0]) + r"\b", "", nome).strip()
+            resto = re.sub(r"\b" + re.escape(possiveis_ra[0]) + r"\b", "", resto).strip()
+        tutor = resto.strip()
+        # Limita tutor a texto plausível; evita restos de rodapé/página.
+        tutor = re.sub(r"\s+", " ", tutor).strip(" -|;:")
+        if _lp_normalizar_texto(tutor) in {"", "TUTOR", "PROFESSOR", "RESPONSAVEL", "RESPONSÁVEL"}:
+            tutor = ""
+        linhas_saida.append({
+            "Nº": len(linhas_saida) + 1,
+            "Nome": _lp_titulo_nome(nome),
+            "RA": ra,
+            "Turma": turma.replace("o", "º").replace("O", "º"),
+            "Responsável/Tutor(a)": _lp_titulo_nome(tutor),
+            "Situação/Observação": "Extraído do PDF",
+        })
+
+    if not linhas_saida:
+        return pd.DataFrame(columns=colunas)
+    df = pd.DataFrame(linhas_saida)
+    # Remove duplicidade do PDF por RA, ou por Nome+Turma quando não há RA.
+    df["_chave"] = df.apply(
+        lambda r: str(r.get("RA", "")).strip() if str(r.get("RA", "")).strip() else (_lp_normalizar_texto(r.get("Nome", "")) + "|" + _lp_normalizar_texto(r.get("Turma", ""))),
+        axis=1,
+    )
+    df = df.drop_duplicates("_chave", keep="first").drop(columns=["_chave"], errors="ignore").reset_index(drop=True)
+    df["Nº"] = range(1, len(df) + 1)
+    return df[colunas]
+
 def _lp_ler_upload(arquivo):
     nome = str(getattr(arquivo, "name", "")).lower()
     if nome.endswith(".csv"):
@@ -13470,7 +13604,9 @@ def _lp_ler_upload(arquivo):
         return pd.read_csv(BytesIO(bruto), sep=None, engine="python")
     if nome.endswith((".xlsx", ".xls")):
         return pd.read_excel(arquivo)
-    raise ValueError("Formato não aceito. Use CSV, XLS ou XLSX.")
+    if nome.endswith(".pdf"):
+        return _lp_pdf_para_dataframe(arquivo.getvalue())
+    raise ValueError("Formato não aceito. Use CSV, XLS, XLSX ou PDF.")
 
 
 def _lp_detectar_coluna(colunas, candidatos):
@@ -13484,7 +13620,7 @@ def _lp_detectar_coluna(colunas, candidatos):
 
 
 def _lp_normalizar_lista(df):
-    colunas_padrao = ["Nº", "Nome", "RA", "Turma", "Situação/Observação"]
+    colunas_padrao = ["Nº", "Nome", "RA", "Turma", "Responsável/Tutor(a)", "Situação/Observação"]
     if df is None or df.empty:
         return pd.DataFrame(columns=colunas_padrao)
 
@@ -13503,6 +13639,9 @@ def _lp_normalizar_lista(df):
     col_situacao = _lp_detectar_coluna(df.columns, [
         "Situação", "Situacao", "Situação do Aluno", "Status", "Observação", "Observacao"
     ])
+    col_tutor = _lp_detectar_coluna(df.columns, [
+        "Responsável", "Responsavel", "Tutor", "Tutora", "Professor", "Professor(a)", "Professora", "Nome do responsável"
+    ])
     col_numero = _lp_detectar_coluna(df.columns, [
         "Nº", "N°", "Numero", "Número", "Chamada", "Nº de chamada"
     ])
@@ -13511,6 +13650,7 @@ def _lp_normalizar_lista(df):
     base["Nome"] = df[col_nome].astype(str).str.strip() if col_nome else ""
     base["RA"] = df[col_ra].apply(_lp_limpar_ra) if col_ra else ""
     base["Turma"] = df[col_turma].astype(str).str.strip() if col_turma else ""
+    base["Responsável/Tutor(a)"] = df[col_tutor].astype(str).str.strip() if col_tutor else ""
     base["Situação/Observação"] = df[col_situacao].astype(str).str.strip() if col_situacao else ""
     base["Nº"] = df[col_numero] if col_numero else range(1, len(base) + 1)
 
@@ -13546,6 +13686,7 @@ def _lp_html_impressao(df, titulo, responsavel, turma, observacoes):
             <td>{html.escape(str(row.get('Nome', '')))}</td>
             <td>{html.escape(str(row.get('RA', '')))}</td>
             <td>{html.escape(str(row.get('Turma', '')))}</td>
+            <td>{html.escape(str(row.get('Responsável/Tutor(a)', '')))}</td>
             <td>{html.escape(str(row.get('Situação/Observação', '')))}</td>
         </tr>
         """)
@@ -13593,8 +13734,9 @@ def _lp_html_impressao(df, titulo, responsavel, turma, observacoes):
                     <th style="width:6%;">Nº</th>
                     <th>Nome</th>
                     <th style="width:18%;">RA</th>
-                    <th style="width:15%;">Turma</th>
-                    <th style="width:24%;">Situação/Observação</th>
+                    <th style="width:13%;">Turma</th>
+                    <th style="width:22%;">Responsável/Tutor(a)</th>
+                    <th style="width:20%;">Situação/Observação</th>
                 </tr>
             </thead>
             <tbody>{''.join(linhas)}</tbody>
@@ -13650,17 +13792,18 @@ def _lp_pdf_bytes(df, titulo, responsavel, turma, observacoes):
     elementos.append(Paragraph(f"<b>Observações:</b> {html.escape(str(observacoes))}", estilo_pequeno))
     elementos.append(Spacer(1, 8))
 
-    dados = [["Nº", "Nome", "RA", "Turma", "Situação/Observação"]]
+    dados = [["Nº", "Nome", "RA", "Turma", "Responsável/Tutor(a)", "Situação/Observação"]]
     for _, row in df.iterrows():
         dados.append([
             str(row.get("Nº", "")),
             Paragraph(html.escape(str(row.get("Nome", ""))), estilo_pequeno),
             str(row.get("RA", "")),
             str(row.get("Turma", "")),
+            Paragraph(html.escape(str(row.get("Responsável/Tutor(a)", ""))), estilo_pequeno),
             Paragraph(html.escape(str(row.get("Situação/Observação", ""))), estilo_pequeno),
         ])
 
-    tabela = Table(dados, colWidths=[28, 190, 85, 70, 150], repeatRows=1)
+    tabela = Table(dados, colWidths=[25, 165, 70, 58, 105, 100], repeatRows=1)
     tabela.setStyle(TableStyle([
         ("GRID", (0, 0), (-1, -1), 0.4, colors.black),
         ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
@@ -13699,18 +13842,19 @@ def _render_pagina_lista_provisoria_tutoria():
 
     arquivo = st.file_uploader(
         "Envie a lista provisória",
-        type=["csv", "xls", "xlsx"],
+        type=["csv", "xls", "xlsx", "pdf"],
         key="lp_upload_lista_tutoria",
-        help="Aceita CSV, XLS e XLSX. A página tenta identificar automaticamente Nome, RA, Turma e Situação.",
+        help="Aceita CSV, XLS, XLSX e PDF. No PDF, tenta buscar estudantes, turma e responsável/tutor(a) para você editar antes de imprimir.",
     )
 
     if arquivo is None:
-        st.warning("Envie uma lista em CSV, XLS ou XLSX para começar.")
+        st.warning("Envie uma lista em CSV, XLS, XLSX ou PDF para começar.")
         modelo = pd.DataFrame({
             "Nº": [1, 2],
             "Nome": ["EXEMPLO DE ESTUDANTE 1", "EXEMPLO DE ESTUDANTE 2"],
             "RA": ["000000000", "111111111"],
             "Turma": ["8º A", "8º A"],
+            "Responsável/Tutor(a)": ["", ""],
             "Situação/Observação": ["", ""],
         })
         st.download_button(
@@ -13730,6 +13874,23 @@ def _render_pagina_lista_provisoria_tutoria():
             df_base.loc[df_base["Turma"].astype(str).str.strip() == "", "Turma"] = turma_padrao.strip()
 
         st.success(f"Arquivo carregado com {len(df_base)} estudante(s). Edite a tabela antes de imprimir.")
+        col_filtro_lp1, col_filtro_lp2 = st.columns(2)
+        with col_filtro_lp1:
+            lp_ocultar_tutor_simples = st.checkbox(
+                "Ocultar linhas com responsável/tutor(a) escrito só com primeiro nome",
+                value=False,
+                key="lp_ocultar_tutor_simples",
+                help="Use se o PDF vier com Rose, Erika, Elaine etc. e isso estiver causando duplicidade. Não apaga nada; só filtra nesta impressão provisória.",
+            )
+        with col_filtro_lp2:
+            lp_remover_duplicados = st.checkbox(
+                "Remover estudantes duplicados nesta lista",
+                value=True,
+                key="lp_remover_duplicados",
+                help="Usa RA; se não houver RA, usa Nome + Turma.",
+            )
+        if "Responsável/Tutor(a)" not in df_base.columns:
+            df_base["Responsável/Tutor(a)"] = ""
 
         editado = st.data_editor(
             df_base,
@@ -13741,8 +13902,35 @@ def _render_pagina_lista_provisoria_tutoria():
         )
 
         editado = editado.copy().replace({pd.NA: "", None: ""})
+        for col_obrigatoria in ["Nº", "Nome", "RA", "Turma", "Responsável/Tutor(a)", "Situação/Observação"]:
+            if col_obrigatoria not in editado.columns:
+                editado[col_obrigatoria] = ""
         editado["Nome"] = editado["Nome"].astype(str).str.strip()
         editado = editado[editado["Nome"] != ""].reset_index(drop=True)
+
+        removidos_lp = []
+        if lp_ocultar_tutor_simples and "Responsável/Tutor(a)" in editado.columns:
+            mask_tutor_simples = editado["Responsável/Tutor(a)"].astype(str).apply(lambda x: len([p for p in str(x).strip().split() if p]) == 1)
+            if mask_tutor_simples.any():
+                tmp = editado[mask_tutor_simples].copy()
+                tmp["Motivo"] = "Responsável/Tutor(a) com apenas um nome"
+                removidos_lp.append(tmp)
+                editado = editado[~mask_tutor_simples].copy()
+        if lp_remover_duplicados and not editado.empty:
+            chaves = editado.apply(lambda r: str(r.get("RA", "")).strip() if str(r.get("RA", "")).strip() else (_lp_normalizar_texto(r.get("Nome", "")) + "|" + _lp_normalizar_texto(r.get("Turma", ""))), axis=1)
+            mask_dup = chaves.duplicated(keep="first")
+            if mask_dup.any():
+                tmp = editado[mask_dup].copy()
+                tmp["Motivo"] = "Estudante duplicado na lista provisória"
+                removidos_lp.append(tmp)
+                editado = editado[~mask_dup].copy()
+        editado = editado.reset_index(drop=True)
+        if not editado.empty:
+            editado["Nº"] = range(1, len(editado) + 1)
+        st.caption(f"Lista pronta para impressão: {len(editado)} estudante(s).")
+        if removidos_lp:
+            with st.expander("⚠️ Linhas ocultadas/removidas somente nesta impressão provisória", expanded=False):
+                st.dataframe(pd.concat(removidos_lp, ignore_index=True), use_container_width=True, hide_index=True)
 
         st.markdown("### Baixar / imprimir")
         c1, c2, c3 = st.columns(3)
@@ -19505,7 +19693,16 @@ elif menu == "🫂 Tutoria":
         col_lote_pdf1, col_lote_pdf2 = st.columns(2)
         with col_lote_pdf1:
             if st.button("📦 Gerar ZIP por Professor(a)", key="tutoria_zip_professores", use_container_width=True):
-                st.session_state["tutoria_zip_professores_bytes"] = gerar_zip_tutoria_por_professores(TUTORIA, df_alunos).getvalue()
+                try:
+                    zip_bytes_prof = gerar_zip_tutoria_por_professores(TUTORIA, df_alunos).getvalue()
+                    st.session_state["tutoria_zip_professores_bytes"] = zip_bytes_prof
+                    if len(zip_bytes_prof) <= 30:
+                        st.warning("Nenhum PDF foi gerado por professor(a). Confira se há estudantes ativos vinculados nas listas.")
+                    else:
+                        st.success("ZIP por professor(a) gerado. Clique em baixar abaixo.")
+                except Exception as e:
+                    st.session_state["tutoria_zip_professores_bytes"] = b""
+                    st.error(f"Não foi possível gerar o ZIP por professor(a): {e}")
             if st.session_state.get("tutoria_zip_professores_bytes"):
                 st.download_button(
                     "⬇️ Baixar ZIP por Professor(a)",
@@ -19517,12 +19714,21 @@ elif menu == "🫂 Tutoria":
                 )
         with col_lote_pdf2:
             if st.button("📦 Gerar ZIP por Turma", key="tutoria_zip_turmas", use_container_width=True):
-                st.session_state["tutoria_zip_turmas_bytes"] = gerar_zip_tutoria_por_turmas(
-                    TUTORIA,
-                    df_alunos,
-                    remover_duplicados=remover_dup_impressao,
-                    ocultar_tutores_incompletos=ocultar_tutor_incompleto_impressao,
-                ).getvalue()
+                try:
+                    zip_bytes_turma = gerar_zip_tutoria_por_turmas(
+                        TUTORIA,
+                        df_alunos,
+                        remover_duplicados=remover_dup_impressao,
+                        ocultar_tutores_incompletos=ocultar_tutor_incompleto_impressao,
+                    ).getvalue()
+                    st.session_state["tutoria_zip_turmas_bytes"] = zip_bytes_turma
+                    if len(zip_bytes_turma) <= 30:
+                        st.warning("Nenhum PDF foi gerado por turma. Confira se há estudantes ativos vinculados nas listas.")
+                    else:
+                        st.success("ZIP por turma gerado. Clique em baixar abaixo.")
+                except Exception as e:
+                    st.session_state["tutoria_zip_turmas_bytes"] = b""
+                    st.error(f"Não foi possível gerar o ZIP por turma: {e}")
             if st.session_state.get("tutoria_zip_turmas_bytes"):
                 st.download_button(
                     "⬇️ Baixar ZIP por Turma",
