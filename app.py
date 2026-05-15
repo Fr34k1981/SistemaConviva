@@ -2447,6 +2447,7 @@ menu_items = [
     {"nome": "Cadastrar Assinaturas", "icone": "👤"},
     {"nome": "Eletiva", "icone": "🎨"},
     {"nome": "Tutoria", "icone": "🫂"},
+    {"nome": "Lista Provisória de Tutoria", "icone": "🧾"},
     {"nome": "Gráficos e Indicadores", "icone": "📊"},
     {"nome": "Imprimir PDF", "icone": "🖨️"},
     {"nome": "Mapão", "icone": "🗺️"},
@@ -8156,6 +8157,7 @@ ROTAS_MENU_SUPORTADAS = {
     normalizar_texto("👤 Cadastrar Assinaturas"),
     normalizar_texto("🎨 Eletiva"),
     normalizar_texto("🫂 Tutoria"),
+    normalizar_texto("🧾 Lista Provisória de Tutoria"),
     normalizar_texto("📊 Gráficos e Indicadores"),
     normalizar_texto("🖨️ Imprimir PDF"),
     normalizar_texto("🏫 Mapa da Sala"),
@@ -13349,6 +13351,366 @@ def _render_estudantes_fora_da_lista_oficial(turma: str, df_base_alunos: pd.Data
         with st.expander(f"⚠️ Estudantes encontrados no Mapão/Prova Paulista, mas ausentes da lista oficial da turma {turma}", expanded=False):
             st.caption("Conferência para atualizar a lista oficial sem perder RA. Exibe Nome, RA, Turma e origem onde o estudante apareceu.")
             st.dataframe(pendentes[["Nome", "RA", "Turma", "Situação", "Fontes"]], use_container_width=True, hide_index=True, height=260)
+
+# ======================================================
+# LISTA PROVISÓRIA DE TUTORIA — UPLOAD, EDIÇÃO E IMPRESSÃO
+# ======================================================
+# Esta área é propositalmente independente:
+# - NÃO grava no Supabase
+# - NÃO altera a Tutoria oficial
+# - NÃO usa cache persistente
+# - serve apenas para montar, editar e imprimir listas temporárias
+
+def _lp_normalizar_texto(valor):
+    if valor is None:
+        return ""
+    texto = str(valor).strip()
+    texto = unicodedata.normalize("NFKD", texto)
+    texto = "".join(c for c in texto if not unicodedata.combining(c))
+    texto = re.sub(r"\s+", " ", texto)
+    return texto.upper().strip()
+
+
+def _lp_limpar_ra(valor):
+    if pd.isna(valor):
+        return ""
+    texto = str(valor).strip()
+    texto = re.sub(r"\.0$", "", texto)
+    texto = re.sub(r"\D", "", texto)
+    return texto
+
+
+def _lp_ler_upload(arquivo):
+    nome = str(getattr(arquivo, "name", "")).lower()
+    if nome.endswith(".csv"):
+        bruto = arquivo.getvalue()
+        for sep in [";", ",", "\t", "|"]:
+            for enc in ["utf-8-sig", "latin1", "cp1252"]:
+                try:
+                    df = pd.read_csv(BytesIO(bruto), sep=sep, encoding=enc)
+                    if df.shape[1] >= 2:
+                        return df
+                except Exception:
+                    pass
+        return pd.read_csv(BytesIO(bruto), sep=None, engine="python")
+    if nome.endswith((".xlsx", ".xls")):
+        return pd.read_excel(arquivo)
+    raise ValueError("Formato não aceito. Use CSV, XLS ou XLSX.")
+
+
+def _lp_detectar_coluna(colunas, candidatos):
+    mapa = {_lp_normalizar_texto(c): c for c in colunas}
+    for candidato in candidatos:
+        alvo = _lp_normalizar_texto(candidato)
+        for chave, original in mapa.items():
+            if alvo == chave or alvo in chave or chave in alvo:
+                return original
+    return None
+
+
+def _lp_normalizar_lista(df):
+    colunas_padrao = ["Nº", "Nome", "RA", "Turma", "Situação/Observação"]
+    if df is None or df.empty:
+        return pd.DataFrame(columns=colunas_padrao)
+
+    df = df.copy()
+    df.columns = [str(c).strip() for c in df.columns]
+
+    col_nome = _lp_detectar_coluna(df.columns, [
+        "Nome", "Nome do Aluno", "Aluno", "Estudante", "Nomes", "Lista de Alunos"
+    ])
+    col_ra = _lp_detectar_coluna(df.columns, [
+        "RA", "R.A", "Registro do Aluno", "NR RA", "Número RA", "Numero RA"
+    ])
+    col_turma = _lp_detectar_coluna(df.columns, [
+        "Turma", "Ano/Série", "Serie", "Série", "Ano Serie", "Ano/Série"
+    ])
+    col_situacao = _lp_detectar_coluna(df.columns, [
+        "Situação", "Situacao", "Situação do Aluno", "Status", "Observação", "Observacao"
+    ])
+    col_numero = _lp_detectar_coluna(df.columns, [
+        "Nº", "N°", "Numero", "Número", "Chamada", "Nº de chamada"
+    ])
+
+    base = pd.DataFrame()
+    base["Nome"] = df[col_nome].astype(str).str.strip() if col_nome else ""
+    base["RA"] = df[col_ra].apply(_lp_limpar_ra) if col_ra else ""
+    base["Turma"] = df[col_turma].astype(str).str.strip() if col_turma else ""
+    base["Situação/Observação"] = df[col_situacao].astype(str).str.strip() if col_situacao else ""
+    base["Nº"] = df[col_numero] if col_numero else range(1, len(base) + 1)
+
+    base = base[colunas_padrao]
+    base = base.replace({"nan": "", "NaN": "", "None": "", "<NA>": ""})
+    base = base[base["Nome"].astype(str).str.strip() != ""].reset_index(drop=True)
+    if "Nº" not in base.columns or base["Nº"].astype(str).str.strip().eq("").all():
+        base["Nº"] = range(1, len(base) + 1)
+    return base[colunas_padrao]
+
+
+def _lp_excel_bytes(df):
+    saida = BytesIO()
+    with pd.ExcelWriter(saida, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Lista Tutoria")
+        ws = writer.sheets["Lista Tutoria"]
+        for coluna in ws.columns:
+            largura = 10
+            letra = coluna[0].column_letter
+            for celula in coluna:
+                largura = max(largura, len(str(celula.value or "")))
+            ws.column_dimensions[letra].width = min(largura + 2, 48)
+    saida.seek(0)
+    return saida.getvalue()
+
+
+def _lp_html_impressao(df, titulo, responsavel, turma, observacoes):
+    linhas = []
+    for _, row in df.iterrows():
+        linhas.append(f"""
+        <tr>
+            <td>{html.escape(str(row.get('Nº', '')))}</td>
+            <td>{html.escape(str(row.get('Nome', '')))}</td>
+            <td>{html.escape(str(row.get('RA', '')))}</td>
+            <td>{html.escape(str(row.get('Turma', '')))}</td>
+            <td>{html.escape(str(row.get('Situação/Observação', '')))}</td>
+        </tr>
+        """)
+
+    data_geracao = datetime.now().strftime("%d/%m/%Y %H:%M")
+    return f"""
+    <!doctype html>
+    <html lang="pt-br">
+    <head>
+    <meta charset="utf-8">
+    <title>{html.escape(titulo)}</title>
+    <style>
+        @page {{ size: A4; margin: 1.2cm; }}
+        body {{ font-family: Arial, sans-serif; color: #111827; }}
+        .no-print {{ margin: 10px 0 20px 0; }}
+        @media print {{ .no-print {{ display: none; }} }}
+        .cabecalho {{ text-align: center; border-bottom: 2px solid #111827; padding-bottom: 8px; margin-bottom: 12px; }}
+        h1 {{ margin: 0; font-size: 19px; }}
+        h2 {{ margin: 4px 0 0 0; font-size: 14px; }}
+        .meta {{ display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; margin: 12px 0; font-size: 12px; }}
+        .obs {{ margin: 10px 0; font-size: 12px; }}
+        table {{ width: 100%; border-collapse: collapse; font-size: 11px; }}
+        th {{ background: #e5e7eb; border: 1px solid #111827; padding: 5px; text-align: left; }}
+        td {{ border: 1px solid #111827; padding: 5px; vertical-align: top; }}
+        .assinaturas {{ margin-top: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }}
+        .linha {{ border-top: 1px solid #111827; text-align: center; padding-top: 4px; font-size: 11px; }}
+    </style>
+    </head>
+    <body>
+        <div class="no-print"><button onclick="window.print()">Imprimir</button></div>
+        <div class="cabecalho">
+            <h1>{html.escape(ESCOLA_NOME_EXIBICAO)}</h1>
+            <h2>{html.escape(titulo)}</h2>
+        </div>
+        <div class="meta">
+            <div><b>Responsável/Tutor(a):</b> {html.escape(str(responsavel))}</div>
+            <div><b>Turma:</b> {html.escape(str(turma))}</div>
+            <div><b>Quantidade:</b> {len(df)} estudante(s)</div>
+            <div><b>Data:</b> {data_geracao}</div>
+        </div>
+        <div class="obs"><b>Observações:</b> {html.escape(str(observacoes))}</div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:6%;">Nº</th>
+                    <th>Nome</th>
+                    <th style="width:18%;">RA</th>
+                    <th style="width:15%;">Turma</th>
+                    <th style="width:24%;">Situação/Observação</th>
+                </tr>
+            </thead>
+            <tbody>{''.join(linhas)}</tbody>
+        </table>
+        <div class="assinaturas">
+            <div class="linha">Assinatura do(a) responsável</div>
+            <div class="linha">Coordenação/Gestão</div>
+        </div>
+    </body>
+    </html>
+    """
+
+
+def _lp_pdf_bytes(df, titulo, responsavel, turma, observacoes):
+    saida = BytesIO()
+    doc = SimpleDocTemplate(saida, pagesize=A4, rightMargin=28, leftMargin=28, topMargin=28, bottomMargin=28)
+    estilos = getSampleStyleSheet()
+    estilo_titulo = ParagraphStyle(
+        "LP_Titulo",
+        parent=estilos["Title"],
+        alignment=TA_CENTER,
+        fontSize=14,
+        leading=17,
+        spaceAfter=6,
+    )
+    estilo_pequeno = ParagraphStyle(
+        "LP_Pequeno",
+        parent=estilos["Normal"],
+        fontSize=8,
+        leading=10,
+    )
+
+    elementos = []
+    elementos.append(Paragraph(html.escape(ESCOLA_NOME_EXIBICAO), estilo_titulo))
+    elementos.append(Paragraph(html.escape(titulo), estilo_pequeno))
+    elementos.append(Spacer(1, 8))
+
+    meta = [
+        [Paragraph("<b>Responsável/Tutor(a):</b>", estilo_pequeno), Paragraph(html.escape(str(responsavel)), estilo_pequeno),
+         Paragraph("<b>Turma:</b>", estilo_pequeno), Paragraph(html.escape(str(turma)), estilo_pequeno)],
+        [Paragraph("<b>Quantidade:</b>", estilo_pequeno), Paragraph(str(len(df)), estilo_pequeno),
+         Paragraph("<b>Data:</b>", estilo_pequeno), Paragraph(datetime.now().strftime("%d/%m/%Y %H:%M"), estilo_pequeno)],
+    ]
+    tabela_meta = Table(meta, colWidths=[85, 180, 55, 130])
+    tabela_meta.setStyle(TableStyle([
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.black),
+        ("BACKGROUND", (0, 0), (0, -1), colors.whitesmoke),
+        ("BACKGROUND", (2, 0), (2, -1), colors.whitesmoke),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+    ]))
+    elementos.append(tabela_meta)
+    elementos.append(Spacer(1, 8))
+    elementos.append(Paragraph(f"<b>Observações:</b> {html.escape(str(observacoes))}", estilo_pequeno))
+    elementos.append(Spacer(1, 8))
+
+    dados = [["Nº", "Nome", "RA", "Turma", "Situação/Observação"]]
+    for _, row in df.iterrows():
+        dados.append([
+            str(row.get("Nº", "")),
+            Paragraph(html.escape(str(row.get("Nome", ""))), estilo_pequeno),
+            str(row.get("RA", "")),
+            str(row.get("Turma", "")),
+            Paragraph(html.escape(str(row.get("Situação/Observação", ""))), estilo_pequeno),
+        ])
+
+    tabela = Table(dados, colWidths=[28, 190, 85, 70, 150], repeatRows=1)
+    tabela.setStyle(TableStyle([
+        ("GRID", (0, 0), (-1, -1), 0.4, colors.black),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 7),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("ALIGN", (0, 0), (0, -1), "CENTER"),
+    ]))
+    elementos.append(tabela)
+    elementos.append(Spacer(1, 22))
+    elementos.append(Paragraph("__________________________________________      __________________________________________", estilo_pequeno))
+    elementos.append(Paragraph("Assinatura do(a) responsável                    Coordenação/Gestão", estilo_pequeno))
+    doc.build(elementos)
+    saida.seek(0)
+    return saida.getvalue()
+
+
+def _render_pagina_lista_provisoria_tutoria():
+    page_header(
+        "Lista Provisória de Tutoria",
+        "Upload, edição e impressão temporária de listas. Esta página não altera a Tutoria oficial e não salva no Supabase.",
+        "#0ea5e9",
+    )
+
+    st.info("Uso emergencial: os dados desta página ficam somente nesta sessão e nos arquivos baixados. Nada é gravado no banco.")
+
+    col_a, col_b, col_c = st.columns([1.3, 1, 1])
+    with col_a:
+        titulo = st.text_input("Título da lista", value="Lista Provisória de Tutoria", key="lp_titulo")
+    with col_b:
+        responsavel = st.text_input("Responsável/Tutor(a)", value="", key="lp_responsavel")
+    with col_c:
+        turma_padrao = st.text_input("Turma", value="", key="lp_turma")
+
+    observacoes = st.text_area("Observações para impressão", value="", height=70, key="lp_observacoes")
+
+    arquivo = st.file_uploader(
+        "Envie a lista provisória",
+        type=["csv", "xls", "xlsx"],
+        key="lp_upload_lista_tutoria",
+        help="Aceita CSV, XLS e XLSX. A página tenta identificar automaticamente Nome, RA, Turma e Situação.",
+    )
+
+    if arquivo is None:
+        st.warning("Envie uma lista em CSV, XLS ou XLSX para começar.")
+        modelo = pd.DataFrame({
+            "Nº": [1, 2],
+            "Nome": ["EXEMPLO DE ESTUDANTE 1", "EXEMPLO DE ESTUDANTE 2"],
+            "RA": ["000000000", "111111111"],
+            "Turma": ["8º A", "8º A"],
+            "Situação/Observação": ["", ""],
+        })
+        st.download_button(
+            "📥 Baixar modelo em Excel",
+            data=_lp_excel_bytes(modelo),
+            file_name="modelo_lista_provisoria_tutoria.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+            key="lp_download_modelo",
+        )
+        return
+
+    try:
+        df_raw = _lp_ler_upload(arquivo)
+        df_base = _lp_normalizar_lista(df_raw)
+        if turma_padrao.strip():
+            df_base.loc[df_base["Turma"].astype(str).str.strip() == "", "Turma"] = turma_padrao.strip()
+
+        st.success(f"Arquivo carregado com {len(df_base)} estudante(s). Edite a tabela antes de imprimir.")
+
+        editado = st.data_editor(
+            df_base,
+            use_container_width=True,
+            hide_index=True,
+            num_rows="dynamic",
+            height=500,
+            key="lp_editor_lista_tutoria",
+        )
+
+        editado = editado.copy().replace({pd.NA: "", None: ""})
+        editado["Nome"] = editado["Nome"].astype(str).str.strip()
+        editado = editado[editado["Nome"] != ""].reset_index(drop=True)
+
+        st.markdown("### Baixar / imprimir")
+        c1, c2, c3 = st.columns(3)
+
+        with c1:
+            st.download_button(
+                "📊 Baixar Excel editado",
+                data=_lp_excel_bytes(editado),
+                file_name=f"lista_tutoria_provisoria_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+                key="lp_download_excel",
+            )
+
+        html_doc = _lp_html_impressao(editado, titulo, responsavel, turma_padrao, observacoes)
+        with c2:
+            st.download_button(
+                "🌐 Baixar HTML para impressão",
+                data=html_doc.encode("utf-8"),
+                file_name=f"lista_tutoria_provisoria_{datetime.now().strftime('%Y%m%d_%H%M')}.html",
+                mime="text/html",
+                use_container_width=True,
+                key="lp_download_html",
+            )
+
+        with c3:
+            try:
+                st.download_button(
+                    "🖨️ Baixar PDF",
+                    data=_lp_pdf_bytes(editado, titulo, responsavel, turma_padrao, observacoes),
+                    file_name=f"lista_tutoria_provisoria_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                    key="lp_download_pdf",
+                )
+            except Exception as e:
+                st.warning(f"PDF indisponível neste ambiente: {e}")
+
+        with st.expander("Prévia da impressão em HTML", expanded=False):
+            components.html(html_doc, height=650, scrolling=True)
+
+    except Exception as e:
+        st.error(f"Não foi possível processar o arquivo: {e}")
 
 if menu == "🏠 Dashboard":
     # ── Header no modelo SED, mantendo identidade do sistema ──
@@ -19478,6 +19840,9 @@ elif menu == "🫂 Tutoria":
 # ======================================================
 # PÁGINA 🏫 MAPA DA SALA (COMPLETA)
 # ======================================================
+
+elif menu == "🧾 Lista Provisória de Tutoria":
+    _render_pagina_lista_provisoria_tutoria()
 
 elif menu == "🗺️ Mapão":
     _render_pagina_mapao()
