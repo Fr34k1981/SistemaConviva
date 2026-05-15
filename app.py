@@ -7049,6 +7049,76 @@ def montar_dataframe_tutoria(nome_tutor: str, df_alunos: pd.DataFrame, tutoria_d
         df_tutoria = df_tutoria.sort_values(["Nome"], kind="stable").reset_index(drop=True)
     return df_tutoria
 
+
+def _tutor_com_nome_incompleto(nome_tutor) -> bool:
+    """Identifica responsáveis gravados só com o primeiro nome/apelido.
+
+    Ex.: 'Rose' no lugar do nome completo. Essa marcação não apaga nada do
+    banco; serve apenas para a impressão por turma e para a conferência visual.
+    """
+    nome = str(nome_tutor or "").strip()
+    if not nome:
+        return True
+    partes = [p for p in re.split(r"\s+", nome) if p]
+    return len(partes) <= 1
+
+
+def _chave_estudante_tutoria(row) -> str:
+    """Chave estável para localizar duplicidade do mesmo estudante em tutores diferentes."""
+    ra = ""
+    for col in ["RA", "ra", "Registro do Aluno"]:
+        if col in row.index:
+            ra = re.sub(r"\D", "", str(row.get(col, "") or ""))
+            if ra:
+                return f"RA:{ra}"
+    nome = normalizar_texto(row.get("Aluno Cadastrado", "") or row.get("Nome", ""))
+    turma = normalizar_texto(row.get("Turma no Sistema", "") or row.get("Turma", ""))
+    return f"NOME:{nome}|TURMA:{turma}"
+
+
+def tratar_dataframe_tutoria_para_impressao(
+    df: pd.DataFrame,
+    remover_duplicados: bool = True,
+    ocultar_tutores_incompletos: bool = False,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Prepara lista de tutoria para impressão sem apagar dados salvos.
+
+    - Se ocultar_tutores_incompletos=True, não imprime linhas de responsáveis
+      gravados apenas com primeiro nome/apelido.
+    - Se remover_duplicados=True, mantém só uma ocorrência por estudante
+      usando RA; quando não houver RA, usa Nome+Turma.
+    Retorna: dataframe_limpo, dataframe_removidos_para_conferencia.
+    """
+    if df is None or df.empty:
+        return pd.DataFrame(), pd.DataFrame()
+
+    base = df.copy().replace({pd.NA: "", None: ""})
+    removidos = []
+
+    if ocultar_tutores_incompletos and "Professor(a)" in base.columns:
+        mask_incompleto = base["Professor(a)"].apply(_tutor_com_nome_incompleto)
+        if mask_incompleto.any():
+            tmp = base[mask_incompleto].copy()
+            tmp["Motivo"] = "Professor(a)/responsável com nome incompleto"
+            removidos.append(tmp)
+            base = base[~mask_incompleto].copy()
+
+    if remover_duplicados and not base.empty:
+        base["__chave_tutoria_dup"] = base.apply(_chave_estudante_tutoria, axis=1)
+        mask_dup = base.duplicated("__chave_tutoria_dup", keep="first")
+        if mask_dup.any():
+            tmp = base[mask_dup].drop(columns=["__chave_tutoria_dup"], errors="ignore").copy()
+            tmp["Motivo"] = "Duplicidade do mesmo estudante em mais de um responsável"
+            removidos.append(tmp)
+            base = base[~mask_dup].copy()
+        base = base.drop(columns=["__chave_tutoria_dup"], errors="ignore")
+
+    if "Nome" in base.columns and not base.empty:
+        base = base.sort_values(["Nome"], key=lambda s: s.map(normalizar_texto), kind="stable").reset_index(drop=True)
+
+    df_removidos = pd.concat(removidos, ignore_index=True) if removidos else pd.DataFrame()
+    return base.reset_index(drop=True), df_removidos.reset_index(drop=True)
+
 def _indice_alunos_para_atualizar_turmas(df_alunos: pd.DataFrame) -> tuple[dict, dict]:
     """Monta índices por RA e por nome para atualizar turmas nas listas vinculadas."""
     base = preparar_base_alunos_ativos_tutoria(df_alunos)
@@ -7318,7 +7388,7 @@ def gerar_zip_tutoria_por_professores(tutoria_dict: dict, df_alunos: pd.DataFram
     return buffer_zip
 
 
-def gerar_zip_tutoria_por_turmas(tutoria_dict: dict, df_alunos: pd.DataFrame) -> BytesIO:
+def gerar_zip_tutoria_por_turmas(tutoria_dict: dict, df_alunos: pd.DataFrame, remover_duplicados: bool = True, ocultar_tutores_incompletos: bool = False) -> BytesIO:
     """Gera ZIP com um PDF por turma contendo somente estudantes ativos.
 
     Consolida as listas de todos os responsáveis e separa por turma.
@@ -7344,8 +7414,13 @@ def gerar_zip_tutoria_por_turmas(tutoria_dict: dict, df_alunos: pd.DataFrame) ->
                     df_turma = df_geral[df_geral[coluna_turma].astype(str).str.strip().eq(turma)].copy()
                     if df_turma.empty:
                         continue
-                    if "Nome" in df_turma.columns:
-                        df_turma = df_turma.sort_values(["Nome"], key=lambda s: s.map(normalizar_texto), kind="stable").reset_index(drop=True)
+                    df_turma, _removidos_turma = tratar_dataframe_tutoria_para_impressao(
+                        df_turma,
+                        remover_duplicados=remover_duplicados,
+                        ocultar_tutores_incompletos=ocultar_tutores_incompletos,
+                    )
+                    if df_turma.empty:
+                        continue
                     pdf_buffer = gerar_pdf_tutoria(f"Turma: {turma}", df_turma)
                     nome_arquivo = f"Tutoria_Turma_{gerar_chave_segura(turma)}.pdf"
                     zipf.writestr(nome_arquivo, pdf_buffer.getvalue())
@@ -19412,6 +19487,19 @@ elif menu == "🫂 Tutoria":
     st.markdown("---")
     st.subheader("🖨️ Imprimir Lista da Tutoria")
 
+    remover_dup_impressao = st.checkbox(
+        "Remover estudantes duplicados na impressão por turma",
+        value=True,
+        key="tutoria_remover_dup_impressao",
+        help="Mantém somente a primeira ocorrência do estudante quando ele aparece em mais de um responsável. Usa RA; se não houver RA, usa Nome + Turma.",
+    )
+    ocultar_tutor_incompleto_impressao = st.checkbox(
+        "Não listar na impressão por turma responsáveis gravados só com primeiro nome/apelido",
+        value=False,
+        key="tutoria_ocultar_tutor_incompleto_impressao",
+        help="Exemplo: oculta linhas vinculadas a 'Rose' quando o cadastro do responsável não está com nome completo. Não apaga nada do sistema.",
+    )
+
     with st.expander("📦 Exportar impressões em lote", expanded=False):
         st.caption("Gera um arquivo ZIP com PDFs separados. Use para imprimir todos os responsáveis ou todas as turmas de uma vez.")
         col_lote_pdf1, col_lote_pdf2 = st.columns(2)
@@ -19429,7 +19517,12 @@ elif menu == "🫂 Tutoria":
                 )
         with col_lote_pdf2:
             if st.button("📦 Gerar ZIP por Turma", key="tutoria_zip_turmas", use_container_width=True):
-                st.session_state["tutoria_zip_turmas_bytes"] = gerar_zip_tutoria_por_turmas(TUTORIA, df_alunos).getvalue()
+                st.session_state["tutoria_zip_turmas_bytes"] = gerar_zip_tutoria_por_turmas(
+                    TUTORIA,
+                    df_alunos,
+                    remover_duplicados=remover_dup_impressao,
+                    ocultar_tutores_incompletos=ocultar_tutor_incompleto_impressao,
+                ).getvalue()
             if st.session_state.get("tutoria_zip_turmas_bytes"):
                 st.download_button(
                     "⬇️ Baixar ZIP por Turma",
@@ -19476,9 +19569,19 @@ elif menu == "🫂 Tutoria":
         else:
             turma_impressao = st.selectbox("Turma da Tutoria", turmas_tutoria, key="tutoria_turma_impressao", format_func=_formatar_opcao_turma_select)
             df_imp = df_geral_tutoria[df_geral_tutoria["Turma"].astype(str).str.strip() == str(turma_impressao).strip()].copy()
+            df_imp, df_removidos_impressao = tratar_dataframe_tutoria_para_impressao(
+                df_imp,
+                remover_duplicados=remover_dup_impressao,
+                ocultar_tutores_incompletos=ocultar_tutor_incompleto_impressao,
+            )
+            if not df_removidos_impressao.empty:
+                with st.expander(f"⚠️ Linhas não listadas na impressão: {len(df_removidos_impressao)}", expanded=False):
+                    st.caption("Conferência apenas visual. Nada foi apagado da Tutoria oficial.")
+                    cols_conf = [c for c in ["Professor(a)", "Nome", "Turma", "RA", "Motivo"] if c in df_removidos_impressao.columns]
+                    st.dataframe(df_removidos_impressao[cols_conf], use_container_width=True, hide_index=True)
             if st.button("Gerar PDF por Turma", type="primary", key="btn_pdf_tutoria_turma"):
                 if df_imp.empty:
-                    st.warning("Não há estudantes para imprimir nessa turma.")
+                    st.warning("Não há estudantes para imprimir nessa turma após os filtros de duplicidade/incompletos.")
                 else:
                     pdf = gerar_pdf_tutoria(f"Turma: {turma_impressao}", df_imp)
                     st.download_button(
