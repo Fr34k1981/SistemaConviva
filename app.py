@@ -2886,84 +2886,33 @@ def _nomes_professores_cadastrados_validos(df_professores_base: pd.DataFrame | N
 
 
 def normalizar_responsaveis_tutoria_para_exibicao(tutoria_dict: dict, df_professores_base: pd.DataFrame | None = None) -> dict:
-    """Remove/mescla cadastros parciais de responsáveis sem apagar vínculos.
+    """Preserva todos os responsáveis e todas as listas antigas da Tutoria.
 
-    - Se existir "Erika" e também "Erika Paula Viana Watanabe", os alunos
-      vinculados em "Erika" são movidos para o nome completo e o cadastro curto
-      sai da tela.
-    - Se o nome curto não tiver alunos, ele é removido.
-    - Se o nome curto tiver alunos e não houver nome completo correspondente,
-      ele é mantido internamente para não perder dados, mas não deve ser usado
-      nas listas principais.
+    Correção emergencial: versões anteriores tentavam ocultar ou mesclar nomes com
+    apenas uma palavra, como "Rose", "Igor" ou "Elaine". Isso dificultava localizar,
+    editar e excluir vínculos antigos. A partir daqui, nada é removido da exibição:
+    nomes completos, nomes curtos e listas antigas continuam visíveis para conferência.
+
+    A limpeza deve ser feita pelo usuário na tela, nunca automaticamente pelo código.
     """
-    base = normalizar_base_tutoria(tutoria_dict)
-    if not base:
-        return {}
-
-    nomes_prof = _nomes_professores_cadastrados_validos(df_professores_base)
-    candidatos_completos = {normalizar_texto(n): n for n in nomes_prof}
-    for nome in base.keys():
-        if _nome_responsavel_tutoria_tem_nome_sobrenome(nome):
-            candidatos_completos.setdefault(normalizar_texto(nome), nome)
-
-    # índice por primeiro nome para achar destino provável.
-    por_primeiro = {}
-    for nome_completo in candidatos_completos.values():
-        por_primeiro.setdefault(_primeiro_nome_tutoria(nome_completo), []).append(nome_completo)
-
-    resultado = dict(base)
-    alterou = False
-    for nome in list(base.keys()):
-        if _nome_responsavel_tutoria_tem_nome_sobrenome(nome):
-            continue
-        dados_curto = resultado.get(nome, estrutura_tutoria_vazia(nome=nome))
-        alunos_curto = normalizar_alunos_tutoria(dados_curto.get("alunos", []))
-        primeiro = _primeiro_nome_tutoria(nome)
-        destinos = sorted(por_primeiro.get(primeiro, []), key=lambda x: (len(x), normalizar_texto(x)))
-        destino = destinos[0] if destinos else ""
-        if destino and destino != nome:
-            dados_destino = resultado.get(destino, estrutura_tutoria_vazia(nome=destino))
-            # preserva metadados do destino; só completa se estiver vazio.
-            for campo in ["tipo", "espaco", "horario", "dia"]:
-                if not str(dados_destino.get(campo, "")).strip() and str(dados_curto.get(campo, "")).strip():
-                    dados_destino[campo] = dados_curto.get(campo, "")
-            existentes = normalizar_alunos_tutoria(dados_destino.get("alunos", []))
-            chaves = {
-                ("".join(ch for ch in str(a.get("ra", "")) if ch.isdigit()), normalizar_texto(a.get("nome", "")), turma_para_comparacao(a.get("serie", "")))
-                for a in existentes
-            }
-            for aluno in alunos_curto:
-                chave = (
-                    "".join(ch for ch in str(aluno.get("ra", "")) if ch.isdigit()),
-                    normalizar_texto(aluno.get("nome", "")),
-                    turma_para_comparacao(aluno.get("serie", "")),
-                )
-                if chave not in chaves:
-                    existentes.append(aluno)
-                    chaves.add(chave)
-            dados_destino["alunos"] = existentes
-            resultado[destino] = dados_destino
-            resultado.pop(nome, None)
-            alterou = True
-        elif not alunos_curto:
-            resultado.pop(nome, None)
-            alterou = True
-        # Se houver alunos e não houver destino completo, preserva internamente.
-
-    if alterou:
-        try:
-            salvar_tutoria_local(resultado)
-        except Exception:
-            pass
-    return normalizar_base_tutoria(resultado)
+    return normalizar_base_tutoria(tutoria_dict)
 
 
 def nomes_responsaveis_validos_tutoria(tutoria_dict: dict, df_professores_base: pd.DataFrame | None = None, incluir_sem_alunos: bool = True) -> list[str]:
+    """Lista responsáveis para seleção sem ocultar nomes antigos.
+
+    Mostra também cadastros com um único nome para permitir editar/excluir vínculos
+    antigos que ainda estejam no banco ou no cache. Professores cadastrados na tabela
+    oficial continuam sendo acrescentados para permitir novos vínculos.
+    """
     base = normalizar_base_tutoria(tutoria_dict)
-    nomes = [str(n).strip() for n in base.keys() if _nome_responsavel_tutoria_tem_nome_sobrenome(n)]
-    # Mantém também professores cadastrados na página de professores para permitir novo vínculo.
+    nomes = [str(n).strip() for n in base.keys() if str(n).strip()]
     if incluir_sem_alunos:
-        nomes.extend(_nomes_professores_cadastrados_validos(df_professores_base))
+        try:
+            if df_professores_base is not None and not df_professores_base.empty and "nome" in df_professores_base.columns:
+                nomes.extend(df_professores_base["nome"].dropna().astype(str).str.strip().tolist())
+        except Exception:
+            pass
     vistos = set()
     saida = []
     for nome in sorted(nomes, key=lambda x: normalizar_texto(x)):
@@ -7268,10 +7217,10 @@ def gerar_pdf_eletiva(contexto: str, df_eletiva: pd.DataFrame) -> BytesIO:
         linhas.append([
             str(row.get("Nome", ""))[:48],
             turma_pdf[:24],
-            str(row.get("Professor(a)", ""))[:24]
+            str(row.get("Professor(a)", ""))[:60]
         ])
 
-    tabela = Table([cabecalho] + linhas, colWidths=[9.0 * cm, 4.0 * cm, 5.0 * cm], repeatRows=1)
+    tabela = Table([cabecalho] + linhas, colWidths=[8.0 * cm, 3.0 * cm, 7.0 * cm], repeatRows=1)
     tabela.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#0f766e")),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
@@ -7337,10 +7286,10 @@ def gerar_pdf_tutoria(contexto: str, df_tutoria: pd.DataFrame) -> BytesIO:
         linhas.append([
             str(row.get("Nome", ""))[:48],
             turma_pdf[:24],
-            tutor[:24]
+            tutor[:60]
         ])
 
-    tabela = Table([cabecalho] + linhas, colWidths=[9.0 * cm, 4.0 * cm, 5.0 * cm], repeatRows=1)
+    tabela = Table([cabecalho] + linhas, colWidths=[8.0 * cm, 3.0 * cm, 7.0 * cm], repeatRows=1)
     tabela.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#0f766e")),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
@@ -7426,6 +7375,188 @@ def gerar_zip_tutoria_por_turmas(tutoria_dict: dict, df_alunos: pd.DataFrame, re
                     zipf.writestr(nome_arquivo, pdf_buffer.getvalue())
     buffer_zip.seek(0)
     return buffer_zip
+
+
+
+def montar_dataframe_tutoria_exportacao_completa(tutoria_dict: dict, df_alunos: pd.DataFrame | None = None) -> pd.DataFrame:
+    """Monta uma base completa para conferência/exportação em Excel.
+
+    Diferente da impressão normal, esta função NÃO oculta responsáveis com nome curto
+    e NÃO remove estudantes de listas antigas. Ela serve exatamente para localizar
+    duplicidades, listas antigas e vínculos que estavam ocultos na tela.
+    """
+    linhas = []
+    base = normalizar_base_tutoria(tutoria_dict)
+    por_ra = {}
+    por_nome_turma = {}
+    try:
+        if isinstance(df_alunos, pd.DataFrame) and not df_alunos.empty:
+            alunos_base = df_alunos.copy().replace({pd.NA: "", None: ""})
+            for _, aluno in alunos_base.iterrows():
+                ra_aluno = re.sub(r"\D", "", str(aluno.get("ra", aluno.get("RA", "")) or ""))
+                nome_aluno = str(aluno.get("nome", aluno.get("Nome", "")) or "").strip()
+                turma_aluno = formatar_turma_eletiva(str(aluno.get("turma", aluno.get("Turma", "")) or "").strip())
+                situacao_aluno = str(aluno.get("situacao", aluno.get("Situação", "")) or "").strip()
+                if ra_aluno:
+                    por_ra[ra_aluno] = {"nome": nome_aluno, "turma": turma_aluno, "situacao": situacao_aluno}
+                if nome_aluno and turma_aluno:
+                    por_nome_turma[(normalizar_texto(nome_aluno), turma_para_comparacao(turma_aluno))] = {"nome": nome_aluno, "turma": turma_aluno, "situacao": situacao_aluno, "ra": ra_aluno}
+    except Exception:
+        pass
+
+    for tutor, dados in sorted(base.items(), key=lambda kv: normalizar_texto(kv[0])):
+        tutor_txt = str(tutor or "").strip()
+        perfil = str(dados.get("tipo", dados.get("perfil", "Professor(a)")) or "").strip()
+        espaco = str(dados.get("espaco", "") or "").strip()
+        horario = str(dados.get("horario", "") or "").strip()
+        dia = str(dados.get("dia", "") or "").strip()
+        alunos = normalizar_alunos_tutoria(dados.get("alunos", []))
+        if not alunos:
+            linhas.append({
+                "Tutor(a)": tutor_txt,
+                "Status do Tutor": "Nome incompleto" if not _nome_responsavel_tutoria_tem_nome_sobrenome(tutor_txt) else "OK",
+                "Perfil": perfil,
+                "Espaço": espaco,
+                "Horário": horario,
+                "Dia": dia,
+                "Estudante": "",
+                "RA": "",
+                "Turma": "",
+                "Situação Oficial": "",
+                "Status do Vínculo": "Responsável sem estudante na lista",
+            })
+            continue
+        for aluno in alunos:
+            nome = str(aluno.get("nome", aluno.get("Nome", "")) or "").strip()
+            ra = re.sub(r"\D", "", str(aluno.get("ra", aluno.get("RA", "")) or ""))
+            turma = formatar_turma_eletiva(str(aluno.get("serie", aluno.get("turma", aluno.get("Turma", ""))) or "").strip())
+            situacao = ""
+            status_vinculo = "Lista antiga / não conferido na base oficial"
+            if ra and ra in por_ra:
+                ref = por_ra[ra]
+                if not nome:
+                    nome = ref.get("nome", "")
+                if not turma:
+                    turma = ref.get("turma", "")
+                situacao = ref.get("situacao", "")
+                status_vinculo = "Encontrado por RA"
+            else:
+                ref = por_nome_turma.get((normalizar_texto(nome), turma_para_comparacao(turma)))
+                if ref:
+                    if not ra:
+                        ra = ref.get("ra", "")
+                    situacao = ref.get("situacao", "")
+                    status_vinculo = "Encontrado por nome/turma"
+            linhas.append({
+                "Tutor(a)": tutor_txt,
+                "Status do Tutor": "Nome incompleto" if not _nome_responsavel_tutoria_tem_nome_sobrenome(tutor_txt) else "OK",
+                "Perfil": perfil,
+                "Espaço": espaco,
+                "Horário": horario,
+                "Dia": dia,
+                "Estudante": nome,
+                "RA": ra,
+                "Turma": turma,
+                "Situação Oficial": situacao,
+                "Status do Vínculo": status_vinculo,
+            })
+
+    df = pd.DataFrame(linhas)
+    if not df.empty:
+        df = df.sort_values(["Turma", "Tutor(a)", "Estudante"], key=lambda s: s.map(lambda v: normalizar_texto(str(v))), kind="stable").reset_index(drop=True)
+        # marca duplicidade por RA ou por Nome+Turma
+        chaves = []
+        for _, row in df.iterrows():
+            ra = re.sub(r"\D", "", str(row.get("RA", "") or ""))
+            nome = normalizar_texto(row.get("Estudante", ""))
+            turma = turma_para_comparacao(row.get("Turma", ""))
+            chaves.append(f"RA:{ra}" if ra else f"NOME:{nome}|TURMA:{turma}")
+        df["Chave Duplicidade"] = chaves
+        contagem = df.groupby("Chave Duplicidade")["Tutor(a)"].transform("nunique")
+        df["Possível Duplicidade"] = contagem.apply(lambda x: "Sim" if int(x) > 1 else "Não")
+    return df
+
+
+def gerar_excel_tutoria_exportacao(tutoria_dict: dict, df_alunos: pd.DataFrame | None = None) -> BytesIO:
+    """Gera Excel com abas Geral, Por Turma, Por Tutor, Duplicidades e Tutores Incompletos."""
+    df = montar_dataframe_tutoria_exportacao_completa(tutoria_dict, df_alunos)
+    saida = BytesIO()
+    with pd.ExcelWriter(saida, engine="openpyxl") as writer:
+        if df.empty:
+            pd.DataFrame(columns=["Tutor(a)", "Estudante", "RA", "Turma"]).to_excel(writer, index=False, sheet_name="Geral")
+        else:
+            df.to_excel(writer, index=False, sheet_name="Geral")
+            df.sort_values(["Turma", "Estudante", "Tutor(a)"], key=lambda s: s.map(lambda v: normalizar_texto(str(v))), kind="stable").to_excel(writer, index=False, sheet_name="Por Turma")
+            df.sort_values(["Tutor(a)", "Turma", "Estudante"], key=lambda s: s.map(lambda v: normalizar_texto(str(v))), kind="stable").to_excel(writer, index=False, sheet_name="Por Tutor")
+            dup = df[df.get("Possível Duplicidade", "").astype(str).eq("Sim")].copy() if "Possível Duplicidade" in df.columns else pd.DataFrame()
+            dup.to_excel(writer, index=False, sheet_name="Duplicidades")
+            inc = df[df.get("Status do Tutor", "").astype(str).eq("Nome incompleto")].copy() if "Status do Tutor" in df.columns else pd.DataFrame()
+            inc.to_excel(writer, index=False, sheet_name="Tutores Incompletos")
+        for ws in writer.book.worksheets:
+            ws.freeze_panes = "A2"
+            for col in ws.columns:
+                max_len = 10
+                letter = col[0].column_letter
+                for cell in col:
+                    try:
+                        max_len = max(max_len, len(str(cell.value or "")))
+                    except Exception:
+                        pass
+                ws.column_dimensions[letter].width = min(max_len + 2, 45)
+    saida.seek(0)
+    return saida
+
+
+def ler_excel_tutoria_importacao(arquivo) -> pd.DataFrame:
+    """Lê uma lista Excel/CSV para importar na Tutoria.
+
+    Colunas aceitas: Estudante/Nome/Nome do Aluno, RA, Turma/Série, Tutor/Professor/Responsável.
+    """
+    nome_arquivo = str(getattr(arquivo, "name", "")).lower()
+    if nome_arquivo.endswith(".csv"):
+        bruto = arquivo.getvalue()
+        df = None
+        for sep in [";", ",", "\t", "|"]:
+            for enc in ["utf-8-sig", "latin1", "cp1252"]:
+                try:
+                    teste = pd.read_csv(BytesIO(bruto), sep=sep, encoding=enc)
+                    if teste.shape[1] >= 2:
+                        df = teste
+                        break
+                except Exception:
+                    pass
+            if df is not None:
+                break
+        if df is None:
+            df = pd.read_csv(BytesIO(bruto), sep=None, engine="python")
+    else:
+        df = pd.read_excel(arquivo)
+    df = df.copy()
+    df.columns = [str(c).strip() for c in df.columns]
+
+    def detectar(candidatos):
+        mapa = {normalizar_texto(c): c for c in df.columns}
+        for cand in candidatos:
+            cand_norm = normalizar_texto(cand)
+            for chave, original in mapa.items():
+                if cand_norm == chave or cand_norm in chave or chave in cand_norm:
+                    return original
+        return None
+
+    col_nome = detectar(["Estudante", "Nome", "Nome do Aluno", "Aluno", "Tutorado", "Nome do Tutorado"])
+    col_ra = detectar(["RA", "R.A", "Registro do Aluno"])
+    col_turma = detectar(["Turma", "Serie", "Série", "Ano/Série", "Ano Serie"])
+    col_tutor = detectar(["Tutor", "Tutor(a)", "Professor", "Professor(a)", "Responsável", "Responsavel", "Responsável/Tutor(a)"])
+    if not col_nome:
+        raise ValueError("Não encontrei a coluna do estudante. Use uma coluna chamada Estudante, Nome ou Nome do Aluno.")
+    saida = pd.DataFrame()
+    saida["Tutor(a)"] = df[col_tutor].astype(str).str.strip() if col_tutor else ""
+    saida["Estudante"] = df[col_nome].astype(str).str.strip()
+    saida["RA"] = df[col_ra].astype(str).str.replace(r"\.0$", "", regex=True).str.replace(r"\D", "", regex=True) if col_ra else ""
+    saida["Turma"] = df[col_turma].astype(str).str.strip().apply(formatar_turma_eletiva) if col_turma else ""
+    saida = saida.replace({"nan": "", "NaN": "", "None": ""})
+    saida = saida[saida["Estudante"].astype(str).str.strip() != ""].reset_index(drop=True)
+    return saida
 
 
 def gerar_pdf_estudantes_sem_tutor(contexto: str, df_sem_tutor: pd.DataFrame) -> BytesIO:
@@ -18370,8 +18501,8 @@ elif menu == "🫂 Tutoria":
 
     page_header("🫂 Tutoria", "Cadastre professores, estudantes e espaços usados na tutoria", "#0f766e")
     TUTORIA = normalizar_base_tutoria(st.session_state.get("TUTORIA", {}))
-    # Limpeza segura de responsáveis parciais: nomes com apenas uma palavra
-    # são mesclados ao nome completo correspondente ou ocultados das listas principais.
+    # Correção: preservar e exibir também responsáveis antigos/curtos.
+    # Nada é mesclado ou ocultado automaticamente, para permitir conferência, exportação e exclusão manual.
     TUTORIA = normalizar_responsaveis_tutoria_para_exibicao(TUTORIA, df_professores)
     st.session_state.TUTORIA = TUTORIA
     nomes_tutoria = nomes_responsaveis_validos_tutoria(TUTORIA, df_professores, incluir_sem_alunos=True)
@@ -18810,36 +18941,41 @@ elif menu == "🫂 Tutoria":
     if TUTORIA:
         dados_tutores = []
         total_responsaveis_cadastrados = len(TUTORIA)
-        for tutor, dados in sorted(TUTORIA.items()):
-            if not _nome_responsavel_tutoria_tem_nome_sobrenome(tutor):
-                continue
-            # Contar somente estudantes ativos, conforme a base oficial de alunos.
+        for tutor, dados in sorted(TUTORIA.items(), key=lambda kv: normalizar_texto(kv[0])):
+            alunos_lista_raw = normalizar_alunos_tutoria(dados.get("alunos", []))
+            total_lista = len(alunos_lista_raw)
+            # Conta ativos quando a base oficial permitir, mas não oculta listas antigas.
             df_tutor_ativo = montar_dataframe_tutoria(tutor, df_alunos, TUTORIA)
-            total_alunos_tutor = len(df_tutor_ativo)
-            if total_alunos_tutor <= 0:
-                continue
-            series = ", ".join(sorted({
-                formatar_turma_eletiva(t)
-                for t in df_tutor_ativo.get("Turma", pd.Series(dtype=str)).dropna().astype(str).tolist()
-                if str(t).strip()
-            }, key=ordenar_turma_tutoria))
+            total_alunos_tutor = len(df_tutor_ativo) if df_tutor_ativo is not None else 0
+            series = set()
+            for aluno_lista in alunos_lista_raw:
+                turma_lista = formatar_turma_eletiva(str(aluno_lista.get("serie", aluno_lista.get("turma", ""))).strip())
+                if turma_lista:
+                    series.add(turma_lista)
+            if df_tutor_ativo is not None and not df_tutor_ativo.empty and "Turma" in df_tutor_ativo.columns:
+                for t in df_tutor_ativo.get("Turma", pd.Series(dtype=str)).dropna().astype(str).tolist():
+                    if str(t).strip():
+                        series.add(formatar_turma_eletiva(t))
             dados_tutores.append({
                 "Responsável": tutor,
+                "Status do Nome": "Nome incompleto / antigo" if not _nome_responsavel_tutoria_tem_nome_sobrenome(tutor) else "OK",
                 "Perfil": dados.get("tipo", "Professor(a)"),
                 "Espaço": dados.get("espaco", "") or espaco_oficial_por_tutor(tutor) or "Não informado",
                 "Horário": dados.get("horario", "") or TUTORIA_HORARIO_PADRAO_TURNO1,
                 "Dia": dados.get("dia", "") or TUTORIA_DIA_PADRAO_TURNO1,
-                "Total de Alunos Ativos": total_alunos_tutor,
-                "Turmas": series
+                "Total na Lista": total_lista,
+                "Total Ativos Encontrados": total_alunos_tutor,
+                "Turmas": ", ".join(sorted(series, key=ordenar_turma_tutoria))
             })
         df_tutores_view = pd.DataFrame(dados_tutores)
         if df_tutores_view.empty:
-            st.info("📭 Nenhum responsável com estudante ativo vinculado no momento. Os cadastros continuam preservados para edição, mas esta lista exibe somente estudantes com Situação = Ativo.")
+            st.info("📭 Nenhum cadastro realizado em tutoria.")
         else:
-            st.caption(f"Exibindo somente responsáveis com estudantes ativos vinculados: {len(df_tutores_view)} de {total_responsaveis_cadastrados} cadastro(s).")
+            st.caption(f"Exibindo todos os responsáveis encontrados, inclusive nomes antigos/incompletos e listas sem aluno ativo: {len(df_tutores_view)} de {total_responsaveis_cadastrados} cadastro(s).")
             st.dataframe(df_tutores_view, use_container_width=True, hide_index=True)
-            if any(df_tutores_view[c].astype(str).str.strip().eq("").any() for c in ["Espaço", "Horário", "Dia"] if c in df_tutores_view.columns):
-                st.caption("⚠️ Alguns cadastros estão sem Espaço/Horário/Dia no banco atual. A edição agora preserva esses campos e também tenta recuperar metadados de fontes locais/planilhas/professores quando disponíveis.")
+            incompletos = df_tutores_view[df_tutores_view["Status do Nome"].astype(str).str.contains("incompleto", case=False, na=False)]
+            if not incompletos.empty:
+                st.warning("Há responsáveis com nome incompleto/antigo. Eles estão visíveis agora para você editar, excluir ou exportar antes de limpar.")
     else:
         st.info("📭 Nenhum cadastro realizado em tutoria.")
         st.stop()
@@ -19372,6 +19508,76 @@ elif menu == "🫂 Tutoria":
         except Exception as e:
             st.error(f"Erro ao registrar lista do responsável: {e}")
 
+
+    with st.expander("📥 Importar lista em Excel/CSV por Turma ou por Tutor(a)", expanded=False):
+        st.caption("Importa uma lista com colunas como Estudante/Nome, RA, Turma e Tutor(a). Você confere e edita antes de salvar. Nada é apagado automaticamente.")
+        arquivo_import_tutoria = st.file_uploader(
+            "Arquivo Excel/CSV da lista de tutoria",
+            type=["xlsx", "xls", "csv"],
+            key="tutoria_importar_excel_lista_tutor_turma",
+        )
+        modo_import_tutoria = st.radio(
+            "Como interpretar o arquivo?",
+            ["Usar coluna Tutor(a) do arquivo", "Enviar todos para o responsável selecionado"],
+            horizontal=True,
+            key="tutoria_modo_importacao_excel",
+        )
+        if arquivo_import_tutoria is not None:
+            try:
+                df_import_tutoria = ler_excel_tutoria_importacao(arquivo_import_tutoria)
+                if modo_import_tutoria == "Enviar todos para o responsável selecionado":
+                    df_import_tutoria["Tutor(a)"] = tutor_sel
+                elif "Tutor(a)" in df_import_tutoria.columns:
+                    df_import_tutoria["Tutor(a)"] = df_import_tutoria["Tutor(a)"].astype(str).str.strip().replace("", tutor_sel)
+                st.success(f"Arquivo lido com {len(df_import_tutoria)} linha(s). Confira e edite antes de salvar.")
+                df_import_editado = st.data_editor(
+                    df_import_tutoria,
+                    use_container_width=True,
+                    hide_index=True,
+                    num_rows="dynamic",
+                    key="tutoria_editor_importacao_excel",
+                )
+                col_imp_a, col_imp_b = st.columns([1, 1])
+                with col_imp_a:
+                    salvar_importacao = st.button("✅ Salvar vínculos importados na Tutoria", key="tutoria_btn_salvar_importacao_excel", type="primary", use_container_width=True)
+                with col_imp_b:
+                    st.download_button(
+                        "⬇️ Baixar conferência editada em Excel",
+                        data=_lp_excel_bytes(df_import_editado),
+                        file_name=f"conferencia_importacao_tutoria_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True,
+                        key="tutoria_download_conferencia_importacao_excel",
+                    )
+                if salvar_importacao:
+                    total_salvos = 0
+                    detalhes = []
+                    base_import = df_import_editado.copy().replace({pd.NA: "", None: ""})
+                    for tutor_destino, grupo in base_import.groupby(base_import["Tutor(a)"].astype(str).str.strip().replace("", tutor_sel)):
+                        novos = []
+                        for _, row_imp in grupo.iterrows():
+                            nome_est = str(row_imp.get("Estudante", "")).strip()
+                            if not nome_est:
+                                continue
+                            novos.append({
+                                "nome": nome_est,
+                                "serie": formatar_turma_eletiva(str(row_imp.get("Turma", "")).strip()),
+                                "ra": re.sub(r"\D", "", str(row_imp.get("RA", "") or "")),
+                            })
+                        if novos:
+                            qtd_imp = _adicionar_estudantes_tutoria(novos, origem="importacao_excel_tutoria", tutor_destino=str(tutor_destino).strip() or tutor_sel)
+                            total_salvos += int(qtd_imp or 0)
+                            detalhes.append({"Tutor(a)": str(tutor_destino).strip() or tutor_sel, "Lidos": len(novos), "Salvos": qtd_imp})
+                    if detalhes:
+                        st.dataframe(pd.DataFrame(detalhes), use_container_width=True, hide_index=True)
+                    if total_salvos > 0:
+                        st.success(f"Importação concluída. {total_salvos} vínculo(s) novo(s) salvo(s).")
+                        st.rerun()
+                    else:
+                        st.warning("Nenhum vínculo novo foi salvo. Eles podem já existir ou estar bloqueados por duplicidade.")
+            except Exception as e:
+                st.error(f"Não foi possível importar a lista: {e}")
+
     # ======================================================
     # TUTORIA - INSERIR ESTUDANTES
     # Objetivo: buscar estudantes ativos do Supabase por nome e/ou sala,
@@ -19690,6 +19896,18 @@ elif menu == "🫂 Tutoria":
 
     with st.expander("📦 Exportar impressões em lote", expanded=False):
         st.caption("Gera um arquivo ZIP com PDFs separados. Use para imprimir todos os responsáveis ou todas as turmas de uma vez.")
+        try:
+            excel_tutoria_bytes = gerar_excel_tutoria_exportacao(TUTORIA, df_alunos).getvalue()
+            st.download_button(
+                "📊 Exportar Excel completo da Tutoria (Geral, por Turma, por Tutor, Duplicidades)",
+                data=excel_tutoria_bytes,
+                file_name=f"Tutoria_Exportacao_Completa_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+                key="download_excel_tutoria_exportacao_completa",
+            )
+        except Exception as e:
+            st.warning(f"Não foi possível montar o Excel de exportação agora: {e}")
         col_lote_pdf1, col_lote_pdf2 = st.columns(2)
         with col_lote_pdf1:
             if st.button("📦 Gerar ZIP por Professor(a)", key="tutoria_zip_professores", use_container_width=True):
